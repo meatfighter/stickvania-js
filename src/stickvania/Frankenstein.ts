@@ -73,8 +73,8 @@ import { Zombie } from "./Zombie.js";
 import { ZombieSpawner } from "./ZombieSpawner.js";
 
 export class Frankenstein extends Thing {
-    public static readonly IGOR_JUMP_VELOCITY: number = -Math.sqrt(384 * Main.GRAVITY);
-    public static readonly FLY_TIME: number = 2 * Math.abs(Frankenstein.IGOR_JUMP_VELOCITY) / Main.GRAVITY;
+    public static readonly IGOR_JUMP_VELOCITY: number = -Math.sqrt(384 * 0.21);
+    public static readonly FLY_TIME: number = 2 * Math.abs(Frankenstein.IGOR_JUMP_VELOCITY) / 0.21;
     public static readonly DYING_FADE: number = 1 / 455;
     public static readonly STATE_INACTIVE: number = 0;
     public static readonly STATE_WALKING: number = 1;

@@ -287,7 +287,7 @@ function convertCharLiterals(source) {
 
 function prepareSource(source) {
     return convertCharLiterals(convertArrayInitializers(normalizeSource(source)))
-        .replace(/([0-9]+(?:\.[0-9]+)?|\.[0-9]+)[fFdD]\b/g, "$1")
+        .replace(/(?<![A-Za-z0-9_])([0-9]+(?:\.[0-9]+)?|\.[0-9]+)[fFdD]\b/g, "$1")
         .replace(/\bnew\s+Random\s*\(\s*0xDEADBEEF\s*\)/g, "new JavaRandom(0xDEADBEEF | 0)")
         .replace(/\bnew\s+Random\s*\(/g, "new JavaRandom(")
         .replace(/\bRandom\b/g, "JavaRandom")
@@ -906,6 +906,9 @@ function postProcessClass(className, out) {
     if (className === "DraculaBat") {
         out = draculaBatManual();
     }
+    if (className === "Dracula" || className === "Frankenstein") {
+        out = out.replace(/\bMain\.GRAVITY\b/g, "0.21");
+    }
     if (className === "MermanSpawner") {
         out = out.replace(/\bprivate vy: number = 0;/, "public vy: number = 0;");
     }
@@ -1173,6 +1176,7 @@ function postProcessMain(out) {
 function manualLoadStageSegment() {
     return `private loadStageSegment(a: number, b: number): void {
         this.loadedSegments[a][b] = new StageSegment();
+        this.loadedSegments[a][b].stageSegmentIndex = b;
 
         const fileName = "stages/stage_" + a + "_" + b + ".txt";
         const lines = readResourceLines(fileName);

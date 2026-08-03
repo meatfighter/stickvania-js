@@ -2367,6 +2367,7 @@ export class Main extends BasicGame {
     }
 private loadStageSegment(a: number, b: number): void {
         this.loadedSegments[a][b] = new StageSegment();
+        this.loadedSegments[a][b].stageSegmentIndex = b;
 
         const fileName = "stages/stage_" + a + "_" + b + ".txt";
         const lines = readResourceLines(fileName);
@@ -3711,7 +3712,7 @@ private loadStageSegment(a: number, b: number): void {
         g.setColor(Color.white);
         g.fillRect(64, 96, 512, 352);
 
-        let offset: number = 64 - (this.camera & 0x1);
+        let offset: number = 64 - (this.camera & 0x1f);
         let x: number = this.camera >> 5;
 
         for (let i: number = 0; i < 11; i++) {
