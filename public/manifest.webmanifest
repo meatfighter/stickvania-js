@@ -1,0 +1,16 @@
+{
+    "name": "Stickvania",
+    "short_name": "Stickvania",
+    "description": "A browser PWA port of Stickvania.",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#000000",
+    "icons": [
+        {
+            "src": "/images/icon.png",
+            "sizes": "32x32",
+            "type": "image/png"
+        }
+    ]
+}
