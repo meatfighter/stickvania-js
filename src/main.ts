@@ -94,6 +94,11 @@ async function startGame(): Promise<void> {
             console.error(error);
             showError("Unable to continue. Reload the page and try again.");
         });
+        container.setAlwaysRender(true);
+        container.setVSync(true);
+        container.setSmoothDeltas(false);
+        container.setShowFPS(false);
+        container.setClearEachFrame(true);
         await container.start();
     } catch (error) {
         console.error(error);
