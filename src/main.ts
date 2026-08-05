@@ -20,7 +20,8 @@ let volume = DEFAULT_VOLUME;
 
 function setAudioVolume(value: number): void {
     volume = Math.max(0, Math.min(1, value));
-    SoundStore.get().setSoundVolume(volume);
+    // Slick applies sound volume twice on Sound.play(); compensate so this is a master volume.
+    SoundStore.get().setSoundVolume(Math.sqrt(volume));
     SoundStore.get().setMusicVolume(volume);
 }
 
