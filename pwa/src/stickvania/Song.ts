@@ -47,4 +47,20 @@ export class Song {
             }
         }
     }
+
+    public getIntroForState(): Music {
+        return this.intro;
+    }
+
+    public getLoopForState(): Music {
+        return this.loop;
+    }
+
+    public isPlayingForState(): boolean {
+        return this.playing;
+    }
+
+    public setPlayingForState(playing: boolean): void {
+        this.playing = playing;
+    }
 }

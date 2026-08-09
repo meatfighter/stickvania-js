@@ -27,8 +27,7 @@ input {
 }
 
 .boot-screen,
-.menu-screen,
-.game-screen {
+.menu-screen {
     position: fixed;
     inset: 0;
     display: flex;
@@ -95,7 +94,7 @@ input {
 
 .volume-row {
     display: grid;
-    grid-template-columns: 72px 1fr;
+    grid-template-columns: 72px 1fr 36px;
     align-items: center;
     gap: 14px;
     color: #ffffff;
@@ -106,7 +105,18 @@ input {
     width: 100%;
 }
 
-#start-button {
+.volume-value {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.menu-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.start-button {
     height: 44px;
     border: 1px solid #ffffff;
     background: #ffffff;
@@ -115,13 +125,23 @@ input {
     font-size: 18px;
 }
 
-.game-screen {
-    align-items: stretch;
-    justify-content: stretch;
+.start-button:disabled {
+    border-color: #555555;
+    background: #222222;
+    color: #777777;
+    cursor: default;
+}
+
+.error-text {
+    margin: 0;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.45;
+    text-align: center;
 }
 
 .game-host {
-    position: absolute;
+    position: fixed;
     inset: 0;
     display: flex;
     align-items: center;
@@ -133,25 +153,52 @@ input {
     outline: none;
 }
 
+.game-host.cursor-hidden,
+.game-host.cursor-hidden canvas {
+    cursor: none;
+}
+
 .hamburger-button {
     position: fixed;
     z-index: 10;
-    top: 0;
-    left: 0;
+    top: 12px;
+    left: 12px;
     display: grid;
     width: 44px;
     height: 44px;
     place-items: center;
-    border: 0;
-    background: rgba(0, 0, 0, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.55);
     cursor: pointer;
 }
 
-.hamburger-button span {
+.hamburger-button span,
+.hamburger-button span::before,
+.hamburger-button span::after {
     display: block;
     width: 22px;
     height: 2px;
     background: #ffffff;
+}
+
+.hamburger-button span {
+    position: relative;
+}
+
+.hamburger-button span::before,
+.hamburger-button span::after {
+    position: absolute;
+    left: 0;
+    content: "";
+}
+
+.hamburger-button span::before {
+    top: -7px;
+}
+
+.hamburger-button span::after {
+    top: 7px;
 }
 
 @keyframes boot-dot-one {

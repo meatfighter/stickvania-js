@@ -9,8 +9,14 @@ const browserGlobals = {
     HTMLElement: "readonly",
     HTMLButtonElement: "readonly",
     HTMLInputElement: "readonly",
+    ResizeObserver: "readonly",
+    cancelAnimationFrame: "readonly",
+    clearTimeout: "readonly",
     location: "readonly",
-    navigator: "readonly"
+    localStorage: "readonly",
+    navigator: "readonly",
+    requestAnimationFrame: "readonly",
+    window: "readonly"
 };
 
 const serviceWorkerGlobals = {

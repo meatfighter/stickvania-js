@@ -434,6 +434,10 @@ export class Main extends BasicGame {
     public lands: Sound = null;
     public currentSong: Song = null;
     public requestedSong: Song = null;
+    public currentMusic: Music = null;
+    public loadingCompleteHandler: ((gc: GameContainer) => boolean) = null;
+    public windowedDisplayModeProvider: (() => { width: number; height: number }) = null;
+    private browserSuspended: boolean = false;
     private input: Input = null;
     private recordingIndex: number = 0;
     public constructor() {
@@ -947,7 +951,31 @@ export class Main extends BasicGame {
 		}
   
     }
+    private getWindowedDisplayMode(): { width: number; height: number } {
+    if (this.windowedDisplayModeProvider != null) {
+      try {
+        const displayMode = this.windowedDisplayModeProvider();
+        if (Number.isFinite(displayMode.width) && Number.isFinite(displayMode.height)) {
+          return {
+            width: Math.max(1, trunc(displayMode.width)),
+            height: Math.max(1, trunc(displayMode.height))
+          };
+        }
+      } catch (e) {
+      }
+    }
+    return {
+      width: 640,
+      height: 480
+    };
+  
+    }
     public update(gc: GameContainer, delta: number): void {
+
+    if (this.browserSuspended) {
+      this.nextFrameTime = Sys.getTime();
+      return;
+    }
 
     let count: number = 0;
     while(this.nextFrameTime < Sys.getTime()) {
@@ -967,6 +995,7 @@ export class Main extends BasicGame {
         this.currentSong.stop();
       }
       this.currentSong = this.requestedSong;
+      this.currentMusic = null;
       this.currentSong.play();
     }
     if (this.currentSong != null) {
@@ -979,7 +1008,8 @@ export class Main extends BasicGame {
         if (this.appGameContainer == null) {
           this.appletGameContainer.getContainer().setFullscreen(false);
         } else {
-          this.appGameContainer.setDisplayMode(640, 480, false);
+          const displayMode = this.getWindowedDisplayMode();
+          this.appGameContainer.setDisplayMode(displayMode.width, displayMode.height, false);
           this.scalableGame.containerSizeChanged(gc);
         }
       } else {
@@ -997,7 +1027,8 @@ export class Main extends BasicGame {
       if (this.appGameContainer == null) {
         this.appletGameContainer.getContainer().setFullscreen(false);
       } else {
-        this.appGameContainer.setDisplayMode(640, 480, false);
+        const displayMode = this.getWindowedDisplayMode();
+        this.appGameContainer.setDisplayMode(displayMode.width, displayMode.height, false);
         this.scalableGame.containerSizeChanged(gc);
       }
       this.nextFrameTime = Sys.getTime();
@@ -2581,12 +2612,72 @@ private loadStageSegment(a: number, b: number): void {
       }
       this.requestedSong = null;
       this.currentSong = null;
+      this.currentMusic = music;
       music.play();
     }
   
     }
     public requestSong(song: Song): void {
     this.requestedSong = song;
+  
+    }
+    public stopAllSoundEffects(): void {
+    const fields: Record<string, unknown> = this as unknown as Record<string, unknown>;
+    for (const value of Object.values(fields)) {
+      if (value instanceof Sound) {
+        value.stop();
+      }
+    }
+  
+    }
+    public stopAllSounds(): void {
+    const fields: Record<string, unknown> = this as unknown as Record<string, unknown>;
+    for (const value of Object.values(fields)) {
+      if (value instanceof Sound) {
+        value.stop();
+      } else if (value instanceof Music) {
+        value.stop();
+      } else if (value instanceof Song) {
+        value.stop();
+      }
+    }
+    this.currentMusic = null;
+    this.currentSong = null;
+    this.requestedSong = null;
+  
+    }
+    public setBrowserSuspended(suspended: boolean): void {
+    if (this.browserSuspended == suspended) {
+      return;
+    }
+    this.browserSuspended = suspended;
+    if (suspended) {
+      this.stopAllSoundEffects();
+      if (this.appGameContainer != null) {
+        this.appGameContainer.setMusicOn(false);
+      }
+    } else {
+      if (this.appGameContainer != null) {
+        this.appGameContainer.setMusicOn(true);
+      }
+      if (this.input != null) {
+        this.input.clearKeyPressedRecord();
+      }
+      this.resetNextFrameTime();
+    }
+  
+    }
+    public resetNextFrameTime(): void {
+    this.nextFrameTime = Sys.getTime();
+  
+    }
+    public isStateSaveReady(): boolean {
+    if (this.mode == Main.MODE_LOADING || this.mode == Main.MODE_DEMO
+        || this.mode == Main.MODE_TITLE_SCREEN || this.mode == Main.MODE_CREDITS) {
+      return false;
+    }
+    return this.simon != null && this.stageSegments != null && this.stageSegment != null
+        && this.loadedSegments != null && this.input != null;
   
     }
     public addPlayers(players: number): void {
@@ -3440,6 +3531,13 @@ private loadStageSegment(a: number, b: number): void {
         this.dracula_dead = new Music("music/dracula_dead.ogg");
         break;
       case 0:
+        if (this.loadingCompleteHandler != null) {
+          const handler = this.loadingCompleteHandler;
+          this.loadingCompleteHandler = null;
+          if (handler(gc)) {
+            break;
+          }
+        }
         this.fadeState = Main.FADE_OUT;
         this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
         break;
