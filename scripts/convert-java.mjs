@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { basename, join } from "node:path";
 
 const javaRoot = "C:/NetBeansProjects/stickvania/src/stickvania";
-const outRoot = "src/stickvania";
+const outRoot = "pwa/src/stickvania";
 
 const slickImports = [
     "AL",
@@ -1433,7 +1433,7 @@ function manualIntersections() {
 }
 
 function writeGenerated() {
-    const javaMath = readFileSync("src/stickvania/JavaMath.ts", "utf8");
+    const javaMath = readFileSync("pwa/src/stickvania/JavaMath.ts", "utf8");
     rmSync(outRoot, { recursive: true, force: true });
     mkdirSync(outRoot, { recursive: true });
     writeFileSync(join(outRoot, "JavaMath.ts"), javaMath);

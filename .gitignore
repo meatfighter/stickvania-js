@@ -1,2 +1,9 @@
 node_modules/
 dist/
+desktop/build/
+desktop/dist/
+desktop/target/
+desktop/nbproject/private/
+releases/*.tmp
+releases/*.log
+*.log

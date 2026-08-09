@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#000000">
+    <meta name="description" content="A browser PWA port of Stickvania.">
+    <meta name="app-version" content="%APP_VERSION%">
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest?v=%BUILD_STAMP%">
+    <link rel="icon" href="%BASE_URL%images/icon.png?v=%BUILD_STAMP%" type="image/png">
+    <title>Stickvania</title>
+</head>
+<body>
+    <main id="app">
+        <div id="boot-screen" class="boot-screen" role="status" aria-label="Loading">
+            <div class="boot-dots" aria-hidden="true">
+                <span class="boot-dot"></span>
+                <span class="boot-dot"></span>
+                <span class="boot-dot"></span>
+            </div>
+            <div class="boot-error">Unable to start.<br>Check your connection and reload.</div>
+        </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
