@@ -87,11 +87,6 @@ input {
     gap: 22px;
 }
 
-.menu-title {
-    width: 100%;
-    image-rendering: pixelated;
-}
-
 .volume-row {
     display: grid;
     grid-template-columns: 72px 1fr 36px;
@@ -99,10 +94,62 @@ input {
     gap: 14px;
     color: #ffffff;
     font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 #volume-input {
+    height: 8px;
     width: 100%;
+    margin: 0;
+    border-radius: 10px;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    --thumb-position: 10%;
+}
+
+#volume-input::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 10px;
+    background: linear-gradient(to right, #ffffff 0%, #ffffff var(--thumb-position, 50%), #333333 var(--thumb-position, 50%), #333333 100%);
+}
+
+#volume-input::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+    margin-top: -8px;
+    border: 3px solid #000000;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px #ffffff;
+    appearance: none;
+}
+
+#volume-input::-moz-range-track {
+    height: 8px;
+    border-radius: 10px;
+    background: #333333;
+}
+
+#volume-input::-moz-range-progress {
+    height: 8px;
+    border-radius: 10px;
+    background: #ffffff;
+}
+
+#volume-input::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #000000;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px #ffffff;
+}
+
+#volume-input:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 4px;
 }
 
 .volume-value {
@@ -111,24 +158,41 @@ input {
 }
 
 .menu-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 12px;
 }
 
 .start-button {
-    height: 44px;
-    border: 1px solid #ffffff;
+    min-width: 192px;
+    min-height: 48px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 30px;
     background: #ffffff;
     color: #000000;
     cursor: pointer;
     font-size: 18px;
+    font-weight: 700;
+    text-shadow: none;
+}
+
+.start-button:hover:not(:disabled),
+.start-button:focus-visible:not(:disabled) {
+    background: #ffffff;
+    color: #000000;
+    outline: 2px solid #ffffff;
+    outline-offset: 3px;
+}
+
+.start-button:active:not(:disabled) {
+    transform: translateY(2px);
 }
 
 .start-button:disabled {
-    border-color: #555555;
-    background: #222222;
-    color: #777777;
+    background: #555555;
+    color: #111111;
     cursor: default;
 }
 

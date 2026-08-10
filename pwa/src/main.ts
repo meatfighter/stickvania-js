@@ -13,7 +13,7 @@ import "./styles.css";
 
 const GAME_WIDTH = 640;
 const GAME_HEIGHT = 480;
-const DEFAULT_VOLUME = 0.6;
+const DEFAULT_VOLUME = 0.1;
 const BASE_URL = import.meta.env.BASE_URL;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 
@@ -40,8 +40,10 @@ function setAudioVolume(value: number): void {
     container?.setMusicVolume(volume);
 }
 
-function versionedAssetUrl(ref: string): string {
-    return `${BASE_URL}${ref.replace(/^\/+/, "")}?v=${encodeURIComponent(__BUILD_STAMP__)}`;
+function updateVolumeUi(volumeInput: HTMLInputElement, volumeValue: HTMLElement): void {
+    const volumePercent = Math.round(volume * 100);
+    volumeInput.style.setProperty("--thumb-position", `${volumePercent}%`);
+    volumeValue.textContent = String(volumePercent);
 }
 
 function showBoot(): void {
@@ -69,7 +71,6 @@ function showMenu(errorText = ""): void {
     app.innerHTML = `
         <main class="menu-screen">
             <section class="menu-panel" aria-label="Stickvania menu">
-                <img class="menu-title" src="${versionedAssetUrl("images/title_screen.png")}" alt="Stickvania">
                 <label class="volume-row">
                     <span>Volume</span>
                     <input id="volume-input" type="range" min="0" max="100" step="1" value="${Math.round(volume * 100)}" aria-label="Volume">
@@ -89,8 +90,9 @@ function showMenu(errorText = ""): void {
     const continueButton = document.getElementById("continue-button") as HTMLButtonElement;
     volumeInput.addEventListener("input", () => {
         setAudioVolume(Number(volumeInput.value) / 100);
-        volumeValue.textContent = String(Math.round(volume * 100));
+        updateVolumeUi(volumeInput, volumeValue);
     });
+    updateVolumeUi(volumeInput, volumeValue);
     newGameButton.addEventListener("click", () => {
         gameStateStore.clear();
         setAudioVolume(Number(volumeInput.value) / 100);
