@@ -38,6 +38,9 @@ import { Ghost } from "./Ghost.js";
 import { GrimReaper } from "./GrimReaper.js";
 import { HolyWater } from "./HolyWater.js";
 import { Igor } from "./Igor.js";
+import { ButtonMapping } from "./ButtonMapping.js";
+import { StickvaniaInput } from "./StickvaniaInput.js";
+import { InputConfigMode } from "./InputConfigMode.js";
 import { LanceKnight } from "./LanceKnight.js";
 import { MedusaBoss } from "./MedusaBoss.js";
 import { MedusaHead } from "./MedusaHead.js";
@@ -97,6 +100,7 @@ export class Main extends BasicGame {
     public static readonly MODE_CASTLE_FALLS: number = 7;
     public static readonly MODE_CREDITS: number = 8;
     public static readonly MODE_LOADING: number = 9;
+    public static readonly MODE_INPUT_CONFIG: number = 10;
     public static readonly CANDLE_ITEM_AXE: number = cc("a");
     public static readonly CANDLE_ITEM_BOOMERANG: number = cc("b");
     public static readonly CANDLE_ITEM_CHEST: number = cc("c");
@@ -205,6 +209,7 @@ export class Main extends BasicGame {
     public static readonly FADE_REASON_SHOW_DEMO: number = 7;
     public static readonly FADE_REASON_SHOW_CREDITS: number = 8;
     public static readonly FADE_REASON_ADVANCE_CREDITS: number = 9;
+    public static readonly FADE_REASON_SHOW_INPUT_CONFIG: number = 10;
     public static readonly stageNumbers: number[][][] = [ [ [ 1, 1, 2, 3, 3 ], [ 2 ] ], [ [ 4 ], [ 5, 4 ], [ 6, 5 ], [ 6 ] ], [ [ 7, 7 ], [ 7, 8 ], [ 8, 9 ] ], [ [ 10 ], [ 11, 12 ] ], [ [ 13 ], [ 13, 14 ], [ 15, 14 ], [ 15 ] ], [ [ 17, 16 ], [ 18, 17 ], [ 18 ] ], ];
     public static readonly whipSizes: number[][] = [ [ 43, 3 ], [ 48, 7 ], [ 80, 7 ] ];
     public static readonly whipOffsets: number[][][] = [ [ [ 5, 11 ], [ 0, 11 ] ], [ [ 0, 9 ], [ 0, 9 ] ], [ [ 0, 9 ], [ 0, 9 ] ], ];
@@ -274,6 +279,7 @@ export class Main extends BasicGame {
     private pressEnterVisibleIncrementor: number = 0;
     private pressEnterVisibleCount: number = 0;
     private enterPressed: boolean = false;
+    private titleSelectedIndex: number = 0;
     private static readonly titleBatSequence: number[] = [ 0, 1, 2, 1 ];
     public introWalkSpriteIndexIncrementor: number = 0;
     public introWalkSpriteIndex: number = 0;
@@ -447,6 +453,9 @@ export class Main extends BasicGame {
     public browserFullscreenController: BrowserFullscreenController = null;
     private browserSuspended: boolean = false;
     private input: Input = null;
+    public buttonMapping: ButtonMapping = ButtonMapping.load();
+    public controlInput: StickvaniaInput = null;
+    private inputConfigMode: InputConfigMode = null;
     private recordingIndex: number = 0;
     public constructor() {
         super("Stickvania");
@@ -481,6 +490,7 @@ export class Main extends BasicGame {
     }
 
     this.input = gc.getInput();
+    this.controlInput = new StickvaniaInput(this.input, this.buttonMapping);
 
     let pack1: PackedSpriteSheet = new PackedSpriteSheet("images/pack_1.def", Image.FILTER_NEAREST);
     let pack2: PackedSpriteSheet = new PackedSpriteSheet("images/pack_2.def", Image.FILTER_NEAREST);
@@ -1050,6 +1060,7 @@ export class Main extends BasicGame {
       }
       this.nextFrameTime = Sys.getTime();
     }
+    this.controlInput.update();
 
     if (this.fadeState == Main.FADE_IN) {
       if (this.fade == 0) {
@@ -1093,6 +1104,9 @@ export class Main extends BasicGame {
           case Main.FADE_REASON_ADVANCE_CREDITS:
             this.advanceCredits();
             break;
+          case Main.FADE_REASON_SHOW_INPUT_CONFIG:
+            this.initInputConfig(gc);
+            break;
         }
         this.fadeState = Main.FADE_IN;
         return;
@@ -1126,6 +1140,9 @@ export class Main extends BasicGame {
         break;
       case Main.MODE_LOADING:
         this.updateLoading(gc);
+        return;
+      case Main.MODE_INPUT_CONFIG:
+        this.updateInputConfig(gc);
         return;
     }
 
@@ -1315,19 +1332,21 @@ export class Main extends BasicGame {
       return;
     }
     
-    let keyDownD: boolean = this.input.isKeyDown(Input.KEY_D);
-    let keyDownF: boolean = this.input.isKeyDown(Input.KEY_F);
-    let keyDownUp: boolean = this.input.isKeyDown(Input.KEY_UP);
-    let keyDownDown: boolean = this.input.isKeyDown(Input.KEY_DOWN);
-    let keyDownLeft: boolean = this.input.isKeyDown(Input.KEY_LEFT);
-    let keyDownRight: boolean = this.input.isKeyDown(Input.KEY_RIGHT);
+    let keyDownUp: boolean = this.controlInput.isUp();
+    let keyDownDown: boolean = this.controlInput.isDown();
+    let keyDownLeft: boolean = this.controlInput.isLeft();
+    let keyDownRight: boolean = this.controlInput.isRight();
+    let keyDownJump: boolean = this.controlInput.isJump();
+    const keyDownAttack: boolean = this.controlInput.isAttack();
+    let keyDownWhip: boolean = keyDownAttack && !keyDownUp;
+    let keyDownSubWeapon: boolean = keyDownAttack && keyDownUp;
 
 
     
 
     if (this.mode == Main.MODE_DEMO || this.mode == Main.MODE_CREDITS) {
       if (this.mode == Main.MODE_DEMO) {
-        if (this.recordingIndex == 2730 || this.input.isKeyPressed(Input.KEY_ENTER)) {
+        if (this.recordingIndex == 2730 || this.controlInput.isAnyNonDirectionalPressed()) {
           this.fadeState = Main.FADE_OUT;
           this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
           return;
@@ -1349,12 +1368,13 @@ export class Main extends BasicGame {
       keyDown >>= 1;
       keyDownUp = (keyDown & 1) == 1;
       keyDown >>= 1;
-      keyDownF = (keyDown & 1) == 1;
+      keyDownSubWeapon = (keyDown & 1) == 1;
       keyDown >>= 1;
-      keyDownD = (keyDown & 1) == 1;
+      keyDownWhip = (keyDown & 1) == 1;
+      keyDownJump = keyDownUp;
     }
 
-    if (!keyDownD && !keyDownF) {
+    if (!keyDownWhip && !keyDownSubWeapon) {
       this.simon.releasedWhip = true;
     }
     if (this.simon.whipping) {
@@ -1371,7 +1391,7 @@ export class Main extends BasicGame {
         this.simon.throwing = false;
       }
     } else if (this.simon.releasedWhip) {
-      if (keyDownD) {
+      if (keyDownWhip) {
         if (this.simon.whipType == 0) {
           this.playSound(this.whip_1);
         } else {
@@ -1381,7 +1401,7 @@ export class Main extends BasicGame {
         this.simon.whipIncrementor = 0;
         this.simon.whipIndex = 0;
         this.simon.releasedWhip = false;
-      } else if (keyDownF
+      } else if (keyDownSubWeapon
           && this.weaponType != Main.WEAPON_TYPE_NONE
           && this.weaponsStack.top < this.weaponRepeats
           && ((this.weaponType != Main.WEAPON_TYPE_STOP_WATCH && this.hearts > 0)
@@ -1579,7 +1599,7 @@ export class Main extends BasicGame {
           if (!walking) {
             this.simon.stand();
           }
-          if (keyDownUp) {
+          if (keyDownJump) {
             if (this.simon.releasedJump && this.simon.supported) {
               this.simon.vy = Main.SIMON_JUMP_VELOCITY;
             }
@@ -2468,7 +2488,7 @@ private loadStageSegment(a: number, b: number): void {
     }
   
     }
-    private drawString(string: string, x: number, y: number, length: number = string.length): void {
+    public drawString(string: string, x: number, y: number, length: number = string.length): void {
         for (let i: number = 0; i < string.length && i < length; i++, x += 16) {
             this.symbols[string.charCodeAt(i)].draw(x, y);
         }
@@ -2677,15 +2697,28 @@ private loadStageSegment(a: number, b: number): void {
       if (this.appGameContainer != null) {
         this.appGameContainer.setMusicOn(true);
       }
-      if (this.input != null) {
-        this.input.clearKeyPressedRecord();
-      }
+      this.clearInputPressedRecords();
       this.resetNextFrameTime();
     }
   
     }
     public resetNextFrameTime(): void {
     this.nextFrameTime = Sys.getTime();
+  
+    }
+    public clearInputPressedRecords(): void {
+    if (this.input != null) {
+      this.input.clearKeyPressedRecord();
+      this.input.clearControlPressedRecord();
+    }
+    if (this.controlInput != null) {
+      this.controlInput.clearPressedState();
+    }
+  
+    }
+    public finishInputConfig(): void {
+    this.fadeState = Main.FADE_OUT;
+    this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
   
     }
     public isLoadingScreenActive(): boolean {
@@ -2711,7 +2744,8 @@ private loadStageSegment(a: number, b: number): void {
     }
     public isStateSaveReady(): boolean {
     if (this.mode == Main.MODE_LOADING || this.mode == Main.MODE_DEMO
-        || this.mode == Main.MODE_TITLE_SCREEN || this.mode == Main.MODE_CREDITS) {
+        || this.mode == Main.MODE_TITLE_SCREEN || this.mode == Main.MODE_CREDITS
+        || this.mode == Main.MODE_INPUT_CONFIG) {
       return false;
     }
     return this.simon != null && this.stageSegments != null && this.stageSegment != null
@@ -3044,7 +3078,7 @@ private loadStageSegment(a: number, b: number): void {
     }
     public advanceCredits(): void {
     this.mode = Main.MODE_CREDITS;
-    this.input.clearKeyPressedRecord();
+    this.clearInputPressedRecords();
     if (this.creditsIndex == 11) {
       this.creditsIndex = 12;
       this.creditsPresents = true;
@@ -3165,6 +3199,8 @@ private loadStageSegment(a: number, b: number): void {
     this.hearts = 99;
 
     this.random = new JavaRandom(0xDEADBEEF | 0);
+
+    this.clearInputPressedRecords();
 
     this.nextFrameTime = Sys.getTime();
   
@@ -3331,7 +3367,7 @@ private loadStageSegment(a: number, b: number): void {
 
     this.createStage(this.stageIndex, true);
 
-    this.input.clearKeyPressedRecord();
+    this.clearInputPressedRecords();
 
     let percent: number = 1 - this.introTime * 0.0013755158184319119669876203576341;
     let angle: number = percent * 1.5707963267948966192313216916398;
@@ -3411,7 +3447,7 @@ private loadStageSegment(a: number, b: number): void {
 
     this.createStage(this.stageIndex, true);
 
-    this.input.clearKeyPressedRecord();
+    this.clearInputPressedRecords();
 
     this.requestMusic(this.game_over);
 
@@ -3419,11 +3455,11 @@ private loadStageSegment(a: number, b: number): void {
   
     }
     public updateContinueScreen(gc: GameContainer): void {
-    if (this.input.isKeyPressed(Input.KEY_UP)) {
+    if (this.controlInput.isMenuUpPressed()) {
       this.continueSelected = true;
-    } else if (this.input.isKeyPressed(Input.KEY_DOWN)) {
+    } else if (this.controlInput.isMenuDownPressed()) {
       this.continueSelected = false;
-    } else if (this.input.isKeyPressed(Input.KEY_ENTER)) {
+    } else if (this.controlInput.isMenuSelectPressed()) {
       this.fadeState = Main.FADE_OUT;
       if (this.continueSelected) {
         this.fadeReason = Main.FADE_REASON_RESTORE_CHECKPOINT;
@@ -3449,6 +3485,29 @@ private loadStageSegment(a: number, b: number): void {
     }
   
     }
+    public initInputConfig(gc: GameContainer): void {
+
+    this.mode = Main.MODE_INPUT_CONFIG;
+    if (this.inputConfigMode != null) {
+      this.inputConfigMode.dispose();
+    }
+    this.inputConfigMode = new InputConfigMode(this);
+    this.inputConfigMode.init(gc);
+    this.nextFrameTime = Sys.getTime();
+  
+    }
+    public updateInputConfig(gc: GameContainer): void {
+    if (this.inputConfigMode != null) {
+      this.inputConfigMode.update(gc);
+    }
+  
+    }
+    public renderInputConfig(gc: GameContainer, g: Graphics): void {
+    if (this.inputConfigMode != null) {
+      this.inputConfigMode.render(gc, g);
+    }
+  
+    }
     private mapScreenX: number = 0;
     private mapScreenTargetX: number = 0;
     private mapDelay: number = 0;
@@ -3467,7 +3526,7 @@ private loadStageSegment(a: number, b: number): void {
     this.mapScreenX = 576;
     this.mapScreenTargetX = this.stageIndex > 2 ? -192 : 64;
 
-    this.input.clearKeyPressedRecord();
+    this.clearInputPressedRecords();
 
     this.justShowedMap = true;
     this.createStage(this.stageIndex, true);
@@ -3647,6 +3706,10 @@ private loadStageSegment(a: number, b: number): void {
     if (this.game_over.playing()) {
       this.game_over.stop();
     }
+    if (this.inputConfigMode != null) {
+      this.inputConfigMode.dispose();
+      this.inputConfigMode = null;
+    }
 
     this.mode = Main.MODE_TITLE_SCREEN;
 
@@ -3662,9 +3725,10 @@ private loadStageSegment(a: number, b: number): void {
     this.pressEnterVisibleIncrementor = 0;
     this.pressEnterVisibleCount = 0;
     this.enterPressed = false;
+    this.titleSelectedIndex = 0;
     this.titleBatAngle = 0;
 
-    this.input.clearKeyPressedRecord();
+    this.clearInputPressedRecords();
 
     this.nextFrameTime = Sys.getTime();
   
@@ -3688,19 +3752,17 @@ private loadStageSegment(a: number, b: number): void {
         }
       }
 
-      if (this.enterPressed) {
-        if (++this.pressEnterVisibleIncrementor == 20) {
-          this.pressEnterVisibleIncrementor = 0;
-          this.pressEnterVisible = !this.pressEnterVisible;
-          if (++this.pressEnterVisibleCount == 10) {
-            this.fadeState = Main.FADE_OUT;
-            this.fadeReason = Main.FADE_REASON_SHOW_INTRO;
-          }
-        }
-      } else if (this.input.isKeyPressed(Input.KEY_ENTER)) {
+      if (this.controlInput.isMenuUpPressed()) {
+        this.titleSelectedIndex = 0;
+        this.titleTimeout = 1365;
+      } else if (this.controlInput.isMenuDownPressed()) {
+        this.titleSelectedIndex = 1;
+        this.titleTimeout = 1365;
+      } else if (this.controlInput.isMenuSelectPressed()) {
         this.playSound(this.pressed_enter);
-        this.enterPressed = true;
-        this.pressEnterVisible = false;
+        this.fadeState = Main.FADE_OUT;
+        this.fadeReason = this.titleSelectedIndex == 0
+            ? Main.FADE_REASON_SHOW_INTRO : Main.FADE_REASON_SHOW_INPUT_CONFIG;
       } else if (--this.titleTimeout <= 0) {
         this.fadeState = Main.FADE_OUT;
         this.fadeReason = Main.FADE_REASON_SHOW_DEMO;
@@ -3721,12 +3783,13 @@ private loadStageSegment(a: number, b: number): void {
       this.titleBats[Main.titleBatSequence[this.titleBatSpriteIndex]].draw(trunc(this.titleBatX), trunc(this.titleBatY), trunc(this.titleBatScale), trunc(this.titleBatScale));
     }
 
-    if (this.pressEnterVisible) {
-      this.drawString("PRESS ENTER", 240, 240);
+    this.drawString("START", 272, 288);
+    this.drawString("INPUT", 272, 336);
+    if (this.titleSelectedIndex == 0) {
+      this.smallHeart.draw(240, 288);
+    } else {
+      this.smallHeart.draw(240, 336);
     }
-    this.drawString("D - WHIP", 224, 288);
-    this.drawString("F - SUB-WEAPON", 224, 320);
-    this.drawString("ARROW KEYS - WALK, JUMP, KNEEL", 80, 352);
     this.drawString("SPACE - FULL-SCREEN MODE", 160, 384);
     this.drawString("@ 2010 MEATFIGHTER.COM", 144, 430);
   
@@ -3835,6 +3898,9 @@ private loadStageSegment(a: number, b: number): void {
         break;
       case Main.MODE_LOADING:
         this.renderLoading(gc, g);
+        break;
+      case Main.MODE_INPUT_CONFIG:
+        this.renderInputConfig(gc, g);
         break;
       case Main.MODE_CASTLE_FALLS:
         this.renderCastleFalls(gc, g);

@@ -217,6 +217,9 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "requestedSong",
     "currentMusic",
     "input",
+    "buttonMapping",
+    "controlInput",
+    "inputConfigMode",
     "loadingCompleteHandler",
     "loadingFinishedHandler",
     "windowedDisplayModeProvider",
@@ -290,7 +293,7 @@ export class StickvaniaGameStateSerializer {
         this.runAfterRestoreHooks(context);
         this.restoreAudio(context, snapshot.audio);
         main.setBrowserSuspended(false);
-        this.getField<FieldBag>(main, "input")?.clearKeyPressedRecord();
+        main.clearInputPressedRecords();
         main.resetNextFrameTime();
     }
 
