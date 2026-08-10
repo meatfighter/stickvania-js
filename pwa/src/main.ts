@@ -13,6 +13,8 @@ import "./styles.css";
 
 const GAME_WIDTH = 640;
 const GAME_HEIGHT = 480;
+const GAME_VIEWPORT_WIDTH = 512;
+const GAME_VIEWPORT_HEIGHT = 416;
 const DEFAULT_VOLUME = 0.1;
 const BASE_URL = import.meta.env.BASE_URL;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
@@ -20,6 +22,7 @@ const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 let app: HTMLElement;
 let container: AppGameContainer | null = null;
 let game: Main | null = null;
+let activeGameShell: HTMLElement | null = null;
 let activeGameHost: HTMLElement | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let resizeAnimationFrame = 0;
@@ -106,12 +109,15 @@ function showMenu(errorText = ""): void {
 
 function showGameShell(): HTMLElement {
     app.innerHTML = `
-        <div id="game-host" class="game-host"></div>
-        <button id="hamburger-button" class="hamburger-button" type="button" aria-label="Return to menu" title="Return to menu">
-            <span></span>
-        </button>`;
+        <div id="game-shell" class="game-shell">
+            <div id="game-host" class="game-host"></div>
+            <button id="hamburger-button" class="hamburger-button" type="button" aria-label="Return to menu" title="Return to menu">
+                <span></span>
+            </button>
+        </div>`;
     const hamburger = document.getElementById("hamburger-button") as HTMLButtonElement;
     hamburger.addEventListener("click", returnToMenu);
+    activeGameShell = document.getElementById("game-shell") as HTMLElement;
     return document.getElementById("game-host") as HTMLElement;
 }
 
@@ -131,6 +137,11 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
         mainGame.appGameContainer = appContainer;
         mainGame.scalableGame = scalableGame;
         mainGame.windowedDisplayModeProvider = getResponsiveWindowedDisplayMode;
+        mainGame.browserFullscreenController = {
+            isFullscreen: isGameShellFullscreen,
+            enterFullscreen: enterGameShellFullscreen,
+            exitFullscreen: exitGameShellFullscreen
+        };
         if (restoreSavedGame) {
             mainGame.loadingCompleteHandler = (gc) => {
                 if (!gameStateStore.restore(mainGame, gc)) {
@@ -193,6 +204,7 @@ function destroyGame(): void {
     stopGameCursorAutoHide();
     stopResponsiveGameSizing();
     game?.stopAllSounds();
+    exitGameShellFullscreen();
     if (container !== null) {
         container.destroy();
         container = null;
@@ -200,6 +212,7 @@ function destroyGame(): void {
         AL.destroy();
     }
     game = null;
+    activeGameShell = null;
     activeGameHost = null;
     Display.setParent(null);
 }
@@ -233,19 +246,27 @@ function scheduleResponsiveGameResize(): void {
     }
     resizeAnimationFrame = requestAnimationFrame(() => {
         resizeAnimationFrame = 0;
-        applyResponsiveWindowedDisplayMode();
+        applyResponsiveGameDisplayMode();
     });
 }
 
-function applyResponsiveWindowedDisplayMode(): void {
-    if (container === null || activeGameHost === null || container.isFullscreen()
-            || document.fullscreenElement !== null) {
+function applyResponsiveGameDisplayMode(): void {
+    if (container === null || activeGameHost === null) {
         return;
     }
 
-    const displayMode = getResponsiveWindowedDisplayMode();
+    const fullscreenElement = document.fullscreenElement;
+    const shellFullscreen = fullscreenElement === activeGameShell;
+    const containerFullscreen = container.isFullscreen();
+    if (!shellFullscreen && !containerFullscreen && fullscreenElement !== null) {
+        return;
+    }
+
+    const displayMode = containerFullscreen
+        ? getResponsiveFullscreenDisplayMode()
+        : getResponsiveWindowedDisplayMode();
     try {
-        void Promise.resolve(container.setDisplayMode(displayMode.width, displayMode.height, false))
+        void Promise.resolve(container.setDisplayMode(displayMode.width, displayMode.height, containerFullscreen))
             .catch(error => {
                 console.error(error);
                 showError("Unable to resize the game. Reload the page and try again.");
@@ -258,22 +279,65 @@ function applyResponsiveWindowedDisplayMode(): void {
 
 function getResponsiveWindowedDisplayMode(): { width: number; height: number } {
     const host = activeGameHost ?? document.getElementById("game-host");
-    const fallbackWidth = window.innerWidth || GAME_WIDTH;
-    const fallbackHeight = window.innerHeight || GAME_HEIGHT;
+    const fallbackDisplayMode = getResponsiveFullscreenDisplayMode();
     if (host === null) {
-        return {
-            width: Math.max(1, Math.trunc(fallbackWidth)),
-            height: Math.max(1, Math.trunc(fallbackHeight))
-        };
+        return fallbackDisplayMode;
     }
 
     const rect = host.getBoundingClientRect();
-    const width = host.clientWidth || rect.width || fallbackWidth;
-    const height = host.clientHeight || rect.height || fallbackHeight;
+    const width = host.clientWidth || rect.width || fallbackDisplayMode.width;
+    const height = host.clientHeight || rect.height || fallbackDisplayMode.height;
+    return getAspectFitDisplayMode(width, height);
+}
+
+function getResponsiveFullscreenDisplayMode(): { width: number; height: number } {
+    const viewport = window.visualViewport;
+    const width = viewport?.width || window.innerWidth || document.documentElement.clientWidth || GAME_WIDTH;
+    const height = viewport?.height || window.innerHeight || document.documentElement.clientHeight || GAME_HEIGHT;
+    return normalizeDisplayMode(width, height);
+}
+
+function getAspectFitDisplayMode(width: number, height: number): { width: number; height: number } {
+    const displayMode = normalizeDisplayMode(width, height);
+    const gameAspectRatio = GAME_VIEWPORT_WIDTH / GAME_VIEWPORT_HEIGHT;
+    const displayAspectRatio = displayMode.width / displayMode.height;
+    if (displayAspectRatio > gameAspectRatio) {
+        return normalizeDisplayMode(displayMode.height * gameAspectRatio, displayMode.height);
+    }
+    return normalizeDisplayMode(displayMode.width, displayMode.width / gameAspectRatio);
+}
+
+function normalizeDisplayMode(width: number, height: number): { width: number; height: number } {
     return {
         width: Math.max(1, Math.trunc(width)),
         height: Math.max(1, Math.trunc(height))
     };
+}
+
+function isGameShellFullscreen(): boolean {
+    return activeGameShell !== null && document.fullscreenElement === activeGameShell;
+}
+
+function enterGameShellFullscreen(): void {
+    if (activeGameShell === null || isGameShellFullscreen() || !activeGameShell.requestFullscreen) {
+        return;
+    }
+    void activeGameShell.requestFullscreen()
+        .then(scheduleResponsiveGameResize)
+        .catch(error => {
+            console.error(error);
+        });
+}
+
+function exitGameShellFullscreen(): void {
+    if (!isGameShellFullscreen() || !document.exitFullscreen) {
+        return;
+    }
+    void document.exitFullscreen()
+        .then(scheduleResponsiveGameResize)
+        .catch(error => {
+            console.error(error);
+        });
 }
 
 function startGameCursorAutoHide(host: HTMLElement): void {

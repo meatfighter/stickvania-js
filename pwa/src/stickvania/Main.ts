@@ -72,6 +72,12 @@ import { Wrapping } from "./Wrapping.js";
 import { Zombie } from "./Zombie.js";
 import { ZombieSpawner } from "./ZombieSpawner.js";
 
+type BrowserFullscreenController = {
+    isFullscreen(): boolean;
+    enterFullscreen(): void;
+    exitFullscreen(): void;
+};
+
 export class Main extends BasicGame {
     public static readonly GRAVITY: number = 0.21;
     public static readonly SIMON_JUMP_VELOCITY: number = -5.25;
@@ -437,6 +443,7 @@ export class Main extends BasicGame {
     public currentMusic: Music = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) = null;
     public windowedDisplayModeProvider: (() => { width: number; height: number }) = null;
+    public browserFullscreenController: BrowserFullscreenController = null;
     private browserSuspended: boolean = false;
     private input: Input = null;
     private recordingIndex: number = 0;
@@ -1002,8 +1009,13 @@ export class Main extends BasicGame {
       this.currentSong.update();
     }
 
+    const browserFullscreen = this.browserFullscreenController != null
+        && this.browserFullscreenController.isFullscreen();
     if (this.input.isKeyPressed(Input.KEY_SPACE)) {
-      if (gc.isFullscreen()) {
+      if (browserFullscreen) {
+        this.showMouseCursor();
+        this.browserFullscreenController.exitFullscreen();
+      } else if (gc.isFullscreen()) {
         this.showMouseCursor();
         if (this.appGameContainer == null) {
           this.appletGameContainer.getContainer().setFullscreen(false);
@@ -1014,7 +1026,9 @@ export class Main extends BasicGame {
         }
       } else {
         this.hideMouseCursor();
-        if (this.appGameContainer == null) {
+        if (this.browserFullscreenController != null) {
+          this.browserFullscreenController.enterFullscreen();
+        } else if (this.appGameContainer == null) {
           this.appletGameContainer.getContainer().setFullscreen(true);
         } else {
           this.appGameContainer.setDisplayMode(this.maxWidth, this.maxHeight, true);
@@ -1022,9 +1036,11 @@ export class Main extends BasicGame {
         }
       }      
       this.nextFrameTime = Sys.getTime();
-    } else if (gc.isFullscreen() && this.input.isKeyPressed(Input.KEY_ESCAPE)) {
+    } else if ((browserFullscreen || gc.isFullscreen()) && this.input.isKeyPressed(Input.KEY_ESCAPE)) {
       this.showMouseCursor();
-      if (this.appGameContainer == null) {
+      if (browserFullscreen) {
+        this.browserFullscreenController.exitFullscreen();
+      } else if (this.appGameContainer == null) {
         this.appletGameContainer.getContainer().setFullscreen(false);
       } else {
         const displayMode = this.getWindowedDisplayMode();
