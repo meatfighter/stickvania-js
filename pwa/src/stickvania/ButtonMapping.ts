@@ -12,6 +12,7 @@ type ButtonMappingSnapshot = {
     keyRight: number;
     controller: boolean;
     controllerIndex: number;
+    controllerId?: string;
     controllerJump?: number;
     controllerAttack?: number;
     controllerWhip?: number;
@@ -20,7 +21,7 @@ type ButtonMappingSnapshot = {
 
 export class ButtonMapping {
     private static readonly STORAGE_KEY = "stickvania.input-mapping";
-    private static readonly VERSION = 3;
+    private static readonly VERSION = 4;
 
     public keyJump: number = Input.KEY_X;
     public keyAttack: number = Input.KEY_Z;
@@ -30,6 +31,7 @@ export class ButtonMapping {
     public keyRight: number = Input.KEY_RIGHT;
     public controller: boolean = false;
     public controllerIndex: number = 0;
+    public controllerId: string = "";
     public controllerJump: number = 1;
     public controllerAttack: number = 0;
 
@@ -52,6 +54,7 @@ export class ButtonMapping {
             mapping.keyRight = snapshot.keyRight;
             mapping.controller = snapshot.controller;
             mapping.controllerIndex = snapshot.controllerIndex;
+            mapping.controllerId = snapshot.controllerId ?? "";
             mapping.controllerJump = snapshot.controllerJump ?? snapshot.controllerSubWeapon;
             mapping.controllerAttack = snapshot.controllerAttack ?? snapshot.controllerWhip;
         } catch {
@@ -79,6 +82,35 @@ export class ButtonMapping {
         return this.controller && (this.controllerJump === button || this.controllerAttack === button);
     }
 
+    public rememberController(controllerIndex: number): void {
+        this.controllerIndex = controllerIndex;
+        this.controllerId = ButtonMapping.controllerIdForIndex(controllerIndex);
+    }
+
+    public resolveControllerIndex(): number {
+        const gamepads = ButtonMapping.getGamepads();
+        if (this.controllerId.length > 0) {
+            for (const gamepad of gamepads) {
+                if (gamepad !== null && gamepad.id === this.controllerId) {
+                    return this.useResolvedController(gamepad);
+                }
+            }
+        }
+
+        const indexedGamepad = gamepads[this.controllerIndex];
+        if (indexedGamepad !== null && indexedGamepad !== undefined) {
+            return this.useResolvedController(indexedGamepad);
+        }
+
+        for (const gamepad of gamepads) {
+            if (gamepad !== null) {
+                return this.useResolvedController(gamepad);
+            }
+        }
+
+        return this.controllerIndex;
+    }
+
     private toSnapshot(): ButtonMappingSnapshot {
         return {
             version: ButtonMapping.VERSION,
@@ -90,6 +122,7 @@ export class ButtonMapping {
             keyRight: this.keyRight,
             controller: this.controller,
             controllerIndex: this.controllerIndex,
+            controllerId: this.controllerId,
             controllerJump: this.controllerJump,
             controllerAttack: this.controllerAttack
         };
@@ -108,7 +141,31 @@ export class ButtonMapping {
             && Number.isFinite(snapshot.keyRight)
             && typeof snapshot.controller === "boolean"
             && Number.isFinite(snapshot.controllerIndex)
+            && (snapshot.controllerId === undefined || typeof snapshot.controllerId === "string")
             && Number.isFinite(snapshot.controllerJump ?? snapshot.controllerSubWeapon)
             && Number.isFinite(snapshot.controllerAttack ?? snapshot.controllerWhip);
+    }
+
+    private static controllerIdForIndex(controllerIndex: number): string {
+        return ButtonMapping.getGamepads()[controllerIndex]?.id ?? "";
+    }
+
+    private useResolvedController(gamepad: Gamepad): number {
+        const changed = this.controllerIndex !== gamepad.index || this.controllerId.length === 0;
+        this.controllerIndex = gamepad.index;
+        if (this.controllerId.length === 0) {
+            this.controllerId = gamepad.id;
+        }
+        if (changed) {
+            this.save();
+        }
+        return gamepad.index;
+    }
+
+    private static getGamepads(): Array<Gamepad | null> {
+        if (typeof navigator === "undefined" || !navigator.getGamepads) {
+            return [];
+        }
+        return Array.from(navigator.getGamepads());
     }
 }

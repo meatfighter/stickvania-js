@@ -684,6 +684,7 @@ export class StickvaniaGameStateSerializer {
             }
         }
         this.restoreSimonAlpha(context.main);
+        context.main.syncSimonPhysicsProfile();
     }
 
     private restoreSimonAlpha(main: Main): void {

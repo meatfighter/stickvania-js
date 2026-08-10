@@ -90,7 +90,9 @@ export class StickvaniaInput {
 
     private readState(): InputState {
         const controllerMapped = this.mapping.controller;
-        const controller = this.mapping.controllerIndex;
+        const controller = controllerMapped
+            ? this.mapping.resolveControllerIndex()
+            : this.mapping.controllerIndex;
         const up = this.input.isKeyDown(this.mapping.keyUp)
             || (controllerMapped && this.input.isControllerUp(controller));
         const down = this.input.isKeyDown(this.mapping.keyDown)

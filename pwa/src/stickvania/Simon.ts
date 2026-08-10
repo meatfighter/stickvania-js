@@ -102,6 +102,7 @@ export class Simon extends Thing {
     public hurt: boolean = false;
     public dead: number = 0;
     public drankPotion: boolean = false;
+    public jumpVelocity: number = Main.SIMON_JUMP_VELOCITY;
     public constructor(main: Main) {
     super(main, 20, 4, 24, 60);
   

@@ -98,7 +98,7 @@ export class InputConfigMode implements ControllerListener, KeyListener {
             return;
         }
         this.main.buttonMapping.controller = true;
-        this.main.buttonMapping.controllerIndex = controller;
+        this.main.buttonMapping.rememberController(controller);
         this.message = "";
         this.advanceController();
     }

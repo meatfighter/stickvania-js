@@ -84,6 +84,8 @@ type BrowserFullscreenController = {
 export class Main extends BasicGame {
     public static readonly GRAVITY: number = 0.21;
     public static readonly SIMON_JUMP_VELOCITY: number = -5.25;
+    public static readonly PLAYER_CONTROLLED_GRAVITY: number = 0.130027228;
+    public static readonly PLAYER_CONTROLLED_JUMP_VELOCITY: number = -4.262100987;
     public static readonly INVINCIBLE_FRACTION: number = 0.032608695652173913043478260869565;
     public static readonly TITLE_BAT_ANGLE_INC: number = ((3 * Math.PI / 2) / 273);
     public static readonly TITLE_BAT_SCALE_INC: number = 54 / 273;
@@ -1146,6 +1148,8 @@ export class Main extends BasicGame {
         return;
     }
 
+    this.syncSimonPhysicsProfile();
+
     if (this.beatStageFlag) {
       if (this.beatStageDelay > 0) {
         this.beatStageDelay--;
@@ -1601,7 +1605,7 @@ export class Main extends BasicGame {
           }
           if (keyDownJump) {
             if (this.simon.releasedJump && this.simon.supported) {
-              this.simon.vy = Main.SIMON_JUMP_VELOCITY;
+              this.simon.vy = this.simon.jumpVelocity;
             }
             this.simon.releasedJump = false;
           } else {
@@ -2706,6 +2710,29 @@ private loadStageSegment(a: number, b: number): void {
     this.nextFrameTime = Sys.getTime();
   
     }
+    private isUserControlledSimonPhysics(): boolean {
+    return this.mode == Main.MODE_PLAYING
+        && this.simon != null
+        && this.playerPower > 0
+        && this.simon.dead == 0
+        && this.door == null
+        && !this.beatStageFlag
+        && !this.floorBreaking;
+  
+    }
+    public syncSimonPhysicsProfile(): void {
+    if (this.simon == null) {
+      return;
+    }
+    if (this.isUserControlledSimonPhysics()) {
+      this.simon.G = Main.PLAYER_CONTROLLED_GRAVITY;
+      this.simon.jumpVelocity = Main.PLAYER_CONTROLLED_JUMP_VELOCITY;
+    } else {
+      this.simon.G = Main.GRAVITY;
+      this.simon.jumpVelocity = Main.SIMON_JUMP_VELOCITY;
+    }
+  
+    }
     public clearInputPressedRecords(): void {
     if (this.input != null) {
       this.input.clearKeyPressedRecord();
@@ -2802,6 +2829,8 @@ private loadStageSegment(a: number, b: number): void {
     }
     public hurtSimon(power: number): void {
 
+    this.syncSimonPhysicsProfile();
+
     if (this.simon.hurt || this.simon.invincible > 0 || this.playerPower == 0) {
       return;
     }
@@ -2821,7 +2850,7 @@ private loadStageSegment(a: number, b: number): void {
       this.setSimonAlpha(0.25);
       this.simon.invincible = 182;
     } else if (this.simon.supported) {
-      this.simon.vy = Main.SIMON_JUMP_VELOCITY;
+      this.simon.vy = this.simon.jumpVelocity;
       this.simon.vx = this.simon.direction == Main.LEFT ? 2 : -2;
       this.simon.hurt = true;
     } else if (!this.simon.onStairs) {
