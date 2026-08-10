@@ -26,10 +26,12 @@ let activeGameShell: HTMLElement | null = null;
 let activeGameHost: HTMLElement | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let resizeAnimationFrame = 0;
+let hamburgerVisibilityAnimationFrame = 0;
 let cursorGameHost: HTMLElement | null = null;
 let cursorHideTimer = 0;
 let pointerOverGameHost = false;
 let volume = safeReadVolume();
+let runtimeResourcesLoaded = false;
 
 const gameStateStore = new StickvaniaGameStateStore(__APP_VERSION__);
 
@@ -111,7 +113,7 @@ function showGameShell(): HTMLElement {
     app.innerHTML = `
         <div id="game-shell" class="game-shell">
             <div id="game-host" class="game-host"></div>
-            <button id="hamburger-button" class="hamburger-button" type="button" aria-label="Return to menu" title="Return to menu">
+            <button id="hamburger-button" class="hamburger-button" type="button" aria-label="Return to menu" title="Return to menu" hidden>
                 <span></span>
             </button>
         </div>`;
@@ -125,6 +127,7 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
     destroyGame();
     const host = showGameShell();
     activeGameHost = host;
+    const showVisibleLoading = !runtimeResourcesLoaded;
     try {
         await unlockAudio();
         Display.setParent(host);
@@ -142,6 +145,11 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
             enterFullscreen: enterGameShellFullscreen,
             exitFullscreen: exitGameShellFullscreen
         };
+        if (showVisibleLoading) {
+            mainGame.loadingFinishedHandler = () => {
+                runtimeResourcesLoaded = true;
+            };
+        }
         if (restoreSavedGame) {
             mainGame.loadingCompleteHandler = (gc) => {
                 if (!gameStateStore.restore(mainGame, gc)) {
@@ -161,8 +169,14 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
         appContainer.setClearEachFrame(true);
         await Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false));
         await appContainer.start();
+        if (!showVisibleLoading) {
+            mainGame.completeLoadingImmediately(appContainer);
+            await ResourceLoader.waitForAll();
+            runtimeResourcesLoaded = true;
+        }
         startResponsiveGameSizing(host);
         startGameCursorAutoHide(host);
+        startHamburgerVisibilityMonitor();
         setAudioVolume(volume);
     } catch (error) {
         console.error(error);
@@ -174,6 +188,9 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
 }
 
 function returnToMenu(): void {
+    if (game?.isLoadingScreenActive()) {
+        return;
+    }
     game?.setBrowserSuspended(true);
     saveCurrentGameState();
     showMenu();
@@ -201,6 +218,7 @@ function resumeCurrentGame(): void {
 }
 
 function destroyGame(): void {
+    stopHamburgerVisibilityMonitor();
     stopGameCursorAutoHide();
     stopResponsiveGameSizing();
     game?.stopAllSounds();
@@ -237,6 +255,32 @@ function stopResponsiveGameSizing(): void {
     if (resizeAnimationFrame !== 0) {
         cancelAnimationFrame(resizeAnimationFrame);
         resizeAnimationFrame = 0;
+    }
+}
+
+function startHamburgerVisibilityMonitor(): void {
+    stopHamburgerVisibilityMonitor();
+    updateHamburgerVisibility();
+}
+
+function stopHamburgerVisibilityMonitor(): void {
+    if (hamburgerVisibilityAnimationFrame !== 0) {
+        cancelAnimationFrame(hamburgerVisibilityAnimationFrame);
+        hamburgerVisibilityAnimationFrame = 0;
+    }
+}
+
+function updateHamburgerVisibility(): void {
+    const hamburger = document.getElementById("hamburger-button") as HTMLButtonElement | null;
+    const hidden = game === null || game.isLoadingScreenActive();
+    if (hamburger !== null) {
+        hamburger.hidden = hidden;
+    }
+    if (hidden && game !== null) {
+        hamburgerVisibilityAnimationFrame = requestAnimationFrame(() => {
+            hamburgerVisibilityAnimationFrame = 0;
+            updateHamburgerVisibility();
+        });
     }
 }
 

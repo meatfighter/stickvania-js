@@ -218,6 +218,7 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "currentMusic",
     "input",
     "loadingCompleteHandler",
+    "loadingFinishedHandler",
     "windowedDisplayModeProvider",
     "browserFullscreenController",
     "browserSuspended"

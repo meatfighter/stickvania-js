@@ -251,6 +251,10 @@ input {
     cursor: pointer;
 }
 
+.hamburger-button[hidden] {
+    display: none;
+}
+
 .hamburger-button span,
 .hamburger-button span::before,
 .hamburger-button span::after {

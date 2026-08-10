@@ -442,6 +442,7 @@ export class Main extends BasicGame {
     public requestedSong: Song = null;
     public currentMusic: Music = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) = null;
+    public loadingFinishedHandler: (() => void) = null;
     public windowedDisplayModeProvider: (() => { width: number; height: number }) = null;
     public browserFullscreenController: BrowserFullscreenController = null;
     private browserSuspended: boolean = false;
@@ -2687,6 +2688,27 @@ private loadStageSegment(a: number, b: number): void {
     this.nextFrameTime = Sys.getTime();
   
     }
+    public isLoadingScreenActive(): boolean {
+    return this.mode == Main.MODE_LOADING;
+  
+    }
+    public completeLoadingImmediately(gc: GameContainer): void {
+    while (this.mode == Main.MODE_LOADING && this.loadingIndex >= 0) {
+      this.updateLoading(gc);
+    }
+    if (this.mode == Main.MODE_LOADING) {
+      this.initTitleScreen();
+    }
+  
+    }
+    private notifyLoadingFinished(): void {
+    if (this.loadingFinishedHandler != null) {
+      const handler = this.loadingFinishedHandler;
+      this.loadingFinishedHandler = null;
+      handler();
+    }
+  
+    }
     public isStateSaveReady(): boolean {
     if (this.mode == Main.MODE_LOADING || this.mode == Main.MODE_DEMO
         || this.mode == Main.MODE_TITLE_SCREEN || this.mode == Main.MODE_CREDITS) {
@@ -3551,9 +3573,11 @@ private loadStageSegment(a: number, b: number): void {
           const handler = this.loadingCompleteHandler;
           this.loadingCompleteHandler = null;
           if (handler(gc)) {
+            this.notifyLoadingFinished();
             break;
           }
         }
+        this.notifyLoadingFinished();
         this.fadeState = Main.FADE_OUT;
         this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
         break;
