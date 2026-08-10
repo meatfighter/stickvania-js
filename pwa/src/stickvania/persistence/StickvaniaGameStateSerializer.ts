@@ -219,6 +219,7 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "input",
     "loadingCompleteHandler",
     "windowedDisplayModeProvider",
+    "browserFullscreenController",
     "browserSuspended"
 ]);
 
