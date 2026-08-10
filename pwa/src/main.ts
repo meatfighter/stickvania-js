@@ -32,6 +32,8 @@ let cursorHideTimer = 0;
 let pointerOverGameHost = false;
 let volume = safeReadVolume();
 let runtimeResourcesLoaded = false;
+let suspendedByFocusLoss = false;
+let suspendedByVisibilityLoss = false;
 
 const gameStateStore = new StickvaniaGameStateStore(__APP_VERSION__);
 
@@ -203,21 +205,71 @@ function saveCurrentGameState(): boolean {
     return gameStateStore.save(game);
 }
 
-function suspendCurrentGame(): void {
+function suspendCurrentGameForPageHide(): void {
+    suspendedByVisibilityLoss = true;
+    applyCurrentGameLifecycleSuspension();
+}
+
+function syncCurrentGameLifecycleSuspension(): void {
     if (game === null) {
+        resetLifecycleSuspension();
+        return;
+    }
+
+    suspendedByVisibilityLoss = document.visibilityState !== "visible";
+    suspendedByFocusLoss = !document.hasFocus();
+    applyCurrentGameLifecycleSuspension();
+}
+
+function handleWindowBlur(): void {
+    suspendedByFocusLoss = true;
+    applyCurrentGameLifecycleSuspension();
+}
+
+function handleWindowFocus(): void {
+    suspendedByFocusLoss = false;
+    applyCurrentGameLifecycleSuspension();
+}
+
+function handleVisibilityChange(): void {
+    suspendedByVisibilityLoss = document.visibilityState !== "visible";
+    if (!suspendedByVisibilityLoss) {
+        suspendedByFocusLoss = !document.hasFocus();
+    }
+    applyCurrentGameLifecycleSuspension();
+}
+
+function applyCurrentGameLifecycleSuspension(): void {
+    if (game === null) {
+        resetLifecycleSuspension();
+        return;
+    }
+    if (game.isLoadingScreenActive()) {
+        return;
+    }
+    if (suspendedByVisibilityLoss || suspendedByFocusLoss) {
+        suspendCurrentGameForLifecycle();
+        return;
+    }
+
+    game.setBrowserSuspended(false);
+}
+
+function suspendCurrentGameForLifecycle(): void {
+    if (game === null || game.isLoadingScreenActive()) {
         return;
     }
     game.setBrowserSuspended(true);
     saveCurrentGameState();
 }
 
-function resumeCurrentGame(): void {
-    if (document.visibilityState === "visible") {
-        game?.setBrowserSuspended(false);
-    }
+function resetLifecycleSuspension(): void {
+    suspendedByFocusLoss = false;
+    suspendedByVisibilityLoss = false;
 }
 
 function destroyGame(): void {
+    resetLifecycleSuspension();
     stopHamburgerVisibilityMonitor();
     stopGameCursorAutoHide();
     stopResponsiveGameSizing();
@@ -273,6 +325,9 @@ function stopHamburgerVisibilityMonitor(): void {
 function updateHamburgerVisibility(): void {
     const hamburger = document.getElementById("hamburger-button") as HTMLButtonElement | null;
     const hidden = game === null || game.isLoadingScreenActive();
+    if (!hidden) {
+        applyCurrentGameLifecycleSuspension();
+    }
     if (hamburger !== null) {
         hamburger.hidden = hidden;
     }
@@ -493,15 +548,14 @@ async function registerServiceWorker(): Promise<void> {
 
 function setupPageLifecycleHandlers(): void {
     window.addEventListener("pagehide", () => {
-        suspendCurrentGame();
+        suspendCurrentGameForPageHide();
     });
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") {
-            resumeCurrentGame();
-        } else {
-            suspendCurrentGame();
-        }
+    window.addEventListener("pageshow", () => {
+        syncCurrentGameLifecycleSuspension();
     });
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 }
 
 async function boot(): Promise<void> {
