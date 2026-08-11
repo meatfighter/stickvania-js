@@ -111,7 +111,7 @@ export class MermanSpawner extends Thing {
     }
 
     if (this.delay == 0) {
-      this.delay = 182;
+      this.delay = this.main.adjustEnemySpawnDelay(182);
 
       for (let i: number = 0; i < 16 && this.count > 0; i++) {
         if (this.main.random.nextBoolean()) {

@@ -89,22 +89,18 @@ export class StickvaniaInput {
     }
 
     private readState(): InputState {
-        const controllerMapped = this.mapping.controller;
-        const controller = controllerMapped
-            ? this.mapping.resolveControllerIndex()
-            : this.mapping.controllerIndex;
         const up = this.input.isKeyDown(this.mapping.keyUp)
-            || (controllerMapped && this.input.isControllerUp(controller));
+            || this.isControllerBindingDown(this.mapping.controllerUp);
         const down = this.input.isKeyDown(this.mapping.keyDown)
-            || (controllerMapped && this.input.isControllerDown(controller));
+            || this.isControllerBindingDown(this.mapping.controllerDown);
         const left = this.input.isKeyDown(this.mapping.keyLeft)
-            || (controllerMapped && this.input.isControllerLeft(controller));
+            || this.isControllerBindingDown(this.mapping.controllerLeft);
         const right = this.input.isKeyDown(this.mapping.keyRight)
-            || (controllerMapped && this.input.isControllerRight(controller));
+            || this.isControllerBindingDown(this.mapping.controllerRight);
         const jump = this.input.isKeyDown(this.mapping.keyJump)
-            || (controllerMapped && this.input.isButtonPressed(this.mapping.controllerJump, controller));
+            || this.isControllerBindingDown(this.mapping.controllerJump);
         const attack = this.input.isKeyDown(this.mapping.keyAttack)
-            || (controllerMapped && this.input.isButtonPressed(this.mapping.controllerAttack, controller));
+            || this.isControllerBindingDown(this.mapping.controllerAttack);
         const anyControllerSelect = this.isAnyControllerNonDirectionalButtonDown();
 
         return {
@@ -118,6 +114,25 @@ export class StickvaniaInput {
             menuDown: down || this.input.isControllerDown(Input.ANY_CONTROLLER),
             menuSelect: jump || attack || this.input.isKeyDown(Input.KEY_ENTER) || anyControllerSelect
         };
+    }
+
+    private isControllerBindingDown(button: number): boolean {
+        switch (button) {
+            case 12:
+                return this.input.isControllerUp(Input.ANY_CONTROLLER)
+                    || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
+            case 13:
+                return this.input.isControllerDown(Input.ANY_CONTROLLER)
+                    || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
+            case 14:
+                return this.input.isControllerLeft(Input.ANY_CONTROLLER)
+                    || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
+            case 15:
+                return this.input.isControllerRight(Input.ANY_CONTROLLER)
+                    || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
+            default:
+                return this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
+        }
     }
 
     private isAnyControllerNonDirectionalButtonDown(): boolean {

@@ -103,6 +103,14 @@ export class Main extends BasicGame {
     public static readonly MODE_CREDITS: number = 8;
     public static readonly MODE_LOADING: number = 9;
     public static readonly MODE_INPUT_CONFIG: number = 10;
+    public static readonly DIFFICULTY_NORMAL: number = 0;
+    public static readonly DIFFICULTY_HARD: number = 1;
+    private static readonly DIFFICULTY_STORAGE_KEY: string = "stickvania.difficulty";
+    private static readonly HARD_DELAY_MULTIPLIER: number = 0.75;
+    private static readonly TITLE_MENU_MAIN: number = 0;
+    private static readonly TITLE_MENU_OPTIONS: number = 1;
+    private static readonly TITLE_MENU_INPUT: number = 2;
+    private static readonly TITLE_MENU_DIFFICULTY: number = 3;
     public static readonly CANDLE_ITEM_AXE: number = cc("a");
     public static readonly CANDLE_ITEM_BOOMERANG: number = cc("b");
     public static readonly CANDLE_ITEM_CHEST: number = cc("c");
@@ -281,6 +289,7 @@ export class Main extends BasicGame {
     private pressEnterVisibleIncrementor: number = 0;
     private pressEnterVisibleCount: number = 0;
     private enterPressed: boolean = false;
+    private titleMenu: number = Main.TITLE_MENU_MAIN;
     private titleSelectedIndex: number = 0;
     private static readonly titleBatSequence: number[] = [ 0, 1, 2, 1 ];
     public introWalkSpriteIndexIncrementor: number = 0;
@@ -456,6 +465,7 @@ export class Main extends BasicGame {
     private browserSuspended: boolean = false;
     private input: Input = null;
     public buttonMapping: ButtonMapping = ButtonMapping.load();
+    public difficulty: number = Main.loadDifficulty();
     public controlInput: StickvaniaInput = null;
     private inputConfigMode: InputConfigMode = null;
     private recordingIndex: number = 0;
@@ -467,6 +477,32 @@ export class Main extends BasicGame {
         for (let i = 0; i < 12; i++) {
             this.endingKeyRecordings[i] = readBinaryResource("recordings/ending_" + (i + 1) + ".dat");
         }
+    }
+    private static loadDifficulty(): number {
+    if (typeof localStorage === "undefined") {
+      return Main.DIFFICULTY_NORMAL;
+    }
+    try {
+      const value = Number.parseInt(localStorage.getItem(Main.DIFFICULTY_STORAGE_KEY) ?? "", 10);
+      if (value == Main.DIFFICULTY_HARD) {
+        return Main.DIFFICULTY_HARD;
+      }
+    } catch {
+    }
+    return Main.DIFFICULTY_NORMAL;
+
+    }
+    public setDifficulty(difficulty: number): void {
+    this.difficulty = difficulty == Main.DIFFICULTY_HARD
+        ? Main.DIFFICULTY_HARD : Main.DIFFICULTY_NORMAL;
+    if (typeof localStorage === "undefined") {
+      return;
+    }
+    try {
+      localStorage.setItem(Main.DIFFICULTY_STORAGE_KEY, String(this.difficulty));
+    } catch {
+    }
+
     }
     public init(gc: GameContainer): void {
 
@@ -950,7 +986,7 @@ export class Main extends BasicGame {
     this.lands = new Sound("soundfx/lands.ogg");
 
     this.nextFrameTime = Sys.getTime();
-  
+
     }
     private showMouseCursor(): void {
     try {
@@ -958,7 +994,7 @@ export class Main extends BasicGame {
     } catch (e) {
 			Log.error("Failed to load and apply cursor.", e);
 		}
-  
+
     }
     private hideMouseCursor(): void {
     try {
@@ -969,7 +1005,7 @@ export class Main extends BasicGame {
 		} catch (e) {
 			Log.error("Failed to load and apply cursor.", e);
 		}
-  
+
     }
     private getWindowedDisplayMode(): { width: number; height: number } {
     if (this.windowedDisplayModeProvider != null) {
@@ -988,7 +1024,7 @@ export class Main extends BasicGame {
       width: 640,
       height: 480
     };
-  
+
     }
     public update(gc: GameContainer, delta: number): void {
 
@@ -1006,7 +1042,7 @@ export class Main extends BasicGame {
         break;
       }
     }
-  
+
     }
     private updateFrame(gc: GameContainer): void {
 
@@ -1291,7 +1327,7 @@ export class Main extends BasicGame {
       this.timeFrozen = 0;
       this.killAllFlag = false;
     }
-  
+
     }
     private updateSimon(gc: GameContainer): void {
 
@@ -1616,7 +1652,7 @@ export class Main extends BasicGame {
 
       this.simon.update(gc);
     }
-  
+
     }
     public moveCamera(): void {
     this.camera = trunc(this.simon.x - 224);
@@ -1628,7 +1664,7 @@ export class Main extends BasicGame {
     if (this.camera < 0) {
       this.camera = 0;
     }
-  
+
     }
     public followStairsToNextSegment(): void {
 
@@ -1693,7 +1729,7 @@ export class Main extends BasicGame {
     this.setSimonAlpha(1);
 
     this.moveCamera();
-  
+
     }
     public throwWeapon(): void {
 
@@ -1722,14 +1758,14 @@ export class Main extends BasicGame {
         this.removeHearts(5);
         break;
     }
-  
+
     }
     public removeHearts(hearts: number): void {
     this.hearts -= hearts;
     if (this.hearts < 0) {
       this.hearts = 0;
     }
-  
+
     }
     private createStage(stageIndex: number, setCheckpoint: boolean): void {
 
@@ -1841,7 +1877,7 @@ export class Main extends BasicGame {
     this.restoreCheckpoint();
 
     this.nextFrameTime = Sys.getTime();
-  
+
     }
     private convertStage(stageIndex: number, segment: StageSegment): void {
 
@@ -2252,7 +2288,7 @@ export class Main extends BasicGame {
     } else {
       segment.regionIndex = regions.length - 1;
     }
-  
+
     }
     public createCandleItem(x: number, y: number, item: number): Thing {
 
@@ -2344,7 +2380,7 @@ export class Main extends BasicGame {
       default:
         throw new Error("Unknown candle type: " + item);
     }
-  
+
     }
     public pushWeapon(weapon: Thing): void {
         this.weaponsStack.push(weapon);
@@ -2377,7 +2413,7 @@ export class Main extends BasicGame {
     this.repairBlock(x + 1, y);
     this.repairBlock(x, y - 1);
     this.repairBlock(x, y + 1);
-  
+
     }
     private repairBlock(x: number, y: number): void {
     if (y >= 0 && y < 11 && x >= 0 && x < this.mapWidth
@@ -2403,7 +2439,7 @@ export class Main extends BasicGame {
 
       this.map[y][x] = (up << 3) | (down << 2) | (left << 1) | right;
     } 
-  
+
     }
     private isBlock(s: number[][], x: number, y: number): boolean {
     let c: number = s[y][x];
@@ -2720,6 +2756,50 @@ private loadStageSegment(a: number, b: number): void {
         && !this.floorBreaking;
   
     }
+    public isHardDifficultyActiveForGameplay(): boolean {
+    return this.difficulty == Main.DIFFICULTY_HARD && this.isUserControlledSimonPhysics();
+
+    }
+    private isHardDifficultyEnabledForStageState(): boolean {
+    return this.difficulty == Main.DIFFICULTY_HARD
+        && this.mode != Main.MODE_DEMO
+        && this.mode != Main.MODE_CREDITS
+        && this.mode != Main.MODE_ENDING
+        && this.mode != Main.MODE_CASTLE_FALLS
+        && this.mode != Main.MODE_TITLE_SCREEN
+        && this.mode != Main.MODE_LOADING
+        && this.mode != Main.MODE_INPUT_CONFIG;
+
+    }
+    public adjustEnemyHits(baseHits: number): number {
+    return this.isHardDifficultyEnabledForStageState() ? baseHits + 1 : baseHits;
+
+    }
+    public adjustEnemySpawnDelay(baseDelay: number): number {
+    return this.adjustHardDelay(baseDelay);
+
+    }
+    public adjustEnemyCooldown(baseDelay: number): number {
+    return this.adjustHardDelay(baseDelay);
+
+    }
+    public adjustSimonDamage(power: number): number {
+    if (!this.isHardDifficultyActiveForGameplay() || power >= 16) {
+      return power;
+    }
+    return power + 1;
+
+    }
+    private adjustHardDelay(baseDelay: number): number {
+    if (!this.isHardDifficultyEnabledForStageState()) {
+      return baseDelay;
+    }
+    if (baseDelay <= 0) {
+      return baseDelay;
+    }
+    return Math.max(1, trunc(baseDelay * Main.HARD_DELAY_MULTIPLIER));
+
+    }
     public syncSimonPhysicsProfile(): void {
     if (this.simon == null) {
       return;
@@ -2744,8 +2824,8 @@ private loadStageSegment(a: number, b: number): void {
   
     }
     public finishInputConfig(): void {
-    this.fadeState = Main.FADE_OUT;
-    this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
+    this.initTitleScreen();
+    this.setTitleMenu(Main.TITLE_MENU_INPUT);
   
     }
     public isLoadingScreenActive(): boolean {
@@ -2837,7 +2917,7 @@ private loadStageSegment(a: number, b: number): void {
 
     this.playSound(this.simon_hurt);
 
-    this.playerPower -= power;
+    this.playerPower -= this.adjustSimonDamage(power);
     if (this.playerPower < 0) {
       this.playerPower = 0;
     }
@@ -3754,6 +3834,7 @@ private loadStageSegment(a: number, b: number): void {
     this.pressEnterVisibleIncrementor = 0;
     this.pressEnterVisibleCount = 0;
     this.enterPressed = false;
+    this.titleMenu = Main.TITLE_MENU_MAIN;
     this.titleSelectedIndex = 0;
     this.titleBatAngle = 0;
 
@@ -3782,24 +3863,38 @@ private loadStageSegment(a: number, b: number): void {
       }
 
       if (this.controlInput.isMenuUpPressed()) {
-        this.titleSelectedIndex = 0;
+        this.titleSelectedIndex--;
+        if (this.titleSelectedIndex < 0) {
+          this.titleSelectedIndex = 0;
+        }
         this.titleTimeout = 1365;
       } else if (this.controlInput.isMenuDownPressed()) {
-        this.titleSelectedIndex = 1;
+        this.titleSelectedIndex++;
+        const optionCount = this.getTitleOptionCount();
+        if (this.titleSelectedIndex >= optionCount) {
+          this.titleSelectedIndex = optionCount - 1;
+        }
         this.titleTimeout = 1365;
       } else if (this.controlInput.isMenuSelectPressed()) {
         this.playSound(this.pressed_enter);
-        this.fadeState = Main.FADE_OUT;
-        this.fadeReason = this.titleSelectedIndex == 0
-            ? Main.FADE_REASON_SHOW_INTRO : Main.FADE_REASON_SHOW_INPUT_CONFIG;
-      } else if (--this.titleTimeout <= 0) {
+        this.selectTitleMenuOption();
+      } else if (this.titleMenu == Main.TITLE_MENU_MAIN && --this.titleTimeout <= 0) {
         this.fadeState = Main.FADE_OUT;
         this.fadeReason = Main.FADE_REASON_SHOW_DEMO;
+      } else if (this.titleMenu != Main.TITLE_MENU_MAIN) {
+        this.titleTimeout = 1365;
       }
     }
   
     }
     public renderTitleScreen(gc: GameContainer, g: Graphics): void {
+
+    if (this.titleMenu == Main.TITLE_MENU_INPUT) {
+      g.setColor(Color.white);
+      g.fillRect(64, 32, 512, 416);
+      this.renderTitleInputMenu();
+      return;
+    }
 
     this.titleImage.draw(64, 32);
 
@@ -3812,16 +3907,128 @@ private loadStageSegment(a: number, b: number): void {
       this.titleBats[Main.titleBatSequence[this.titleBatSpriteIndex]].draw(trunc(this.titleBatX), trunc(this.titleBatY), trunc(this.titleBatScale), trunc(this.titleBatScale));
     }
 
-    this.drawString("START", 272, 288);
-    this.drawString("INPUT", 272, 336);
-    if (this.titleSelectedIndex == 0) {
-      this.smallHeart.draw(240, 288);
-    } else {
-      this.smallHeart.draw(240, 336);
+    switch(this.titleMenu) {
+      case Main.TITLE_MENU_MAIN:
+        this.renderTitleMainMenu();
+        break;
+      case Main.TITLE_MENU_OPTIONS:
+        this.renderTitleOptionsMenu();
+        break;
+      case Main.TITLE_MENU_DIFFICULTY:
+        this.renderTitleDifficultyMenu();
+        break;
     }
-    this.drawString("SPACE - FULL-SCREEN MODE", 160, 384);
+
+    this.drawString("SPACE - FULL-SCREEN MODE", 160, 400);
     this.drawString("@ 2010 MEATFIGHTER.COM", 144, 430);
   
+    }
+    private getTitleOptionCount(): number {
+    switch(this.titleMenu) {
+      case Main.TITLE_MENU_OPTIONS:
+        return 3;
+      case Main.TITLE_MENU_MAIN:
+      case Main.TITLE_MENU_INPUT:
+      case Main.TITLE_MENU_DIFFICULTY:
+      default:
+        return 2;
+    }
+
+    }
+    private selectTitleMenuOption(): void {
+    switch(this.titleMenu) {
+      case Main.TITLE_MENU_MAIN:
+        if (this.titleSelectedIndex == 0) {
+          this.fadeState = Main.FADE_OUT;
+          this.fadeReason = Main.FADE_REASON_SHOW_INTRO;
+        } else {
+          this.setTitleMenu(Main.TITLE_MENU_OPTIONS);
+        }
+        break;
+      case Main.TITLE_MENU_OPTIONS:
+        switch(this.titleSelectedIndex) {
+          case 0:
+            this.setTitleMenu(Main.TITLE_MENU_INPUT);
+            break;
+          case 1:
+            this.setTitleMenu(Main.TITLE_MENU_DIFFICULTY, this.difficulty);
+            break;
+          case 2:
+            this.setTitleMenu(Main.TITLE_MENU_MAIN);
+            break;
+        }
+        break;
+      case Main.TITLE_MENU_INPUT:
+        if (this.titleSelectedIndex == 0) {
+          this.fadeState = Main.FADE_OUT;
+          this.fadeReason = Main.FADE_REASON_SHOW_INPUT_CONFIG;
+        } else {
+          this.setTitleMenu(Main.TITLE_MENU_OPTIONS);
+        }
+        break;
+      case Main.TITLE_MENU_DIFFICULTY:
+        this.setDifficulty(this.titleSelectedIndex == 0
+            ? Main.DIFFICULTY_NORMAL : Main.DIFFICULTY_HARD);
+        this.setTitleMenu(Main.TITLE_MENU_OPTIONS, 1);
+        break;
+    }
+
+    }
+    private setTitleMenu(menu: number, selectedIndex: number = 0): void {
+    this.titleMenu = menu;
+    this.titleSelectedIndex = selectedIndex;
+    const optionCount = this.getTitleOptionCount();
+    if (this.titleSelectedIndex >= optionCount) {
+      this.titleSelectedIndex = optionCount - 1;
+    }
+    if (this.titleSelectedIndex < 0) {
+      this.titleSelectedIndex = 0;
+    }
+    this.titleTimeout = 1365;
+    this.clearInputPressedRecords();
+
+    }
+    private renderTitleMainMenu(): void {
+    this.drawString("START", 264, 288);
+    this.drawString("OPTIONS", 264, 336);
+    this.drawTitleHeart(232, 288, 48);
+
+    }
+    private renderTitleOptionsMenu(): void {
+    this.drawString("INPUT", 240, 272);
+    this.drawString("DIFFICULTY", 240, 304);
+    this.drawString("DONE", 240, 336);
+    this.drawTitleHeart(208, 272);
+
+    }
+    private renderTitleInputMenu(): void {
+    this.drawString("INPUT", 272, 96);
+    this.drawInputMappingLine("UP", 144, 144);
+    this.drawInputMappingLine("DOWN", 144, 168);
+    this.drawInputMappingLine("LEFT", 144, 192);
+    this.drawInputMappingLine("RIGHT", 144, 216);
+    this.drawInputMappingLine("JUMP", 144, 240);
+    this.drawInputMappingLine("ATTACK", 144, 264);
+    this.drawString("CHANGE", 272, 320);
+    this.drawString("DONE", 272, 352);
+    this.drawString("^", 240, 320 + (this.titleSelectedIndex << 5));
+
+    }
+    private renderTitleDifficultyMenu(): void {
+    this.drawString("NORMAL", 272, 288);
+    this.drawString("HARD", 272, 336);
+    this.drawTitleHeart(240, 288, 48);
+
+    }
+    private drawTitleHeart(x: number, y: number, rowHeight: number = 32): void {
+    this.smallHeart.draw(x, y + this.titleSelectedIndex * rowHeight);
+
+    }
+    private drawInputMappingLine(action: string, x: number, y: number): void {
+    this.drawString(action.padEnd(6, " ") + "= "
+        + this.buttonMapping.keyboardLabelFor(action) + ", "
+        + this.buttonMapping.controllerLabelFor(action), x, y);
+
     }
     private drawStatusBar(g: Graphics): void {
 

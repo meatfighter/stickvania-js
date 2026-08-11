@@ -93,7 +93,7 @@ export class MedusaHeadSpawner extends Thing {
     }
 
     if (this.delay == 0) {
-      this.delay = 273;
+      this.delay = this.main.adjustEnemySpawnDelay(273);
       if (this.main.simon.direction == Main.RIGHT) {
         this.main.pushThing(new MedusaHead(this.main, this.main.camera + 520, this.main.simon.y + 16, Main.LEFT));
       } else {

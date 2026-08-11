@@ -93,7 +93,7 @@ export class BatSpawner extends Thing {
     }
 
     if (this.delay == 0) {
-      this.delay = 546;
+      this.delay = this.main.adjustEnemySpawnDelay(546);
       if (this.main.simon.direction == Main.RIGHT) {
         this.main.pushThing(new Bat(this.main, this.main.camera + 520, this.main.simon.y + 8, Main.LEFT));
       } else {

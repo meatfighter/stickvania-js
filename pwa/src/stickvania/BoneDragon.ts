@@ -105,6 +105,7 @@ export class BoneDragon extends Thing {
     this.x = x;
     this.y = y;
     this.item = item;
+    this.hits = main.adjustEnemyHits(this.hits);
 
     this.X = x + 32;
     this.Y = y;
@@ -176,7 +177,7 @@ export class BoneDragon extends Thing {
         if (this.radius < 128) {
           this.radius += 1;
         } else if (this.shootDelay == 0) {
-          this.shootDelay = 91 + this.main.random.nextInt(273);
+          this.shootDelay = this.main.adjustEnemyCooldown(91 + this.main.random.nextInt(273));
           this.mouthOpen = 46;
           this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 8, -1.5, 0));
           this.main.playSound(this.main.fire_ball_shot);

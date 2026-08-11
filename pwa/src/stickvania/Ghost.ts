@@ -84,7 +84,8 @@ export class Ghost extends Thing {
     public constructor(main: Main, x: number, y: number) {
     super(main, 32, 32);
     this.x = x;
-    this.y = y;    
+    this.y = y;
+    this.hits = main.adjustEnemyHits(this.hits);
   
     }
     public update(gc: GameContainer): boolean {

@@ -90,7 +90,7 @@ export class WhiteSkeleton extends Thing {
     super(main, 1, 0, 30, 64);
     this.x = x;
     this.y = y;
-    this.throwDelay = 91 + main.random.nextInt(273);
+    this.throwDelay = main.adjustEnemyCooldown(91 + main.random.nextInt(273));
   
     }
     public update(gc: GameContainer): boolean {
@@ -136,7 +136,7 @@ export class WhiteSkeleton extends Thing {
 
         if (this.state == WhiteSkeleton.STATE_STANDING || this.state == WhiteSkeleton.STATE_WALKING) {
           if (--this.throwDelay == 0) {
-            this.throwDelay = 91 + this.main.random.nextInt(273);
+            this.throwDelay = this.main.adjustEnemyCooldown(91 + this.main.random.nextInt(273));
             let uy: number = -6.5 - 3 * this.main.random.nextFloat();
             let ux: number = 1 + this.main.random.nextFloat();
             if (this.direction == Main.RIGHT) {

@@ -2,26 +2,81 @@ import { Input } from "slick2d-ts";
 
 type ButtonMappingSnapshot = {
     version: number;
-    keyJump?: number;
-    keyAttack?: number;
-    keyWhip?: number;
-    keySubWeapon?: number;
+    keyJump: number;
+    keyAttack: number;
     keyUp: number;
     keyDown: number;
     keyLeft: number;
     keyRight: number;
-    controller: boolean;
-    controllerIndex: number;
-    controllerId?: string;
-    controllerJump?: number;
-    controllerAttack?: number;
-    controllerWhip?: number;
-    controllerSubWeapon?: number;
+    controllerJump: number;
+    controllerAttack: number;
+    controllerUp: number;
+    controllerDown: number;
+    controllerLeft: number;
+    controllerRight: number;
 };
 
 export class ButtonMapping {
     private static readonly STORAGE_KEY = "stickvania.input-mapping";
-    private static readonly VERSION = 4;
+    private static readonly VERSION = 5;
+    public static readonly NO_BINDING = -1;
+    private static readonly GAMEPAD_BUTTON_TEXT = [
+        "GP-A",
+        "GP-B",
+        "GP-X",
+        "GP-Y",
+        "GP-LB",
+        "GP-RB",
+        "GP-LT",
+        "GP-RT",
+        "GP-VIEW",
+        "GP-MENU",
+        "GP-LS",
+        "GP-RS",
+        "GP-UP",
+        "GP-DOWN",
+        "GP-LEFT",
+        "GP-RIGHT",
+        "GP-HOME"
+    ];
+    private static readonly KEY_TEXT = new Map<number, string>([
+        [Input.KEY_A, "A"],
+        [Input.KEY_B, "B"],
+        [Input.KEY_C, "C"],
+        [Input.KEY_D, "D"],
+        [Input.KEY_E, "E"],
+        [Input.KEY_F, "F"],
+        [Input.KEY_G, "G"],
+        [Input.KEY_H, "H"],
+        [Input.KEY_I, "I"],
+        [Input.KEY_J, "J"],
+        [Input.KEY_K, "K"],
+        [Input.KEY_L, "L"],
+        [Input.KEY_M, "M"],
+        [Input.KEY_N, "N"],
+        [Input.KEY_O, "O"],
+        [Input.KEY_P, "P"],
+        [Input.KEY_Q, "Q"],
+        [Input.KEY_R, "R"],
+        [Input.KEY_S, "S"],
+        [Input.KEY_T, "T"],
+        [Input.KEY_U, "U"],
+        [Input.KEY_V, "V"],
+        [Input.KEY_W, "W"],
+        [Input.KEY_X, "X"],
+        [Input.KEY_Y, "Y"],
+        [Input.KEY_Z, "Z"],
+        [Input.KEY_0, "0"],
+        [Input.KEY_1, "1"],
+        [Input.KEY_2, "2"],
+        [Input.KEY_3, "3"],
+        [Input.KEY_4, "4"],
+        [Input.KEY_5, "5"],
+        [Input.KEY_6, "6"],
+        [Input.KEY_7, "7"],
+        [Input.KEY_8, "8"],
+        [Input.KEY_9, "9"]
+    ]);
 
     public keyJump: number = Input.KEY_X;
     public keyAttack: number = Input.KEY_Z;
@@ -29,11 +84,12 @@ export class ButtonMapping {
     public keyDown: number = Input.KEY_DOWN;
     public keyLeft: number = Input.KEY_LEFT;
     public keyRight: number = Input.KEY_RIGHT;
-    public controller: boolean = false;
-    public controllerIndex: number = 0;
-    public controllerId: string = "";
-    public controllerJump: number = 1;
-    public controllerAttack: number = 0;
+    public controllerJump: number = 0;
+    public controllerAttack: number = 2;
+    public controllerUp: number = 12;
+    public controllerDown: number = 13;
+    public controllerLeft: number = 14;
+    public controllerRight: number = 15;
 
     public static load(): ButtonMapping {
         const mapping = new ButtonMapping();
@@ -46,17 +102,18 @@ export class ButtonMapping {
             if (!ButtonMapping.isSupportedSnapshot(snapshot)) {
                 return mapping;
             }
-            mapping.keyJump = snapshot.keyJump ?? snapshot.keySubWeapon;
-            mapping.keyAttack = snapshot.keyAttack ?? snapshot.keyWhip;
+            mapping.keyJump = snapshot.keyJump;
+            mapping.keyAttack = snapshot.keyAttack;
             mapping.keyUp = snapshot.keyUp;
             mapping.keyDown = snapshot.keyDown;
             mapping.keyLeft = snapshot.keyLeft;
             mapping.keyRight = snapshot.keyRight;
-            mapping.controller = snapshot.controller;
-            mapping.controllerIndex = snapshot.controllerIndex;
-            mapping.controllerId = snapshot.controllerId ?? "";
-            mapping.controllerJump = snapshot.controllerJump ?? snapshot.controllerSubWeapon;
-            mapping.controllerAttack = snapshot.controllerAttack ?? snapshot.controllerWhip;
+            mapping.controllerJump = snapshot.controllerJump;
+            mapping.controllerAttack = snapshot.controllerAttack;
+            mapping.controllerUp = snapshot.controllerUp;
+            mapping.controllerDown = snapshot.controllerDown;
+            mapping.controllerLeft = snapshot.controllerLeft;
+            mapping.controllerRight = snapshot.controllerRight;
         } catch {
         }
         return mapping;
@@ -79,36 +136,104 @@ export class ButtonMapping {
     }
 
     public usesControllerButton(button: number): boolean {
-        return this.controller && (this.controllerJump === button || this.controllerAttack === button);
+        return this.controllerJump === button || this.controllerAttack === button
+            || this.controllerUp === button || this.controllerDown === button
+            || this.controllerLeft === button || this.controllerRight === button;
     }
 
-    public rememberController(controllerIndex: number): void {
-        this.controllerIndex = controllerIndex;
-        this.controllerId = ButtonMapping.controllerIdForIndex(controllerIndex);
+    public keyboardLabelFor(action: string): string {
+        switch (action) {
+            case "UP":
+                return ButtonMapping.getKeyText(this.keyUp).toUpperCase();
+            case "DOWN":
+                return ButtonMapping.getKeyText(this.keyDown).toUpperCase();
+            case "LEFT":
+                return ButtonMapping.getKeyText(this.keyLeft).toUpperCase();
+            case "RIGHT":
+                return ButtonMapping.getKeyText(this.keyRight).toUpperCase();
+            case "JUMP":
+                return ButtonMapping.getKeyText(this.keyJump).toUpperCase();
+            case "ATTACK":
+                return ButtonMapping.getKeyText(this.keyAttack).toUpperCase();
+            default:
+                return "";
+        }
     }
 
-    public resolveControllerIndex(): number {
-        const gamepads = ButtonMapping.getGamepads();
-        if (this.controllerId.length > 0) {
-            for (const gamepad of gamepads) {
-                if (gamepad !== null && gamepad.id === this.controllerId) {
-                    return this.useResolvedController(gamepad);
-                }
-            }
+    public controllerLabelFor(action: string): string {
+        switch (action) {
+            case "UP":
+                return ButtonMapping.getGamepadButtonText(this.controllerUp);
+            case "DOWN":
+                return ButtonMapping.getGamepadButtonText(this.controllerDown);
+            case "LEFT":
+                return ButtonMapping.getGamepadButtonText(this.controllerLeft);
+            case "RIGHT":
+                return ButtonMapping.getGamepadButtonText(this.controllerRight);
+            case "JUMP":
+                return ButtonMapping.getGamepadButtonText(this.controllerJump);
+            case "ATTACK":
+                return ButtonMapping.getGamepadButtonText(this.controllerAttack);
+            default:
+                return "";
         }
+    }
 
-        const indexedGamepad = gamepads[this.controllerIndex];
-        if (indexedGamepad !== null && indexedGamepad !== undefined) {
-            return this.useResolvedController(indexedGamepad);
+    public static getKeyText(key: number): string {
+        if (key == ButtonMapping.NO_BINDING) {
+            return "None";
         }
-
-        for (const gamepad of gamepads) {
-            if (gamepad !== null) {
-                return this.useResolvedController(gamepad);
-            }
+        switch (key) {
+            case Input.KEY_RETURN:
+                return "Enter";
+            case Input.KEY_SPACE:
+                return "Space";
+            case Input.KEY_ESCAPE:
+                return "Escape";
+            case Input.KEY_LSHIFT:
+            case Input.KEY_RSHIFT:
+                return "Shift";
+            case Input.KEY_LCONTROL:
+            case Input.KEY_RCONTROL:
+                return "Ctrl";
+            case Input.KEY_LALT:
+            case Input.KEY_RALT:
+                return "Alt";
+            case Input.KEY_UP:
+                return "Up";
+            case Input.KEY_DOWN:
+                return "Down";
+            case Input.KEY_LEFT:
+                return "Left";
+            case Input.KEY_RIGHT:
+                return "Right";
+            case Input.KEY_TAB:
+                return "Tab";
+            case Input.KEY_BACK:
+                return "Back";
+            case Input.KEY_DELETE:
+                return "Delete";
+            case Input.KEY_HOME:
+                return "Home";
+            case Input.KEY_END:
+                return "End";
+            case Input.KEY_PRIOR:
+                return "Page Up";
+            case Input.KEY_NEXT:
+                return "Page Down";
+            default:
+                return ButtonMapping.KEY_TEXT.get(key) ?? String(key);
         }
+    }
 
-        return this.controllerIndex;
+    public static getGamepadButtonText(button: number): string {
+        if (button == ButtonMapping.NO_BINDING) {
+            return "GP-NONE";
+        }
+        if (button >= 0 && button < ButtonMapping.GAMEPAD_BUTTON_TEXT.length) {
+            return ButtonMapping.GAMEPAD_BUTTON_TEXT[button];
+        }
+        return "GP-" + button;
     }
 
     private toSnapshot(): ButtonMappingSnapshot {
@@ -120,52 +245,30 @@ export class ButtonMapping {
             keyDown: this.keyDown,
             keyLeft: this.keyLeft,
             keyRight: this.keyRight,
-            controller: this.controller,
-            controllerIndex: this.controllerIndex,
-            controllerId: this.controllerId,
             controllerJump: this.controllerJump,
-            controllerAttack: this.controllerAttack
+            controllerAttack: this.controllerAttack,
+            controllerUp: this.controllerUp,
+            controllerDown: this.controllerDown,
+            controllerLeft: this.controllerLeft,
+            controllerRight: this.controllerRight
         };
     }
 
     private static isSupportedSnapshot(snapshot: ButtonMappingSnapshot): boolean {
-        if (!snapshot || (snapshot.version !== ButtonMapping.VERSION
-                && snapshot.version !== 2 && snapshot.version !== 1)) {
+        if (!snapshot || snapshot.version !== ButtonMapping.VERSION) {
             return false;
         }
-        return Number.isFinite(snapshot.keyJump ?? snapshot.keySubWeapon)
-            && Number.isFinite(snapshot.keyAttack ?? snapshot.keyWhip)
+        return Number.isFinite(snapshot.keyJump)
+            && Number.isFinite(snapshot.keyAttack)
             && Number.isFinite(snapshot.keyUp)
             && Number.isFinite(snapshot.keyDown)
             && Number.isFinite(snapshot.keyLeft)
             && Number.isFinite(snapshot.keyRight)
-            && typeof snapshot.controller === "boolean"
-            && Number.isFinite(snapshot.controllerIndex)
-            && (snapshot.controllerId === undefined || typeof snapshot.controllerId === "string")
-            && Number.isFinite(snapshot.controllerJump ?? snapshot.controllerSubWeapon)
-            && Number.isFinite(snapshot.controllerAttack ?? snapshot.controllerWhip);
-    }
-
-    private static controllerIdForIndex(controllerIndex: number): string {
-        return ButtonMapping.getGamepads()[controllerIndex]?.id ?? "";
-    }
-
-    private useResolvedController(gamepad: Gamepad): number {
-        const changed = this.controllerIndex !== gamepad.index || this.controllerId.length === 0;
-        this.controllerIndex = gamepad.index;
-        if (this.controllerId.length === 0) {
-            this.controllerId = gamepad.id;
-        }
-        if (changed) {
-            this.save();
-        }
-        return gamepad.index;
-    }
-
-    private static getGamepads(): Array<Gamepad | null> {
-        if (typeof navigator === "undefined" || !navigator.getGamepads) {
-            return [];
-        }
-        return Array.from(navigator.getGamepads());
+            && Number.isFinite(snapshot.controllerJump)
+            && Number.isFinite(snapshot.controllerAttack)
+            && Number.isFinite(snapshot.controllerUp)
+            && Number.isFinite(snapshot.controllerDown)
+            && Number.isFinite(snapshot.controllerLeft)
+            && Number.isFinite(snapshot.controllerRight);
     }
 }

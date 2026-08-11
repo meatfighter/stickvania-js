@@ -82,6 +82,7 @@ export class BonePillar extends Thing {
     super(main, 32, 64);
     this.x = x;
     this.y = y;
+    this.hits = main.adjustEnemyHits(this.hits);
   
     }
     public update(gc: GameContainer): boolean {
@@ -117,9 +118,9 @@ export class BonePillar extends Thing {
       if (this.delay == 0) {
         if (--this.bullets == 0) {
           this.bullets = 2;
-          this.delay = 60;
+          this.delay = this.main.adjustEnemyCooldown(60);
         } else {
-          this.delay = 364;
+          this.delay = this.main.adjustEnemyCooldown(364);
         }
         this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 18, (this.direction == Main.LEFT) ? -1.5 : 1.5, 0));
         this.main.playSound(this.main.fire_ball_shot);

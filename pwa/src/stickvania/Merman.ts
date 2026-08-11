@@ -88,7 +88,7 @@ export class Merman extends Thing {
     this.mermanSpawner = mermanSpawner;
     this.direction = (main.simon.x < x) ? Main.LEFT : Main.RIGHT;
 
-    this.shootDelay = main.random.nextInt(45) + 45;
+    this.shootDelay = main.adjustEnemyCooldown(main.random.nextInt(45) + 45);
 
     main.pushThing(new Droplets(main, x + 8, 352, -1, -5.5));
     main.pushThing(new Droplets(main, x + 8, 352, 1, -5));
@@ -154,7 +154,7 @@ export class Merman extends Thing {
           }
 
           if (--this.shootDelay == 0) {
-            this.shootDelay = this.main.random.nextInt(273) + 91;
+            this.shootDelay = this.main.adjustEnemyCooldown(this.main.random.nextInt(273) + 91);
             this.shooting = 70;
             this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 18, (this.direction == Main.LEFT) ? -1.5 : 1.5, 0));
             this.main.playSound(this.main.merman_spit);

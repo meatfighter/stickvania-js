@@ -99,7 +99,7 @@ export class ZombieSpawner extends Thing {
     }
 
     if (this.delay == 0) {
-      this.delay = 273;
+      this.delay = this.main.adjustEnemySpawnDelay(273);
 
       for (let i: number = 0; i < 16 && this.count > 0; i++) {
         if (this.main.random.nextBoolean()) {

@@ -95,7 +95,7 @@ export class BirdSpawner extends Thing {
     }
 
     if (this.delay == 0) {
-      this.delay = 182;
+      this.delay = this.main.adjustEnemySpawnDelay(182);
 
       this.count--;
       let Y: number = (((trunc(this.main.simon.y)) >> 5) << 5)

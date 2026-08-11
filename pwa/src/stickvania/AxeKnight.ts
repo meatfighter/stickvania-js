@@ -93,12 +93,13 @@ export class AxeKnight extends Thing {
     this.x = x;
     this.y = y;
 
-    this.throwDelay = main.random.nextInt(273);
+    this.hits = main.adjustEnemyHits(this.hits);
+    this.throwDelay = main.adjustEnemyCooldown(main.random.nextInt(273));
   
     }
     public axeGone(): void {
     this.hasAxe = true;
-    this.throwDelay = this.main.random.nextInt(273);
+    this.throwDelay = this.main.adjustEnemyCooldown(this.main.random.nextInt(273));
   
     }
     public update(gc: GameContainer): boolean {
@@ -145,7 +146,7 @@ export class AxeKnight extends Thing {
 
       if (this.state != AxeKnight.STATE_INACTIVE && this.hasAxe) {
         if (this.throwDelay <= 0) {
-          this.throwDelay = this.main.random.nextInt(273);
+          this.throwDelay = this.main.adjustEnemyCooldown(this.main.random.nextInt(273));
           this.main.pushThing(new BoomerangAxe(this.main, this.x + 8, this.main.random.nextBoolean() ? this.y : this.y + 32, this.displayDirection, this));
           this.hasAxe = false;
         } else {

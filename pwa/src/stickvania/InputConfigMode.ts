@@ -2,27 +2,37 @@ import { Color, type ControllerListener, type GameContainer, type Graphics, Inpu
 import { ButtonMapping } from "./ButtonMapping.js";
 import type { Main } from "./Main.js";
 
-type BindingStep = "JUMP" | "ATTACK" | "UP" | "DOWN" | "LEFT" | "RIGHT";
+type BindingStep = "UP" | "DOWN" | "LEFT" | "RIGHT" | "JUMP" | "ATTACK";
+
+type MappingDraft = {
+    keyJump: number;
+    keyAttack: number;
+    keyUp: number;
+    keyDown: number;
+    keyLeft: number;
+    keyRight: number;
+    controllerJump: number;
+    controllerAttack: number;
+    controllerUp: number;
+    controllerDown: number;
+    controllerLeft: number;
+    controllerRight: number;
+};
 
 export class InputConfigMode implements ControllerListener, KeyListener {
-    private static readonly KEYBOARD_STEPS: BindingStep[] = [ "JUMP", "ATTACK", "UP", "DOWN", "LEFT", "RIGHT" ];
-    private static readonly CONTROLLER_STEPS: BindingStep[] = [ "JUMP", "ATTACK" ];
-    private static readonly PROMPT_1 = "On either your keyboard";
-    private static readonly PROMPT_2 = "or gamepad, press:";
-    private static readonly PROMPT_1_X = Math.trunc((640 - InputConfigMode.PROMPT_1.length * 16) / 2);
-    private static readonly PROMPT_2_X = Math.trunc((640 - InputConfigMode.PROMPT_2.length * 16) / 2);
-    private static readonly PROMPT_1_Y = 288;
-    private static readonly PROMPT_2_Y = 320;
-    private static readonly STEP_Y = 368;
-    private static readonly ERROR_Y = 416;
+    private static readonly STEPS: BindingStep[] = [ "UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK" ];
     private static readonly DONE_DELAY = 30;
+    private static readonly ARM_DELAY = 8;
 
     private input: Input = null;
     private stepIndex = 0;
-    private readingController = false;
     private doneDelay = 0;
+    private armDelay = InputConfigMode.ARM_DELAY;
     private message = "";
     private finished = false;
+    private draft: MappingDraft = null;
+    private readonly assignedKeys = new Set<number>();
+    private readonly assignedControllerButtons = new Set<number>();
 
     public constructor(private readonly main: Main) {
     }
@@ -31,6 +41,9 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.input = gc.getInput();
         this.input.addKeyListener(this);
         this.input.addControllerListener(this);
+        this.draft = this.createDraft();
+        this.assignedKeys.clear();
+        this.assignedControllerButtons.clear();
         this.main.clearInputPressedRecords();
     }
 
@@ -44,6 +57,10 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     }
 
     public update(gc: GameContainer): void {
+        if (this.armDelay > 0) {
+            this.armDelay--;
+            return;
+        }
         if (this.doneDelay > 0 && --this.doneDelay == 0) {
             this.finish();
         }
@@ -53,78 +70,72 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         g.setColor(Color.white);
         g.fillRect(64, 32, 512, 416);
         this.main.drawString("INPUT", 272, 208);
-        this.main.drawString(InputConfigMode.PROMPT_1, InputConfigMode.PROMPT_1_X, InputConfigMode.PROMPT_1_Y);
-        this.main.drawString(InputConfigMode.PROMPT_2, InputConfigMode.PROMPT_2_X, InputConfigMode.PROMPT_2_Y);
-        if (!this.finished) {
-            this.main.drawString(this.getCurrentStep(), this.getStepX(), InputConfigMode.STEP_Y);
+        if (this.finished) {
+            this.main.drawString(this.message, this.centerX(this.message), 320);
+            return;
         }
+        const prompt = "PRESS " + this.getCurrentStep();
+        this.main.drawString(prompt, this.centerX(prompt), 320);
         if (this.message.length > 0) {
-            this.main.drawString(this.message, this.getMessageX(), InputConfigMode.ERROR_Y);
+            this.main.drawString(this.message, this.centerX(this.message), 368);
         }
     }
 
     public keyPressed(key: number, c: string): void {
-        if (this.finished || ButtonMapping.isReservedKey(key)) {
-            return;
-        }
-        if (this.readingController) {
+        if (!this.canAcceptInput() || ButtonMapping.isReservedKey(key)) {
             return;
         }
         if (!this.bindKey(key)) {
             this.message = "ALREADY USED";
             return;
         }
-        this.message = "";
-        this.advanceKeyboard();
+        this.advance();
     }
 
     public keyReleased(key: number, c: string): void {
     }
 
     public controllerButtonPressed(controller: number, button: number): void {
-        if (this.finished) {
-            return;
-        }
-        if (!this.readingController && this.stepIndex > 0) {
+        if (!this.canAcceptInput()) {
             return;
         }
         const buttonIndex = button - 1;
-        if (buttonIndex < 0) {
+        if (buttonIndex < 0 || (this.isActionStep() && InputConfigMode.isDirectionalGamepadButton(buttonIndex))) {
             return;
         }
-        this.readingController = true;
         if (!this.bindControllerButton(buttonIndex)) {
             this.message = "ALREADY USED";
             return;
         }
-        this.main.buttonMapping.controller = true;
-        this.main.buttonMapping.rememberController(controller);
-        this.message = "";
-        this.advanceController();
+        this.advance();
     }
 
     public controllerButtonReleased(controller: number, button: number): void {
     }
 
     public controllerLeftPressed(controller: number): void {
+        this.bindControllerDirection(14);
     }
 
     public controllerLeftReleased(controller: number): void {
     }
 
     public controllerRightPressed(controller: number): void {
+        this.bindControllerDirection(15);
     }
 
     public controllerRightReleased(controller: number): void {
     }
 
     public controllerUpPressed(controller: number): void {
+        this.bindControllerDirection(12);
     }
 
     public controllerUpReleased(controller: number): void {
     }
 
     public controllerDownPressed(controller: number): void {
+        this.bindControllerDirection(13);
     }
 
     public controllerDownReleased(controller: number): void {
@@ -144,86 +155,167 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     public inputStarted(): void {
     }
 
-    private bindKey(key: number): boolean {
-        const mapping = this.main.buttonMapping;
-        switch (this.getCurrentStep()) {
-            case "JUMP":
-                mapping.keyJump = key;
-                return true;
-            case "ATTACK":
-                if (mapping.keyJump === key) {
-                    return false;
-                }
-                mapping.keyAttack = key;
-                return true;
-            case "UP":
-                if (mapping.keyJump !== key && mapping.keyAttack !== key) {
-                    mapping.keyUp = key;
-                    return true;
-                }
-                return false;
-            case "DOWN":
-                if (mapping.keyJump !== key && mapping.keyAttack !== key && mapping.keyUp !== key) {
-                    mapping.keyDown = key;
-                    return true;
-                }
-                return false;
-            case "LEFT":
-                if (mapping.keyJump !== key && mapping.keyAttack !== key
-                        && mapping.keyUp !== key && mapping.keyDown !== key) {
-                    mapping.keyLeft = key;
-                    return true;
-                }
-                return false;
-            case "RIGHT":
-                if (mapping.keyJump !== key && mapping.keyAttack !== key
-                        && mapping.keyUp !== key && mapping.keyDown !== key && mapping.keyLeft !== key) {
-                    mapping.keyRight = key;
-                    return true;
-                }
-                return false;
+    private canAcceptInput(): boolean {
+        return !this.finished && this.armDelay == 0;
+    }
+
+    private bindControllerDirection(button: number): void {
+        if (!this.canAcceptInput() || this.isActionStep()) {
+            return;
         }
+        if (!this.bindControllerButton(button)) {
+            this.message = "ALREADY USED";
+            return;
+        }
+        this.advance();
+    }
+
+    private bindKey(key: number): boolean {
+        if (this.assignedKeys.has(key)) {
+            return false;
+        }
+        this.clearDraftKey(key);
+        switch (this.getCurrentStep()) {
+            case "UP":
+                this.draft.keyUp = key;
+                break;
+            case "DOWN":
+                this.draft.keyDown = key;
+                break;
+            case "LEFT":
+                this.draft.keyLeft = key;
+                break;
+            case "RIGHT":
+                this.draft.keyRight = key;
+                break;
+            case "JUMP":
+                this.draft.keyJump = key;
+                break;
+            case "ATTACK":
+                this.draft.keyAttack = key;
+                break;
+        }
+        this.assignedKeys.add(key);
+        return true;
     }
 
     private bindControllerButton(button: number): boolean {
-        const mapping = this.main.buttonMapping;
+        if (this.assignedControllerButtons.has(button)) {
+            return false;
+        }
+        this.clearDraftControllerButton(button);
         switch (this.getCurrentStep()) {
+            case "UP":
+                this.draft.controllerUp = button;
+                break;
+            case "DOWN":
+                this.draft.controllerDown = button;
+                break;
+            case "LEFT":
+                this.draft.controllerLeft = button;
+                break;
+            case "RIGHT":
+                this.draft.controllerRight = button;
+                break;
             case "JUMP":
-                mapping.controllerJump = button;
-                return true;
+                this.draft.controllerJump = button;
+                break;
             case "ATTACK":
-                if (mapping.controllerJump !== button) {
-                    mapping.controllerAttack = button;
-                    return true;
-                }
-                return false;
-            default:
-                return false;
+                this.draft.controllerAttack = button;
+                break;
+        }
+        this.assignedControllerButtons.add(button);
+        return true;
+    }
+
+    private createDraft(): MappingDraft {
+        const mapping = this.main.buttonMapping;
+        return {
+            keyJump: mapping.keyJump,
+            keyAttack: mapping.keyAttack,
+            keyUp: mapping.keyUp,
+            keyDown: mapping.keyDown,
+            keyLeft: mapping.keyLeft,
+            keyRight: mapping.keyRight,
+            controllerJump: mapping.controllerJump,
+            controllerAttack: mapping.controllerAttack,
+            controllerUp: mapping.controllerUp,
+            controllerDown: mapping.controllerDown,
+            controllerLeft: mapping.controllerLeft,
+            controllerRight: mapping.controllerRight
+        };
+    }
+
+    private clearDraftKey(key: number): void {
+        if (this.draft.keyJump == key) {
+            this.draft.keyJump = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.keyAttack == key) {
+            this.draft.keyAttack = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.keyUp == key) {
+            this.draft.keyUp = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.keyDown == key) {
+            this.draft.keyDown = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.keyLeft == key) {
+            this.draft.keyLeft = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.keyRight == key) {
+            this.draft.keyRight = ButtonMapping.NO_BINDING;
         }
     }
 
-    private advanceKeyboard(): void {
+    private clearDraftControllerButton(button: number): void {
+        if (this.draft.controllerJump == button) {
+            this.draft.controllerJump = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.controllerAttack == button) {
+            this.draft.controllerAttack = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.controllerUp == button) {
+            this.draft.controllerUp = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.controllerDown == button) {
+            this.draft.controllerDown = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.controllerLeft == button) {
+            this.draft.controllerLeft = ButtonMapping.NO_BINDING;
+        }
+        if (this.draft.controllerRight == button) {
+            this.draft.controllerRight = ButtonMapping.NO_BINDING;
+        }
+    }
+
+    private commitDraft(): void {
+        const mapping = this.main.buttonMapping;
+        mapping.keyJump = this.draft.keyJump;
+        mapping.keyAttack = this.draft.keyAttack;
+        mapping.keyUp = this.draft.keyUp;
+        mapping.keyDown = this.draft.keyDown;
+        mapping.keyLeft = this.draft.keyLeft;
+        mapping.keyRight = this.draft.keyRight;
+        mapping.controllerJump = this.draft.controllerJump;
+        mapping.controllerAttack = this.draft.controllerAttack;
+        mapping.controllerUp = this.draft.controllerUp;
+        mapping.controllerDown = this.draft.controllerDown;
+        mapping.controllerLeft = this.draft.controllerLeft;
+        mapping.controllerRight = this.draft.controllerRight;
+    }
+
+    private advance(): void {
         this.main.playSound(this.main.pressed_enter);
+        this.message = "";
         this.stepIndex++;
-        if (this.stepIndex == InputConfigMode.KEYBOARD_STEPS.length) {
-            this.prepareToFinish();
+        if (this.stepIndex == InputConfigMode.STEPS.length) {
+            this.finished = true;
+            this.message = "SAVED";
+            this.commitDraft();
+            this.main.buttonMapping.save();
+            this.main.controlInput?.clearPressedState();
+            this.doneDelay = InputConfigMode.DONE_DELAY;
         }
-    }
-
-    private advanceController(): void {
-        this.main.playSound(this.main.pressed_enter);
-        this.stepIndex++;
-        if (this.stepIndex == InputConfigMode.CONTROLLER_STEPS.length) {
-            this.prepareToFinish();
-        }
-    }
-
-    private prepareToFinish(): void {
-        this.finished = true;
-        this.message = "SAVED";
-        this.main.buttonMapping.save();
-        this.main.controlInput?.clearPressedState();
-        this.doneDelay = InputConfigMode.DONE_DELAY;
     }
 
     private finish(): void {
@@ -232,16 +324,19 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     }
 
     private getCurrentStep(): BindingStep {
-        return this.readingController
-            ? InputConfigMode.CONTROLLER_STEPS[this.stepIndex]
-            : InputConfigMode.KEYBOARD_STEPS[this.stepIndex];
+        return InputConfigMode.STEPS[this.stepIndex];
     }
 
-    private getStepX(): number {
-        return Math.trunc((640 - this.getCurrentStep().length * 16) / 2);
+    private isActionStep(): boolean {
+        const step = this.getCurrentStep();
+        return step === "JUMP" || step === "ATTACK";
     }
 
-    private getMessageX(): number {
-        return Math.trunc((640 - this.message.length * 16) / 2);
+    private centerX(text: string): number {
+        return Math.trunc((640 - text.length * 16) / 2);
+    }
+
+    private static isDirectionalGamepadButton(button: number): boolean {
+        return button >= 12 && button <= 15;
     }
 }

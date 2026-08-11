@@ -86,6 +86,7 @@ export class LanceKnight extends Thing {
     this.x = x;
     this.y = y;
 
+    this.hits = main.adjustEnemyHits(this.hits);
     this.direction = main.random.nextBoolean() ? Main.LEFT : Main.RIGHT;
   
     }
