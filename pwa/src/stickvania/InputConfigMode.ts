@@ -23,6 +23,8 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     private static readonly STEPS: BindingStep[] = [ "UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK" ];
     private static readonly DONE_DELAY = 30;
     private static readonly ARM_DELAY = 8;
+    private static readonly MESSAGE_Y = 232;
+    private static readonly ERROR_Y = 280;
 
     private input: Input = null;
     private stepIndex = 0;
@@ -69,15 +71,14 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     public render(gc: GameContainer, g: Graphics): void {
         g.setColor(Color.white);
         g.fillRect(64, 32, 512, 416);
-        this.main.drawString("INPUT", 272, 208);
         if (this.finished) {
-            this.main.drawString(this.message, this.centerX(this.message), 320);
+            this.main.drawString(this.message, this.centerX(this.message), InputConfigMode.MESSAGE_Y);
             return;
         }
         const prompt = "PRESS " + this.getCurrentStep();
-        this.main.drawString(prompt, this.centerX(prompt), 320);
+        this.main.drawString(prompt, this.centerX(prompt), InputConfigMode.MESSAGE_Y);
         if (this.message.length > 0) {
-            this.main.drawString(this.message, this.centerX(this.message), 368);
+            this.main.drawString(this.message, this.centerX(this.message), InputConfigMode.ERROR_Y);
         }
     }
 

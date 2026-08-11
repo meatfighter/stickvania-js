@@ -20,6 +20,18 @@ export class ButtonMapping {
     private static readonly STORAGE_KEY = "stickvania.input-mapping";
     private static readonly VERSION = 5;
     public static readonly NO_BINDING = -1;
+    private static readonly DEFAULT_KEY_JUMP = Input.KEY_X;
+    private static readonly DEFAULT_KEY_ATTACK = Input.KEY_Z;
+    private static readonly DEFAULT_KEY_UP = Input.KEY_UP;
+    private static readonly DEFAULT_KEY_DOWN = Input.KEY_DOWN;
+    private static readonly DEFAULT_KEY_LEFT = Input.KEY_LEFT;
+    private static readonly DEFAULT_KEY_RIGHT = Input.KEY_RIGHT;
+    private static readonly DEFAULT_CONTROLLER_JUMP = 0;
+    private static readonly DEFAULT_CONTROLLER_ATTACK = 2;
+    private static readonly DEFAULT_CONTROLLER_UP = 12;
+    private static readonly DEFAULT_CONTROLLER_DOWN = 13;
+    private static readonly DEFAULT_CONTROLLER_LEFT = 14;
+    private static readonly DEFAULT_CONTROLLER_RIGHT = 15;
     private static readonly GAMEPAD_BUTTON_TEXT = [
         "GP-A",
         "GP-B",
@@ -78,18 +90,18 @@ export class ButtonMapping {
         [Input.KEY_9, "9"]
     ]);
 
-    public keyJump: number = Input.KEY_X;
-    public keyAttack: number = Input.KEY_Z;
-    public keyUp: number = Input.KEY_UP;
-    public keyDown: number = Input.KEY_DOWN;
-    public keyLeft: number = Input.KEY_LEFT;
-    public keyRight: number = Input.KEY_RIGHT;
-    public controllerJump: number = 0;
-    public controllerAttack: number = 2;
-    public controllerUp: number = 12;
-    public controllerDown: number = 13;
-    public controllerLeft: number = 14;
-    public controllerRight: number = 15;
+    public keyJump: number = ButtonMapping.DEFAULT_KEY_JUMP;
+    public keyAttack: number = ButtonMapping.DEFAULT_KEY_ATTACK;
+    public keyUp: number = ButtonMapping.DEFAULT_KEY_UP;
+    public keyDown: number = ButtonMapping.DEFAULT_KEY_DOWN;
+    public keyLeft: number = ButtonMapping.DEFAULT_KEY_LEFT;
+    public keyRight: number = ButtonMapping.DEFAULT_KEY_RIGHT;
+    public controllerJump: number = ButtonMapping.DEFAULT_CONTROLLER_JUMP;
+    public controllerAttack: number = ButtonMapping.DEFAULT_CONTROLLER_ATTACK;
+    public controllerUp: number = ButtonMapping.DEFAULT_CONTROLLER_UP;
+    public controllerDown: number = ButtonMapping.DEFAULT_CONTROLLER_DOWN;
+    public controllerLeft: number = ButtonMapping.DEFAULT_CONTROLLER_LEFT;
+    public controllerRight: number = ButtonMapping.DEFAULT_CONTROLLER_RIGHT;
 
     public static load(): ButtonMapping {
         const mapping = new ButtonMapping();
@@ -124,6 +136,21 @@ export class ButtonMapping {
             localStorage.setItem(ButtonMapping.STORAGE_KEY, JSON.stringify(this.toSnapshot()));
         } catch {
         }
+    }
+
+    public resetToDefaults(): void {
+        this.keyJump = ButtonMapping.DEFAULT_KEY_JUMP;
+        this.keyAttack = ButtonMapping.DEFAULT_KEY_ATTACK;
+        this.keyUp = ButtonMapping.DEFAULT_KEY_UP;
+        this.keyDown = ButtonMapping.DEFAULT_KEY_DOWN;
+        this.keyLeft = ButtonMapping.DEFAULT_KEY_LEFT;
+        this.keyRight = ButtonMapping.DEFAULT_KEY_RIGHT;
+        this.controllerJump = ButtonMapping.DEFAULT_CONTROLLER_JUMP;
+        this.controllerAttack = ButtonMapping.DEFAULT_CONTROLLER_ATTACK;
+        this.controllerUp = ButtonMapping.DEFAULT_CONTROLLER_UP;
+        this.controllerDown = ButtonMapping.DEFAULT_CONTROLLER_DOWN;
+        this.controllerLeft = ButtonMapping.DEFAULT_CONTROLLER_LEFT;
+        this.controllerRight = ButtonMapping.DEFAULT_CONTROLLER_RIGHT;
     }
 
     public static isReservedKey(key: number): boolean {

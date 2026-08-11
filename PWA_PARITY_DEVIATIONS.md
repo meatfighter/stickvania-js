@@ -231,7 +231,9 @@ PWA Behavior:
   - `HARD`
 - The input menu shows current keyboard/gamepad mappings and offers:
   - `CHANGE`
+  - `RESET`
   - `DONE`
+- `RESET` restores the default mapping, saves it to `localStorage`, and remains on the input menu.
 - The title demo timeout runs only from the main title menu.
 
 Affected Files:
@@ -253,8 +255,13 @@ Java Behavior:
 
 PWA Behavior:
 
-- Keyboard defaults are `Z` for attack, `X` for jump, and arrow keys for movement.
-- Gamepad defaults are `GP-X` for attack, `GP-A` for jump, and logical d-pad/stick directions.
+- Default mapping:
+  - `UP = UP, GP-UP`
+  - `DOWN = DOWN, GP-DOWN`
+  - `LEFT = LEFT, GP-LEFT`
+  - `RIGHT = RIGHT, GP-RIGHT`
+  - `JUMP = X, GP-A`
+  - `ATTACK = Z, GP-X`
 - `Space` is reserved for fullscreen toggle and cannot be mapped.
 - `Escape` is reserved for fullscreen exit and cannot be mapped.
 - Input mapping is saved in `localStorage` under `stickvania.input-mapping`.

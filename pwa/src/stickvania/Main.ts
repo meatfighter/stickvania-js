@@ -117,6 +117,16 @@ export class Main extends BasicGame {
     private static readonly MENU_ROW_HEIGHT: number = 32;
     private static readonly MENU_TWO_OPTION_Y: number = 304;
     private static readonly MENU_THREE_OPTION_Y: number = 288;
+    private static readonly TITLE_INPUT_TITLE_Y: number = 92;
+    private static readonly TITLE_INPUT_MAPPING_Y: number = 140;
+    private static readonly TITLE_INPUT_MAPPING_ROW_HEIGHT: number = 24;
+    private static readonly TITLE_INPUT_MENU_Y: number = 308;
+    private static readonly TITLE_INPUT_ACTIONS: string[] = [ "UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK" ];
+    private static readonly TITLE_INPUT_OPTIONS: string[] = [ "CHANGE", "RESET", "DONE" ];
+    private static readonly TITLE_MAIN_OPTIONS: string[] = [ "START", "OPTIONS" ];
+    private static readonly TITLE_OPTIONS_OPTIONS: string[] = [ "INPUT", "DIFFICULTY", "DONE" ];
+    private static readonly TITLE_DIFFICULTY_OPTIONS: string[] = [ "NORMAL", "HARD" ];
+    private static readonly GAME_OVER_OPTIONS: string[] = [ "CONTINUE", "END" ];
     public static readonly CANDLE_ITEM_AXE: number = cc("a");
     public static readonly CANDLE_ITEM_BOOMERANG: number = cc("b");
     public static readonly CANDLE_ITEM_CHEST: number = cc("c");
@@ -2841,7 +2851,6 @@ private loadStageSegment(a: number, b: number): void {
     }
     public finishInputConfig(): void {
     this.initTitleScreen();
-    this.setTitleMenu(Main.TITLE_MENU_INPUT);
   
     }
     public isLoadingScreenActive(): boolean {
@@ -3612,13 +3621,14 @@ private loadStageSegment(a: number, b: number): void {
     g.fillRect(64, 32, 512, 416);
 
     this.drawString("GAME OVER", 256, 208);
-    this.drawString("CONTINUE", 272, Main.MENU_TWO_OPTION_Y);
-    this.drawString("END", 272, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
+    const optionX = this.centerLongestMenuOptionX(Main.GAME_OVER_OPTIONS);
+    this.drawString("CONTINUE", optionX, Main.MENU_TWO_OPTION_Y);
+    this.drawString("END", optionX, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
 
     if (this.continueSelected) {
-      this.smallHeart.draw(240, Main.MENU_TWO_OPTION_Y);
+      this.smallHeart.draw(optionX - 32, Main.MENU_TWO_OPTION_Y);
     } else {
-      this.smallHeart.draw(240, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
+      this.smallHeart.draw(optionX - 32, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
     }
   
     }
@@ -3957,9 +3967,9 @@ private loadStageSegment(a: number, b: number): void {
     private getTitleOptionCount(): number {
     switch(this.titleMenu) {
       case Main.TITLE_MENU_OPTIONS:
+      case Main.TITLE_MENU_INPUT:
         return 3;
       case Main.TITLE_MENU_MAIN:
-      case Main.TITLE_MENU_INPUT:
       case Main.TITLE_MENU_DIFFICULTY:
       default:
         return 2;
@@ -3993,14 +4003,18 @@ private loadStageSegment(a: number, b: number): void {
         if (this.titleSelectedIndex == 0) {
           this.fadeState = Main.FADE_OUT;
           this.fadeReason = Main.FADE_REASON_SHOW_INPUT_CONFIG;
+        } else if (this.titleSelectedIndex == 1) {
+          this.buttonMapping.resetToDefaults();
+          this.buttonMapping.save();
+          this.setTitleMenu(Main.TITLE_MENU_INPUT, 1);
         } else {
-          this.setTitleMenu(Main.TITLE_MENU_OPTIONS);
+          this.setTitleMenu(Main.TITLE_MENU_MAIN);
         }
         break;
       case Main.TITLE_MENU_DIFFICULTY:
         this.setDifficulty(this.titleSelectedIndex == 0
             ? Main.DIFFICULTY_NORMAL : Main.DIFFICULTY_HARD);
-        this.setTitleMenu(Main.TITLE_MENU_OPTIONS, 1);
+        this.setTitleMenu(Main.TITLE_MENU_MAIN);
         break;
     }
 
@@ -4020,35 +4034,41 @@ private loadStageSegment(a: number, b: number): void {
 
     }
     private renderTitleMainMenu(): void {
-    this.drawString("START", 264, Main.MENU_TWO_OPTION_Y);
-    this.drawString("OPTIONS", 264, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
-    this.drawTitleHeart(232, Main.MENU_TWO_OPTION_Y);
+    const optionX = this.centerLongestMenuOptionX(Main.TITLE_MAIN_OPTIONS);
+    this.drawString("START", optionX, Main.MENU_TWO_OPTION_Y);
+    this.drawString("OPTIONS", optionX, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
+    this.drawTitleHeart(optionX - 32, Main.MENU_TWO_OPTION_Y);
 
     }
     private renderTitleOptionsMenu(): void {
-    this.drawString("INPUT", 240, Main.MENU_THREE_OPTION_Y);
-    this.drawString("DIFFICULTY", 240, Main.MENU_THREE_OPTION_Y + Main.MENU_ROW_HEIGHT);
-    this.drawString("DONE", 240, Main.MENU_THREE_OPTION_Y + Main.MENU_ROW_HEIGHT * 2);
-    this.drawTitleHeart(208, Main.MENU_THREE_OPTION_Y);
+    const optionX = this.centerLongestMenuOptionX(Main.TITLE_OPTIONS_OPTIONS);
+    this.drawString("INPUT", optionX, Main.MENU_THREE_OPTION_Y);
+    this.drawString("DIFFICULTY", optionX, Main.MENU_THREE_OPTION_Y + Main.MENU_ROW_HEIGHT);
+    this.drawString("DONE", optionX, Main.MENU_THREE_OPTION_Y + Main.MENU_ROW_HEIGHT * 2);
+    this.drawTitleHeart(optionX - 32, Main.MENU_THREE_OPTION_Y);
 
     }
     private renderTitleInputMenu(): void {
-    this.drawString("INPUT", 272, 96);
-    this.drawInputMappingLine("UP", 144, 144);
-    this.drawInputMappingLine("DOWN", 144, 168);
-    this.drawInputMappingLine("LEFT", 144, 192);
-    this.drawInputMappingLine("RIGHT", 144, 216);
-    this.drawInputMappingLine("JUMP", 144, 240);
-    this.drawInputMappingLine("ATTACK", 144, 264);
-    this.drawString("CHANGE", 272, Main.MENU_TWO_OPTION_Y);
-    this.drawString("DONE", 272, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
-    this.drawString("^", 240, Main.MENU_TWO_OPTION_Y + this.titleSelectedIndex * Main.MENU_ROW_HEIGHT);
+    this.drawCenteredString("INPUT", Main.TITLE_INPUT_TITLE_Y);
+    const mappingX = this.getInputMappingX();
+    for (let i: number = 0; i < Main.TITLE_INPUT_ACTIONS.length; i++) {
+      this.drawInputMappingLine(Main.TITLE_INPUT_ACTIONS[i], mappingX,
+          Main.TITLE_INPUT_MAPPING_Y + i * Main.TITLE_INPUT_MAPPING_ROW_HEIGHT);
+    }
+    const optionX = this.centerLongestMenuOptionX(Main.TITLE_INPUT_OPTIONS);
+    for (let i: number = 0; i < Main.TITLE_INPUT_OPTIONS.length; i++) {
+      this.drawString(Main.TITLE_INPUT_OPTIONS[i], optionX,
+          Main.TITLE_INPUT_MENU_Y + i * Main.MENU_ROW_HEIGHT);
+    }
+    this.drawString("^", optionX - 32, Main.TITLE_INPUT_MENU_Y
+        + this.titleSelectedIndex * Main.MENU_ROW_HEIGHT);
 
     }
     private renderTitleDifficultyMenu(): void {
-    this.drawString("NORMAL", 272, Main.MENU_TWO_OPTION_Y);
-    this.drawString("HARD", 272, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
-    this.drawTitleHeart(240, Main.MENU_TWO_OPTION_Y);
+    const optionX = this.centerLongestMenuOptionX(Main.TITLE_DIFFICULTY_OPTIONS);
+    this.drawString("NORMAL", optionX, Main.MENU_TWO_OPTION_Y);
+    this.drawString("HARD", optionX, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
+    this.drawTitleHeart(optionX - 32, Main.MENU_TWO_OPTION_Y);
 
     }
     private drawTitleHeart(x: number, y: number, rowHeight: number = Main.MENU_ROW_HEIGHT): void {
@@ -4056,9 +4076,37 @@ private loadStageSegment(a: number, b: number): void {
 
     }
     private drawInputMappingLine(action: string, x: number, y: number): void {
-    this.drawString(action.padEnd(6, " ") + "= "
+    this.drawString(this.getInputMappingLine(action), x, y);
+
+    }
+    private getInputMappingX(): number {
+    let maxLength: number = 0;
+    for (let i: number = 0; i < Main.TITLE_INPUT_ACTIONS.length; i++) {
+      maxLength = Math.max(maxLength, this.getInputMappingLine(Main.TITLE_INPUT_ACTIONS[i]).length);
+    }
+    return Math.max(64, trunc((640 - maxLength * 16) / 2));
+
+    }
+    private getInputMappingLine(action: string): string {
+    return action.padEnd(6, " ") + "= "
         + this.buttonMapping.keyboardLabelFor(action) + ", "
-        + this.buttonMapping.controllerLabelFor(action), x, y);
+        + this.buttonMapping.controllerLabelFor(action);
+
+    }
+    private drawCenteredString(text: string, y: number): void {
+    this.drawString(text, this.centerTextX(text), y);
+
+    }
+    private centerTextX(text: string): number {
+    return trunc((640 - text.length * 16) / 2);
+
+    }
+    private centerLongestMenuOptionX(options: string[]): number {
+    let maxLength: number = 0;
+    for (let i: number = 0; i < options.length; i++) {
+      maxLength = Math.max(maxLength, options[i].length);
+    }
+    return trunc((640 - maxLength * 16) / 2);
 
     }
     private drawStatusBar(g: Graphics): void {
