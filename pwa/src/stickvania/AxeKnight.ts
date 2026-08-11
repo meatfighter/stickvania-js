@@ -185,8 +185,8 @@ export class AxeKnight extends Thing {
           }
           break;
         case AxeKnight.STATE_STANDING:
-          if (++this.standingDelay == 43) {
-            this.standingDelay = this.main.random.nextInt(43);
+          if (++this.standingDelay >= this.main.adjustEnemyBehaviorDelay(43)) {
+            this.standingDelay = this.main.adjustEnemyBehaviorDelay(this.main.random.nextInt(43));
             this.state = AxeKnight.STATE_WALKING;
             let distance: number = this.main.simon.x + 8 - this.x;
             let aDist: number = Math.abs(distance);

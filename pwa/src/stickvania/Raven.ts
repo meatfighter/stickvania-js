@@ -145,7 +145,7 @@ export class Raven extends Thing {
         case Raven.STATE_INACTIVE:
           if (Math.abs(this.main.simon.x + 16 - this.x) < 192) {
             this.state = Raven.STATE_HOVERING;
-            this.delay = 91 + this.main.random.nextInt(91);
+            this.delay = this.main.adjustEnemyBehaviorDelay(91 + this.main.random.nextInt(91));
             this.spriteIndex = 0;
           }
           break;
@@ -168,16 +168,16 @@ export class Raven extends Thing {
           }
           if (Math.abs(this.targetX - this.x) <= 2) {
             this.state = Raven.STATE_HOVERING;
-            this.delay = 91 + this.main.random.nextInt(91);
+            this.delay = this.main.adjustEnemyBehaviorDelay(91 + this.main.random.nextInt(91));
           } else if (this.targetX < this.x) {
             if (!this.moveX(-1)) {
               this.state = Raven.STATE_HOVERING;
-              this.delay = 91 + this.main.random.nextInt(91);
+              this.delay = this.main.adjustEnemyBehaviorDelay(91 + this.main.random.nextInt(91));
             }
           } else {
             if (!this.moveX(1)) {
               this.state = Raven.STATE_HOVERING;
-              this.delay = 91 + this.main.random.nextInt(91);
+              this.delay = this.main.adjustEnemyBehaviorDelay(91 + this.main.random.nextInt(91));
             }
           }
           break;

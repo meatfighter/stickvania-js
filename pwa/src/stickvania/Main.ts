@@ -106,7 +106,10 @@ export class Main extends BasicGame {
     public static readonly DIFFICULTY_NORMAL: number = 0;
     public static readonly DIFFICULTY_HARD: number = 1;
     private static readonly DIFFICULTY_STORAGE_KEY: string = "stickvania.difficulty";
-    private static readonly HARD_DELAY_MULTIPLIER: number = 0.75;
+    private static readonly HARD_SPAWN_DELAY_MULTIPLIER: number = 0.66;
+    private static readonly HARD_ATTACK_COOLDOWN_MULTIPLIER: number = 0.70;
+    private static readonly HARD_BEHAVIOR_DELAY_MULTIPLIER: number = 0.75;
+    private static readonly HARD_ACTIVE_CAP_BONUS: number = 1;
     private static readonly TITLE_MENU_MAIN: number = 0;
     private static readonly TITLE_MENU_OPTIONS: number = 1;
     private static readonly TITLE_MENU_INPUT: number = 2;
@@ -2776,11 +2779,20 @@ private loadStageSegment(a: number, b: number): void {
 
     }
     public adjustEnemySpawnDelay(baseDelay: number): number {
-    return this.adjustHardDelay(baseDelay);
+    return this.adjustHardDelay(baseDelay, Main.HARD_SPAWN_DELAY_MULTIPLIER);
 
     }
     public adjustEnemyCooldown(baseDelay: number): number {
-    return this.adjustHardDelay(baseDelay);
+    return this.adjustHardDelay(baseDelay, Main.HARD_ATTACK_COOLDOWN_MULTIPLIER);
+
+    }
+    public adjustEnemyBehaviorDelay(baseDelay: number): number {
+    return this.adjustHardDelay(baseDelay, Main.HARD_BEHAVIOR_DELAY_MULTIPLIER);
+
+    }
+    public adjustEnemyActiveCap(baseCount: number): number {
+    return this.isHardDifficultyEnabledForStageState()
+        ? baseCount + Main.HARD_ACTIVE_CAP_BONUS : baseCount;
 
     }
     public adjustSimonDamage(power: number): number {
@@ -2790,14 +2802,14 @@ private loadStageSegment(a: number, b: number): void {
     return power + 1;
 
     }
-    private adjustHardDelay(baseDelay: number): number {
+    private adjustHardDelay(baseDelay: number, multiplier: number): number {
     if (!this.isHardDifficultyEnabledForStageState()) {
       return baseDelay;
     }
     if (baseDelay <= 0) {
       return baseDelay;
     }
-    return Math.max(1, trunc(baseDelay * Main.HARD_DELAY_MULTIPLIER));
+    return Math.max(1, trunc(baseDelay * multiplier));
 
     }
     public syncSimonPhysicsProfile(): void {

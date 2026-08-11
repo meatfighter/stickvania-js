@@ -317,11 +317,13 @@ Affected Files:
 - `pwa/src/stickvania/BirdSpawner.ts`
 - `pwa/src/stickvania/BoneDragon.ts`
 - `pwa/src/stickvania/BonePillar.ts`
+- `pwa/src/stickvania/BridgeBat.ts`
 - `pwa/src/stickvania/Ghost.ts`
 - `pwa/src/stickvania/LanceKnight.ts`
 - `pwa/src/stickvania/MedusaHeadSpawner.ts`
 - `pwa/src/stickvania/Merman.ts`
 - `pwa/src/stickvania/MermanSpawner.ts`
+- `pwa/src/stickvania/Raven.ts`
 - `pwa/src/stickvania/WhiteSkeleton.ts`
 - `pwa/src/stickvania/ZombieSpawner.ts`
 

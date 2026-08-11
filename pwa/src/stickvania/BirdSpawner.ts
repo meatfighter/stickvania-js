@@ -73,7 +73,9 @@ import { Zombie } from "./Zombie.js";
 import { ZombieSpawner } from "./ZombieSpawner.js";
 
 export class BirdSpawner extends Thing {
-    private count: number = 3;
+    private static readonly BASE_ACTIVE_CAP: number = 3;
+    private count: number = BirdSpawner.BASE_ACTIVE_CAP;
+    private activeCap: number = BirdSpawner.BASE_ACTIVE_CAP;
     private delay: number = 0;
     private x1: number = 0;
     private x2: number = 0;
@@ -84,10 +86,15 @@ export class BirdSpawner extends Thing {
   
     }
     public birdDied(): void {
-    this.count++;
+    this.syncActiveCap();
+    if (this.count < this.activeCap) {
+      this.count++;
+    }
   
     }
     public update(gc: GameContainer): boolean {
+
+    this.syncActiveCap();
 
     if (this.main.timeFrozen > 0 || this.main.simon.x < this.x1 || this.main.simon.x > this.x2
         || this.count == 0) {
@@ -120,5 +127,25 @@ export class BirdSpawner extends Thing {
     }
     public render(gc: GameContainer, g: Graphics): void {
   
+    }
+    private syncActiveCap(): void {
+    if (!Number.isFinite(this.activeCap)) {
+      this.activeCap = BirdSpawner.BASE_ACTIVE_CAP;
+    }
+    if (!Number.isFinite(this.count)) {
+      this.count = this.activeCap;
+    }
+    let activeCap: number = this.main.adjustEnemyActiveCap(BirdSpawner.BASE_ACTIVE_CAP);
+    if (activeCap == this.activeCap) {
+      return;
+    }
+    this.count += activeCap - this.activeCap;
+    if (this.count < 0) {
+      this.count = 0;
+    } else if (this.count > activeCap) {
+      this.count = activeCap;
+    }
+    this.activeCap = activeCap;
+
     }
 }

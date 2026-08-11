@@ -69,33 +69,52 @@ Boss health is intentionally unchanged.
 
 ## HARD Spawn Timing
 
-HARD reduces positive non-boss spawner reset delays to `trunc(baseDelay * 0.75)`, with a minimum positive delay of `1`.
+HARD reduces positive non-boss spawner reset delays to `trunc(baseDelay * 0.66)`, with a minimum positive delay of `1`.
 
 | Spawner | NORMAL Delay | HARD Delay | File |
 | --- | ---: | ---: | --- |
-| ZombieSpawner | 273 | 204 | `pwa/src/stickvania/ZombieSpawner.ts` |
-| BatSpawner | 546 | 409 | `pwa/src/stickvania/BatSpawner.ts` |
-| BirdSpawner | 182 | 136 | `pwa/src/stickvania/BirdSpawner.ts` |
-| MedusaHeadSpawner | 273 | 204 | `pwa/src/stickvania/MedusaHeadSpawner.ts` |
-| MermanSpawner | 182 | 136 | `pwa/src/stickvania/MermanSpawner.ts` |
+| ZombieSpawner | 273 | 180 | `pwa/src/stickvania/ZombieSpawner.ts` |
+| BatSpawner | 546 | 360 | `pwa/src/stickvania/BatSpawner.ts` |
+| BirdSpawner | 182 | 120 | `pwa/src/stickvania/BirdSpawner.ts` |
+| MedusaHeadSpawner | 273 | 180 | `pwa/src/stickvania/MedusaHeadSpawner.ts` |
+| MermanSpawner | 182 | 120 | `pwa/src/stickvania/MermanSpawner.ts` |
 
-Active enemy caps are unchanged.
+HARD also increases selected active ambient enemy caps by 1 during live stage state:
+
+| Spawner | NORMAL Active Cap | HARD Active Cap | File |
+| --- | ---: | ---: | --- |
+| ZombieSpawner | 3 | 4 | `pwa/src/stickvania/ZombieSpawner.ts` |
+| BirdSpawner | 3 | 4 | `pwa/src/stickvania/BirdSpawner.ts` |
+| MermanSpawner | 2 | 3 | `pwa/src/stickvania/MermanSpawner.ts` |
 
 ## HARD Enemy Attack Cooldowns
 
-HARD reduces positive non-boss attack/cooldown delays to `trunc(baseDelay * 0.75)`, with a minimum positive delay of `1`.
+HARD reduces positive non-boss attack/cooldown delays to `trunc(baseDelay * 0.70)`, with a minimum positive delay of `1`.
 
 | Enemy | NORMAL Delay Expression | HARD Result | File |
 | --- | --- | --- | --- |
-| AxeKnight | `random.nextInt(273)` | Same random call, result multiplied by `0.75`; zero remains zero | `pwa/src/stickvania/AxeKnight.ts` |
-| BoneDragon | `91 + random.nextInt(273)` | `68..272` | `pwa/src/stickvania/BoneDragon.ts` |
-| BonePillar short fireball gap | `60` | `45` | `pwa/src/stickvania/BonePillar.ts` |
-| BonePillar long fireball gap | `364` | `273` | `pwa/src/stickvania/BonePillar.ts` |
-| Merman initial shot delay | `45 + random.nextInt(45)` | `33..66` | `pwa/src/stickvania/Merman.ts` |
-| Merman repeat shot delay | `91 + random.nextInt(273)` | `68..272` | `pwa/src/stickvania/Merman.ts` |
-| WhiteSkeleton throw delay | `91 + random.nextInt(273)` | `68..272` | `pwa/src/stickvania/WhiteSkeleton.ts` |
+| AxeKnight | `random.nextInt(273)` | Same random call, result multiplied by `0.70`; zero remains zero | `pwa/src/stickvania/AxeKnight.ts` |
+| BoneDragon | `91 + random.nextInt(273)` | `63..254` | `pwa/src/stickvania/BoneDragon.ts` |
+| BonePillar short fireball gap | `60` | `42` | `pwa/src/stickvania/BonePillar.ts` |
+| BonePillar long fireball gap | `364` | `254` | `pwa/src/stickvania/BonePillar.ts` |
+| Merman initial shot delay | `45 + random.nextInt(45)` | `31..62` | `pwa/src/stickvania/Merman.ts` |
+| Merman repeat shot delay | `91 + random.nextInt(273)` | `63..254` | `pwa/src/stickvania/Merman.ts` |
+| WhiteSkeleton throw delay | `91 + random.nextInt(273)` | `63..254` | `pwa/src/stickvania/WhiteSkeleton.ts` |
 
 Boss timing is intentionally unchanged in this pass.
+
+## HARD Enemy Behavior Timing
+
+HARD reduces selected regular enemy behavior pauses to `trunc(baseDelay * 0.75)`, with a minimum positive delay of `1`. Movement speeds and movement distances are unchanged.
+
+| Enemy | NORMAL Delay Expression | HARD Result | File |
+| --- | --- | --- | --- |
+| WhiteSkeleton stand pause | `23 + random.nextInt(46)` | `17..51` | `pwa/src/stickvania/WhiteSkeleton.ts` |
+| WhiteSkeleton walk duration | `91 + random.nextInt(273)` | `68..272` | `pwa/src/stickvania/WhiteSkeleton.ts` |
+| Raven hover pause | `91 + random.nextInt(91)` | `68..135` | `pwa/src/stickvania/Raven.ts` |
+| BridgeBat hover pause | `random.nextInt(43)` | zero remains zero; positive values become `1..31` | `pwa/src/stickvania/BridgeBat.ts` |
+| AxeKnight standing threshold | `43` | `32` | `pwa/src/stickvania/AxeKnight.ts` |
+| AxeKnight standing reset | `random.nextInt(43)` | zero remains zero; positive values become `1..31` | `pwa/src/stickvania/AxeKnight.ts` |
 
 ## Explicit Non-Changes
 
@@ -107,6 +126,7 @@ HARD currently does not change:
 - Item drop tables.
 - Stopwatch duration.
 - Ground enemy movement speeds.
+- Projectile speeds.
 - Simon movement speed.
 - Demo input recordings.
 - Ending input recordings.

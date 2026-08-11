@@ -151,12 +151,12 @@ export class WhiteSkeleton extends Thing {
           case WhiteSkeleton.STATE_INACTIVE:
             if (this.x >= this.main.camera - 96 && this.x <= this.main.camera + 576) {
               this.state = WhiteSkeleton.STATE_STANDING;
-              this.delay = 23 + this.main.random.nextInt(46);
+              this.delay = this.main.adjustEnemyBehaviorDelay(23 + this.main.random.nextInt(46));
             }
             break;
           case WhiteSkeleton.STATE_STANDING:
             if (--this.delay == 0) {
-              this.delay = 91 + this.main.random.nextInt(273);
+              this.delay = this.main.adjustEnemyBehaviorDelay(91 + this.main.random.nextInt(273));
               this.state = WhiteSkeleton.STATE_WALKING;
               if (this.main.simon.x + 16 > this.x) {
                 this.targetX = this.main.simon.x - 48 - this.main.random.nextInt(160);
@@ -168,7 +168,7 @@ export class WhiteSkeleton extends Thing {
           case WhiteSkeleton.STATE_WALKING:
             if (--this.delay == 0) {
               this.state = WhiteSkeleton.STATE_STANDING;
-              this.delay = 23 + this.main.random.nextInt(46);
+              this.delay = this.main.adjustEnemyBehaviorDelay(23 + this.main.random.nextInt(46));
             }
             if (++this.spriteIndexIncrementor == 20) {
               this.spriteIndexIncrementor = 0;
