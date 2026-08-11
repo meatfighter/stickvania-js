@@ -114,6 +114,9 @@ export class Main extends BasicGame {
     private static readonly TITLE_MENU_OPTIONS: number = 1;
     private static readonly TITLE_MENU_INPUT: number = 2;
     private static readonly TITLE_MENU_DIFFICULTY: number = 3;
+    private static readonly MENU_ROW_HEIGHT: number = 32;
+    private static readonly MENU_TWO_OPTION_Y: number = 304;
+    private static readonly MENU_THREE_OPTION_Y: number = 288;
     public static readonly CANDLE_ITEM_AXE: number = cc("a");
     public static readonly CANDLE_ITEM_BOOMERANG: number = cc("b");
     public static readonly CANDLE_ITEM_CHEST: number = cc("c");
@@ -463,6 +466,7 @@ export class Main extends BasicGame {
     public currentMusic: Music = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) = null;
     public loadingFinishedHandler: (() => void) = null;
+    public stateSaveInvalidatedHandler: (() => void) = null;
     public windowedDisplayModeProvider: (() => { width: number; height: number }) = null;
     public browserFullscreenController: BrowserFullscreenController = null;
     private browserSuspended: boolean = false;
@@ -2871,6 +2875,17 @@ private loadStageSegment(a: number, b: number): void {
         && this.loadedSegments != null && this.input != null;
   
     }
+    public isStateSaveInvalidatingMenuActive(): boolean {
+    return this.mode == Main.MODE_TITLE_SCREEN || this.mode == Main.MODE_CONTINUE_SCREEN
+        || this.mode == Main.MODE_INPUT_CONFIG;
+
+    }
+    private notifyStateSaveInvalidated(): void {
+    if (this.stateSaveInvalidatedHandler != null) {
+      this.stateSaveInvalidatedHandler();
+    }
+
+    }
     public addPlayers(players: number): void {
     this.playSound(this.one_up);
     this.players += players;
@@ -3561,6 +3576,7 @@ private loadStageSegment(a: number, b: number): void {
     public initContinueScreen(): void {
 
     this.mode = Main.MODE_CONTINUE_SCREEN;
+    this.notifyStateSaveInvalidated();
 
     this.players = 4;
     this.score = 0;
@@ -3596,19 +3612,20 @@ private loadStageSegment(a: number, b: number): void {
     g.fillRect(64, 32, 512, 416);
 
     this.drawString("GAME OVER", 256, 208);
-    this.drawString("CONTINUE", 272, 288);
-    this.drawString("END", 272, 336);
+    this.drawString("CONTINUE", 272, Main.MENU_TWO_OPTION_Y);
+    this.drawString("END", 272, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
 
     if (this.continueSelected) {
-      this.smallHeart.draw(240, 288);
+      this.smallHeart.draw(240, Main.MENU_TWO_OPTION_Y);
     } else {
-      this.smallHeart.draw(240, 336);
+      this.smallHeart.draw(240, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
     }
   
     }
     public initInputConfig(gc: GameContainer): void {
 
     this.mode = Main.MODE_INPUT_CONFIG;
+    this.notifyStateSaveInvalidated();
     if (this.inputConfigMode != null) {
       this.inputConfigMode.dispose();
     }
@@ -3833,6 +3850,7 @@ private loadStageSegment(a: number, b: number): void {
     }
 
     this.mode = Main.MODE_TITLE_SCREEN;
+    this.notifyStateSaveInvalidated();
 
     this.titleTimeout = 1365;
     this.titleBatX = 0;
@@ -3931,7 +3949,8 @@ private loadStageSegment(a: number, b: number): void {
         break;
     }
 
-    this.drawString("SPACE - FULL-SCREEN MODE", 160, 400);
+    const fullscreenText = "SPACE - FULL-SCREEN MODE";
+    this.drawString(fullscreenText, trunc((640 - fullscreenText.length * 16) / 2), 400);
     this.drawString("@ 2010 MEATFIGHTER.COM", 144, 430);
   
     }
@@ -4001,16 +4020,16 @@ private loadStageSegment(a: number, b: number): void {
 
     }
     private renderTitleMainMenu(): void {
-    this.drawString("START", 264, 288);
-    this.drawString("OPTIONS", 264, 336);
-    this.drawTitleHeart(232, 288, 48);
+    this.drawString("START", 264, Main.MENU_TWO_OPTION_Y);
+    this.drawString("OPTIONS", 264, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
+    this.drawTitleHeart(232, Main.MENU_TWO_OPTION_Y);
 
     }
     private renderTitleOptionsMenu(): void {
-    this.drawString("INPUT", 240, 272);
-    this.drawString("DIFFICULTY", 240, 304);
-    this.drawString("DONE", 240, 336);
-    this.drawTitleHeart(208, 272);
+    this.drawString("INPUT", 240, Main.MENU_THREE_OPTION_Y);
+    this.drawString("DIFFICULTY", 240, Main.MENU_THREE_OPTION_Y + Main.MENU_ROW_HEIGHT);
+    this.drawString("DONE", 240, Main.MENU_THREE_OPTION_Y + Main.MENU_ROW_HEIGHT * 2);
+    this.drawTitleHeart(208, Main.MENU_THREE_OPTION_Y);
 
     }
     private renderTitleInputMenu(): void {
@@ -4021,18 +4040,18 @@ private loadStageSegment(a: number, b: number): void {
     this.drawInputMappingLine("RIGHT", 144, 216);
     this.drawInputMappingLine("JUMP", 144, 240);
     this.drawInputMappingLine("ATTACK", 144, 264);
-    this.drawString("CHANGE", 272, 320);
-    this.drawString("DONE", 272, 352);
-    this.drawString("^", 240, 320 + (this.titleSelectedIndex << 5));
+    this.drawString("CHANGE", 272, Main.MENU_TWO_OPTION_Y);
+    this.drawString("DONE", 272, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
+    this.drawString("^", 240, Main.MENU_TWO_OPTION_Y + this.titleSelectedIndex * Main.MENU_ROW_HEIGHT);
 
     }
     private renderTitleDifficultyMenu(): void {
-    this.drawString("NORMAL", 272, 288);
-    this.drawString("HARD", 272, 336);
-    this.drawTitleHeart(240, 288, 48);
+    this.drawString("NORMAL", 272, Main.MENU_TWO_OPTION_Y);
+    this.drawString("HARD", 272, Main.MENU_TWO_OPTION_Y + Main.MENU_ROW_HEIGHT);
+    this.drawTitleHeart(240, Main.MENU_TWO_OPTION_Y);
 
     }
-    private drawTitleHeart(x: number, y: number, rowHeight: number = 32): void {
+    private drawTitleHeart(x: number, y: number, rowHeight: number = Main.MENU_ROW_HEIGHT): void {
     this.smallHeart.draw(x, y + this.titleSelectedIndex * rowHeight);
 
     }

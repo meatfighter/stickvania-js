@@ -222,6 +222,7 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "inputConfigMode",
     "loadingCompleteHandler",
     "loadingFinishedHandler",
+    "stateSaveInvalidatedHandler",
     "windowedDisplayModeProvider",
     "browserFullscreenController",
     "browserSuspended"

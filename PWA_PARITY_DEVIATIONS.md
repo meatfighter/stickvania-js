@@ -155,10 +155,12 @@ PWA Behavior:
 - Save-ready game state is serialized to `localStorage`.
 - Continue resumes from the saved stage, entities, stacks, random state, audio state, and captured `Main` fields.
 - The current difficulty value is captured as part of the exact game-state snapshot.
+- Stored game state is cleared when the running game reaches title/main menu, title submenus, input configuration, or the game-over Continue/End menu.
 
 Affected Files:
 
 - `pwa/src/main.ts`
+- `pwa/src/stickvania/Main.ts`
 - `pwa/src/stickvania/persistence/GameStateSnapshot.ts`
 - `pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts`
 - `pwa/src/stickvania/persistence/StickvaniaGameStateStore.ts`

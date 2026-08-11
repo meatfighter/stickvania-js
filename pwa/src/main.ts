@@ -139,6 +139,7 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
         const appContainer = new AppGameContainer(scalableGame, displayMode.width, displayMode.height, false);
         container = appContainer;
         game = mainGame;
+        mainGame.stateSaveInvalidatedHandler = clearStoredGameState;
         mainGame.appGameContainer = appContainer;
         mainGame.scalableGame = scalableGame;
         mainGame.windowedDisplayModeProvider = getResponsiveWindowedDisplayMode;
@@ -199,10 +200,21 @@ function returnToMenu(): void {
 }
 
 function saveCurrentGameState(): boolean {
-    if (game === null || !game.isStateSaveReady()) {
+    if (game === null) {
+        return false;
+    }
+    if (game.isStateSaveInvalidatingMenuActive()) {
+        clearStoredGameState();
+        return false;
+    }
+    if (!game.isStateSaveReady()) {
         return false;
     }
     return gameStateStore.save(game);
+}
+
+function clearStoredGameState(): void {
+    gameStateStore.clear();
 }
 
 function suspendCurrentGameForPageHide(): void {
