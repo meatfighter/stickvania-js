@@ -18,6 +18,10 @@ const GAME_VIEWPORT_HEIGHT = 416;
 const DEFAULT_VOLUME = 0.1;
 const BASE_URL = import.meta.env.BASE_URL;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
+type DisplayModePreference = "light" | "dark";
+
+const DISPLAY_MODE_STORAGE_KEY = "stickvania-display-mode";
+const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
 
 let app: HTMLElement;
 let container: AppGameContainer | null = null;
@@ -31,6 +35,7 @@ let cursorGameHost: HTMLElement | null = null;
 let cursorHideTimer = 0;
 let pointerOverGameHost = false;
 let volume = safeReadVolume();
+let displayModePreference = safeReadDisplayModePreference();
 let runtimeResourcesLoaded = false;
 let suspendedByFocusLoss = false;
 let suspendedByVisibilityLoss = false;
@@ -47,10 +52,39 @@ function setAudioVolume(value: number): void {
     container?.setMusicVolume(volume);
 }
 
-function updateVolumeUi(volumeInput: HTMLInputElement, volumeValue: HTMLElement): void {
+function updateVolumeUi(volumeInput: HTMLInputElement, volumeValue: HTMLElement, volumeIcon: HTMLElement): void {
     const volumePercent = Math.round(volume * 100);
     volumeInput.style.setProperty("--thumb-position", `${volumePercent}%`);
     volumeValue.textContent = String(volumePercent);
+    volumeIcon.innerHTML = volumeIconSvg(volume);
+}
+
+function volumeIconSvg(value: number): string {
+    const waves = Math.round(value * 100) === 0
+        ? `<path d="M18 9l5 5m0-5l-5 5"></path>`
+        : value < 0.33
+            ? `<path d="M17 10a4 4 0 0 1 0 4"></path>`
+            : value < 0.66
+                ? `<path d="M17 8a6 6 0 0 1 0 8"></path><path d="M20 6a9 9 0 0 1 0 12"></path>`
+                : `<path d="M17 8a6 6 0 0 1 0 8"></path><path d="M20 6a9 9 0 0 1 0 12"></path><path d="M23 4a12 12 0 0 1 0 16"></path>`;
+
+    return `
+        <svg viewBox="0 0 26 24" focusable="false" aria-hidden="true">
+            <path d="M3 9v6h5l6 5V4L8 9H3z"></path>
+            ${waves}
+        </svg>`;
+}
+
+function setDisplayModePreference(value: DisplayModePreference): void {
+    displayModePreference = value;
+    writeDisplayModePreference(value);
+}
+
+function updateDisplayModeUi(lightButton: HTMLButtonElement, darkButton: HTMLButtonElement): void {
+    lightButton.setAttribute("aria-pressed", String(displayModePreference === "light"));
+    darkButton.setAttribute("aria-pressed", String(displayModePreference === "dark"));
+    document.getElementById("display-switch-button")?.setAttribute("data-mode", displayModePreference);
+    document.getElementById("display-switch-button")?.setAttribute("aria-pressed", String(displayModePreference === "dark"));
 }
 
 function showBoot(): void {
@@ -78,8 +112,15 @@ function showMenu(errorText = ""): void {
     app.innerHTML = `
         <main class="menu-screen">
             <section class="menu-panel" aria-label="Stickvania menu">
+                <div class="display-row" role="group" aria-label="Display mode">
+                    <button id="display-light-button" class="display-label-button" type="button" aria-pressed="${displayModePreference === "light"}">Light</button>
+                    <button id="display-switch-button" class="display-switch" type="button" aria-label="Toggle display mode" aria-pressed="${displayModePreference === "dark"}" data-mode="${displayModePreference}">
+                        <span></span>
+                    </button>
+                    <button id="display-dark-button" class="display-label-button" type="button" aria-pressed="${displayModePreference === "dark"}">Dark</button>
+                </div>
                 <label class="volume-row">
-                    <span>Volume</span>
+                    <span id="volume-icon" class="volume-icon" aria-hidden="true">${volumeIconSvg(volume)}</span>
                     <input id="volume-input" type="range" min="0" max="100" step="1" value="${Math.round(volume * 100)}" aria-label="Volume">
                     <span id="volume-value" class="volume-value">${Math.round(volume * 100)}</span>
                 </label>
@@ -93,13 +134,25 @@ function showMenu(errorText = ""): void {
 
     const volumeInput = document.getElementById("volume-input") as HTMLInputElement;
     const volumeValue = document.getElementById("volume-value") as HTMLElement;
+    const volumeIcon = document.getElementById("volume-icon") as HTMLElement;
+    const displayLightButton = document.getElementById("display-light-button") as HTMLButtonElement;
+    const displaySwitchButton = document.getElementById("display-switch-button") as HTMLButtonElement;
+    const displayDarkButton = document.getElementById("display-dark-button") as HTMLButtonElement;
     const newGameButton = document.getElementById("new-game-button") as HTMLButtonElement;
     const continueButton = document.getElementById("continue-button") as HTMLButtonElement;
+    const handleDisplayModeChange = (value: DisplayModePreference) => {
+        setDisplayModePreference(value);
+        updateDisplayModeUi(displayLightButton, displayDarkButton);
+    };
+    displayLightButton.addEventListener("click", () => handleDisplayModeChange("light"));
+    displaySwitchButton.addEventListener("click", () => handleDisplayModeChange(displayModePreference === "light" ? "dark" : "light"));
+    displayDarkButton.addEventListener("click", () => handleDisplayModeChange("dark"));
+    updateDisplayModeUi(displayLightButton, displayDarkButton);
     volumeInput.addEventListener("input", () => {
         setAudioVolume(Number(volumeInput.value) / 100);
-        updateVolumeUi(volumeInput, volumeValue);
+        updateVolumeUi(volumeInput, volumeValue, volumeIcon);
     });
-    updateVolumeUi(volumeInput, volumeValue);
+    updateVolumeUi(volumeInput, volumeValue, volumeIcon);
     newGameButton.addEventListener("click", () => {
         gameStateStore.clear();
         setAudioVolume(Number(volumeInput.value) / 100);
@@ -134,6 +187,7 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
         await unlockAudio();
         Display.setParent(host);
         const mainGame = new Main();
+        mainGame.darkDisplayMode = displayModePreference === "dark";
         const scalableGame = new ScalableGame2(mainGame, GAME_WIDTH, GAME_HEIGHT, true);
         const displayMode = getResponsiveWindowedDisplayMode();
         const appContainer = new AppGameContainer(scalableGame, displayMode.width, displayMode.height, false);
@@ -158,6 +212,7 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
                 if (!gameStateStore.restore(mainGame, gc)) {
                     throw new Error("Saved game could not be restored.");
                 }
+                mainGame.darkDisplayMode = displayModePreference === "dark";
                 return true;
             };
         }
@@ -600,6 +655,21 @@ function safeReadVolume(): number {
 function writeVolume(value: number): void {
     try {
         localStorage.setItem("stickvania-volume", String(Math.round(value * 100)));
+    } catch {
+    }
+}
+
+function safeReadDisplayModePreference(): DisplayModePreference {
+    try {
+        return localStorage.getItem(DISPLAY_MODE_STORAGE_KEY) === "dark" ? "dark" : DEFAULT_DISPLAY_MODE;
+    } catch {
+        return DEFAULT_DISPLAY_MODE;
+    }
+}
+
+function writeDisplayModePreference(value: DisplayModePreference): void {
+    try {
+        localStorage.setItem(DISPLAY_MODE_STORAGE_KEY, value);
     } catch {
     }
 }

@@ -243,6 +243,7 @@ export class Main extends BasicGame {
     public fades: Color[] = makeArray<Color>(23, () => null);
     private nativeCursor: Cursor = null;
     public mode: number = Main.MODE_LOADING;
+    public darkDisplayMode: boolean = false;
     private loadingIndex: number = 21;
     public nativeDisplayMode: DisplayMode = null;
     public maxWidth: number = 0;
@@ -4198,86 +4199,94 @@ private loadStageSegment(a: number, b: number): void {
     }
     public render(gc: GameContainer, g: Graphics): void {
 
-    switch(this.mode) {
-      case Main.MODE_TITLE_SCREEN:
-        this.renderTitleScreen(gc, g);
-        break;
-      case Main.MODE_CONTINUE_SCREEN:
-        this.renderContinueScreen(gc, g);
-        break;
-      case Main.MODE_INTRO:
-        this.renderIntro(gc, g);
-        break;
-      case Main.MODE_MAP:
-        this.renderMapScreen(gc, g);
-        break;
-      case Main.MODE_LOADING:
-        this.renderLoading(gc, g);
-        break;
-      case Main.MODE_INPUT_CONFIG:
-        this.renderInputConfig(gc, g);
-        break;
-      case Main.MODE_CASTLE_FALLS:
-        this.renderCastleFalls(gc, g);
-        break;      
-      case Main.MODE_CREDITS:
-        if (this.creditsPresents) {
-          this.renderCredits(gc, g);
-          return;
-        }
-      case Main.MODE_DEMO:
-      case Main.MODE_PLAYING:
+    let skipFadeOverlay: boolean = false;
+    try {
+      g.setColorInverted(this.darkDisplayMode);
 
-        g.setColor(Color.white);
-        g.fillRect(64, 96, 512, 352);
+      switch(this.mode) {
+        case Main.MODE_TITLE_SCREEN:
+          this.renderTitleScreen(gc, g);
+          break;
+        case Main.MODE_CONTINUE_SCREEN:
+          this.renderContinueScreen(gc, g);
+          break;
+        case Main.MODE_INTRO:
+          this.renderIntro(gc, g);
+          break;
+        case Main.MODE_MAP:
+          this.renderMapScreen(gc, g);
+          break;
+        case Main.MODE_LOADING:
+          this.renderLoading(gc, g);
+          break;
+        case Main.MODE_INPUT_CONFIG:
+          this.renderInputConfig(gc, g);
+          break;
+        case Main.MODE_CASTLE_FALLS:
+          this.renderCastleFalls(gc, g);
+          break;
+        case Main.MODE_CREDITS:
+          if (this.creditsPresents) {
+            skipFadeOverlay = true;
+            this.renderCredits(gc, g);
+            break;
+          }
+        case Main.MODE_DEMO:
+        case Main.MODE_PLAYING:
 
-        let offset: number = 64 - (this.camera & 0x1f);
-        let x: number = this.camera >> 5;
+          g.setColor(Color.white);
+          g.fillRect(64, 96, 512, 352);
 
-        for (let i: number = 0; i < 11; i++) {
-          for (let j: number = 0; j < 17; j++) {
-            let block: number = this.map[i][j + x];
-            if (block > 0) {
-              this.blocks[block].draw((j << 5) + offset, 96 + (i << 5));
+          let offset: number = 64 - (this.camera & 0x1f);
+          let x: number = this.camera >> 5;
+
+          for (let i: number = 0; i < 11; i++) {
+            for (let j: number = 0; j < 17; j++) {
+              let block: number = this.map[i][j + x];
+              if (block > 0) {
+                this.blocks[block].draw((j << 5) + offset, 96 + (i << 5));
+              }
             }
           }
-        }
 
-        let things: Thing[] = this.regionThingStack.things;
-        for (let j: number = this.regionThingStack.top; j >= 0; j--) {
-          things[j].render(gc, g);
-        }
+          let things: Thing[] = this.regionThingStack.things;
+          for (let j: number = this.regionThingStack.top; j >= 0; j--) {
+            things[j].render(gc, g);
+          }
 
-        things = this.oldThingStack.things;
-        for (let j: number = this.oldThingStack.top; j >= 0; j--) {
-          things[j].render(gc, g);
-        }
+          things = this.oldThingStack.things;
+          for (let j: number = this.oldThingStack.top; j >= 0; j--) {
+            things[j].render(gc, g);
+          }
 
-        let weapons: Thing[] = this.weaponsStack.things;
-        for (let j: number = this.weaponsStack.top; j >= 0; j--) {
-          weapons[j].render(gc, g);
-        }
+          let weapons: Thing[] = this.weaponsStack.things;
+          for (let j: number = this.weaponsStack.top; j >= 0; j--) {
+            weapons[j].render(gc, g);
+          }
 
-        for (let i: number = this.platforms.length - 1; i >= 0; i--) {
-          this.platforms[i].render(gc, g);
-        }
+          for (let i: number = this.platforms.length - 1; i >= 0; i--) {
+            this.platforms[i].render(gc, g);
+          }
 
-        this.simon.render(gc, g);
+          this.simon.render(gc, g);
 
-        g.setColor(Color.black);
-        g.fillRect(0, 96, 64, 352);
-        g.fillRect(576, 96, 64, 352);
+          g.setColor(Color.black);
+          g.fillRect(0, 96, 64, 352);
+          g.fillRect(576, 96, 64, 352);
 
-        this.drawStatusBar(g);
+          this.drawStatusBar(g);
 
-        break;
+          break;
+      }
+
+      if (this.mode == Main.MODE_CREDITS && !skipFadeOverlay) {
+        this.renderCredits(gc, g);
+      }
+    } finally {
+      g.setColorInverted(false);
     }
 
-    if (this.mode == Main.MODE_CREDITS) {
-      this.renderCredits(gc, g);
-    }
-
-    if (this.fadeState != Main.FADE_DONE) {
+    if (!skipFadeOverlay && this.fadeState != Main.FADE_DONE) {
       g.setColor(this.fades[this.fade]);
       g.fillRect(64, 32, 512, 416);
     }

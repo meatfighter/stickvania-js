@@ -81,21 +81,44 @@ input {
 
 .menu-panel {
     display: flex;
-    width: min(420px, calc(100vw - 48px));
+    width: min(520px, calc(100vw - 48px));
     flex-direction: column;
-    align-items: stretch;
-    gap: 22px;
+    align-items: center;
+    gap: 24px;
 }
 
 .volume-row {
     display: grid;
-    grid-template-columns: 72px 1fr 36px;
+    width: min(360px, 100%);
+    grid-template-columns: 30px minmax(0, 1fr) max-content;
     align-items: center;
-    gap: 14px;
+    column-gap: 10px;
     color: #ffffff;
     font-size: 16px;
     font-weight: 700;
-    text-transform: uppercase;
+}
+
+.volume-row #volume-input {
+    margin-right: 0;
+}
+
+.volume-icon {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    justify-self: center;
+    place-items: center;
+    color: #ffffff;
+}
+
+.volume-icon svg {
+    width: 26px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
 }
 
 #volume-input {
@@ -122,7 +145,6 @@ input {
     border: 3px solid #000000;
     border-radius: 50%;
     background: #ffffff;
-    box-shadow: 0 0 0 2px #ffffff;
     appearance: none;
 }
 
@@ -139,22 +161,93 @@ input {
 }
 
 #volume-input::-moz-range-thumb {
-    width: 24px;
-    height: 24px;
+    width: 18px;
+    height: 18px;
     border: 3px solid #000000;
     border-radius: 50%;
     background: #ffffff;
-    box-shadow: 0 0 0 2px #ffffff;
 }
 
 #volume-input:focus-visible {
-    outline: 2px solid #ffffff;
-    outline-offset: 4px;
+    outline: none;
 }
 
 .volume-value {
-    text-align: right;
+    min-width: 24px;
+    text-align: left;
     font-variant-numeric: tabular-nums;
+}
+
+.display-row {
+    display: grid;
+    width: min(300px, 100%);
+    grid-template-columns: 1fr 74px 1fr;
+    align-items: center;
+    gap: 12px;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.display-label-button {
+    border: 0;
+    background: transparent;
+    color: #777777;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 0;
+}
+
+.display-label-button:first-child {
+    text-align: right;
+}
+
+.display-label-button:last-child {
+    text-align: left;
+}
+
+.display-label-button[aria-pressed="true"] {
+    color: #ffffff;
+}
+
+.display-label-button:hover,
+.display-label-button:focus-visible {
+    color: #ffffff;
+    outline: none;
+    text-decoration: underline;
+}
+
+.display-switch {
+    position: relative;
+    width: 74px;
+    height: 36px;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+    background: #000000;
+    cursor: pointer;
+    padding: 0;
+}
+
+.display-switch span {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    content: "";
+    transition: transform 160ms ease-out;
+}
+
+.display-switch[data-mode="dark"] span {
+    transform: translateX(38px);
+}
+
+.display-switch:hover,
+.display-switch:focus-visible {
+    outline: none;
 }
 
 .menu-buttons {
@@ -162,6 +255,7 @@ input {
     flex-wrap: wrap;
     justify-content: center;
     gap: 12px;
+    margin-top: 8px;
 }
 
 .start-button {
@@ -182,8 +276,7 @@ input {
 .start-button:focus-visible:not(:disabled) {
     background: #ffffff;
     color: #000000;
-    outline: 2px solid #ffffff;
-    outline-offset: 3px;
+    outline: none;
 }
 
 .start-button:active:not(:disabled) {
@@ -224,6 +317,7 @@ input {
 
 .game-host canvas {
     display: block;
+
     image-rendering: pixelated;
     max-width: 100vw;
     max-height: 100vh;

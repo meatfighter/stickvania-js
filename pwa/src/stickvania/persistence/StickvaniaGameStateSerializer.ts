@@ -225,6 +225,7 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "stateSaveInvalidatedHandler",
     "windowedDisplayModeProvider",
     "browserFullscreenController",
+    "darkDisplayMode",
     "browserSuspended"
 ]);
 
@@ -557,6 +558,9 @@ export class StickvaniaGameStateSerializer {
 
     private restoreMainFields(main: Main, fields: EncodedRecord, context: RestoreContext): void {
         for (const [key, value] of Object.entries(fields)) {
+            if (MAIN_EXCLUDED_FIELDS.has(key)) {
+                continue;
+            }
             this.setField(main, key, this.decodeValue(context, value));
         }
     }

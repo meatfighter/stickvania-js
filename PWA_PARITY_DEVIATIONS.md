@@ -339,3 +339,27 @@ Affected Files:
 Gameplay/Parity Risk:
 
 - HARD intentionally diverges from Java and NORMAL.
+## PWA-014: Dark Display Mode
+
+Java Behavior:
+
+- The Java game renders with its original light display colors.
+
+PWA Behavior:
+
+- The PWA launch menu has a persisted `Display` switch with `Light` and `Dark` choices.
+- `Dark` uses the `slick2d-ts` browser-only renderer inversion API for scene, title, menu, image, font, and solid primitive draws.
+- The final fade overlay draws with inversion disabled so fades go to black.
+- The setting is saved in `localStorage` under `stickvania-display-mode`.
+- The display setting is a PWA preference, not saved game state; Continue always uses the current launch-menu preference.
+
+Affected Files:
+
+- `pwa/src/main.ts`
+- `pwa/src/styles.css`
+- `pwa/src/stickvania/Main.ts`
+- `pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts`
+
+Gameplay/Parity Risk:
+
+- Display colors differ from Java by design. Renderer inversion is per draw call rather than a CSS postprocess, so untouched clear-only regions must be checked during browser validation.
