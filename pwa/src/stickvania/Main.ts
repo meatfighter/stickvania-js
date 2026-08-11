@@ -1396,8 +1396,9 @@ export class Main extends BasicGame {
     let keyDownRight: boolean = this.controlInput.isRight();
     let keyDownJump: boolean = this.controlInput.isJump();
     const keyDownAttack: boolean = this.controlInput.isAttack();
-    let keyDownWhip: boolean = keyDownAttack && !keyDownUp;
-    let keyDownSubWeapon: boolean = keyDownAttack && keyDownUp;
+    const wantsSubWeapon: boolean = keyDownAttack && keyDownUp;
+    let keyDownSubWeapon: boolean = wantsSubWeapon && this.canUseSubWeapon();
+    let keyDownWhip: boolean = keyDownAttack && (!wantsSubWeapon || !keyDownSubWeapon);
 
 
     
@@ -1459,11 +1460,7 @@ export class Main extends BasicGame {
         this.simon.whipIncrementor = 0;
         this.simon.whipIndex = 0;
         this.simon.releasedWhip = false;
-      } else if (keyDownSubWeapon
-          && this.weaponType != Main.WEAPON_TYPE_NONE
-          && this.weaponsStack.top < this.weaponRepeats
-          && ((this.weaponType != Main.WEAPON_TYPE_STOP_WATCH && this.hearts > 0)
-              || (this.weaponType == Main.WEAPON_TYPE_STOP_WATCH && this.hearts > 4))) {
+      } else if (keyDownSubWeapon && this.canUseSubWeapon()) {
         this.simon.throwing = true;
         this.simon.whipping = true;
         this.simon.whipIncrementor = 0;
@@ -1776,6 +1773,13 @@ export class Main extends BasicGame {
         this.removeHearts(5);
         break;
     }
+
+    }
+    private canUseSubWeapon(): boolean {
+    return this.weaponType != Main.WEAPON_TYPE_NONE
+        && this.weaponsStack.top < this.weaponRepeats
+        && ((this.weaponType != Main.WEAPON_TYPE_STOP_WATCH && this.hearts > 0)
+            || (this.weaponType == Main.WEAPON_TYPE_STOP_WATCH && this.hearts > 4));
 
     }
     public removeHearts(hearts: number): void {

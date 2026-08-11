@@ -363,3 +363,27 @@ Affected Files:
 Gameplay/Parity Risk:
 
 - Display colors differ from Java by design. Renderer inversion is per draw call rather than a CSS postprocess, so untouched clear-only regions must be checked during browser validation.
+
+## PWA-015: Up+Attack Subweapon Fallback
+
+Java Behavior:
+
+- Java uses separate `D` whip and `F` subweapon keys.
+- Pressing the subweapon key attempts a subweapon only when a subweapon is equipped, the repeat limit is not reached, and Simon has enough hearts.
+- A failed subweapon attempt does not automatically become a whip because whip and subweapon are separate inputs.
+
+PWA Behavior:
+
+- The PWA maps both whip and subweapon intent to one logical `ATTACK` button.
+- During live user-controlled gameplay, `UP + ATTACK` attempts a subweapon only when it can actually be emitted.
+- If no subweapon is equipped, the active subweapon count is at the repeat limit, or Simon lacks enough hearts, `UP + ATTACK` starts a normal whip instead.
+- Demo, credits, ending, and recorded playback inputs keep the original Java behavior and do not use this fallback.
+- Existing attack release and whip animation delay constraints still apply.
+
+Affected Files:
+
+- `pwa/src/stickvania/Main.ts`
+
+Gameplay/Parity Risk:
+
+- Live user input differs from Java by design to support the PWA's combined Castlevania-style attack/subweapon mapping.
