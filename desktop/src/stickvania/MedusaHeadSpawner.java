@@ -26,7 +26,7 @@ public class MedusaHeadSpawner extends Thing {
     }
 
     if (delay == 0) {
-      delay = 273;
+      delay = main.adjustEnemySpawnDelay(273);
       if (main.simon.direction == Main.RIGHT) {
         main.pushThing(new MedusaHead(main,
             main.camera + 520, main.simon.y + 16, Main.LEFT));

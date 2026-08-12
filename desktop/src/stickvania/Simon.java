@@ -83,6 +83,7 @@ public class Simon extends Thing {
   public boolean hurt;
   public int dead;
   public boolean drankPotion;
+  public float jumpVelocity = Main.SIMON_JUMP_VELOCITY;
 
   public Simon(Main main) {
     super(main, 20, 4, 24, 60);
@@ -122,6 +123,8 @@ public class Simon extends Thing {
   }
 
   public void reset() {
+    G = Main.GRAVITY;
+    jumpVelocity = Main.SIMON_JUMP_VELOCITY;
     drankPotion = false;
     kneeling = false;
     whipping = false;

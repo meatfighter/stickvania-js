@@ -29,12 +29,15 @@ import org.lwjgl.input.*;
 import org.lwjgl.*;
 import java.io.*;
 import java.util.*;
+import java.util.prefs.*;
 import java.nio.*;
 
 public final class Main extends BasicGame {
 
   public static final float GRAVITY = 0.21f;
   public static final float SIMON_JUMP_VELOCITY = -5.25f;
+  public static final float PLAYER_CONTROLLED_GRAVITY = 0.130027228f;
+  public static final float PLAYER_CONTROLLED_JUMP_VELOCITY = -4.262100987f;
 
   public static final float INVINCIBLE_FRACTION
       = 0.032608695652173913043478260869565f;
@@ -56,6 +59,36 @@ public final class Main extends BasicGame {
   public static final int MODE_CASTLE_FALLS = 7;
   public static final int MODE_CREDITS = 8;
   public static final int MODE_LOADING = 9;
+  public static final int MODE_INPUT_CONFIG = 10;
+
+  public static final int DIFFICULTY_NORMAL = 0;
+  public static final int DIFFICULTY_HARD = 1;
+  private static final String DIFFICULTY_STORAGE_KEY = "stickvania.difficulty";
+  private static final float HARD_SPAWN_DELAY_MULTIPLIER = 0.66f;
+  private static final float HARD_ATTACK_COOLDOWN_MULTIPLIER = 0.70f;
+  private static final float HARD_BEHAVIOR_DELAY_MULTIPLIER = 0.75f;
+  private static final int HARD_ACTIVE_CAP_BONUS = 1;
+
+  private static final int TITLE_MENU_MAIN = 0;
+  private static final int TITLE_MENU_OPTIONS = 1;
+  private static final int TITLE_MENU_INPUT = 2;
+  private static final int TITLE_MENU_DIFFICULTY = 3;
+  private static final int MENU_ROW_HEIGHT = 32;
+  private static final int MENU_TWO_OPTION_Y = 304;
+  private static final int MENU_THREE_OPTION_Y = 288;
+  private static final int TITLE_INPUT_TITLE_Y = 92;
+  private static final int TITLE_INPUT_MAPPING_Y = 140;
+  private static final int TITLE_INPUT_MAPPING_ROW_HEIGHT = 24;
+  private static final int TITLE_INPUT_MENU_Y = 308;
+  private static final String[] TITLE_INPUT_ACTIONS = {
+      "UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK" };
+  private static final String[] TITLE_INPUT_OPTIONS = {
+      "CHANGE", "RESET", "DONE" };
+  private static final String[] TITLE_MAIN_OPTIONS = { "START", "OPTIONS" };
+  private static final String[] TITLE_OPTIONS_OPTIONS = {
+      "INPUT", "DIFFICULTY", "DONE" };
+  private static final String[] TITLE_DIFFICULTY_OPTIONS = { "NORMAL", "HARD" };
+  private static final String[] GAME_OVER_OPTIONS = { "CONTINUE", "END" };
 
   public static final char CANDLE_ITEM_AXE = 'a';
   public static final char CANDLE_ITEM_BOOMERANG = 'b';
@@ -174,6 +207,7 @@ public final class Main extends BasicGame {
   public static final int FADE_REASON_SHOW_DEMO = 7;
   public static final int FADE_REASON_SHOW_CREDITS = 8;
   public static final int FADE_REASON_ADVANCE_CREDITS = 9;
+  public static final int FADE_REASON_SHOW_INPUT_CONFIG = 10;
 
   public static final int[][][] stageNumbers = {
     { { 1, 1, 2, 3, 3 }, { 2 } },
@@ -451,6 +485,12 @@ public final class Main extends BasicGame {
   public Song requestedSong;
 
   private Input input;
+  public ButtonMapping buttonMapping = ButtonMapping.load();
+  public int difficulty = Main.loadDifficulty();
+  public StickvaniaInput controlInput;
+  private InputConfigMode inputConfigMode;
+  private int titleMenu;
+  private int titleSelectedIndex;
 
   //private byte[] recording = new byte[91 * 8];
   private int recordingIndex = 0;
@@ -466,6 +506,29 @@ public final class Main extends BasicGame {
     for(int i = 0; i < 12; i++) {
       Main.class.getClassLoader().getResourceAsStream(
           "recordings/ending_" + (i + 1) + ".dat").read(endingKeyRecordings[i]);
+    }
+  }
+
+  private static int loadDifficulty() {
+    try {
+      int value = Preferences.userNodeForPackage(Main.class).getInt(
+          DIFFICULTY_STORAGE_KEY, DIFFICULTY_NORMAL);
+      if (value == DIFFICULTY_HARD) {
+        return DIFFICULTY_HARD;
+      }
+    } catch(Throwable t) {
+    }
+    return DIFFICULTY_NORMAL;
+  }
+
+  public void setDifficulty(int difficulty) {
+    this.difficulty = difficulty == DIFFICULTY_HARD
+        ? DIFFICULTY_HARD : DIFFICULTY_NORMAL;
+    try {
+      Preferences prefs = Preferences.userNodeForPackage(Main.class);
+      prefs.putInt(DIFFICULTY_STORAGE_KEY, this.difficulty);
+      prefs.flush();
+    } catch(Throwable t) {
     }
   }
 
@@ -493,6 +556,12 @@ public final class Main extends BasicGame {
     }
 
     input = gc.getInput();
+    try {
+      input.initControllers();
+    } catch(Throwable t) {
+      Log.warn("Unable to initialize controllers.", t);
+    }
+    controlInput = new StickvaniaInput(input, buttonMapping);
 
     PackedSpriteSheet pack1 = new PackedSpriteSheet("images/pack_1.def",
         Image.FILTER_NEAREST);
@@ -1029,6 +1098,7 @@ public final class Main extends BasicGame {
       }
       nextFrameTime = Sys.getTime();
     }
+    controlInput.update();
 
     if (fadeState == FADE_IN) {
       if (fade == 0) {
@@ -1072,6 +1142,9 @@ public final class Main extends BasicGame {
           case FADE_REASON_ADVANCE_CREDITS:
             advanceCredits();
             break;
+          case FADE_REASON_SHOW_INPUT_CONFIG:
+            initInputConfig(gc);
+            break;
         }
         fadeState = FADE_IN;
         return;
@@ -1106,7 +1179,12 @@ public final class Main extends BasicGame {
       case MODE_LOADING:
         updateLoading(gc);
         return;
+      case MODE_INPUT_CONFIG:
+        updateInputConfig(gc);
+        return;
     }
+
+    syncSimonPhysicsProfile();
 
     if (beatStage) {
       if (beatStageDelay > 0) {
@@ -1295,12 +1373,15 @@ public final class Main extends BasicGame {
       return;
     }
     
-    boolean keyDownD = input.isKeyDown(Input.KEY_D);
-    boolean keyDownF = input.isKeyDown(Input.KEY_F);
-    boolean keyDownUp = input.isKeyDown(Input.KEY_UP);
-    boolean keyDownDown = input.isKeyDown(Input.KEY_DOWN);
-    boolean keyDownLeft = input.isKeyDown(Input.KEY_LEFT);
-    boolean keyDownRight = input.isKeyDown(Input.KEY_RIGHT);
+    boolean keyDownUp = controlInput.isUp();
+    boolean keyDownDown = controlInput.isDown();
+    boolean keyDownLeft = controlInput.isLeft();
+    boolean keyDownRight = controlInput.isRight();
+    boolean keyDownJump = controlInput.isJump();
+    boolean keyDownAttack = controlInput.isAttack();
+    boolean wantsSubWeapon = keyDownAttack && keyDownUp;
+    boolean keyDownSubWeapon = wantsSubWeapon && canUseSubWeapon();
+    boolean keyDownWhip = keyDownAttack && (!wantsSubWeapon || !keyDownSubWeapon);
 
     // -- RECORD KEY PRESSES HERE --------------------
     /*int keyDown = 0;
@@ -1329,7 +1410,8 @@ public final class Main extends BasicGame {
 
     if (mode == MODE_DEMO || mode == MODE_CREDITS) {
       if (mode == MODE_DEMO) {
-        if (recordingIndex == 2730 || input.isKeyPressed(Input.KEY_ENTER)) {
+        if (recordingIndex == 2730
+            || controlInput.isAnyNonDirectionalPressed()) {
           fadeState = FADE_OUT;
           fadeReason = FADE_REASON_SHOW_TITLE_SCREEN;
           return;
@@ -1351,12 +1433,13 @@ public final class Main extends BasicGame {
       keyDown >>= 1;
       keyDownUp = (keyDown & 1) == 1;
       keyDown >>= 1;
-      keyDownF = (keyDown & 1) == 1;
+      keyDownSubWeapon = (keyDown & 1) == 1;
       keyDown >>= 1;
-      keyDownD = (keyDown & 1) == 1;
+      keyDownWhip = (keyDown & 1) == 1;
+      keyDownJump = keyDownUp;
     }
 
-    if (!keyDownD && !keyDownF) {
+    if (!keyDownWhip && !keyDownSubWeapon) {
       simon.releasedWhip = true;
     }
     if (simon.whipping) {
@@ -1373,7 +1456,7 @@ public final class Main extends BasicGame {
         simon.throwing = false;
       }
     } else if (simon.releasedWhip) {
-      if (keyDownD) {
+      if (keyDownWhip) {
         if (simon.whipType == 0) {
           playSound(whip_1);
         } else {
@@ -1383,11 +1466,7 @@ public final class Main extends BasicGame {
         simon.whipIncrementor = 0;
         simon.whipIndex = 0;
         simon.releasedWhip = false;
-      } else if (keyDownF
-          && weaponType != WEAPON_TYPE_NONE
-          && weaponsStack.top < weaponRepeats
-          && ((weaponType != WEAPON_TYPE_STOP_WATCH && hearts > 0)
-              || (weaponType == WEAPON_TYPE_STOP_WATCH && hearts > 4))) {
+      } else if (keyDownSubWeapon && canUseSubWeapon()) {
         simon.throwing = true;
         simon.whipping = true;
         simon.whipIncrementor = 0;
@@ -1581,9 +1660,9 @@ public final class Main extends BasicGame {
           if (!walking) {
             simon.stand();
           }
-          if (keyDownUp) {
+          if (keyDownJump) {
             if (simon.releasedJump && simon.supported) {
-              simon.vy = SIMON_JUMP_VELOCITY;
+              simon.vy = simon.jumpVelocity;
             }
             simon.releasedJump = false;
           } else {
@@ -1708,6 +1787,13 @@ public final class Main extends BasicGame {
     if (this.hearts < 0) {
       this.hearts = 0;
     }
+  }
+
+  private boolean canUseSubWeapon() {
+    return weaponType != WEAPON_TYPE_NONE
+        && weaponsStack.top < weaponRepeats
+        && ((weaponType != WEAPON_TYPE_STOP_WATCH && hearts > 0)
+            || (weaponType == WEAPON_TYPE_STOP_WATCH && hearts > 4));
   }
 
   private void createStage(int stageIndex, boolean setCheckpoint) {
@@ -2482,20 +2568,20 @@ public final class Main extends BasicGame {
     }
   }
 
-  private void drawStringCentered(String string, int y) {
+  void drawStringCentered(String string, int y) {
     int x = (640 - (string.length() << 4)) >> 1;
     for(int i = 0; i < string.length(); i++, x += 16) {
       symbols[string.charAt(i)].draw(x, y);
     }
   }
 
-  private void drawString(String string, int x, int y, int length) {
+  void drawString(String string, int x, int y, int length) {
     for(int i = 0; i < string.length() && i < length; i++, x += 16) {
       symbols[string.charAt(i)].draw(x, y);
     }
   }
 
-  private void drawString(String string, int x, int y) {
+  void drawString(String string, int x, int y) {
     for(int i = 0; i < string.length(); i++, x += 16) {
       symbols[string.charAt(i)].draw(x, y);
     }
@@ -2665,6 +2751,93 @@ public final class Main extends BasicGame {
     requestedSong = song;
   }
 
+  private boolean isUserControlledSimonPhysics() {
+    return mode == MODE_PLAYING
+        && simon != null
+        && playerPower > 0
+        && simon.dead == 0
+        && door == null
+        && !beatStage
+        && !floorBreaking;
+  }
+
+  public boolean isHardDifficultyActiveForGameplay() {
+    return difficulty == DIFFICULTY_HARD && isUserControlledSimonPhysics();
+  }
+
+  private boolean isHardDifficultyEnabledForStageState() {
+    return difficulty == DIFFICULTY_HARD
+        && mode != MODE_DEMO
+        && mode != MODE_CREDITS
+        && mode != MODE_ENDING
+        && mode != MODE_CASTLE_FALLS
+        && mode != MODE_TITLE_SCREEN
+        && mode != MODE_LOADING
+        && mode != MODE_INPUT_CONFIG;
+  }
+
+  public int adjustEnemyHits(int baseHits) {
+    return isHardDifficultyEnabledForStageState() ? baseHits + 1 : baseHits;
+  }
+
+  public int adjustEnemySpawnDelay(int baseDelay) {
+    return adjustHardDelay(baseDelay, HARD_SPAWN_DELAY_MULTIPLIER);
+  }
+
+  public int adjustEnemyCooldown(int baseDelay) {
+    return adjustHardDelay(baseDelay, HARD_ATTACK_COOLDOWN_MULTIPLIER);
+  }
+
+  public int adjustEnemyBehaviorDelay(int baseDelay) {
+    return adjustHardDelay(baseDelay, HARD_BEHAVIOR_DELAY_MULTIPLIER);
+  }
+
+  public int adjustEnemyActiveCap(int baseCount) {
+    return isHardDifficultyEnabledForStageState()
+        ? baseCount + HARD_ACTIVE_CAP_BONUS : baseCount;
+  }
+
+  public int adjustSimonDamage(int power) {
+    if (!isHardDifficultyActiveForGameplay() || power >= 16) {
+      return power;
+    }
+    return power + 1;
+  }
+
+  private int adjustHardDelay(int baseDelay, float multiplier) {
+    if (!isHardDifficultyEnabledForStageState() || baseDelay <= 0) {
+      return baseDelay;
+    }
+    return Math.max(1, (int)(baseDelay * multiplier));
+  }
+
+  public void syncSimonPhysicsProfile() {
+    if (simon == null) {
+      return;
+    }
+    if (isUserControlledSimonPhysics()) {
+      simon.G = PLAYER_CONTROLLED_GRAVITY;
+      simon.jumpVelocity = PLAYER_CONTROLLED_JUMP_VELOCITY;
+    } else {
+      simon.G = GRAVITY;
+      simon.jumpVelocity = SIMON_JUMP_VELOCITY;
+    }
+  }
+
+  public void clearInputPressedRecords() {
+    if (input != null) {
+      input.clearKeyPressedRecord();
+      input.clearControlPressedRecord();
+    }
+    if (controlInput != null) {
+      controlInput.clearPressedState();
+    }
+  }
+
+  public void finishInputConfig() {
+    initTitleScreen();
+  }
+
   public void addPlayers(int players) {
     playSound(one_up);
     this.players += players;
@@ -2718,13 +2891,15 @@ public final class Main extends BasicGame {
 
   public void hurtSimon(int power) {
 
+    syncSimonPhysicsProfile();
+
     if (simon.hurt || simon.invincible > 0 || playerPower == 0) {
       return;
     }
 
     playSound(simon_hurt);
 
-    playerPower -= power;
+    playerPower -= adjustSimonDamage(power);
     if (playerPower < 0) {
       playerPower = 0;
     }
@@ -2737,7 +2912,7 @@ public final class Main extends BasicGame {
       setSimonAlpha(0.25f);
       simon.invincible = 182;
     } else if (simon.supported) {
-      simon.vy = SIMON_JUMP_VELOCITY;
+      simon.vy = simon.jumpVelocity;
       simon.vx = simon.direction == LEFT ? 2 : -2;
       simon.hurt = true;
     } else if (!simon.onStairs) {
@@ -2815,6 +2990,7 @@ public final class Main extends BasicGame {
     moveCamera();
 
     requestedSong = checkpoint.song;
+    syncSimonPhysicsProfile();
   }
 
   public void checkpointReached(Checkpoint checkpoint) {
@@ -3000,7 +3176,7 @@ public final class Main extends BasicGame {
 
   public void advanceCredits() {
     mode = MODE_CREDITS;
-    input.clearKeyPressedRecord();
+    clearInputPressedRecords();
     if (creditsIndex == 11) {
       creditsIndex = 12;
       creditsPresents = true;
@@ -3289,7 +3465,7 @@ public final class Main extends BasicGame {
 
     createStage(stageIndex, true);
 
-    input.clearKeyPressedRecord();
+    clearInputPressedRecords();
 
     float percent = 1f - introTime * 0.0013755158184319119669876203576341f;
     float angle = percent * 1.5707963267948966192313216916398f;
@@ -3370,7 +3546,7 @@ public final class Main extends BasicGame {
 
     createStage(stageIndex, true);
 
-    input.clearKeyPressedRecord();
+    clearInputPressedRecords();
 
     requestMusic(game_over);
 
@@ -3378,11 +3554,11 @@ public final class Main extends BasicGame {
   }
 
   public void updateContinueScreen(GameContainer gc) throws SlickException {
-    if (input.isKeyPressed(Input.KEY_UP)) {
+    if (controlInput.isMenuUpPressed()) {
       continueSelected = true;
-    } else if (input.isKeyPressed(Input.KEY_DOWN)) {
+    } else if (controlInput.isMenuDownPressed()) {
       continueSelected = false;
-    } else if (input.isKeyPressed(Input.KEY_ENTER)) {
+    } else if (controlInput.isMenuSelectPressed()) {
       fadeState = FADE_OUT;
       if (continueSelected) {
         fadeReason = FADE_REASON_RESTORE_CHECKPOINT;
@@ -3399,13 +3575,38 @@ public final class Main extends BasicGame {
     g.fillRect(64, 32, 512, 416);
 
     drawString("GAME OVER", 256, 208);
-    drawString("CONTINUE", 272, 288);
-    drawString("END", 272, 336);
+    int optionX = centerLongestMenuOptionX(GAME_OVER_OPTIONS);
+    drawString("CONTINUE", optionX, MENU_TWO_OPTION_Y);
+    drawString("END", optionX, MENU_TWO_OPTION_Y + MENU_ROW_HEIGHT);
 
     if (continueSelected) {
-      smallHeart.draw(240, 288);
+      smallHeart.draw(optionX - 32, MENU_TWO_OPTION_Y);
     } else {
-      smallHeart.draw(240, 336);
+      smallHeart.draw(optionX - 32, MENU_TWO_OPTION_Y + MENU_ROW_HEIGHT);
+    }
+  }
+
+  public void initInputConfig(GameContainer gc) {
+
+    mode = MODE_INPUT_CONFIG;
+    if (inputConfigMode != null) {
+      inputConfigMode.dispose();
+    }
+    inputConfigMode = new InputConfigMode(this);
+    inputConfigMode.init(gc);
+    nextFrameTime = Sys.getTime();
+  }
+
+  public void updateInputConfig(GameContainer gc) {
+    if (inputConfigMode != null) {
+      inputConfigMode.update(gc);
+    }
+  }
+
+  public void renderInputConfig(GameContainer gc, Graphics g)
+      throws SlickException {
+    if (inputConfigMode != null) {
+      inputConfigMode.render(gc, g);
     }
   }
 
@@ -3428,7 +3629,7 @@ public final class Main extends BasicGame {
     mapScreenX = 576;
     mapScreenTargetX = stageIndex > 2 ? -192 : 64;
 
-    input.clearKeyPressedRecord();
+    clearInputPressedRecords();
 
     justShowedMap = true;
     createStage(stageIndex, true);
@@ -3607,6 +3808,10 @@ public final class Main extends BasicGame {
     if (game_over.playing()) {
       game_over.stop();
     }
+    if (inputConfigMode != null) {
+      inputConfigMode.dispose();
+      inputConfigMode = null;
+    }
 
     mode = MODE_TITLE_SCREEN;
 
@@ -3622,9 +3827,11 @@ public final class Main extends BasicGame {
     pressEnterVisibleIncrementor = 0;
     pressEnterVisibleCount = 0;
     enterPressed = false;
+    titleMenu = TITLE_MENU_MAIN;
+    titleSelectedIndex = 0;
     titleBatAngle = 0;
 
-    input.clearKeyPressedRecord();
+    clearInputPressedRecords();
 
     nextFrameTime = Sys.getTime();
   }
@@ -3648,28 +3855,40 @@ public final class Main extends BasicGame {
         }
       }
 
-      if (enterPressed) {
-        if (++pressEnterVisibleIncrementor == 20) {
-          pressEnterVisibleIncrementor = 0;
-          pressEnterVisible = !pressEnterVisible;
-          if (++pressEnterVisibleCount == 10) {
-            fadeState = FADE_OUT;
-            fadeReason = FADE_REASON_SHOW_INTRO;
-          }
+      if (controlInput.isMenuUpPressed()) {
+        titleSelectedIndex--;
+        if (titleSelectedIndex < 0) {
+          titleSelectedIndex = 0;
         }
-      } else if (input.isKeyPressed(Input.KEY_ENTER)) {
+        titleTimeout = 1365;
+      } else if (controlInput.isMenuDownPressed()) {
+        titleSelectedIndex++;
+        int optionCount = getTitleOptionCount();
+        if (titleSelectedIndex >= optionCount) {
+          titleSelectedIndex = optionCount - 1;
+        }
+        titleTimeout = 1365;
+      } else if (controlInput.isMenuSelectPressed()) {
         playSound(pressed_enter);
-        enterPressed = true;
-        pressEnterVisible = false;
-      } else if (--titleTimeout <= 0) {
+        selectTitleMenuOption();
+      } else if (titleMenu == TITLE_MENU_MAIN && --titleTimeout <= 0) {
         fadeState = FADE_OUT;
         fadeReason = FADE_REASON_SHOW_DEMO;
+      } else if (titleMenu != TITLE_MENU_MAIN) {
+        titleTimeout = 1365;
       }
     }
   }
 
   public void renderTitleScreen(GameContainer gc, Graphics g) 
       throws SlickException {
+
+    if (titleMenu == TITLE_MENU_INPUT) {
+      g.setColor(Color.white);
+      g.fillRect(64, 32, 512, 416);
+      renderTitleInputMenu();
+      return;
+    }
 
     title.draw(64, 32);
 
@@ -3684,14 +3903,179 @@ public final class Main extends BasicGame {
           (int)titleBatScale, (int)titleBatScale);
     }
 
-    if (pressEnterVisible) {
-      drawString("PRESS ENTER", 240, 240);
+    switch(titleMenu) {
+      case TITLE_MENU_MAIN:
+        renderTitleMainMenu();
+        break;
+      case TITLE_MENU_OPTIONS:
+        renderTitleOptionsMenu();
+        break;
+      case TITLE_MENU_DIFFICULTY:
+        renderTitleDifficultyMenu();
+        break;
     }
-    drawString("D - WHIP", 224, 288);
-    drawString("F - SUB-WEAPON", 224, 320);
-    drawString("ARROW KEYS - WALK, JUMP, KNEEL", 80, 352);
-    drawString("SPACE - FULL-SCREEN MODE", 160, 384);
+
+    String fullscreenText = "SPACE - FULL-SCREEN MODE";
+    drawString(fullscreenText, centerTextX(fullscreenText), 400);
     drawString("@ 2010 MEATFIGHTER.COM", 144, 430);
+  }
+
+  private int getTitleOptionCount() {
+    switch(titleMenu) {
+      case TITLE_MENU_OPTIONS:
+      case TITLE_MENU_INPUT:
+        return 3;
+      case TITLE_MENU_MAIN:
+      case TITLE_MENU_DIFFICULTY:
+      default:
+        return 2;
+    }
+  }
+
+  private void selectTitleMenuOption() {
+    switch(titleMenu) {
+      case TITLE_MENU_MAIN:
+        if (titleSelectedIndex == 0) {
+          fadeState = FADE_OUT;
+          fadeReason = FADE_REASON_SHOW_INTRO;
+        } else {
+          setTitleMenu(TITLE_MENU_OPTIONS);
+        }
+        break;
+      case TITLE_MENU_OPTIONS:
+        switch(titleSelectedIndex) {
+          case 0:
+            setTitleMenu(TITLE_MENU_INPUT);
+            break;
+          case 1:
+            setTitleMenu(TITLE_MENU_DIFFICULTY, difficulty);
+            break;
+          case 2:
+            setTitleMenu(TITLE_MENU_MAIN);
+            break;
+        }
+        break;
+      case TITLE_MENU_INPUT:
+        if (titleSelectedIndex == 0) {
+          fadeState = FADE_OUT;
+          fadeReason = FADE_REASON_SHOW_INPUT_CONFIG;
+        } else if (titleSelectedIndex == 1) {
+          buttonMapping.resetToDefaults();
+          buttonMapping.save();
+          setTitleMenu(TITLE_MENU_INPUT, 1);
+        } else {
+          setTitleMenu(TITLE_MENU_MAIN);
+        }
+        break;
+      case TITLE_MENU_DIFFICULTY:
+        setDifficulty(titleSelectedIndex == 0
+            ? DIFFICULTY_NORMAL : DIFFICULTY_HARD);
+        setTitleMenu(TITLE_MENU_MAIN);
+        break;
+    }
+  }
+
+  private void setTitleMenu(int menu) {
+    setTitleMenu(menu, 0);
+  }
+
+  private void setTitleMenu(int menu, int selectedIndex) {
+    titleMenu = menu;
+    titleSelectedIndex = selectedIndex;
+    int optionCount = getTitleOptionCount();
+    if (titleSelectedIndex >= optionCount) {
+      titleSelectedIndex = optionCount - 1;
+    }
+    if (titleSelectedIndex < 0) {
+      titleSelectedIndex = 0;
+    }
+    titleTimeout = 1365;
+    clearInputPressedRecords();
+  }
+
+  private void renderTitleMainMenu() {
+    int optionX = centerLongestMenuOptionX(TITLE_MAIN_OPTIONS);
+    drawString("START", optionX, MENU_TWO_OPTION_Y);
+    drawString("OPTIONS", optionX, MENU_TWO_OPTION_Y + MENU_ROW_HEIGHT);
+    drawTitleHeart(optionX - 32, MENU_TWO_OPTION_Y);
+  }
+
+  private void renderTitleOptionsMenu() {
+    int optionX = centerLongestMenuOptionX(TITLE_OPTIONS_OPTIONS);
+    drawString("INPUT", optionX, MENU_THREE_OPTION_Y);
+    drawString("DIFFICULTY", optionX, MENU_THREE_OPTION_Y + MENU_ROW_HEIGHT);
+    drawString("DONE", optionX, MENU_THREE_OPTION_Y + MENU_ROW_HEIGHT * 2);
+    drawTitleHeart(optionX - 32, MENU_THREE_OPTION_Y);
+  }
+
+  private void renderTitleInputMenu() {
+    drawStringCentered("INPUT", TITLE_INPUT_TITLE_Y);
+    int mappingX = getInputMappingX();
+    for(int i = 0; i < TITLE_INPUT_ACTIONS.length; i++) {
+      drawInputMappingLine(TITLE_INPUT_ACTIONS[i], mappingX,
+          TITLE_INPUT_MAPPING_Y + i * TITLE_INPUT_MAPPING_ROW_HEIGHT);
+    }
+    int optionX = centerLongestMenuOptionX(TITLE_INPUT_OPTIONS);
+    for(int i = 0; i < TITLE_INPUT_OPTIONS.length; i++) {
+      drawString(TITLE_INPUT_OPTIONS[i], optionX,
+          TITLE_INPUT_MENU_Y + i * MENU_ROW_HEIGHT);
+    }
+    drawString("^", optionX - 32,
+        TITLE_INPUT_MENU_Y + titleSelectedIndex * MENU_ROW_HEIGHT);
+  }
+
+  private void renderTitleDifficultyMenu() {
+    int optionX = centerLongestMenuOptionX(TITLE_DIFFICULTY_OPTIONS);
+    drawString("NORMAL", optionX, MENU_TWO_OPTION_Y);
+    drawString("HARD", optionX, MENU_TWO_OPTION_Y + MENU_ROW_HEIGHT);
+    drawTitleHeart(optionX - 32, MENU_TWO_OPTION_Y);
+  }
+
+  private void drawTitleHeart(int x, int y) {
+    smallHeart.draw(x, y + titleSelectedIndex * MENU_ROW_HEIGHT);
+  }
+
+  private void drawInputMappingLine(String action, int x, int y) {
+    drawString(getInputMappingLine(action), x, y);
+  }
+
+  private int getInputMappingX() {
+    int maxLength = 0;
+    for(int i = 0; i < TITLE_INPUT_ACTIONS.length; i++) {
+      maxLength = Math.max(maxLength,
+          getInputMappingLine(TITLE_INPUT_ACTIONS[i]).length());
+    }
+    return Math.max(64, centerTextX(maxLength));
+  }
+
+  private String getInputMappingLine(String action) {
+    return padRight(action, 6) + "= "
+        + buttonMapping.keyboardLabelFor(action) + ", "
+        + buttonMapping.controllerLabelFor(action);
+  }
+
+  private String padRight(String text, int length) {
+    StringBuilder builder = new StringBuilder(text);
+    while(builder.length() < length) {
+      builder.append(' ');
+    }
+    return builder.toString();
+  }
+
+  private int centerTextX(String text) {
+    return centerTextX(text.length());
+  }
+
+  private int centerTextX(int length) {
+    return (640 - (length << 4)) >> 1;
+  }
+
+  private int centerLongestMenuOptionX(String[] options) {
+    int maxLength = 0;
+    for(int i = 0; i < options.length; i++) {
+      maxLength = Math.max(maxLength, options[i].length());
+    }
+    return centerTextX(maxLength);
   }
 
 
@@ -3915,6 +4299,9 @@ public final class Main extends BasicGame {
         break;
       case MODE_LOADING:
         renderLoading(gc, g);
+        break;
+      case MODE_INPUT_CONFIG:
+        renderInputConfig(gc, g);
         break;
       case MODE_CASTLE_FALLS:
         renderCastleFalls(gc, g);

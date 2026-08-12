@@ -26,7 +26,7 @@ public class BatSpawner extends Thing {
     }
 
     if (delay == 0) {
-      delay = 546;
+      delay = main.adjustEnemySpawnDelay(546);
       if (main.simon.direction == Main.RIGHT) {
         main.pushThing(new Bat(main,
             main.camera + 520, main.simon.y + 8, Main.LEFT));

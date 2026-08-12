@@ -20,7 +20,7 @@ public class Merman extends Thing {
     this.mermanSpawner = mermanSpawner;
     this.direction = (main.simon.x < x) ? Main.LEFT : Main.RIGHT;
 
-    shootDelay = main.random.nextInt(45) + 45;
+    shootDelay = main.adjustEnemyCooldown(main.random.nextInt(45) + 45);
 
     main.pushThing(new Droplets(main, x + 8, 352, -1f, -5.5f));
     main.pushThing(new Droplets(main, x + 8, 352, 1f, -5f));
@@ -87,7 +87,8 @@ public class Merman extends Thing {
           }
 
           if (--shootDelay == 0) {
-            shootDelay = main.random.nextInt(273) + 91;
+            shootDelay = main.adjustEnemyCooldown(
+                main.random.nextInt(273) + 91);
             shooting = 70;
             main.pushThing(new Fireball(main, x + 8, y + 18,
                 (direction == Main.LEFT) ? -1.5f : 1.5f, 0));

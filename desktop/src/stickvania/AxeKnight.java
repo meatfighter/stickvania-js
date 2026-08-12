@@ -26,12 +26,13 @@ public class AxeKnight extends Thing {
     this.x = x;
     this.y = y;
 
-    throwDelay = main.random.nextInt(273);
+    hits = main.adjustEnemyHits(hits);
+    throwDelay = main.adjustEnemyCooldown(main.random.nextInt(273));
   }
 
   public void axeGone() {
     hasAxe = true;
-    throwDelay = main.random.nextInt(273);
+    throwDelay = main.adjustEnemyCooldown(main.random.nextInt(273));
   }
 
   @Override
@@ -79,7 +80,7 @@ public class AxeKnight extends Thing {
 
       if (state != STATE_INACTIVE && hasAxe) {
         if (throwDelay <= 0) {
-          throwDelay = main.random.nextInt(273);
+          throwDelay = main.adjustEnemyCooldown(main.random.nextInt(273));
           main.pushThing(new BoomerangAxe(
               main, x + 8, 
               main.random.nextBoolean() ? y : y + 32, displayDirection, this));
@@ -120,8 +121,9 @@ public class AxeKnight extends Thing {
           }
           break;
         case STATE_STANDING:
-          if (++standingDelay == 43) {
-            standingDelay = main.random.nextInt(43);
+          if (++standingDelay >= main.adjustEnemyBehaviorDelay(43)) {
+            standingDelay = main.adjustEnemyBehaviorDelay(
+                main.random.nextInt(43));
             state = STATE_WALKING;
             float distance = main.simon.x + 8 - x;
             float aDist = Math.abs(distance);

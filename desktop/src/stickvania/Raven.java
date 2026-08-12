@@ -80,7 +80,7 @@ public class Raven extends Thing {
         case STATE_INACTIVE:
           if (Math.abs(main.simon.x + 16 - x) < 192) {
             state = STATE_HOVERING;
-            delay = 91 + main.random.nextInt(91);
+            delay = main.adjustEnemyBehaviorDelay(91 + main.random.nextInt(91));
             spriteIndex = 0;
           }
           break;
@@ -103,16 +103,18 @@ public class Raven extends Thing {
           }
           if (Math.abs(targetX - x) <= 2) {
             state = STATE_HOVERING;
-            delay = 91 + main.random.nextInt(91);
+            delay = main.adjustEnemyBehaviorDelay(91 + main.random.nextInt(91));
           } else if (targetX < x) {
             if (!moveX(-1f)) {
               state = STATE_HOVERING;
-              delay = 91 + main.random.nextInt(91);
+              delay = main.adjustEnemyBehaviorDelay(
+                  91 + main.random.nextInt(91));
             }
           } else {
             if (!moveX(1f)) {
               state = STATE_HOVERING;
-              delay = 91 + main.random.nextInt(91);
+              delay = main.adjustEnemyBehaviorDelay(
+                  91 + main.random.nextInt(91));
             }
           }
           break;

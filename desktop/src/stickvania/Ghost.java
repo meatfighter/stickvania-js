@@ -16,7 +16,8 @@ public class Ghost extends Thing {
   public Ghost(Main main, float x, float y) {
     super(main, 32, 32);
     this.x = x;
-    this.y = y;    
+    this.y = y;
+    hits = main.adjustEnemyHits(hits);
   }
 
   @Override

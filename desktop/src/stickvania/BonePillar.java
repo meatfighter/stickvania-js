@@ -14,6 +14,7 @@ public class BonePillar extends Thing {
     super(main, 32, 64);
     this.x = x;
     this.y = y;
+    hits = main.adjustEnemyHits(hits);
   }
 
   @Override
@@ -50,9 +51,9 @@ public class BonePillar extends Thing {
       if (delay == 0) {
         if (--bullets == 0) {
           bullets = 2;
-          delay = 60;
+          delay = main.adjustEnemyCooldown(60);
         } else {
-          delay = 364;
+          delay = main.adjustEnemyCooldown(364);
         }
         main.pushThing(new Fireball(main, x + 8, y + 18,
             (direction == Main.LEFT) ? -1.5f : 1.5f, 0));

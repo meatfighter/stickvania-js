@@ -19,6 +19,7 @@ public class LanceKnight extends Thing {
     this.x = x;
     this.y = y;
 
+    hits = main.adjustEnemyHits(hits);
     direction = main.random.nextBoolean() ? Main.LEFT : Main.RIGHT;
   }
 

@@ -79,7 +79,7 @@ public class BridgeBat extends Thing {
         case STATE_INACTIVE:
           if (Math.abs(main.simon.x - x - 16) < 350) {
             state = STATE_HOVERING;
-            delay = main.random.nextInt(43);
+            delay = main.adjustEnemyBehaviorDelay(main.random.nextInt(43));
             spriteIndex = 1;
           }
           break;
@@ -103,7 +103,7 @@ public class BridgeBat extends Thing {
           }
           if (Math.abs(targetX - x) <= 4) {
             state = STATE_HOVERING;
-            delay = main.random.nextInt(43);
+            delay = main.adjustEnemyBehaviorDelay(main.random.nextInt(43));
           } else if (targetX < x) {
             x -= 2f;
           } else {

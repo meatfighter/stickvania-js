@@ -41,6 +41,7 @@ public class BoneDragon extends Thing {
     this.x = x;
     this.y = y;
     this.item = item;
+    hits = main.adjustEnemyHits(hits);
 
     X = x + 32;
     Y = y;
@@ -115,7 +116,7 @@ public class BoneDragon extends Thing {
         if (radius < 128f) {
           radius += 1f;
         } else if (shootDelay == 0) {
-          shootDelay = 91 + main.random.nextInt(273);
+          shootDelay = main.adjustEnemyCooldown(91 + main.random.nextInt(273));
           mouthOpen = 46;
           main.pushThing(new Fireball(main, x + 8, y + 8, -1.5f, 0));
           main.playSound(main.fire_ball_shot);

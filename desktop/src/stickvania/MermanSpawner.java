@@ -4,7 +4,10 @@ import org.newdawn.slick.*;
 
 public class MermanSpawner extends Thing {
 
-  private int count = 2;
+  private static final int BASE_ACTIVE_CAP = 2;
+
+  private int count = BASE_ACTIVE_CAP;
+  private int activeCap = BASE_ACTIVE_CAP;
   private int delay;
   private int x1;
   private int x2;
@@ -21,11 +24,16 @@ public class MermanSpawner extends Thing {
   }
 
   public void mermanDied() {
-    count++;
+    syncActiveCap();
+    if (count < activeCap) {
+      count++;
+    }
   }
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
+
+    syncActiveCap();
 
     if (main.timeFrozen > 0) {
       return true;
@@ -44,7 +52,7 @@ public class MermanSpawner extends Thing {
     }
 
     if (delay == 0) {
-      delay = 182;
+      delay = main.adjustEnemySpawnDelay(182);
 
       for(int i = 0; i < 16 && count > 0; i++) {
         if (main.random.nextBoolean()) {
@@ -72,5 +80,19 @@ public class MermanSpawner extends Thing {
 
   @Override
   public void render(GameContainer gc, Graphics g) throws SlickException {
+  }
+
+  private void syncActiveCap() {
+    int newActiveCap = main.adjustEnemyActiveCap(BASE_ACTIVE_CAP);
+    if (newActiveCap == activeCap) {
+      return;
+    }
+    count += newActiveCap - activeCap;
+    if (count < 0) {
+      count = 0;
+    } else if (count > newActiveCap) {
+      count = newActiveCap;
+    }
+    activeCap = newActiveCap;
   }
 }

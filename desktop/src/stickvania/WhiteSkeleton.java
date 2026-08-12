@@ -23,7 +23,7 @@ public class WhiteSkeleton extends Thing {
     super(main, 1, 0, 30, 64);
     this.x = x;
     this.y = y;
-    throwDelay = 91 + main.random.nextInt(273);
+    throwDelay = main.adjustEnemyCooldown(91 + main.random.nextInt(273));
   }
 
   @Override
@@ -72,7 +72,8 @@ public class WhiteSkeleton extends Thing {
 
         if (state == STATE_STANDING || state == STATE_WALKING) {
           if (--throwDelay == 0) {
-            throwDelay = 91 + main.random.nextInt(273);
+            throwDelay = main.adjustEnemyCooldown(
+                91 + main.random.nextInt(273));
             float uy = -6.5f - 3f * main.random.nextFloat();
             float ux = 1f + main.random.nextFloat();
             if (direction == Main.RIGHT) {
@@ -87,12 +88,14 @@ public class WhiteSkeleton extends Thing {
           case STATE_INACTIVE:
             if (x >= main.camera - 96 && x <= main.camera + 576) {
               state = STATE_STANDING;
-              delay = 23 + main.random.nextInt(46);
+              delay = main.adjustEnemyBehaviorDelay(
+                  23 + main.random.nextInt(46));
             }
             break;
           case STATE_STANDING:
             if (--delay == 0) {
-              delay = 91 + main.random.nextInt(273);
+              delay = main.adjustEnemyBehaviorDelay(
+                  91 + main.random.nextInt(273));
               state = STATE_WALKING;
               if (main.simon.x + 16 > x) {
                 targetX = main.simon.x - 48 - main.random.nextInt(160);
@@ -104,7 +107,8 @@ public class WhiteSkeleton extends Thing {
           case STATE_WALKING:
             if (--delay == 0) {
               state = STATE_STANDING;
-              delay = 23 + main.random.nextInt(46);
+              delay = main.adjustEnemyBehaviorDelay(
+                  23 + main.random.nextInt(46));
             }
             if (++spriteIndexIncrementor == 20) {
               spriteIndexIncrementor = 0;
