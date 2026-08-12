@@ -36,33 +36,6 @@ input {
     background: #000000;
 }
 
-.boot-dots {
-    display: grid;
-    width: 40px;
-    height: 8px;
-    grid-template-columns: repeat(3, 8px);
-    gap: 8px;
-}
-
-.boot-dot {
-    width: 8px;
-    height: 8px;
-    background: #f8f8f8;
-    opacity: 0;
-}
-
-.boot-dot:nth-child(1) {
-    animation: boot-dot-one 1.2s steps(1, end) infinite;
-}
-
-.boot-dot:nth-child(2) {
-    animation: boot-dot-two 1.2s steps(1, end) infinite;
-}
-
-.boot-dot:nth-child(3) {
-    animation: boot-dot-three 1.2s steps(1, end) infinite;
-}
-
 .boot-error {
     display: none;
     max-width: 280px;
@@ -73,12 +46,30 @@ input {
     text-align: center;
 }
 
-.boot-failed .boot-dots {
-    display: none;
-}
-
 .boot-failed .boot-error {
     display: block;
+}
+
+.load-progress-panel {
+    display: grid;
+    width: min(420px, calc(100vw - 48px));
+    justify-items: center;
+}
+
+.progress-shell {
+    width: 100%;
+    height: 8px;
+    overflow: hidden;
+    border: 1px solid #ffffff;
+    border-radius: 8px;
+    background: #222222;
+}
+
+.progress-bar {
+    width: var(--progress, 0%);
+    height: 100%;
+    background: #ffffff;
+    transition: width 120ms ease-out;
 }
 
 .load-error-panel {
@@ -402,43 +393,4 @@ input {
 
 .hamburger-button span::after {
     top: 7px;
-}
-
-@keyframes boot-dot-one {
-    0%,
-    24.99%,
-    100% {
-        opacity: 0;
-    }
-
-    25%,
-    99.99% {
-        opacity: 1;
-    }
-}
-
-@keyframes boot-dot-two {
-    0%,
-    49.99%,
-    100% {
-        opacity: 0;
-    }
-
-    50%,
-    99.99% {
-        opacity: 1;
-    }
-}
-
-@keyframes boot-dot-three {
-    0%,
-    74.99%,
-    100% {
-        opacity: 0;
-    }
-
-    75%,
-    99.99% {
-        opacity: 1;
-    }
 }

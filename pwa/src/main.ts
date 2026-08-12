@@ -19,6 +19,7 @@ const DEFAULT_VOLUME = 0.1;
 const BASE_URL = import.meta.env.BASE_URL;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 type DisplayModePreference = "light" | "dark";
+type ScreenTest = "static-loading" | "static-error" | "dynamic-loading" | "dynamic-error";
 
 const DISPLAY_MODE_STORAGE_KEY = "stickvania-display-mode";
 const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
@@ -87,16 +88,23 @@ function updateDisplayModeUi(lightButton: HTMLButtonElement, darkButton: HTMLBut
     document.getElementById("display-switch-button")?.setAttribute("aria-pressed", String(displayModePreference === "dark"));
 }
 
-function showBoot(): void {
+function showBoot(progress = 0): void {
+    const percent = Math.max(0, Math.min(100, Math.round(progress * 100)));
+    const existingProgress = app.querySelector<HTMLElement>("[data-boot-progress='true']");
+    if (existingProgress !== null) {
+        existingProgress.setAttribute("aria-valuenow", String(percent));
+        existingProgress.querySelector<HTMLElement>(".progress-bar")?.style.setProperty("--progress", `${percent}%`);
+        return;
+    }
+
     app.innerHTML = `
-        <div class="boot-screen" role="status" aria-label="Loading">
-            <div class="boot-dots" aria-hidden="true">
-                <span class="boot-dot"></span>
-                <span class="boot-dot"></span>
-                <span class="boot-dot"></span>
-            </div>
-            <div class="boot-error"></div>
-        </div>`;
+        <main class="boot-screen" role="status" aria-label="Loading">
+            <section class="load-progress-panel" aria-live="polite">
+                <div class="progress-shell" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" data-boot-progress="true">
+                    <div class="progress-bar" style="--progress: ${percent}%"></div>
+                </div>
+            </section>
+        </main>`;
 }
 
 function skullIconMarkup(): string {
@@ -120,6 +128,33 @@ function showError(message: string): void {
     showLoadError("Unable to continue.", message, () => {
         window.location.reload();
     });
+}
+
+function getScreenTest(): ScreenTest | null {
+    const value = new URLSearchParams(window.location.search).get("testScreen");
+    switch (value) {
+        case "static-loading":
+        case "static-error":
+        case "dynamic-loading":
+        case "dynamic-error":
+            return value;
+        default:
+            return null;
+    }
+}
+
+function shouldKeepStaticTestScreen(): boolean {
+    const screenTest = getScreenTest();
+    return screenTest === "static-loading" || screenTest === "static-error";
+}
+
+function showDynamicLoadingTestScreen(): void {
+    let progress = 0;
+    showBoot(progress);
+    window.setInterval(() => {
+        progress = progress >= 1 ? 0 : Math.min(1, progress + 0.04);
+        showBoot(progress);
+    }, 160);
 }
 
 function showMenu(errorText = ""): void {
@@ -621,14 +656,22 @@ async function unlockAudio(): Promise<void> {
     }
 }
 
-async function preloadResources(): Promise<void> {
+async function preloadResources(onProgress: (progress: number) => void): Promise<void> {
     ResourceLoader.clearFailures();
     ResourceLoader.setCacheBust(__BUILD_STAMP__);
     ResourceLoader.setRetryOptions(3, 250);
-    for (const ref of STICKVANIA_RESOURCE_REFS) {
-        ResourceLoader.loadResource(ref);
+    const refs = Array.from(new Set(STICKVANIA_RESOURCE_REFS));
+    const total = refs.length;
+    let loaded = 0;
+    if (total === 0) {
+        onProgress(1);
+        return;
     }
-    await ResourceLoader.waitForAll();
+    await Promise.all(refs.map(async ref => {
+        await ResourceLoader.loadResource(ref);
+        loaded++;
+        onProgress(loaded / total);
+    }));
 }
 
 async function registerServiceWorker(): Promise<void> {
@@ -640,9 +683,9 @@ async function registerServiceWorker(): Promise<void> {
 }
 
 async function loadStartupResources(): Promise<void> {
-    showBoot();
+    showBoot(0);
     try {
-        await preloadResources();
+        await preloadResources(showBoot);
         setAudioVolume(volume);
         showMenu();
         void registerServiceWorker().catch(error => console.warn("Service worker registration failed.", error));
@@ -668,6 +711,18 @@ function setupPageLifecycleHandlers(): void {
 
 async function boot(): Promise<void> {
     app = document.getElementById("app") as HTMLElement;
+    const screenTest = getScreenTest();
+    if (screenTest === "dynamic-loading") {
+        showDynamicLoadingTestScreen();
+        return;
+    }
+    if (screenTest === "dynamic-error") {
+        showLoadError("Unable to start.", "Check your connection and try again.", () => {
+            void loadStartupResources();
+        });
+        return;
+    }
+
     setupPageLifecycleHandlers();
     await loadStartupResources();
 }
@@ -715,8 +770,10 @@ function escapeHtml(text: string): string {
         .replace(/'/g, "&#039;");
 }
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => void boot(), { once: true });
-} else {
-    void boot();
+if (!shouldKeepStaticTestScreen()) {
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => void boot(), { once: true });
+    } else {
+        void boot();
+    }
 }
