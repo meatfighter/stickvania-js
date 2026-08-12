@@ -25,6 +25,12 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     private static readonly ARM_DELAY = 8;
     private static readonly MESSAGE_Y = 232;
     private static readonly ERROR_Y = 280;
+    private static readonly CONTROLLER_INDEX_LIMIT = 16;
+    private static readonly GAMEPAD_AXIS_LIMIT = 16;
+    private static readonly AXIS_THRESHOLD = 0.5;
+    private static readonly AXIS_RECENTER_THRESHOLD = 0.05;
+    private static readonly EXTRA_HORIZONTAL_AXES = [2, 6];
+    private static readonly EXTRA_VERTICAL_AXES = [3, 7];
 
     private input: Input = null;
     private stepIndex = 0;
@@ -35,6 +41,13 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     private draft: MappingDraft = null;
     private readonly assignedKeys = new Set<number>();
     private readonly assignedControllerButtons = new Set<number>();
+    private readonly extraAxisBaselines = new Array<number>(
+        InputConfigMode.CONTROLLER_INDEX_LIMIT * InputConfigMode.GAMEPAD_AXIS_LIMIT
+    ).fill(Number.NaN);
+    private extraAxisUpDown = false;
+    private extraAxisDownDown = false;
+    private extraAxisLeftDown = false;
+    private extraAxisRightDown = false;
 
     public constructor(private readonly main: Main) {
     }
@@ -46,6 +59,8 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.draft = this.createDraft();
         this.assignedKeys.clear();
         this.assignedControllerButtons.clear();
+        this.extraAxisBaselines.fill(Number.NaN);
+        this.syncExtraAxisDirectionState();
         this.main.clearInputPressedRecords();
     }
 
@@ -60,12 +75,15 @@ export class InputConfigMode implements ControllerListener, KeyListener {
 
     public update(gc: GameContainer): void {
         if (this.armDelay > 0) {
+            this.syncExtraAxisDirectionState();
             this.armDelay--;
             return;
         }
         if (this.doneDelay > 0 && --this.doneDelay == 0) {
             this.finish();
+            return;
         }
+        this.bindExtraAxisDirectionPressed();
     }
 
     public render(gc: GameContainer, g: Graphics): void {
@@ -169,6 +187,33 @@ export class InputConfigMode implements ControllerListener, KeyListener {
             return;
         }
         this.advance();
+    }
+
+    private bindExtraAxisDirectionPressed(): void {
+        if (!this.canAcceptInput() || this.isActionStep()) {
+            this.syncExtraAxisDirectionState();
+            return;
+        }
+        const button = this.getPressedExtraAxisDirection();
+        if (button !== null) {
+            this.bindControllerDirection(button);
+        }
+    }
+
+    private getPressedExtraAxisDirection(): number | null {
+        if (this.isExtraAxisUpPressed()) {
+            return 12;
+        }
+        if (this.isExtraAxisDownPressed()) {
+            return 13;
+        }
+        if (this.isExtraAxisLeftPressed()) {
+            return 14;
+        }
+        if (this.isExtraAxisRightPressed()) {
+            return 15;
+        }
+        return null;
     }
 
     private bindKey(key: number): boolean {
@@ -339,5 +384,97 @@ export class InputConfigMode implements ControllerListener, KeyListener {
 
     private static isDirectionalGamepadButton(button: number): boolean {
         return button >= 12 && button <= 15;
+    }
+
+    private isExtraAxisUpDown(): boolean {
+        return this.isAnyAxisLessThan(InputConfigMode.EXTRA_VERTICAL_AXES, -InputConfigMode.AXIS_THRESHOLD);
+    }
+
+    private isExtraAxisDownDown(): boolean {
+        return this.isAnyAxisGreaterThan(InputConfigMode.EXTRA_VERTICAL_AXES, InputConfigMode.AXIS_THRESHOLD);
+    }
+
+    private isExtraAxisLeftDown(): boolean {
+        return this.isAnyAxisLessThan(InputConfigMode.EXTRA_HORIZONTAL_AXES, -InputConfigMode.AXIS_THRESHOLD);
+    }
+
+    private isExtraAxisRightDown(): boolean {
+        return this.isAnyAxisGreaterThan(InputConfigMode.EXTRA_HORIZONTAL_AXES, InputConfigMode.AXIS_THRESHOLD);
+    }
+
+    private isExtraAxisUpPressed(): boolean {
+        const down = this.isExtraAxisUpDown();
+        const pressed = down && !this.extraAxisUpDown;
+        this.extraAxisUpDown = down;
+        return pressed;
+    }
+
+    private isExtraAxisDownPressed(): boolean {
+        const down = this.isExtraAxisDownDown();
+        const pressed = down && !this.extraAxisDownDown;
+        this.extraAxisDownDown = down;
+        return pressed;
+    }
+
+    private isExtraAxisLeftPressed(): boolean {
+        const down = this.isExtraAxisLeftDown();
+        const pressed = down && !this.extraAxisLeftDown;
+        this.extraAxisLeftDown = down;
+        return pressed;
+    }
+
+    private isExtraAxisRightPressed(): boolean {
+        const down = this.isExtraAxisRightDown();
+        const pressed = down && !this.extraAxisRightDown;
+        this.extraAxisRightDown = down;
+        return pressed;
+    }
+
+    private isAnyAxisLessThan(axes: readonly number[], threshold: number): boolean {
+        return this.isAnyAxisMatching(axes, (value) => value < threshold);
+    }
+
+    private isAnyAxisGreaterThan(axes: readonly number[], threshold: number): boolean {
+        return this.isAnyAxisMatching(axes, (value) => value > threshold);
+    }
+
+    private isAnyAxisMatching(axes: readonly number[], predicate: (value: number) => boolean): boolean {
+        if (!this.input) {
+            return false;
+        }
+        for (let controller = 0; controller < InputConfigMode.CONTROLLER_INDEX_LIMIT; controller++) {
+            for (const axis of axes) {
+                if (predicate(this.readExtraAxisValue(controller, axis))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private readExtraAxisValue(controller: number, axis: number): number {
+        if (this.input.getAxisCount(controller) <= axis) {
+            return 0;
+        }
+
+        const value = this.input.getAxisValue(controller, axis);
+        const baselineIndex = controller * InputConfigMode.GAMEPAD_AXIS_LIMIT + axis;
+        let baseline = this.extraAxisBaselines[baselineIndex];
+        if (Number.isNaN(baseline)) {
+            baseline = value;
+            this.extraAxisBaselines[baselineIndex] = baseline;
+        }
+        if (Math.abs(value) <= InputConfigMode.AXIS_RECENTER_THRESHOLD) {
+            baseline = 0;
+            this.extraAxisBaselines[baselineIndex] = baseline;
+        }
+        return value - baseline;
+    }
+
+    private syncExtraAxisDirectionState(): void {
+        this.extraAxisUpDown = this.isExtraAxisUpDown();
+        this.extraAxisDownDown = this.isExtraAxisDownDown();
+        this.extraAxisLeftDown = this.isExtraAxisLeftDown();
+        this.extraAxisRightDown = this.isExtraAxisRightDown();
     }
 }

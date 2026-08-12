@@ -99,11 +99,27 @@ function showBoot(): void {
         </div>`;
 }
 
-function showError(message: string): void {
+function skullIconMarkup(): string {
+    return "&#x1F480;";
+}
+
+function showLoadError(title: string, message: string, retryHandler: () => void): void {
     app.innerHTML = `
-        <div class="boot-screen boot-failed" role="alert">
-            <div class="boot-error">${escapeHtml(message)}</div>
-        </div>`;
+        <main class="boot-screen boot-failed" role="alert">
+            <section class="load-error-panel" aria-label="${escapeHtml(title)}">
+                <div class="failure-icon" aria-hidden="true">${skullIconMarkup()}</div>
+                <div class="boot-title">${escapeHtml(title)}</div>
+                <p class="boot-error">${escapeHtml(message)}</p>
+                <button id="retry-button" class="retry-button" type="button">Retry</button>
+            </section>
+        </main>`;
+    document.getElementById("retry-button")?.addEventListener("click", retryHandler);
+}
+
+function showError(message: string): void {
+    showLoadError("Unable to continue.", message, () => {
+        window.location.reload();
+    });
 }
 
 function showMenu(errorText = ""): void {
@@ -218,7 +234,10 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
         }
         appContainer.setErrorHandler(error => {
             console.error(error);
-            showError("Unable to continue. Reload the page and try again.");
+            destroyGame();
+            showLoadError("Unable to continue.", "Reload the page and try again.", () => {
+                window.location.reload();
+            });
         });
         appContainer.setAlwaysRender(true);
         appContainer.setVSync(true);
@@ -239,9 +258,13 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
     } catch (error) {
         console.error(error);
         destroyGame();
-        showMenu(restoreSavedGame
-            ? "Unable to restore the saved game. Start a new game and try again."
-            : "Unable to start. Check your connection and try again.");
+        if (restoreSavedGame) {
+            showMenu("Unable to restore the saved game. Start a new game and try again.");
+            return;
+        }
+        showLoadError("Unable to start.", "Check your connection and try again.", () => {
+            void startGame(false);
+        });
     }
 }
 
@@ -320,6 +343,7 @@ function applyCurrentGameLifecycleSuspension(): void {
     }
 
     game.setBrowserSuspended(false);
+    container?.setLoopSuspended(false);
 }
 
 function suspendCurrentGameForLifecycle(): void {
@@ -327,6 +351,7 @@ function suspendCurrentGameForLifecycle(): void {
         return;
     }
     game.setBrowserSuspended(true);
+    container?.setLoopSuspended(true);
     saveCurrentGameState();
 }
 
@@ -597,6 +622,7 @@ async function unlockAudio(): Promise<void> {
 }
 
 async function preloadResources(): Promise<void> {
+    ResourceLoader.clearFailures();
     ResourceLoader.setCacheBust(__BUILD_STAMP__);
     ResourceLoader.setRetryOptions(3, 250);
     for (const ref of STICKVANIA_RESOURCE_REFS) {
@@ -611,6 +637,21 @@ async function registerServiceWorker(): Promise<void> {
     }
     const version = encodeURIComponent(`${__APP_VERSION__}-${__BUILD_STAMP__}`);
     await navigator.serviceWorker.register(`${BASE_URL}sw.js?v=${version}`, { scope: BASE_URL });
+}
+
+async function loadStartupResources(): Promise<void> {
+    showBoot();
+    try {
+        await preloadResources();
+        setAudioVolume(volume);
+        showMenu();
+        void registerServiceWorker().catch(error => console.warn("Service worker registration failed.", error));
+    } catch (error) {
+        console.error(error);
+        showLoadError("Unable to load resources.", "Check your connection and try again.", () => {
+            void loadStartupResources();
+        });
+    }
 }
 
 function setupPageLifecycleHandlers(): void {
@@ -628,16 +669,7 @@ function setupPageLifecycleHandlers(): void {
 async function boot(): Promise<void> {
     app = document.getElementById("app") as HTMLElement;
     setupPageLifecycleHandlers();
-    showBoot();
-    try {
-        await preloadResources();
-        setAudioVolume(volume);
-        showMenu();
-        void registerServiceWorker().catch(error => console.warn("Service worker registration failed.", error));
-    } catch (error) {
-        console.error(error);
-        showError("Unable to load resources. Check your connection and reload.");
-    }
+    await loadStartupResources();
 }
 
 function safeReadVolume(): number {

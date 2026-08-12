@@ -559,7 +559,7 @@ public final class Main extends BasicGame {
     try {
       input.initControllers();
     } catch(Throwable t) {
-      Log.warn("Unable to initialize controllers.", t);
+      Log.warn("Unable to initialize controllers: " + t);
     }
     controlInput = new StickvaniaInput(input, buttonMapping);
 

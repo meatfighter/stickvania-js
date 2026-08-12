@@ -52,20 +52,122 @@
             opacity: 0;
         }
 
+        .boot-dot:nth-child(1) {
+            animation: boot-dot-one 1.2s steps(1, end) infinite;
+        }
+
+        .boot-dot:nth-child(2) {
+            animation: boot-dot-two 1.2s steps(1, end) infinite;
+        }
+
+        .boot-dot:nth-child(3) {
+            animation: boot-dot-three 1.2s steps(1, end) infinite;
+        }
+
+        .load-error-panel {
+            display: none;
+            width: min(420px, calc(100vw - 48px));
+            gap: 14px;
+            justify-items: center;
+            text-align: center;
+        }
+
+        .failure-icon {
+            color: #ffffff;
+            font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", Arial, Helvetica, sans-serif;
+            font-size: 52px;
+            line-height: 1;
+        }
+
+        .boot-title {
+            color: #ffffff;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
         .boot-error {
             display: none;
             max-width: 280px;
+            margin: 0;
+            color: #ffffff;
             font-size: 14px;
             line-height: 1.45;
             text-align: center;
+        }
+
+        .load-error-panel .boot-error {
+            display: block;
+        }
+
+        .retry-link {
+            display: inline-flex;
+            min-width: 192px;
+            min-height: 48px;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            padding: 10px 20px;
+            border-radius: 30px;
+            background: #ffffff;
+            color: #000000;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 700;
+            text-decoration: none;
+            text-shadow: none;
+        }
+
+        .retry-link:active {
+            transform: translateY(2px);
         }
 
         .boot-failed .boot-dots {
             display: none;
         }
 
+        .boot-failed .load-error-panel {
+            display: grid;
+        }
+
         .boot-failed .boot-error {
             display: block;
+        }
+
+        @keyframes boot-dot-one {
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            33%,
+            66% {
+                opacity: 0;
+            }
+        }
+
+        @keyframes boot-dot-two {
+            0%,
+            33%,
+            100% {
+                opacity: 0;
+            }
+
+            34%,
+            66% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes boot-dot-three {
+            0%,
+            66% {
+                opacity: 0;
+            }
+
+            67%,
+            100% {
+                opacity: 1;
+            }
         }
     </style>
     <noscript>
@@ -74,8 +176,8 @@
                 display: none;
             }
 
-            .boot-error {
-                display: block;
+            .load-error-panel {
+                display: grid;
             }
         </style>
     </noscript>
@@ -89,9 +191,23 @@
                 <span class="boot-dot"></span>
                 <span class="boot-dot"></span>
             </div>
-            <div class="boot-error">Unable to start.<br>Check your connection and reload.</div>
+            <section id="static-load-error" class="load-error-panel" aria-label="Unable to start">
+                <div class="failure-icon" aria-hidden="true">&#x1F480;</div>
+                <div class="boot-title">Unable to start.</div>
+                <p class="boot-error">Check your connection and try again.</p>
+                <a class="retry-link" href="">Retry</a>
+            </section>
         </div>
     </main>
+    <script>
+        window.setTimeout(function () {
+            var boot = document.getElementById("boot-screen");
+            if (!boot || !boot.isConnected) {
+                return;
+            }
+            boot.classList.add("boot-failed");
+        }, 10000);
+    </script>
     <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

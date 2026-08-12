@@ -5,8 +5,12 @@ import org.newdawn.slick.Input;
 
 public class ButtonMapping {
 
-  private static final int VERSION = 5;
+  private static final int VERSION = 6;
   public static final int NO_BINDING = -1;
+  public static final int CONTROLLER_DIRECTION_UP = -2;
+  public static final int CONTROLLER_DIRECTION_DOWN = -3;
+  public static final int CONTROLLER_DIRECTION_LEFT = -4;
+  public static final int CONTROLLER_DIRECTION_RIGHT = -5;
 
   private static final int DEFAULT_KEY_JUMP = Input.KEY_X;
   private static final int DEFAULT_KEY_ATTACK = Input.KEY_Z;
@@ -16,10 +20,10 @@ public class ButtonMapping {
   private static final int DEFAULT_KEY_RIGHT = Input.KEY_RIGHT;
   private static final int DEFAULT_CONTROLLER_JUMP = 0;
   private static final int DEFAULT_CONTROLLER_ATTACK = 2;
-  private static final int DEFAULT_CONTROLLER_UP = 12;
-  private static final int DEFAULT_CONTROLLER_DOWN = 13;
-  private static final int DEFAULT_CONTROLLER_LEFT = 14;
-  private static final int DEFAULT_CONTROLLER_RIGHT = 15;
+  private static final int DEFAULT_CONTROLLER_UP = CONTROLLER_DIRECTION_UP;
+  private static final int DEFAULT_CONTROLLER_DOWN = CONTROLLER_DIRECTION_DOWN;
+  private static final int DEFAULT_CONTROLLER_LEFT = CONTROLLER_DIRECTION_LEFT;
+  private static final int DEFAULT_CONTROLLER_RIGHT = CONTROLLER_DIRECTION_RIGHT;
 
   private static final String[] GAMEPAD_BUTTON_TEXT = {
       "GP-A", "GP-B", "GP-X", "GP-Y", "GP-LB", "GP-RB", "GP-LT",
@@ -214,10 +218,26 @@ public class ButtonMapping {
     if (button == NO_BINDING) {
       return "GP-NONE";
     }
+    if (button == CONTROLLER_DIRECTION_UP) {
+      return "GP-UP";
+    }
+    if (button == CONTROLLER_DIRECTION_DOWN) {
+      return "GP-DOWN";
+    }
+    if (button == CONTROLLER_DIRECTION_LEFT) {
+      return "GP-LEFT";
+    }
+    if (button == CONTROLLER_DIRECTION_RIGHT) {
+      return "GP-RIGHT";
+    }
     if (button >= 0 && button < GAMEPAD_BUTTON_TEXT.length) {
       return GAMEPAD_BUTTON_TEXT[button];
     }
     return "GP-" + button;
+  }
+
+  public static boolean isStandardGamepadDirectionButton(int button) {
+    return button >= 12 && button <= 15;
   }
 
   private static String sanitizeLabel(String label) {

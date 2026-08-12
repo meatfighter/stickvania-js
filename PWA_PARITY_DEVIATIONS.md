@@ -2,6 +2,8 @@
 
 This file records intentional differences between the original Java Stickvania game and the browser PWA port. The TypeScript game remains a 1-to-1 class/function port where possible; entries here are the approved places where the PWA deliberately breaks Java parity.
 
+Unless otherwise noted, "Java Behavior" means the original 2010 Java baseline. Some PWA-originated gameplay/menu features have also been mirrored into the updated Java desktop source; see `DESKTOP_JAVA_PWA_FEATURE_PORT.md`.
+
 ## PWA-001: Browser Launch Menu
 
 Java Behavior:
@@ -267,6 +269,8 @@ PWA Behavior:
 - Input mapping is saved in `localStorage` under `stickvania.input-mapping`.
 - Mapping schema version is `5`; older development schemas are intentionally ignored.
 - Gamepad mapping uses an "any controller" model. It does not store browser gamepad device IDs.
+- The `GP-UP`, `GP-DOWN`, `GP-LEFT`, and `GP-RIGHT` direction mappings accept standard D-pad buttons, primary stick axes, POV-hat style axes, and common extra stick axes.
+- Extra stick axes currently follow the same coverage used by `ms-pac-man-2010-js`: horizontal axes `2` and `6`, vertical axes `3` and `7`, with baseline/recenter handling.
 - Remapping uses a draft. Old saved bindings do not block new choices, duplicate controls picked earlier in the same remap pass still show `ALREADY USED`, and the draft is committed only after all actions are collected.
 
 Affected Files:

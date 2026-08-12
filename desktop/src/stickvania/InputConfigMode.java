@@ -1,5 +1,6 @@
 package stickvania;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.newdawn.slick.Color;
@@ -18,16 +19,28 @@ public class InputConfigMode implements ControllerListener, KeyListener {
   private static final int ARM_DELAY = 8;
   private static final int MESSAGE_Y = 232;
   private static final int ERROR_Y = 280;
+  private static final int CONTROLLER_INDEX_LIMIT = 16;
+  private static final int GAMEPAD_AXIS_LIMIT = 16;
+  private static final float AXIS_THRESHOLD = 0.5f;
+  private static final float AXIS_RECENTER_THRESHOLD = 0.05f;
+  private static final int[] EXTRA_HORIZONTAL_AXES = { 2, 6 };
+  private static final int[] EXTRA_VERTICAL_AXES = { 3, 7 };
 
   private final Main main;
   private final Set<Integer> assignedKeys = new HashSet<Integer>();
   private final Set<Integer> assignedControllerButtons = new HashSet<Integer>();
+  private final float[] extraAxisBaselines =
+      new float[CONTROLLER_INDEX_LIMIT * GAMEPAD_AXIS_LIMIT];
   private Input input;
   private int stepIndex;
   private int doneDelay;
   private int armDelay = ARM_DELAY;
   private String message = "";
   private boolean finished;
+  private boolean extraAxisUpDown;
+  private boolean extraAxisDownDown;
+  private boolean extraAxisLeftDown;
+  private boolean extraAxisRightDown;
   private MappingDraft draft;
 
   private static final class MappingDraft {
@@ -56,6 +69,8 @@ public class InputConfigMode implements ControllerListener, KeyListener {
     draft = createDraft();
     assignedKeys.clear();
     assignedControllerButtons.clear();
+    Arrays.fill(extraAxisBaselines, Float.NaN);
+    syncExtraAxisDirectionState();
     main.clearInputPressedRecords();
   }
 
@@ -70,12 +85,15 @@ public class InputConfigMode implements ControllerListener, KeyListener {
 
   public void update(GameContainer gc) {
     if (armDelay > 0) {
+      syncExtraAxisDirectionState();
       armDelay--;
       return;
     }
     if (doneDelay > 0 && --doneDelay == 0) {
       finish();
+      return;
     }
+    bindExtraAxisDirectionPressed();
   }
 
   public void render(GameContainer gc, Graphics g) throws SlickException {
@@ -113,7 +131,8 @@ public class InputConfigMode implements ControllerListener, KeyListener {
     }
     int buttonIndex = button - 1;
     if (buttonIndex < 0
-        || (isActionStep() && isDirectionalGamepadButton(buttonIndex))) {
+        || (isActionStep()
+            && ButtonMapping.isStandardGamepadDirectionButton(buttonIndex))) {
       return;
     }
     if (!bindControllerButton(buttonIndex)) {
@@ -127,28 +146,28 @@ public class InputConfigMode implements ControllerListener, KeyListener {
   }
 
   public void controllerLeftPressed(int controller) {
-    bindControllerDirection(14);
+    bindControllerDirection(ButtonMapping.CONTROLLER_DIRECTION_LEFT);
   }
 
   public void controllerLeftReleased(int controller) {
   }
 
   public void controllerRightPressed(int controller) {
-    bindControllerDirection(15);
+    bindControllerDirection(ButtonMapping.CONTROLLER_DIRECTION_RIGHT);
   }
 
   public void controllerRightReleased(int controller) {
   }
 
   public void controllerUpPressed(int controller) {
-    bindControllerDirection(12);
+    bindControllerDirection(ButtonMapping.CONTROLLER_DIRECTION_UP);
   }
 
   public void controllerUpReleased(int controller) {
   }
 
   public void controllerDownPressed(int controller) {
-    bindControllerDirection(13);
+    bindControllerDirection(ButtonMapping.CONTROLLER_DIRECTION_DOWN);
   }
 
   public void controllerDownReleased(int controller) {
@@ -181,6 +200,33 @@ public class InputConfigMode implements ControllerListener, KeyListener {
       return;
     }
     advance();
+  }
+
+  private void bindExtraAxisDirectionPressed() {
+    if (!canAcceptInput() || isActionStep()) {
+      syncExtraAxisDirectionState();
+      return;
+    }
+    int button = getPressedExtraAxisDirection();
+    if (button != ButtonMapping.NO_BINDING) {
+      bindControllerDirection(button);
+    }
+  }
+
+  private int getPressedExtraAxisDirection() {
+    if (isExtraAxisUpPressed()) {
+      return ButtonMapping.CONTROLLER_DIRECTION_UP;
+    }
+    if (isExtraAxisDownPressed()) {
+      return ButtonMapping.CONTROLLER_DIRECTION_DOWN;
+    }
+    if (isExtraAxisLeftPressed()) {
+      return ButtonMapping.CONTROLLER_DIRECTION_LEFT;
+    }
+    if (isExtraAxisRightPressed()) {
+      return ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
+    }
+    return ButtonMapping.NO_BINDING;
   }
 
   private boolean bindKey(int key) {
@@ -339,7 +385,109 @@ public class InputConfigMode implements ControllerListener, KeyListener {
     return (640 - (text.length() << 4)) >> 1;
   }
 
-  private static boolean isDirectionalGamepadButton(int button) {
-    return button >= 12 && button <= 15;
+  private boolean isExtraAxisUp() {
+    return isAnyAxisLessThan(EXTRA_VERTICAL_AXES, -AXIS_THRESHOLD);
+  }
+
+  private boolean isExtraAxisDown() {
+    return isAnyAxisGreaterThan(EXTRA_VERTICAL_AXES, AXIS_THRESHOLD);
+  }
+
+  private boolean isExtraAxisLeft() {
+    return isAnyAxisLessThan(EXTRA_HORIZONTAL_AXES, -AXIS_THRESHOLD);
+  }
+
+  private boolean isExtraAxisRight() {
+    return isAnyAxisGreaterThan(EXTRA_HORIZONTAL_AXES, AXIS_THRESHOLD);
+  }
+
+  private boolean isExtraAxisUpPressed() {
+    boolean down = isExtraAxisUp();
+    boolean pressed = down && !extraAxisUpDown;
+    extraAxisUpDown = down;
+    return pressed;
+  }
+
+  private boolean isExtraAxisDownPressed() {
+    boolean down = isExtraAxisDown();
+    boolean pressed = down && !extraAxisDownDown;
+    extraAxisDownDown = down;
+    return pressed;
+  }
+
+  private boolean isExtraAxisLeftPressed() {
+    boolean down = isExtraAxisLeft();
+    boolean pressed = down && !extraAxisLeftDown;
+    extraAxisLeftDown = down;
+    return pressed;
+  }
+
+  private boolean isExtraAxisRightPressed() {
+    boolean down = isExtraAxisRight();
+    boolean pressed = down && !extraAxisRightDown;
+    extraAxisRightDown = down;
+    return pressed;
+  }
+
+  private boolean isAnyAxisLessThan(int[] axes, float threshold) {
+    int controllerCount = getControllerCount();
+    for(int controller = 0; controller < controllerCount; controller++) {
+      for(int i = 0; i < axes.length; i++) {
+        if (readExtraAxisValue(controller, axes[i]) < threshold) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private boolean isAnyAxisGreaterThan(int[] axes, float threshold) {
+    int controllerCount = getControllerCount();
+    for(int controller = 0; controller < controllerCount; controller++) {
+      for(int i = 0; i < axes.length; i++) {
+        if (readExtraAxisValue(controller, axes[i]) > threshold) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private int getControllerCount() {
+    try {
+      return Math.min(input.getControllerCount(), CONTROLLER_INDEX_LIMIT);
+    } catch(Throwable t) {
+      return 0;
+    }
+  }
+
+  private float readExtraAxisValue(int controller, int axis) {
+    try {
+      if (input.getAxisCount(controller) <= axis) {
+        return 0;
+      }
+
+      float value = input.getAxisValue(controller, axis);
+      int baselineIndex = controller * GAMEPAD_AXIS_LIMIT + axis;
+      float baseline = extraAxisBaselines[baselineIndex];
+      if (Float.isNaN(baseline)) {
+        baseline = value;
+        extraAxisBaselines[baselineIndex] = baseline;
+      }
+      if (Math.abs(value) <= AXIS_RECENTER_THRESHOLD) {
+        baseline = 0;
+        extraAxisBaselines[baselineIndex] = baseline;
+      }
+      return value - baseline;
+    } catch(Throwable t) {
+      return 0;
+    }
+  }
+
+  private void syncExtraAxisDirectionState() {
+    extraAxisUpDown = isExtraAxisUp();
+    extraAxisDownDown = isExtraAxisDown();
+    extraAxisLeftDown = isExtraAxisLeft();
+    extraAxisRightDown = isExtraAxisRight();
   }
 }
