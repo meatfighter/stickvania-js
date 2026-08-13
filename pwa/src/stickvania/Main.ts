@@ -4093,7 +4093,7 @@ private loadStageSegment(a: number, b: number): void {
 
     }
     private getInputMappingLine(action: string): string {
-    return action.padEnd(6, " ") + "= "
+    return action.padEnd(7, " ") + "= "
         + this.buttonMapping.keyboardLabelFor(action) + ", "
         + this.buttonMapping.controllerLabelFor(action);
 

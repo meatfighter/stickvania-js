@@ -98,18 +98,26 @@ export class StickvaniaInput {
     }
 
     private readState(): InputState {
-        const up = this.input.isKeyDown(this.mapping.keyUp)
-            || this.isControllerBindingDown(this.mapping.controllerUp);
-        const down = this.input.isKeyDown(this.mapping.keyDown)
-            || this.isControllerBindingDown(this.mapping.controllerDown);
-        const left = this.input.isKeyDown(this.mapping.keyLeft)
-            || this.isControllerBindingDown(this.mapping.controllerLeft);
-        const right = this.input.isKeyDown(this.mapping.keyRight)
-            || this.isControllerBindingDown(this.mapping.controllerRight);
-        const jump = this.input.isKeyDown(this.mapping.keyJump)
-            || this.isControllerBindingDown(this.mapping.controllerJump);
-        const attack = this.input.isKeyDown(this.mapping.keyAttack)
-            || this.isControllerBindingDown(this.mapping.controllerAttack);
+        const keyUp = this.input.isKeyDown(this.mapping.keyUp);
+        const keyDown = this.input.isKeyDown(this.mapping.keyDown);
+        const keyLeft = this.input.isKeyDown(this.mapping.keyLeft);
+        const keyRight = this.input.isKeyDown(this.mapping.keyRight);
+        const keyJump = this.input.isKeyDown(this.mapping.keyJump);
+        const keyAttack = this.input.isKeyDown(this.mapping.keyAttack);
+        const controllerUp = this.isControllerBindingDown(this.mapping.controllerUp);
+        const controllerDown = this.isControllerBindingDown(this.mapping.controllerDown);
+        const controllerLeft = this.isControllerBindingDown(this.mapping.controllerLeft);
+        const controllerRight = this.isControllerBindingDown(this.mapping.controllerRight);
+        const controllerJump = this.isControllerBindingDown(this.mapping.controllerJump);
+        const controllerAttack = this.isControllerBindingDown(this.mapping.controllerAttack);
+        const up = keyUp || controllerUp;
+        const down = keyDown || controllerDown;
+        const left = keyLeft || controllerLeft;
+        const right = keyRight || controllerRight;
+        const jump = keyJump || controllerJump;
+        const attack = keyAttack || controllerAttack;
+        const enterSelect = !this.isKeyMappedToDirection(Input.KEY_ENTER)
+            && this.input.isKeyDown(Input.KEY_ENTER);
         const anyControllerSelect = this.isAnyControllerNonDirectionalButtonDown();
 
         return {
@@ -119,10 +127,17 @@ export class StickvaniaInput {
             right,
             jump,
             attack,
-            menuUp: up || this.isControllerUpDown(),
-            menuDown: down || this.isControllerDownDown(),
-            menuSelect: jump || attack || this.input.isKeyDown(Input.KEY_ENTER) || anyControllerSelect
+            menuUp: up,
+            menuDown: down,
+            menuSelect: jump || attack || enterSelect || anyControllerSelect
         };
+    }
+
+    private isKeyMappedToDirection(key: number): boolean {
+        return this.mapping.keyUp === key
+            || this.mapping.keyDown === key
+            || this.mapping.keyLeft === key
+            || this.mapping.keyRight === key;
     }
 
     private isControllerBindingDown(button: number): boolean {

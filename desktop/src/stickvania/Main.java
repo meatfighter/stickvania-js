@@ -4049,7 +4049,7 @@ public final class Main extends BasicGame {
   }
 
   private String getInputMappingLine(String action) {
-    return padRight(action, 6) + "= "
+    return padRight(action, 7) + "= "
         + buttonMapping.keyboardLabelFor(action) + ", "
         + buttonMapping.controllerLabelFor(action);
   }

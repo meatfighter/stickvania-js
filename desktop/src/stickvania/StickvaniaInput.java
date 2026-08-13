@@ -114,33 +114,35 @@ public class StickvaniaInput {
 
   private InputState readState() {
     InputState state = new InputState();
-    state.up = isKeyDown(mapping.keyUp)
-        || isControllerBindingDown(mapping.controllerUp);
-    state.down = isKeyDown(mapping.keyDown)
-        || isControllerBindingDown(mapping.controllerDown);
-    state.left = isKeyDown(mapping.keyLeft)
-        || isControllerBindingDown(mapping.controllerLeft);
-    state.right = isKeyDown(mapping.keyRight)
-        || isControllerBindingDown(mapping.controllerRight);
-    state.jump = isKeyDown(mapping.keyJump)
-        || isControllerBindingDown(mapping.controllerJump);
-    state.attack = isKeyDown(mapping.keyAttack)
-        || isControllerBindingDown(mapping.controllerAttack);
-    state.menuUpKeyboard = isKeyDown(mapping.keyUp)
-        || isKeyDown(Input.KEY_UP);
-    state.menuUpController = isControllerBindingDown(mapping.controllerUp)
-        || isControllerUp();
-    state.menuDownKeyboard = isKeyDown(mapping.keyDown)
-        || isKeyDown(Input.KEY_DOWN);
-    state.menuDownController = isControllerBindingDown(mapping.controllerDown)
-        || isControllerDown();
-    state.menuSelectJumpKeyboard = isKeyDown(mapping.keyJump);
-    state.menuSelectAttackKeyboard = isKeyDown(mapping.keyAttack);
-    state.menuSelectEnterKeyboard = isKeyDown(Input.KEY_ENTER);
-    state.menuSelectJumpController =
-        isControllerBindingDown(mapping.controllerJump);
-    state.menuSelectAttackController =
-        isControllerBindingDown(mapping.controllerAttack);
+    boolean keyUp = isKeyDown(mapping.keyUp);
+    boolean keyDown = isKeyDown(mapping.keyDown);
+    boolean keyLeft = isKeyDown(mapping.keyLeft);
+    boolean keyRight = isKeyDown(mapping.keyRight);
+    boolean keyJump = isKeyDown(mapping.keyJump);
+    boolean keyAttack = isKeyDown(mapping.keyAttack);
+    boolean controllerUp = isControllerBindingDown(mapping.controllerUp);
+    boolean controllerDown = isControllerBindingDown(mapping.controllerDown);
+    boolean controllerLeft = isControllerBindingDown(mapping.controllerLeft);
+    boolean controllerRight = isControllerBindingDown(mapping.controllerRight);
+    boolean controllerJump = isControllerBindingDown(mapping.controllerJump);
+    boolean controllerAttack = isControllerBindingDown(mapping.controllerAttack);
+    boolean enterSelect = !isKeyMappedToDirection(Input.KEY_ENTER)
+        && isKeyDown(Input.KEY_ENTER);
+    state.up = keyUp || controllerUp;
+    state.down = keyDown || controllerDown;
+    state.left = keyLeft || controllerLeft;
+    state.right = keyRight || controllerRight;
+    state.jump = keyJump || controllerJump;
+    state.attack = keyAttack || controllerAttack;
+    state.menuUpKeyboard = keyUp;
+    state.menuUpController = controllerUp;
+    state.menuDownKeyboard = keyDown;
+    state.menuDownController = controllerDown;
+    state.menuSelectJumpKeyboard = keyJump;
+    state.menuSelectAttackKeyboard = keyAttack;
+    state.menuSelectEnterKeyboard = enterSelect;
+    state.menuSelectJumpController = controllerJump;
+    state.menuSelectAttackController = controllerAttack;
     state.menuSelectAnyController = isAnyControllerNonDirectionalButtonDown();
     state.menuUp = state.menuUpKeyboard || state.menuUpController;
     state.menuDown = state.menuDownKeyboard || state.menuDownController;
@@ -151,6 +153,13 @@ public class StickvaniaInput {
         || state.menuSelectAttackController
         || state.menuSelectAnyController;
     return state;
+  }
+
+  private boolean isKeyMappedToDirection(int key) {
+    return mapping.keyUp == key
+        || mapping.keyDown == key
+        || mapping.keyLeft == key
+        || mapping.keyRight == key;
   }
 
   private InputState copy(InputState state) {
