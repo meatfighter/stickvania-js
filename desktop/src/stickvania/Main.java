@@ -3917,7 +3917,8 @@ public final class Main extends BasicGame {
 
     String fullscreenText = "SPACE - FULL-SCREEN MODE";
     drawString(fullscreenText, centerTextX(fullscreenText), 400);
-    drawString("@ 2010 MEATFIGHTER.COM", 144, 430);
+    String copyrightText = "@ 2010, 2026 MEATFIGHTER.COM";
+    drawString(copyrightText, centerTextX(copyrightText), 430);
   }
 
   private int getTitleOptionCount() {

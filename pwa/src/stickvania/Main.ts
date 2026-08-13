@@ -3964,9 +3964,10 @@ private loadStageSegment(a: number, b: number): void {
         break;
     }
 
-    const fullscreenText = "SPACE - FULL-SCREEN MODE";
-    this.drawString(fullscreenText, trunc((640 - fullscreenText.length * 16) / 2), 400);
-    this.drawString("@ 2010 MEATFIGHTER.COM", 144, 430);
+	    const fullscreenText = "SPACE - FULL-SCREEN MODE";
+	    this.drawString(fullscreenText, trunc((640 - fullscreenText.length * 16) / 2), 400);
+	    const copyrightText = "@ 2010, 2026 MEATFIGHTER.COM";
+	    this.drawString(copyrightText, this.centerTextX(copyrightText), 430);
   
     }
     private getTitleOptionCount(): number {
