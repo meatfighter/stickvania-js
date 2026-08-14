@@ -2878,6 +2878,24 @@ private loadStageSegment(a: number, b: number): void {
     this.finishLoading(gc);
   
     }
+    public completePwaLoadingImmediately(gc: GameContainer): void {
+    if (this.mode != Main.MODE_LOADING) {
+      return;
+    }
+    this.queueLoadingAudio();
+    this.loadingIndex = 0;
+    if (this.loadingCompleteHandler != null) {
+      const handler = this.loadingCompleteHandler;
+      this.loadingCompleteHandler = null;
+      if (handler(gc)) {
+        this.notifyLoadingFinished();
+        return;
+      }
+    }
+    this.notifyLoadingFinished();
+    this.initTitleScreen();
+  
+    }
     private notifyLoadingFinished(): void {
     if (this.loadingFinishedHandler != null) {
       const handler = this.loadingFinishedHandler;

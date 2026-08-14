@@ -79,7 +79,7 @@ Gameplay/Parity Risk:
 
 - None, except stale browser caches should be less likely.
 
-## PWA-004: Resource Preload, Retry, And Loading Countdown
+## PWA-004: Resource Preparation, Retry, And Loading Countdown Removal
 
 Java Behavior:
 
@@ -87,13 +87,17 @@ Java Behavior:
 
 PWA Behavior:
 
-- `pwa/src/main.ts` preloads declared resources with retry options before entering the game.
+- `pwa/src/main.ts` renders the PWA menu first, then starts declared resource preparation in the background after the first menu paint.
+- The full game module, scalable wrapper, save-state serializer/store, and resource manifest are dynamically imported during preparation instead of being part of the initial menu bundle path.
+- Non-audio resources are preloaded through `ResourceLoader.preloadResources()`.
+- Audio resources are preloaded and decoded through `SoundStore.preloadAudioBuffers()` so `Sound`/`Music` construction can reuse decoded Web Audio buffers.
+- Start/Continue calls `SoundStore.unlock()` immediately from the user click before awaiting any unfinished background work.
 - Resource URLs use the current build stamp as a cache-busting query.
-- If resource preload fails, the page shows a user-facing load error.
-- The in-game loading countdown is preserved the first time Slick resources are initialized.
-- During the first visible loading countdown, PWA runtime music construction is queued in one pass so Web Audio decoding can run in parallel through `slick2d-ts` tracked resource preparation.
-- The loading screen does not advance to title/restore completion until `ResourceLoader` reports that all queued runtime resource/decode work has finished.
-- If Slick resources already loaded successfully in the page session, New Game or Continue can skip the countdown.
+- If the user clicks Start/Continue before background preparation has finished, the browser PWA loader is shown until preparation completes.
+- If preparation fails, the page shows a user-facing load error with Retry.
+- The Java in-game loading countdown is not displayed in the PWA once this background preparation path is active.
+- The PWA calls `Main.completePwaLoadingImmediately()` after `AppGameContainer.start()` while the game loop is still suspended, so the first active game frame is title/restored gameplay rather than the Java countdown.
+- Destroyed PWA containers preserve the warmed Web Audio cache so returning to the PWA menu does not force audio decode to repeat.
 
 Affected Files:
 
@@ -102,7 +106,7 @@ Affected Files:
 
 Gameplay/Parity Risk:
 
-- The countdown can be skipped after successful resource initialization in a page session. First-run loading no longer creates one music object per displayed countdown number, but game resources and game state are unchanged.
+- Startup order differs from Java by design. The PWA prepares resources before the Java loading screen would normally count down, then skips that countdown entirely. Game resources, title state, and restored game state should be equivalent after loading completion.
 
 ## PWA-005: Hamburger Menu
 
@@ -118,7 +122,7 @@ PWA Behavior:
 - Active sound effects are stopped; music is suspended through the browser music-on path so it can resume without restarting.
 - Pressing `Continue` from that live overlay resumes the same in-memory game instance.
 - Pressing `New Game`, or returning to the menu from a non-live/non-save-ready state, still destroys the current runtime.
-- The button is hidden during the initial resource loading countdown.
+- The button is hidden while the PWA loader is visible or before a live game state exists.
 
 Affected Files:
 

@@ -1,76 +1,10 @@
-import { AL, AppGameContainer, ApplicationGameContainer, BasicGame, BufferUtils, Color, Cursor, CursorLoader, Display, DisplayMode, FastTrig, GameContainer, Graphics, Image, ImageData, Input, JavaRandom, LWJGLException, Log, Music, PackedSpriteSheet, PixelFormat, Renderer, SlickException, Sound, SoundStore, SpriteSheet, Sys, Mouse, ResourceLoader } from "slick2d-ts";
-import { cc, chr, idiv, makeArray, make2D, make3D, make4D, readBinaryResource, readResourceLines, toInt, trunc } from "./JavaMath.js";
-import { AppletGameContainer2 } from "./AppletGameContainer2.js";
-import { Axe } from "./Axe.js";
-import { AxeKnight } from "./AxeKnight.js";
-import { Bat } from "./Bat.js";
-import { BatBoss } from "./BatBoss.js";
-import { BatSpawner } from "./BatSpawner.js";
-import { Bird } from "./Bird.js";
-import { BirdSpawner } from "./BirdSpawner.js";
-import { Bone } from "./Bone.js";
-import { BoneDragon } from "./BoneDragon.js";
-import { BoneDragonVertebra } from "./BoneDragonVertebra.js";
-import { BonePillar } from "./BonePillar.js";
-import { Boomerang } from "./Boomerang.js";
-import { BoomerangAxe } from "./BoomerangAxe.js";
-import { BreakWall } from "./BreakWall.js";
-import { BrickFragment } from "./BrickFragment.js";
-import { BridgeBat } from "./BridgeBat.js";
-import { Candles } from "./Candles.js";
-import { Checkpoint } from "./Checkpoint.js";
-import { Dagger } from "./Dagger.js";
-import { DieBat } from "./DieBat.js";
-import { Dog } from "./Dog.js";
-import { Door } from "./Door.js";
-import { Dracula } from "./Dracula.js";
-import { DraculaBat } from "./DraculaBat.js";
-import { DropItem } from "./DropItem.js";
-import { Droplets } from "./Droplets.js";
-import { FadingStairs } from "./FadingStairs.js";
-import { Fireball } from "./Fireball.js";
-import { Flame } from "./Flame.js";
-import { FloatingPoints } from "./FloatingPoints.js";
-import { FloorBreaker } from "./FloorBreaker.js";
-import { FoodOrb } from "./FoodOrb.js";
-import { Frankenstein } from "./Frankenstein.js";
-import { Ghost } from "./Ghost.js";
-import { GrimReaper } from "./GrimReaper.js";
-import { HolyWater } from "./HolyWater.js";
-import { Igor } from "./Igor.js";
-import { LanceKnight } from "./LanceKnight.js";
-import { Main } from "./Main.js";
-import { MedusaBoss } from "./MedusaBoss.js";
-import { MedusaHead } from "./MedusaHead.js";
-import { MedusaHeadSpawner } from "./MedusaHeadSpawner.js";
-import { Merman } from "./Merman.js";
-import { MermanSpawner } from "./MermanSpawner.js";
-import { MovingPlatform } from "./MovingPlatform.js";
-import { MummyBoss } from "./MummyBoss.js";
-import { Orb } from "./Orb.js";
-import { Raven } from "./Raven.js";
-import { RedSkeleton } from "./RedSkeleton.js";
-import { Region } from "./Region.js";
-import { ScalableGame2 } from "./ScalableGame2.js";
-import { Secret } from "./Secret.js";
-import { ShootingSpark } from "./ShootingSpark.js";
-import { Sickle } from "./Sickle.js";
-import { Simon } from "./Simon.js";
-import { SmallHeart } from "./SmallHeart.js";
-import { Snakes } from "./Snakes.js";
-import { Song } from "./Song.js";
-import { Spark } from "./Spark.js";
-import { Spikes } from "./Spikes.js";
-import { StageSegment } from "./StageSegment.js";
-import { StairsEntry } from "./StairsEntry.js";
-import { StopWatch } from "./StopWatch.js";
-import { SwoopingBat } from "./SwoopingBat.js";
-import { ThingStack } from "./ThingStack.js";
-import { Torch } from "./Torch.js";
-import { WhiteSkeleton } from "./WhiteSkeleton.js";
-import { Wrapping } from "./Wrapping.js";
-import { Zombie } from "./Zombie.js";
-import { ZombieSpawner } from "./ZombieSpawner.js";
+import { GameContainer, Graphics } from "slick2d-ts";
+import { trunc } from "./JavaMath.js";
+import type { Main } from "./Main.js";
+
+const DEFAULT_GRAVITY = 0.21;
+const WALL_EMPTY = 0;
+const WALL_PLATFORM = 1;
 
 export abstract class Thing {
     public main: Main = null;
@@ -85,7 +19,7 @@ export abstract class Thing {
     public supported: boolean = false;
     public intersected: boolean = false;
     public kill: boolean = false;
-    public G: number = Main.GRAVITY;
+    public G: number = DEFAULT_GRAVITY;
     public constructor(main: Main, a?: number, b?: number, c?: number, d?: number) {
         this.main = main;
         if (a !== undefined && b !== undefined && c !== undefined && d !== undefined) {
@@ -166,18 +100,18 @@ export abstract class Thing {
         for (let i: number = y1; i <= y2; i += 32) {
           let a: number = this.main.getWall(j, i);
           let b: number = this.main.getWall(j - 1, i);
-          if (!((a == Main.WALL_EMPTY && b == Main.WALL_EMPTY)
-              || (a == Main.WALL_PLATFORM
-                  && (b == Main.WALL_EMPTY || b == Main.WALL_PLATFORM)))) {
+          if (!((a == WALL_EMPTY && b == WALL_EMPTY)
+              || (a == WALL_PLATFORM
+                  && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
             this.x = j - this.rx1;
             return false;
           }
         }
         let a: number = this.main.getWall(j, y2);
         let b: number = this.main.getWall(j - 1, y2);
-        if (!((a == Main.WALL_EMPTY && b == Main.WALL_EMPTY)
-            || (a == Main.WALL_PLATFORM
-                && (b == Main.WALL_EMPTY || b == Main.WALL_PLATFORM)))) {
+        if (!((a == WALL_EMPTY && b == WALL_EMPTY)
+            || (a == WALL_PLATFORM
+                && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
           this.x = j - this.rx1;
           return false;
         }
@@ -199,18 +133,18 @@ export abstract class Thing {
         for (let i: number = y1; i <= y2; i += 32) {
           let a: number = this.main.getWall(j, i);
           let b: number = this.main.getWall(j + 1, i);
-          if (!((a == Main.WALL_EMPTY && b == Main.WALL_EMPTY)
-              || (a == Main.WALL_PLATFORM
-                  && (b == Main.WALL_EMPTY || b == Main.WALL_PLATFORM)))) {
+          if (!((a == WALL_EMPTY && b == WALL_EMPTY)
+              || (a == WALL_PLATFORM
+                  && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
             this.x = j - this.rx2;
             return false;
           }
         }
         let a: number = this.main.getWall(j, y2);
         let b: number = this.main.getWall(j + 1, y2);
-        if (!((a == Main.WALL_EMPTY && b == Main.WALL_EMPTY)
-            || (a == Main.WALL_PLATFORM
-                && (b == Main.WALL_EMPTY || b == Main.WALL_PLATFORM)))) {
+        if (!((a == WALL_EMPTY && b == WALL_EMPTY)
+            || (a == WALL_PLATFORM
+                && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
           this.x = j - this.rx2;
           return false;
         }

@@ -1,14 +1,8 @@
-import {
-    AL,
-    AppGameContainer,
-    Display,
-    ResourceLoader,
-    SoundStore
-} from "slick2d-ts";
-import { Main } from "./stickvania/Main.js";
-import { ScalableGame2 } from "./stickvania/ScalableGame2.js";
-import { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
-import { STICKVANIA_RESOURCE_REFS } from "./resources.js";
+import type { AppGameContainer } from "slick2d-ts/slick/AppGameContainer";
+import { SoundStore } from "slick2d-ts/slick/openal/SoundStore";
+import { ResourceLoader } from "slick2d-ts/slick/util/ResourceLoader";
+import type { Main } from "./stickvania/Main.js";
+import type { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
 import "./styles.css";
 
 const GAME_WIDTH = 640;
@@ -20,8 +14,24 @@ const HIGH_DPI_ENABLED = true;
 const MAX_DEVICE_PIXEL_RATIO = 2;
 const BASE_URL = import.meta.env.BASE_URL;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
+const RESOURCE_CACHE_RETRY_COUNT = 3;
+const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
+const GAME_STATE_STORAGE_KEY = "stickvania.game-state";
+const GAME_STATE_VERSION = 1;
 type DisplayModePreference = "light" | "dark";
 type ScreenTest = "static-loading" | "static-error" | "dynamic-loading" | "dynamic-error";
+type SlickRuntimeModule = typeof import("slick2d-ts");
+type MainConstructor = typeof import("./stickvania/Main.js").Main;
+type ScalableGame2Constructor = typeof import("./stickvania/ScalableGame2.js").ScalableGame2;
+type StickvaniaGameStateStoreConstructor =
+    typeof import("./stickvania/persistence/StickvaniaGameStateStore.js").StickvaniaGameStateStore;
+
+type PreparedRuntime = {
+    slick: SlickRuntimeModule;
+    Main: MainConstructor;
+    ScalableGame2: ScalableGame2Constructor;
+    StickvaniaGameStateStore: StickvaniaGameStateStoreConstructor;
+};
 
 const DISPLAY_MODE_STORAGE_KEY = "stickvania-display-mode";
 const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
@@ -41,11 +51,14 @@ let cursorHideTimer = 0;
 let pointerOverGameHost = false;
 let volume = safeReadVolume();
 let displayModePreference = safeReadDisplayModePreference();
-let runtimeResourcesLoaded = false;
+let preparedRuntime: PreparedRuntime | null = null;
+let preparationPromise: Promise<PreparedRuntime> | null = null;
+let preparationError: unknown = null;
+let preparationProgress = 0;
+let backgroundPreparationScheduled = false;
 let suspendedByFocusLoss = false;
 let suspendedByVisibilityLoss = false;
-
-const gameStateStore = new StickvaniaGameStateStore(__APP_VERSION__);
+let gameStateStore: StickvaniaGameStateStore | null = null;
 
 function setAudioVolume(value: number): void {
     volume = Math.max(0, Math.min(1, value));
@@ -164,10 +177,11 @@ function showDynamicLoadingTestScreen(): void {
 function showMenu(errorText = ""): void {
     destroyGame();
     renderRootMenu(errorText);
+    scheduleBackgroundPreparation();
 }
 
 function renderRootMenu(errorText = ""): HTMLElement {
-    return renderMenu(app, gameStateStore.hasValidSave(), errorText, false);
+    return renderMenu(app, hasPotentialSavedGameState(), errorText, false);
 }
 
 function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string, overlay: boolean): HTMLElement {
@@ -227,7 +241,7 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     });
     updateVolumeUi(volumeInput, volumeValue, volumeIcon);
     newGameButton.addEventListener("click", () => {
-        gameStateStore.clear();
+        clearStoredGameState();
         setAudioVolume(Number(volumeInput.value) / 100);
         void startGame(false);
     });
@@ -257,78 +271,235 @@ function showGameShell(): HTMLElement {
 }
 
 async function startGame(restoreSavedGame: boolean): Promise<void> {
+    const audioUnlockPromise = unlockAudio();
+    let runtimePrepared = false;
     destroyGame();
-    const host = showGameShell();
-    activeGameHost = host;
-    const showVisibleLoading = !runtimeResourcesLoaded;
+    if (preparedRuntime === null) {
+        showBoot(preparationProgress);
+    }
     try {
-        await unlockAudio();
-        Display.setParent(host);
-        const mainGame = new Main();
-        mainGame.darkDisplayMode = displayModePreference === "dark";
-        const scalableGame = new ScalableGame2(mainGame, GAME_WIDTH, GAME_HEIGHT, true);
-        const displayMode = getResponsiveWindowedDisplayMode();
-        const appContainer = new AppGameContainer(scalableGame, displayMode.width, displayMode.height, false);
-        appContainer.setHighDpiEnabled(HIGH_DPI_ENABLED);
-        appContainer.setMaxDevicePixelRatio(MAX_DEVICE_PIXEL_RATIO);
-        container = appContainer;
-        game = mainGame;
-        mainGame.stateSaveInvalidatedHandler = clearStoredGameState;
-        mainGame.appGameContainer = appContainer;
-        mainGame.scalableGame = scalableGame;
-        mainGame.windowedDisplayModeProvider = getResponsiveWindowedDisplayMode;
-        mainGame.browserFullscreenController = {
-            isFullscreen: isGameShellFullscreen,
-            enterFullscreen: enterGameShellFullscreen,
-            exitFullscreen: exitGameShellFullscreen
-        };
-        if (showVisibleLoading) {
-            mainGame.loadingFinishedHandler = () => {
-                runtimeResourcesLoaded = true;
-            };
-        }
-        if (restoreSavedGame) {
-            mainGame.loadingCompleteHandler = (gc) => {
-                if (!gameStateStore.restore(mainGame, gc)) {
-                    throw new Error("Saved game could not be restored.");
-                }
-                mainGame.darkDisplayMode = displayModePreference === "dark";
-                return true;
-            };
-        }
-        appContainer.setErrorHandler(error => {
-            console.error(error);
-            destroyGame();
-            showLoadError("Unable to continue.", "Reload the page and try again.", () => {
-                window.location.reload();
-            });
-        });
-        appContainer.setAlwaysRender(true);
-        appContainer.setVSync(true);
-        appContainer.setSmoothDeltas(false);
-        appContainer.setShowFPS(false);
-        appContainer.setClearEachFrame(true);
-        await Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false));
-        await appContainer.start();
-        if (!showVisibleLoading) {
-            mainGame.completeLoadingImmediately(appContainer);
-            await ResourceLoader.waitForAll();
-            runtimeResourcesLoaded = true;
-        }
-        startResponsiveGameSizing(host);
-        startGameCursorAutoHide(host);
-        startHamburgerVisibilityMonitor();
-        setAudioVolume(volume);
+        const runtime = await ensureRuntimePrepared(preparationError !== null);
+        runtimePrepared = true;
+        await audioUnlockPromise;
+        await launchPreparedGame(runtime, restoreSavedGame);
     } catch (error) {
         console.error(error);
         destroyGame();
-        if (restoreSavedGame) {
+        if (restoreSavedGame && runtimePrepared) {
             showMenu("Unable to restore the saved game. Start a new game and try again.");
             return;
         }
         showLoadError("Unable to start.", "Check your connection and try again.", () => {
             void startGame(false);
         });
+    }
+}
+
+async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: boolean): Promise<void> {
+    const host = showGameShell();
+    activeGameHost = host;
+    runtime.slick.Display.setParent(host);
+    const mainGame = new runtime.Main();
+    mainGame.darkDisplayMode = displayModePreference === "dark";
+    const scalableGame = new runtime.ScalableGame2(mainGame, GAME_WIDTH, GAME_HEIGHT, true);
+    const displayMode = getResponsiveWindowedDisplayMode();
+    const appContainer = new runtime.slick.AppGameContainer(scalableGame, displayMode.width, displayMode.height, false);
+    appContainer.setPreserveAudioCacheOnDestroy(true);
+    appContainer.setLoopSuspended(true);
+    appContainer.setHighDpiEnabled(HIGH_DPI_ENABLED);
+    appContainer.setMaxDevicePixelRatio(MAX_DEVICE_PIXEL_RATIO);
+    container = appContainer;
+    game = mainGame;
+    mainGame.stateSaveInvalidatedHandler = clearStoredGameState;
+    mainGame.appGameContainer = appContainer;
+    mainGame.scalableGame = scalableGame;
+    mainGame.windowedDisplayModeProvider = getResponsiveWindowedDisplayMode;
+    mainGame.browserFullscreenController = {
+        isFullscreen: isGameShellFullscreen,
+        enterFullscreen: enterGameShellFullscreen,
+        exitFullscreen: exitGameShellFullscreen
+    };
+    if (restoreSavedGame) {
+        mainGame.loadingCompleteHandler = (gc) => {
+            if (!getGameStateStore(runtime).restore(mainGame, gc)) {
+                throw new Error("Saved game could not be restored.");
+            }
+            mainGame.darkDisplayMode = displayModePreference === "dark";
+            return true;
+        };
+    }
+    appContainer.setAlwaysRender(true);
+    appContainer.setVSync(true);
+    appContainer.setSmoothDeltas(false);
+    appContainer.setShowFPS(false);
+    appContainer.setClearEachFrame(true);
+    await Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false));
+    await appContainer.start();
+    mainGame.completePwaLoadingImmediately(appContainer);
+    await ResourceLoader.waitForAll();
+    appContainer.setErrorHandler(error => {
+        console.error(error);
+        destroyGame();
+        showLoadError("Unable to continue.", "Reload the page and try again.", () => {
+            window.location.reload();
+        });
+    });
+    startResponsiveGameSizing(host);
+    startGameCursorAutoHide(host);
+    startHamburgerVisibilityMonitor();
+    setAudioVolume(volume);
+    focusGameCanvas();
+    applyCurrentGameLifecycleSuspension();
+    if (!suspendedByFocusLoss && !suspendedByVisibilityLoss) {
+        mainGame.setBrowserSuspended(false);
+        appContainer.setLoopSuspended(false);
+    }
+}
+
+async function ensureRuntimePrepared(forceRetry = false): Promise<PreparedRuntime> {
+    if (preparedRuntime !== null) {
+        return preparedRuntime;
+    }
+    if (preparationPromise !== null) {
+        return preparationPromise;
+    }
+    if (forceRetry) {
+        preparationError = null;
+        preparationProgress = 0;
+        refreshVisibleBootProgress();
+    } else if (preparationError !== null) {
+        throw preparationError;
+    }
+
+    ResourceLoader.clearFailures();
+    ResourceLoader.setCacheBust(__BUILD_STAMP__);
+    ResourceLoader.setRetryOptions(RESOURCE_CACHE_RETRY_COUNT, RESOURCE_CACHE_RETRY_DELAY_MS);
+    preparationPromise = prepareRuntime()
+        .then(runtime => {
+            preparedRuntime = runtime;
+            preparationError = null;
+            preparationProgress = 1;
+            refreshVisibleBootProgress();
+            return runtime;
+        })
+        .catch(error => {
+            preparationError = error;
+            throw error;
+        })
+        .finally(() => {
+            preparationPromise = null;
+        });
+    return preparationPromise;
+}
+
+async function prepareRuntime(): Promise<PreparedRuntime> {
+    const [
+        slick,
+        mainModule,
+        scalableGameModule,
+        gameStateStoreModule,
+        resourceModule
+    ] = await Promise.all([
+        import("slick2d-ts"),
+        import("./stickvania/Main.js"),
+        import("./stickvania/ScalableGame2.js"),
+        import("./stickvania/persistence/StickvaniaGameStateStore.js"),
+        import("./resources.js")
+    ]);
+    const resourceRefs = Array.from(new Set(resourceModule.STICKVANIA_RESOURCE_REFS));
+    await preloadPreparedResources(resourceRefs);
+    return {
+        slick,
+        Main: mainModule.Main,
+        ScalableGame2: scalableGameModule.ScalableGame2,
+        StickvaniaGameStateStore: gameStateStoreModule.StickvaniaGameStateStore
+    };
+}
+
+async function preloadPreparedResources(resourceRefs: readonly string[]): Promise<void> {
+    const audioRefs = resourceRefs.filter(isAudioResourceRef);
+    const nonAudioRefs = resourceRefs.filter(ref => !isAudioResourceRef(ref));
+    const total = audioRefs.length + nonAudioRefs.length;
+    let audioLoaded = 0;
+    let nonAudioLoaded = 0;
+    const updateProgress = () => {
+        preparationProgress = total === 0 ? 1 : (audioLoaded + nonAudioLoaded) / total;
+        refreshVisibleBootProgress();
+    };
+
+    updateProgress();
+    await Promise.all([
+        ResourceLoader.preloadResources(nonAudioRefs, progress => {
+            nonAudioLoaded = progress.loaded;
+            updateProgress();
+        }),
+        SoundStore.get().preloadAudioBuffers(audioRefs, progress => {
+            audioLoaded = progress.loaded;
+            updateProgress();
+        })
+    ]);
+    preparationProgress = 1;
+    refreshVisibleBootProgress();
+}
+
+function scheduleBackgroundPreparation(): void {
+    if (backgroundPreparationScheduled || preparedRuntime !== null
+            || preparationPromise !== null || preparationError !== null) {
+        return;
+    }
+    backgroundPreparationScheduled = true;
+    requestAnimationFrame(() => {
+        window.setTimeout(() => {
+            backgroundPreparationScheduled = false;
+            void ensureRuntimePrepared().catch(error => {
+                console.warn("Stickvania background preparation failed.", error);
+            });
+        }, 0);
+    });
+}
+
+function refreshVisibleBootProgress(): void {
+    if (app.querySelector("[data-boot-progress='true']") !== null) {
+        showBoot(preparationProgress);
+    }
+}
+
+function isAudioResourceRef(ref: string): boolean {
+    return ref.toLowerCase().endsWith(".ogg");
+}
+
+function getGameStateStore(runtime: PreparedRuntime): StickvaniaGameStateStore {
+    if (gameStateStore === null) {
+        gameStateStore = new runtime.StickvaniaGameStateStore(__APP_VERSION__);
+    }
+    return gameStateStore;
+}
+
+function getLoadedGameStateStore(): StickvaniaGameStateStore | null {
+    if (gameStateStore !== null) {
+        return gameStateStore;
+    }
+    if (preparedRuntime === null) {
+        return null;
+    }
+    return getGameStateStore(preparedRuntime);
+}
+
+function hasPotentialSavedGameState(): boolean {
+    try {
+        const text = localStorage.getItem(GAME_STATE_STORAGE_KEY);
+        if (text === null) {
+            return false;
+        }
+        const snapshot = JSON.parse(text) as { version?: unknown };
+        if (snapshot.version !== GAME_STATE_VERSION) {
+            clearStoredGameState();
+            return false;
+        }
+        return true;
+    } catch {
+        clearStoredGameState();
+        return false;
     }
 }
 
@@ -437,11 +608,19 @@ function saveCurrentGameState(): boolean {
     if (!game.isStateSaveReady()) {
         return false;
     }
-    return gameStateStore.save(game);
+    const store = getLoadedGameStateStore();
+    if (store === null) {
+        return false;
+    }
+    return store.save(game);
 }
 
 function clearStoredGameState(): void {
-    gameStateStore.clear();
+    try {
+        localStorage.removeItem(GAME_STATE_STORAGE_KEY);
+    } catch {
+    }
+    gameStateStore?.clear();
 }
 
 function suspendCurrentGameForPageHide(): void {
@@ -526,12 +705,12 @@ function destroyGame(): void {
         container.destroy();
         container = null;
     } else {
-        AL.destroy();
+        SoundStore.get().stopAllPlayback();
     }
     game = null;
     activeGameShell = null;
     activeGameHost = null;
-    Display.setParent(null);
+    preparedRuntime?.slick.Display.setParent(null);
 }
 
 function startResponsiveGameSizing(host: HTMLElement): void {
@@ -770,28 +949,7 @@ function isElementHovered(element: HTMLElement): boolean {
 }
 
 async function unlockAudio(): Promise<void> {
-    const context = SoundStore.get().getAudioContext();
-    if (context !== null && context.state !== "running") {
-        await context.resume();
-    }
-}
-
-async function preloadResources(onProgress: (progress: number) => void): Promise<void> {
-    ResourceLoader.clearFailures();
-    ResourceLoader.setCacheBust(__BUILD_STAMP__);
-    ResourceLoader.setRetryOptions(3, 250);
-    const refs = Array.from(new Set(STICKVANIA_RESOURCE_REFS));
-    const total = refs.length;
-    let loaded = 0;
-    if (total === 0) {
-        onProgress(1);
-        return;
-    }
-    await Promise.all(refs.map(async ref => {
-        await ResourceLoader.loadResource(ref);
-        loaded++;
-        onProgress(loaded / total);
-    }));
+    await SoundStore.get().unlock();
 }
 
 async function registerServiceWorker(): Promise<void> {
@@ -802,19 +960,10 @@ async function registerServiceWorker(): Promise<void> {
     await navigator.serviceWorker.register(`${BASE_URL}sw.js?v=${version}`, { scope: BASE_URL });
 }
 
-async function loadStartupResources(): Promise<void> {
-    showBoot(0);
-    try {
-        await preloadResources(showBoot);
-        setAudioVolume(volume);
-        showMenu();
-        void registerServiceWorker().catch(error => console.warn("Service worker registration failed.", error));
-    } catch (error) {
-        console.error(error);
-        showLoadError("Unable to load resources.", "Check your connection and try again.", () => {
-            void loadStartupResources();
-        });
-    }
+function startPwaMenu(): void {
+    setAudioVolume(volume);
+    showMenu();
+    void registerServiceWorker().catch(error => console.warn("Service worker registration failed.", error));
 }
 
 function setupPageLifecycleHandlers(): void {
@@ -838,13 +987,13 @@ async function boot(): Promise<void> {
     }
     if (screenTest === "dynamic-error") {
         showLoadError("Unable to start.", "Check your connection and try again.", () => {
-            void loadStartupResources();
+            startPwaMenu();
         });
         return;
     }
 
     setupPageLifecycleHandlers();
-    await loadStartupResources();
+    startPwaMenu();
 }
 
 function safeReadVolume(): number {
