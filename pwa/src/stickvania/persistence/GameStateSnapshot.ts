@@ -1,4 +1,4 @@
-export const GAME_STATE_VERSION = 1;
+export const GAME_STATE_VERSION = 2;
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | JsonRecord;
@@ -164,9 +164,10 @@ export type StickvaniaGameStateSnapshot = {
     version: number;
     appVersion: string;
     savedAt: string;
+    mode: number;
     mainFields: EncodedRecord;
     random: RandomSnapshot;
-    stage: StageSnapshot;
+    stage: StageSnapshot | null;
     things: ThingSnapshot[];
     audio: AudioSnapshot;
 };

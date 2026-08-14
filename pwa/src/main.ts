@@ -17,7 +17,7 @@ const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
 const GAME_STATE_STORAGE_KEY = "stickvania.game-state";
-const GAME_STATE_VERSION = 1;
+const GAME_STATE_VERSION = 2;
 type DisplayModePreference = "light" | "dark";
 type ScreenTest = "static-loading" | "static-error" | "dynamic-loading" | "dynamic-error";
 type SlickRuntimeModule = typeof import("slick2d-ts");
@@ -310,7 +310,6 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     appContainer.setMaxDevicePixelRatio(MAX_DEVICE_PIXEL_RATIO);
     container = appContainer;
     game = mainGame;
-    mainGame.stateSaveInvalidatedHandler = clearStoredGameState;
     mainGame.appGameContainer = appContainer;
     mainGame.scalableGame = scalableGame;
     mainGame.windowedDisplayModeProvider = getResponsiveWindowedDisplayMode;
@@ -521,7 +520,7 @@ function canOpenLiveMenuOverlay(): boolean {
         && activeGameShell !== null
         && activeGameHost !== null
         && game.isStateSaveReady()
-        && !game.isStateSaveInvalidatingMenuActive();
+        && game.isLiveMenuOverlayAllowed();
 }
 
 function hasLiveSuspendedGame(): boolean {
@@ -599,10 +598,6 @@ function focusGameCanvas(): void {
 
 function saveCurrentGameState(): boolean {
     if (game === null) {
-        return false;
-    }
-    if (game.isStateSaveInvalidatingMenuActive()) {
-        clearStoredGameState();
         return false;
     }
     if (!game.isStateSaveReady()) {

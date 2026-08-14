@@ -110,10 +110,10 @@ export class Main extends BasicGame {
     private static readonly HARD_ATTACK_COOLDOWN_MULTIPLIER: number = 0.70;
     private static readonly HARD_BEHAVIOR_DELAY_MULTIPLIER: number = 0.75;
     private static readonly HARD_ACTIVE_CAP_BONUS: number = 1;
-    private static readonly TITLE_MENU_MAIN: number = 0;
-    private static readonly TITLE_MENU_OPTIONS: number = 1;
-    private static readonly TITLE_MENU_INPUT: number = 2;
-    private static readonly TITLE_MENU_DIFFICULTY: number = 3;
+    public static readonly TITLE_MENU_MAIN: number = 0;
+    public static readonly TITLE_MENU_OPTIONS: number = 1;
+    public static readonly TITLE_MENU_INPUT: number = 2;
+    public static readonly TITLE_MENU_DIFFICULTY: number = 3;
     private static readonly MENU_ROW_HEIGHT: number = 32;
     private static readonly MENU_TWO_OPTION_Y: number = 304;
     private static readonly MENU_THREE_OPTION_Y: number = 288;
@@ -2905,18 +2905,38 @@ private loadStageSegment(a: number, b: number): void {
   
     }
     public isStateSaveReady(): boolean {
-    if (this.mode == Main.MODE_LOADING || this.mode == Main.MODE_DEMO
-        || this.mode == Main.MODE_TITLE_SCREEN || this.mode == Main.MODE_CREDITS
-        || this.mode == Main.MODE_INPUT_CONFIG) {
+    if (this.mode == Main.MODE_LOADING || this.loadedSegments == null || this.input == null
+        || this.controlInput == null) {
       return false;
     }
-    return this.simon != null && this.stageSegments != null && this.stageSegment != null
-        && this.loadedSegments != null && this.input != null;
+    if (this.isStageStateRequiredForStateSave()) {
+      return this.hasStageStateForStateSave();
+    }
+    return true;
   
     }
     public isStateSaveInvalidatingMenuActive(): boolean {
-    return this.mode == Main.MODE_TITLE_SCREEN || this.mode == Main.MODE_CONTINUE_SCREEN
-        || this.mode == Main.MODE_INPUT_CONFIG;
+    return false;
+
+    }
+    public shouldCaptureStageForStateSave(): boolean {
+    return this.isStageStateRequiredForStateSave() && this.hasStageStateForStateSave();
+
+    }
+    public isLiveMenuOverlayAllowed(): boolean {
+    return this.mode != Main.MODE_LOADING && this.mode != Main.MODE_INPUT_CONFIG;
+
+    }
+    private isStageStateRequiredForStateSave(): boolean {
+    return this.mode != Main.MODE_TITLE_SCREEN && this.mode != Main.MODE_INPUT_CONFIG
+        && this.mode != Main.MODE_LOADING;
+
+    }
+    private hasStageStateForStateSave(): boolean {
+    return this.simon != null && this.stageSegments != null && this.stageSegment != null
+        && this.checkpoint != null && this.loadedSegments != null && this.regionThingStack != null
+        && this.regionStackSwap != null && this.weaponsStack != null
+        && this.weaponsStackSwap != null && this.oldThingStack != null;
 
     }
     private notifyStateSaveInvalidated(): void {

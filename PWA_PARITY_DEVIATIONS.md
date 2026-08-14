@@ -407,3 +407,31 @@ Affected Files:
 Gameplay/Parity Risk:
 
 - Live user input differs from Java by design to support the PWA's combined Castlevania-style attack/subweapon mapping.
+
+## PWA-016: All-Mode PWA Continue State
+
+Java Behavior:
+
+- Java does not serialize live process state to support browser tab close, focus loss, or a PWA shell menu.
+
+PWA Behavior:
+
+- The PWA saves restorable state when focus is lost, the page is hidden, or the hamburger menu is opened.
+- Saved state now covers gameplay, Game Over, demo playback, intro, map, castle-fall, credits, title, options, difficulty, and input-menu screens.
+- Stage-backed modes save stage roots, active things, random state, fade state, timers, and audio continuation data.
+- Title/input-menu states save without stage roots so stale gameplay objects are not treated as part of the menu state.
+- The transient input remapping capture screen is normalized to the title input menu when persisted; active browser event-listener state is not serialized.
+- Starting a new game is the explicit action that clears saved game state. Entering title or Game Over no longer invalidates Continue by itself.
+- Existing v1 save records are discarded because the PWA save schema changed to nullable stage snapshots in version 2.
+
+Affected Files:
+
+- `pwa/src/main.ts`
+- `pwa/src/stickvania/Main.ts`
+- `pwa/src/stickvania/persistence/GameStateSnapshot.ts`
+- `pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts`
+- `pwa/src/stickvania/persistence/StickvaniaGameStateStore.ts`
+
+Gameplay/Parity Risk:
+
+- Continue can resume PWA-only shell/menu/cutscene states that Java never persisted. Gameplay logic after restoration remains the same as the restored mode's normal update path.

@@ -264,14 +264,18 @@ export class StickvaniaGameStateSerializer {
             throw new Error("Game state is not ready to save.");
         }
 
+        const captureStage = main.shouldCaptureStageForStateSave();
         const context = this.createCaptureContext(main);
-        const stage = this.captureStage(context);
-        const things: ThingSnapshot[] = context.things.map((thing, id) => this.captureThing(context, thing, id));
+        const stage = captureStage ? this.captureStage(context) : null;
+        const things: ThingSnapshot[] = stage === null
+            ? []
+            : context.things.map((thing, id) => this.captureThing(context, thing, id));
 
         return {
             version: GAME_STATE_VERSION,
             appVersion,
             savedAt: new Date().toISOString(),
+            mode: this.snapshotMode(main),
             mainFields: this.captureMainFields(context),
             random: this.captureRandom(main.random),
             stage,
@@ -286,15 +290,21 @@ export class StickvaniaGameStateSerializer {
         }
 
         main.stopAllSounds();
-        this.callCreateStage(main, snapshot.stage.stageIndex);
+        if (snapshot.stage !== null) {
+            this.callCreateStage(main, snapshot.stage.stageIndex);
+        }
 
         const context = this.createRestoreContext(main, gc, snapshot);
         this.restoreMainFields(main, snapshot.mainFields, context);
         this.restoreRandom(main.random, snapshot.random);
-        this.restoreThingFields(context, snapshot.things);
-        this.restoreStage(context, snapshot.stage);
-        this.restoreMainRoots(context, snapshot.stage);
-        this.runAfterRestoreHooks(context);
+        if (snapshot.stage !== null) {
+            this.restoreThingFields(context, snapshot.things);
+            this.restoreStage(context, snapshot.stage);
+            this.restoreMainRoots(context, snapshot.stage);
+            this.runAfterRestoreHooks(context);
+        } else {
+            this.clearMainStageRoots(main);
+        }
         this.restoreAudio(context, snapshot.audio);
         main.setBrowserSuspended(false);
         main.clearInputPressedRecords();
@@ -305,7 +315,14 @@ export class StickvaniaGameStateSerializer {
         if (!snapshot || snapshot.version !== GAME_STATE_VERSION) {
             return false;
         }
-        if (!snapshot.stage || !Array.isArray(snapshot.things)) {
+        if (typeof snapshot.mode !== "number" || !Array.isArray(snapshot.things)) {
+            return false;
+        }
+        if (snapshot.stage === null) {
+            if (snapshot.things.length !== 0) {
+                return false;
+            }
+        } else if (!snapshot.stage) {
             return false;
         }
         if (!snapshot.audio || !Array.isArray(snapshot.audio.songs)) {
@@ -499,9 +516,35 @@ export class StickvaniaGameStateSerializer {
             if (!this.shouldCaptureMainField(key, value)) {
                 continue;
             }
-            fields[key] = this.encodeValue(context, value, `Main.${key}`);
+            fields[key] = this.encodeValue(context, this.mainFieldValueForSnapshot(main, key, value), `Main.${key}`);
         }
         return fields;
+    }
+
+    private mainFieldValueForSnapshot(main: Main, key: string, value: unknown): unknown {
+        if (main.mode !== Main.MODE_INPUT_CONFIG) {
+            return value;
+        }
+        switch (key) {
+            case "mode":
+                return Main.MODE_TITLE_SCREEN;
+            case "titleMenu":
+                return Main.TITLE_MENU_INPUT;
+            case "titleSelectedIndex":
+                return 0;
+            case "fadeState":
+                return Main.FADE_DONE;
+            case "fade":
+                return Main.FADE_DONE;
+            case "fadeReason":
+                return 0;
+            default:
+                return value;
+        }
+    }
+
+    private snapshotMode(main: Main): number {
+        return main.mode === Main.MODE_INPUT_CONFIG ? Main.MODE_TITLE_SCREEN : main.mode;
     }
 
     private shouldCaptureMainField(key: string, value: unknown): boolean {
@@ -630,6 +673,23 @@ export class StickvaniaGameStateSerializer {
         this.restoreStack(context, main.weaponsStack, snapshot.weaponsStack);
         this.restoreStack(context, main.weaponsStackSwap, snapshot.weaponsStackSwap);
         this.restoreStack(context, main.oldThingStack, snapshot.oldThingStack);
+    }
+
+    private clearMainStageRoots(main: Main): void {
+        this.setField(main, "stageSegments", null);
+        this.setField(main, "stageSegment", null);
+        this.setField(main, "checkpoint", null);
+        main.simon = null as any;
+        main.door = null as any;
+        main.map = null;
+        main.walls = null;
+        main.platforms = null;
+        main.mapWidth = 0;
+        main.regionThingStack.clear();
+        main.regionStackSwap.clear();
+        main.weaponsStack.clear();
+        main.weaponsStackSwap.clear();
+        main.oldThingStack.clear();
     }
 
     private restoreStack(context: RestoreContext, stack: ThingStack, snapshot: ThingStackSnapshot): void {
