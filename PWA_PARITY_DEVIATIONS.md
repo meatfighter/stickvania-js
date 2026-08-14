@@ -91,6 +91,8 @@ PWA Behavior:
 - Resource URLs use the current build stamp as a cache-busting query.
 - If resource preload fails, the page shows a user-facing load error.
 - The in-game loading countdown is preserved the first time Slick resources are initialized.
+- During the first visible loading countdown, PWA runtime music construction is queued in one pass so Web Audio decoding can run in parallel through `slick2d-ts` tracked resource preparation.
+- The loading screen does not advance to title/restore completion until `ResourceLoader` reports that all queued runtime resource/decode work has finished.
 - If Slick resources already loaded successfully in the page session, New Game or Continue can skip the countdown.
 
 Affected Files:
@@ -100,7 +102,7 @@ Affected Files:
 
 Gameplay/Parity Risk:
 
-- The countdown can be skipped after successful resource initialization in a page session. The game resources and game state are unchanged.
+- The countdown can be skipped after successful resource initialization in a page session. First-run loading no longer creates one music object per displayed countdown number, but game resources and game state are unchanged.
 
 ## PWA-005: Hamburger Menu
 
@@ -111,8 +113,11 @@ Java Behavior:
 PWA Behavior:
 
 - The PWA presents a hamburger button over the game.
-- Pressing it returns to the PWA menu.
-- Sound is stopped/suspended when returning to the menu.
+- Pressing it during save-ready play opens the PWA menu as a live overlay over the still-mounted game.
+- The game loop is suspended under the overlay.
+- Active sound effects are stopped; music is suspended through the browser music-on path so it can resume without restarting.
+- Pressing `Continue` from that live overlay resumes the same in-memory game instance.
+- Pressing `New Game`, or returning to the menu from a non-live/non-save-ready state, still destroys the current runtime.
 - The button is hidden during the initial resource loading countdown.
 
 Affected Files:
@@ -122,7 +127,7 @@ Affected Files:
 
 Gameplay/Parity Risk:
 
-- Returning to the menu is a browser-only interruption path.
+- Returning to the menu is a browser-only interruption path. Same-page Continue can now resume live state without deserializing, while reload/cold-start Continue still uses the saved snapshot.
 
 ## PWA-006: Browser Focus Suspension
 
@@ -136,6 +141,7 @@ PWA Behavior:
 - On focus loss/page hide, the current game is suspended and sound effects are stopped.
 - On focus regain/page show, the game resumes with input pressed records cleared.
 - Save-ready game state is captured before suspension/page hide.
+- A live PWA menu overlay counts as a browser suspension reason, so focus/visibility events cannot resume gameplay behind the menu.
 
 Affected Files:
 
@@ -156,6 +162,8 @@ PWA Behavior:
 
 - Save-ready game state is serialized to `localStorage`.
 - Continue resumes from the saved stage, entities, stacks, random state, audio state, and captured `Main` fields.
+- If the PWA hamburger menu is open over a live suspended game, `Continue` resumes the live object graph instead of deserializing.
+- A fresh serialized snapshot is still written before showing the live overlay, so browser reload while the overlay is open can fall back to local-storage Continue.
 - The current difficulty value is captured as part of the exact game-state snapshot.
 - Stored game state is cleared when the running game reaches title/main menu, title submenus, input configuration, or the game-over Continue/End menu.
 
@@ -181,6 +189,8 @@ PWA Behavior:
 
 - The browser game scales to the available content/fullscreen area while preserving the internal game aspect ratio.
 - Black bars are used as needed.
+- The PWA opts into the `slick2d-ts` high-DPI canvas path with high-DPI enabled and device-pixel-ratio capped at `2`.
+- Display sizes, input coordinates, and game logic remain in logical Slick/CSS pixels; only the canvas backing store is enlarged on high-DPI displays.
 
 Affected Files:
 

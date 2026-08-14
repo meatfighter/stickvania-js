@@ -16,6 +16,8 @@ const GAME_HEIGHT = 480;
 const GAME_VIEWPORT_WIDTH = 512;
 const GAME_VIEWPORT_HEIGHT = 416;
 const DEFAULT_VOLUME = 0.1;
+const HIGH_DPI_ENABLED = true;
+const MAX_DEVICE_PIXEL_RATIO = 2;
 const BASE_URL = import.meta.env.BASE_URL;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 type DisplayModePreference = "light" | "dark";
@@ -32,6 +34,8 @@ let activeGameHost: HTMLElement | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let resizeAnimationFrame = 0;
 let hamburgerVisibilityAnimationFrame = 0;
+let menuOverlay: HTMLElement | null = null;
+let liveMenuOpen = false;
 let cursorGameHost: HTMLElement | null = null;
 let cursorHideTimer = 0;
 let pointerOverGameHost = false;
@@ -159,40 +163,58 @@ function showDynamicLoadingTestScreen(): void {
 
 function showMenu(errorText = ""): void {
     destroyGame();
-    const canContinue = gameStateStore.hasValidSave();
-    app.innerHTML = `
-        <main class="menu-screen">
-            <section class="menu-panel" aria-label="Stickvania menu">
-                <div class="display-row" role="group" aria-label="Display mode">
-                    <button id="display-light-button" class="display-label-button" type="button" aria-pressed="${displayModePreference === "light"}">Light</button>
-                    <button id="display-switch-button" class="display-switch" type="button" aria-label="Toggle display mode" aria-pressed="${displayModePreference === "dark"}" data-mode="${displayModePreference}">
-                        <span></span>
-                    </button>
-                    <button id="display-dark-button" class="display-label-button" type="button" aria-pressed="${displayModePreference === "dark"}">Dark</button>
-                </div>
-                <label class="volume-row">
-                    <span id="volume-icon" class="volume-icon" aria-hidden="true">${volumeIconSvg(volume)}</span>
-                    <input id="volume-input" type="range" min="0" max="100" step="1" value="${Math.round(volume * 100)}" aria-label="Volume">
-                    <span id="volume-value" class="volume-value">${Math.round(volume * 100)}</span>
-                </label>
-                <div class="menu-buttons">
-                    <button id="new-game-button" class="start-button" type="button">New Game</button>
-                    <button id="continue-button" class="start-button" type="button"${canContinue ? "" : " disabled"}>Continue</button>
-                </div>
-                ${errorText ? `<p class="error-text">${escapeHtml(errorText)}</p>` : ""}
-            </section>
-        </main>`;
+    renderRootMenu(errorText);
+}
 
-    const volumeInput = document.getElementById("volume-input") as HTMLInputElement;
-    const volumeValue = document.getElementById("volume-value") as HTMLElement;
-    const volumeIcon = document.getElementById("volume-icon") as HTMLElement;
-    const displayLightButton = document.getElementById("display-light-button") as HTMLButtonElement;
-    const displaySwitchButton = document.getElementById("display-switch-button") as HTMLButtonElement;
-    const displayDarkButton = document.getElementById("display-dark-button") as HTMLButtonElement;
-    const newGameButton = document.getElementById("new-game-button") as HTMLButtonElement;
-    const continueButton = document.getElementById("continue-button") as HTMLButtonElement;
+function renderRootMenu(errorText = ""): HTMLElement {
+    return renderMenu(app, gameStateStore.hasValidSave(), errorText, false);
+}
+
+function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string, overlay: boolean): HTMLElement {
+    const menu = document.createElement("main");
+    menu.className = overlay ? "menu-screen menu-overlay" : "menu-screen";
+    if (overlay) {
+        menu.dataset.liveMenu = "true";
+    }
+    menu.innerHTML = `
+        <section class="menu-panel" aria-label="Stickvania menu">
+            <div class="display-row" role="group" aria-label="Display mode">
+                <button id="display-light-button" class="display-label-button" type="button" aria-pressed="${displayModePreference === "light"}">Light</button>
+                <button id="display-switch-button" class="display-switch" type="button" aria-label="Toggle display mode" aria-pressed="${displayModePreference === "dark"}" data-mode="${displayModePreference}">
+                    <span></span>
+                </button>
+                <button id="display-dark-button" class="display-label-button" type="button" aria-pressed="${displayModePreference === "dark"}">Dark</button>
+            </div>
+            <label class="volume-row">
+                <span id="volume-icon" class="volume-icon" aria-hidden="true">${volumeIconSvg(volume)}</span>
+                <input id="volume-input" type="range" min="0" max="100" step="1" value="${Math.round(volume * 100)}" aria-label="Volume">
+                <span id="volume-value" class="volume-value">${Math.round(volume * 100)}</span>
+            </label>
+            <div class="menu-buttons">
+                <button id="new-game-button" class="start-button" type="button">New Game</button>
+                <button id="continue-button" class="start-button" type="button"${canContinue ? "" : " disabled"}>Continue</button>
+            </div>
+            ${errorText ? `<p class="error-text">${escapeHtml(errorText)}</p>` : ""}
+        </section>`;
+    if (overlay) {
+        parent.appendChild(menu);
+    } else {
+        parent.replaceChildren(menu);
+    }
+
+    const volumeInput = menu.querySelector("#volume-input") as HTMLInputElement;
+    const volumeValue = menu.querySelector("#volume-value") as HTMLElement;
+    const volumeIcon = menu.querySelector("#volume-icon") as HTMLElement;
+    const displayLightButton = menu.querySelector("#display-light-button") as HTMLButtonElement;
+    const displaySwitchButton = menu.querySelector("#display-switch-button") as HTMLButtonElement;
+    const displayDarkButton = menu.querySelector("#display-dark-button") as HTMLButtonElement;
+    const newGameButton = menu.querySelector("#new-game-button") as HTMLButtonElement;
+    const continueButton = menu.querySelector("#continue-button") as HTMLButtonElement;
     const handleDisplayModeChange = (value: DisplayModePreference) => {
         setDisplayModePreference(value);
+        if (game !== null) {
+            game.darkDisplayMode = value === "dark";
+        }
         updateDisplayModeUi(displayLightButton, displayDarkButton);
     };
     displayLightButton.addEventListener("click", () => handleDisplayModeChange("light"));
@@ -211,8 +233,13 @@ function showMenu(errorText = ""): void {
     });
     continueButton.addEventListener("click", () => {
         setAudioVolume(Number(volumeInput.value) / 100);
+        if (hasLiveSuspendedGame()) {
+            resumeLiveGameFromMenu();
+            return;
+        }
         void startGame(true);
     });
+    return menu;
 }
 
 function showGameShell(): HTMLElement {
@@ -242,6 +269,8 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
         const scalableGame = new ScalableGame2(mainGame, GAME_WIDTH, GAME_HEIGHT, true);
         const displayMode = getResponsiveWindowedDisplayMode();
         const appContainer = new AppGameContainer(scalableGame, displayMode.width, displayMode.height, false);
+        appContainer.setHighDpiEnabled(HIGH_DPI_ENABLED);
+        appContainer.setMaxDevicePixelRatio(MAX_DEVICE_PIXEL_RATIO);
         container = appContainer;
         game = mainGame;
         mainGame.stateSaveInvalidatedHandler = clearStoredGameState;
@@ -307,9 +336,94 @@ function returnToMenu(): void {
     if (game?.isLoadingScreenActive()) {
         return;
     }
-    game?.setBrowserSuspended(true);
+    if (canOpenLiveMenuOverlay()) {
+        showLiveMenuOverlay();
+        return;
+    }
     saveCurrentGameState();
     showMenu();
+}
+
+function canOpenLiveMenuOverlay(): boolean {
+    return game !== null
+        && container !== null
+        && activeGameShell !== null
+        && activeGameHost !== null
+        && game.isStateSaveReady()
+        && !game.isStateSaveInvalidatingMenuActive();
+}
+
+function hasLiveSuspendedGame(): boolean {
+    return liveMenuOpen
+        && menuOverlay !== null
+        && game !== null
+        && container !== null
+        && activeGameHost !== null;
+}
+
+function showLiveMenuOverlay(): void {
+    if (!canOpenLiveMenuOverlay() || game === null || container === null
+            || activeGameShell === null) {
+        saveCurrentGameState();
+        showMenu();
+        return;
+    }
+    removeMenuOverlay();
+    liveMenuOpen = true;
+    game.setBrowserSuspended(true);
+    container.stopSoundEffects();
+    container.setLoopSuspended(true);
+    container.getInput().pause();
+    saveCurrentGameState();
+    stopHamburgerVisibilityMonitor();
+    hideHamburgerButton();
+    stopGameCursorAutoHide();
+    menuOverlay = renderMenu(activeGameShell, true, "", true);
+}
+
+function resumeLiveGameFromMenu(): void {
+    if (!hasLiveSuspendedGame() || game === null || container === null
+            || activeGameHost === null) {
+        return;
+    }
+    const liveGame = game;
+    const liveContainer = container;
+    const liveHost = activeGameHost;
+    removeMenuOverlay();
+    liveContainer.getInput().resume();
+    liveGame.clearInputPressedRecords();
+    liveGame.darkDisplayMode = displayModePreference === "dark";
+    startGameCursorAutoHide(liveHost);
+    setAudioVolume(volume);
+    scheduleResponsiveGameResize();
+    focusGameCanvas();
+    applyCurrentGameLifecycleSuspension();
+    startHamburgerVisibilityMonitor();
+}
+
+function removeMenuOverlay(): void {
+    menuOverlay?.remove();
+    menuOverlay = null;
+    liveMenuOpen = false;
+}
+
+function hideHamburgerButton(): void {
+    const hamburger = document.getElementById("hamburger-button") as HTMLButtonElement | null;
+    if (hamburger !== null) {
+        hamburger.hidden = true;
+    }
+}
+
+function focusGameCanvas(): void {
+    const canvas = activeGameHost?.querySelector("canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+        return;
+    }
+    try {
+        canvas.focus({ preventScroll: true });
+    } catch {
+        canvas.focus();
+    }
 }
 
 function saveCurrentGameState(): boolean {
@@ -369,6 +483,10 @@ function applyCurrentGameLifecycleSuspension(): void {
         resetLifecycleSuspension();
         return;
     }
+    if (liveMenuOpen) {
+        suspendCurrentGameForLifecycle();
+        return;
+    }
     if (game.isLoadingScreenActive()) {
         return;
     }
@@ -382,10 +500,11 @@ function applyCurrentGameLifecycleSuspension(): void {
 }
 
 function suspendCurrentGameForLifecycle(): void {
-    if (game === null || game.isLoadingScreenActive()) {
+    if (game === null || (!liveMenuOpen && game.isLoadingScreenActive())) {
         return;
     }
     game.setBrowserSuspended(true);
+    container?.stopSoundEffects();
     container?.setLoopSuspended(true);
     saveCurrentGameState();
 }
@@ -397,6 +516,7 @@ function resetLifecycleSuspension(): void {
 
 function destroyGame(): void {
     resetLifecycleSuspension();
+    removeMenuOverlay();
     stopHamburgerVisibilityMonitor();
     stopGameCursorAutoHide();
     stopResponsiveGameSizing();
@@ -451,14 +571,14 @@ function stopHamburgerVisibilityMonitor(): void {
 
 function updateHamburgerVisibility(): void {
     const hamburger = document.getElementById("hamburger-button") as HTMLButtonElement | null;
-    const hidden = game === null || game.isLoadingScreenActive();
+    const hidden = liveMenuOpen || game === null || game.isLoadingScreenActive();
     if (!hidden) {
         applyCurrentGameLifecycleSuspension();
     }
     if (hamburger !== null) {
         hamburger.hidden = hidden;
     }
-    if (hidden && game !== null) {
+    if (hidden && game !== null && !liveMenuOpen) {
         hamburgerVisibilityAnimationFrame = requestAnimationFrame(() => {
             hamburgerVisibilityAnimationFrame = 0;
             updateHamburgerVisibility();

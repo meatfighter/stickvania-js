@@ -36,6 +36,10 @@ input {
     background: #000000;
 }
 
+.menu-overlay {
+    z-index: 20;
+}
+
 .boot-error {
     display: none;
     max-width: 280px;

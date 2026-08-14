@@ -226,7 +226,9 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "windowedDisplayModeProvider",
     "browserFullscreenController",
     "darkDisplayMode",
-    "browserSuspended"
+    "browserSuspended",
+    "browserSuspendedMusicOn",
+    "browserSuspendedSoundOn"
 ]);
 
 const SONG_IDS: SongId[] = [

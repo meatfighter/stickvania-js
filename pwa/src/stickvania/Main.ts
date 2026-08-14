@@ -245,6 +245,7 @@ export class Main extends BasicGame {
     public mode: number = Main.MODE_LOADING;
     public darkDisplayMode: boolean = false;
     private loadingIndex: number = 21;
+    private loadingAudioQueued: boolean = false;
     public nativeDisplayMode: DisplayMode = null;
     public maxWidth: number = 0;
     public maxHeight: number = 0;
@@ -481,6 +482,8 @@ export class Main extends BasicGame {
     public windowedDisplayModeProvider: (() => { width: number; height: number }) = null;
     public browserFullscreenController: BrowserFullscreenController = null;
     private browserSuspended: boolean = false;
+    private browserSuspendedMusicOn: boolean = true;
+    private browserSuspendedSoundOn: boolean = true;
     private input: Input = null;
     public buttonMapping: ButtonMapping = ButtonMapping.load();
     public difficulty: number = Main.loadDifficulty();
@@ -2753,11 +2756,15 @@ private loadStageSegment(a: number, b: number): void {
     if (suspended) {
       this.stopAllSoundEffects();
       if (this.appGameContainer != null) {
+        this.browserSuspendedMusicOn = this.appGameContainer.isMusicOn();
+        this.browserSuspendedSoundOn = this.appGameContainer.isSoundOn();
         this.appGameContainer.setMusicOn(false);
+        this.appGameContainer.setSoundOn(false);
       }
     } else {
       if (this.appGameContainer != null) {
-        this.appGameContainer.setMusicOn(true);
+        this.appGameContainer.setMusicOn(this.browserSuspendedMusicOn);
+        this.appGameContainer.setSoundOn(this.browserSuspendedSoundOn);
       }
       this.clearInputPressedRecords();
       this.resetNextFrameTime();
@@ -2863,12 +2870,12 @@ private loadStageSegment(a: number, b: number): void {
   
     }
     public completeLoadingImmediately(gc: GameContainer): void {
-    while (this.mode == Main.MODE_LOADING && this.loadingIndex >= 0) {
-      this.updateLoading(gc);
+    if (this.mode != Main.MODE_LOADING) {
+      return;
     }
-    if (this.mode == Main.MODE_LOADING) {
-      this.initTitleScreen();
-    }
+    this.queueLoadingAudio();
+    this.loadingIndex = 0;
+    this.finishLoading(gc);
   
     }
     private notifyLoadingFinished(): void {
@@ -3715,87 +3722,75 @@ private loadStageSegment(a: number, b: number): void {
     this.nextFrameTime = Sys.getTime();
   
     }
-    public updateLoading(gc: GameContainer): void {
-    switch(this.loadingIndex) {
-      case 21:
-        this.boss_1 = new Song("music/boss_1_intro.ogg", "music/boss_1_loop.ogg");
-        break;
-      case 20:
-        this.boss_2 = new Song("music/boss_2_intro.ogg", "music/boss_2_loop.ogg");
-        break;
-      case 19:
-        this.ending = new Song(null, "music/ending_loop.ogg");
-        break;
-      case 18:
-        this.game_over = new Music("music/game_over.ogg");
-        break;
-      case 17:
-        this.map_1 = new Music("music/map_1.ogg");
-        break;
-      case 16:
-        this.map_2 = new Music("music/map_2.ogg");
-        break;
-      case 15:
-        this.map_3 = new Music("music/map_3.ogg");
-        break;
-      case 14:
-        this.map_4 = new Music("music/map_4.ogg");
-        break;
-      case 13:
-        this.prologue = new Music("music/prologue.ogg");
-        break;
-      case 12:
-        this.simon_killed = new Music("music/simon_killed.ogg");
-        break;
-      case 11:
-        this.stage_1_1 = new Song(null, "music/stage_1_1_loop.ogg");
-        break;
-      case 10:
-        this.stage_1_2 = new Song("music/stage_1_2_intro.ogg", "music/stage_1_2_loop.ogg");
-        break;
-      case 9:
-        this.stage_2_1 = new Song("music/stage_2_1_intro.ogg", "music/stage_2_1_loop.ogg");
-        break;
-      case 8:
-        this.stage_3_1 = new Song("music/stage_3_1_intro.ogg", "music/stage_3_1_loop.ogg");
-        break;
-      case 7:
-        this.stage_4_1 = new Song(null, "music/stage_4_1_loop.ogg");
-        break;
-      case 6:
-        this.stage_4_2 = new Song(null, "music/stage_4_2_loop.ogg");
-        break;
-      case 5:
-        this.stage_5_1 = new Song("music/stage_5_1_intro.ogg", "music/stage_5_1_loop.ogg");
-        break;
-      case 4:
-        this.stage_6_1 = new Song(null, "music/stage_6_1_loop.ogg");
-        break;
-      case 3:
-        this.stage_6_2 = new Song("music/stage_6_2_intro.ogg", "music/stage_6_2_loop.ogg");
-        break;
-      case 2:
-        this.stage_cleared = new Music("music/stage_cleared.ogg");
-        break;
-      case 1:
-        this.dracula_dead = new Music("music/dracula_dead.ogg");
-        break;
-      case 0:
-        if (this.loadingCompleteHandler != null) {
-          const handler = this.loadingCompleteHandler;
-          this.loadingCompleteHandler = null;
-          if (handler(gc)) {
-            this.notifyLoadingFinished();
-            break;
-          }
-        }
-        this.notifyLoadingFinished();
-        this.fadeState = Main.FADE_OUT;
-        this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
-        break;
+    private queueLoadingAudio(): void {
+    if (this.loadingAudioQueued) {
+      return;
     }
+    this.loadingAudioQueued = true;
 
-    this.loadingIndex--;
+    this.boss_1 = new Song("music/boss_1_intro.ogg", "music/boss_1_loop.ogg");
+    this.boss_2 = new Song("music/boss_2_intro.ogg", "music/boss_2_loop.ogg");
+    this.ending = new Song(null, "music/ending_loop.ogg");
+    this.game_over = new Music("music/game_over.ogg");
+    this.map_1 = new Music("music/map_1.ogg");
+    this.map_2 = new Music("music/map_2.ogg");
+    this.map_3 = new Music("music/map_3.ogg");
+    this.map_4 = new Music("music/map_4.ogg");
+    this.prologue = new Music("music/prologue.ogg");
+    this.simon_killed = new Music("music/simon_killed.ogg");
+    this.stage_1_1 = new Song(null, "music/stage_1_1_loop.ogg");
+    this.stage_1_2 = new Song("music/stage_1_2_intro.ogg", "music/stage_1_2_loop.ogg");
+    this.stage_2_1 = new Song("music/stage_2_1_intro.ogg", "music/stage_2_1_loop.ogg");
+    this.stage_3_1 = new Song("music/stage_3_1_intro.ogg", "music/stage_3_1_loop.ogg");
+    this.stage_4_1 = new Song(null, "music/stage_4_1_loop.ogg");
+    this.stage_4_2 = new Song(null, "music/stage_4_2_loop.ogg");
+    this.stage_5_1 = new Song("music/stage_5_1_intro.ogg", "music/stage_5_1_loop.ogg");
+    this.stage_6_1 = new Song(null, "music/stage_6_1_loop.ogg");
+    this.stage_6_2 = new Song("music/stage_6_2_intro.ogg", "music/stage_6_2_loop.ogg");
+    this.stage_cleared = new Music("music/stage_cleared.ogg");
+    this.dracula_dead = new Music("music/dracula_dead.ogg");
+  
+    }
+    private throwLoadingResourceFailure(): void {
+    const errors = ResourceLoader.getTrackedErrors();
+    if (errors.length > 0) {
+      const first = errors[0];
+      throw new SlickException(`Failed to prepare loading resource: ${first.label}`, first.error);
+    }
+    throw new SlickException("Failed to prepare loading resources.");
+  
+    }
+    private finishLoading(gc: GameContainer): void {
+    if (this.mode != Main.MODE_LOADING) {
+      return;
+    }
+    if (this.loadingCompleteHandler != null) {
+      const handler = this.loadingCompleteHandler;
+      this.loadingCompleteHandler = null;
+      if (handler(gc)) {
+        this.notifyLoadingFinished();
+        return;
+      }
+    }
+    this.notifyLoadingFinished();
+    this.fadeState = Main.FADE_OUT;
+    this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
+  
+    }
+    public updateLoading(gc: GameContainer): void {
+    this.queueLoadingAudio();
+    if (ResourceLoader.hasFailed()) {
+      this.throwLoadingResourceFailure();
+    }
+    if (ResourceLoader.hasPending()) {
+      this.nextFrameTime = Sys.getTime();
+      return;
+    }
+    if (this.loadingIndex > 0) {
+      this.loadingIndex--;
+    } else {
+      this.finishLoading(gc);
+    }
     this.nextFrameTime = Sys.getTime();
   
     }
@@ -3805,7 +3800,7 @@ private loadStageSegment(a: number, b: number): void {
     g.fillRect(64, 32, 512, 416);
 
     this.drawString("LOADING", 80, 48);
-    this.drawNumber(this.loadingIndex, 2, 208, 48);
+    this.drawNumber(Math.max(0, this.loadingIndex), 2, 208, 48);
   
     }
     public updateMapScreen(gc: GameContainer): void {
