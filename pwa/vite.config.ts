@@ -30,6 +30,16 @@ function renderVersionPlaceholders(text: string): string {
         .replaceAll("%BUILD_STAMP%", encodedBuildStamp);
 }
 
+function ensureAppModuleScriptId(text: string): string {
+    if (text.includes("id=\"app-module-script\"")) {
+        return text;
+    }
+    return text.replace(
+        /<script\b(?=[^>]*\btype="module")(?=[^>]*\bsrc=)/,
+        "<script id=\"app-module-script\""
+    );
+}
+
 function versionedStaticAssetsPlugin(): PluginOption {
     return {
         name: "stickvania-versioned-static-assets",
@@ -42,6 +52,11 @@ function versionedStaticAssetsPlugin(): PluginOption {
             }
         },
         closeBundle(): void {
+            const indexPath = join(rootDir, "..", "dist", "pwa", "index.html");
+            if (existsSync(indexPath)) {
+                writeFileSync(indexPath, ensureAppModuleScriptId(renderVersionPlaceholders(readFileSync(indexPath, "utf8"))));
+            }
+
             const manifestPath = join(rootDir, "..", "dist", "pwa", "manifest.webmanifest");
             if (!existsSync(manifestPath)) {
                 return;

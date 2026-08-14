@@ -95,12 +95,14 @@ PWA Behavior:
 - Resource URLs use the current build stamp as a cache-busting query.
 - If the user clicks Start/Continue before background preparation has finished, the browser PWA loader is shown until preparation completes.
 - If preparation fails, the page shows a user-facing load error with Retry.
+- The static HTML boot fallback keeps showing animated dots for slow module downloads and switches to its static error panel only when the root module script reports an actual load error.
 - The Java in-game loading countdown is not displayed in the PWA once this background preparation path is active.
 - The PWA calls `Main.completePwaLoadingImmediately()` after `AppGameContainer.start()` while the game loop is still suspended, so the first active game frame is title/restored gameplay rather than the Java countdown.
 - Destroyed PWA containers preserve the warmed Web Audio cache so returning to the PWA menu does not force audio decode to repeat.
 
 Affected Files:
 
+- `pwa/index.html`
 - `pwa/src/main.ts`
 - `pwa/src/stickvania/Main.ts`
 

@@ -190,14 +190,18 @@
             if (testScreen === "static-loading") {
                 return;
             }
-            window.setTimeout(function () {
+            window.addEventListener("error", function (event) {
+                var target = event.target;
+                if (!target || target.id !== "app-module-script") {
+                    return;
+                }
                 if (!boot.isConnected) {
                     return;
                 }
                 boot.classList.add("static-boot-failed");
-            }, 10000);
+            }, true);
         })();
     </script>
-    <script type="module" src="/src/main.ts"></script>
+    <script id="app-module-script" type="module" src="/src/main.ts"></script>
 </body>
 </html>
