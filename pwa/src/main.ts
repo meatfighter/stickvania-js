@@ -733,10 +733,12 @@ function stopResponsiveGameSizing(): void {
 
 function startHamburgerVisibilityMonitor(): void {
     stopHamburgerVisibilityMonitor();
+    document.addEventListener("fullscreenchange", updateHamburgerVisibility);
     updateHamburgerVisibility();
 }
 
 function stopHamburgerVisibilityMonitor(): void {
+    document.removeEventListener("fullscreenchange", updateHamburgerVisibility);
     if (hamburgerVisibilityAnimationFrame !== 0) {
         cancelAnimationFrame(hamburgerVisibilityAnimationFrame);
         hamburgerVisibilityAnimationFrame = 0;
@@ -745,14 +747,16 @@ function stopHamburgerVisibilityMonitor(): void {
 
 function updateHamburgerVisibility(): void {
     const hamburger = document.getElementById("hamburger-button") as HTMLButtonElement | null;
-    const hidden = liveMenuOpen || game === null || game.isLoadingScreenActive();
+    const loading = game?.isLoadingScreenActive() === true;
+    const fullscreen = isGameShellFullscreen() || container?.isFullscreen() === true;
+    const hidden = liveMenuOpen || game === null || loading || fullscreen;
     if (!hidden) {
         applyCurrentGameLifecycleSuspension();
     }
     if (hamburger !== null) {
         hamburger.hidden = hidden;
     }
-    if (hidden && game !== null && !liveMenuOpen) {
+    if (loading && game !== null && !liveMenuOpen) {
         hamburgerVisibilityAnimationFrame = requestAnimationFrame(() => {
             hamburgerVisibilityAnimationFrame = 0;
             updateHamburgerVisibility();
