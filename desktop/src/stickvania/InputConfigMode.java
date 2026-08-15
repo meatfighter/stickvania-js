@@ -1,17 +1,15 @@
 package stickvania;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.newdawn.slick.Color;
-import org.newdawn.slick.ControllerListener;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Graphics;
 import org.newdawn.slick.Input;
 import org.newdawn.slick.KeyListener;
 import org.newdawn.slick.SlickException;
 
-public class InputConfigMode implements ControllerListener, KeyListener {
+public class InputConfigMode implements KeyListener {
 
   private static final String[] STEPS = {
       "UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK" };
@@ -19,28 +17,21 @@ public class InputConfigMode implements ControllerListener, KeyListener {
   private static final int ARM_DELAY = 8;
   private static final int MESSAGE_Y = 232;
   private static final int ERROR_Y = 280;
-  private static final int CONTROLLER_INDEX_LIMIT = 16;
-  private static final int GAMEPAD_AXIS_LIMIT = 16;
-  private static final float AXIS_THRESHOLD = 0.5f;
-  private static final float AXIS_RECENTER_THRESHOLD = 0.05f;
-  private static final int[] EXTRA_HORIZONTAL_AXES = { 2, 6 };
-  private static final int[] EXTRA_VERTICAL_AXES = { 3, 7 };
-
   private final Main main;
   private final Set<Integer> assignedKeys = new HashSet<Integer>();
   private final Set<Integer> assignedControllerButtons = new HashSet<Integer>();
-  private final float[] extraAxisBaselines =
-      new float[CONTROLLER_INDEX_LIMIT * GAMEPAD_AXIS_LIMIT];
+  private final boolean[] controllerButtonDown =
+      new boolean[ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT];
   private Input input;
   private int stepIndex;
   private int doneDelay;
   private int armDelay = ARM_DELAY;
   private String message = "";
   private boolean finished;
-  private boolean extraAxisUpDown;
-  private boolean extraAxisDownDown;
-  private boolean extraAxisLeftDown;
-  private boolean extraAxisRightDown;
+  private boolean controllerUpDown;
+  private boolean controllerDownDown;
+  private boolean controllerLeftDown;
+  private boolean controllerRightDown;
   private MappingDraft draft;
 
   private static final class MappingDraft {
@@ -65,12 +56,10 @@ public class InputConfigMode implements ControllerListener, KeyListener {
   public void init(GameContainer gc) {
     input = gc.getInput();
     input.addKeyListener(this);
-    input.addControllerListener(this);
     draft = createDraft();
     assignedKeys.clear();
     assignedControllerButtons.clear();
-    Arrays.fill(extraAxisBaselines, Float.NaN);
-    syncExtraAxisDirectionState();
+    syncControllerInputState();
     main.clearInputPressedRecords();
   }
 
@@ -79,13 +68,12 @@ public class InputConfigMode implements ControllerListener, KeyListener {
       return;
     }
     input.removeKeyListener(this);
-    input.removeControllerListener(this);
     input = null;
   }
 
   public void update(GameContainer gc) {
     if (armDelay > 0) {
-      syncExtraAxisDirectionState();
+      syncControllerInputState();
       armDelay--;
       return;
     }
@@ -93,7 +81,7 @@ public class InputConfigMode implements ControllerListener, KeyListener {
       finish();
       return;
     }
-    bindExtraAxisDirectionPressed();
+    bindControllerInputPressed();
   }
 
   public void render(GameContainer gc, Graphics g) throws SlickException {
@@ -125,54 +113,6 @@ public class InputConfigMode implements ControllerListener, KeyListener {
   public void keyReleased(int key, char c) {
   }
 
-  public void controllerButtonPressed(int controller, int button) {
-    if (!canAcceptInput()) {
-      return;
-    }
-    int buttonIndex = button - 1;
-    if (buttonIndex < 0
-        || (isActionStep()
-            && ButtonMapping.isStandardGamepadDirectionButton(buttonIndex))) {
-      return;
-    }
-    if (!bindControllerButton(buttonIndex)) {
-      message = "ALREADY USED";
-      return;
-    }
-    advance();
-  }
-
-  public void controllerButtonReleased(int controller, int button) {
-  }
-
-  public void controllerLeftPressed(int controller) {
-    bindControllerDirection(ButtonMapping.CONTROLLER_DIRECTION_LEFT);
-  }
-
-  public void controllerLeftReleased(int controller) {
-  }
-
-  public void controllerRightPressed(int controller) {
-    bindControllerDirection(ButtonMapping.CONTROLLER_DIRECTION_RIGHT);
-  }
-
-  public void controllerRightReleased(int controller) {
-  }
-
-  public void controllerUpPressed(int controller) {
-    bindControllerDirection(ButtonMapping.CONTROLLER_DIRECTION_UP);
-  }
-
-  public void controllerUpReleased(int controller) {
-  }
-
-  public void controllerDownPressed(int controller) {
-    bindControllerDirection(ButtonMapping.CONTROLLER_DIRECTION_DOWN);
-  }
-
-  public void controllerDownReleased(int controller) {
-  }
-
   public void setInput(Input input) {
     this.input = input;
   }
@@ -202,31 +142,57 @@ public class InputConfigMode implements ControllerListener, KeyListener {
     advance();
   }
 
-  private void bindExtraAxisDirectionPressed() {
-    if (!canAcceptInput() || isActionStep()) {
-      syncExtraAxisDirectionState();
+  private void bindControllerInputPressed() {
+    if (!canAcceptInput()) {
+      syncControllerInputState();
       return;
     }
-    int button = getPressedExtraAxisDirection();
+    int direction = getPressedControllerDirection();
+    if (direction != ButtonMapping.NO_BINDING && !isActionStep()) {
+      bindControllerDirection(direction);
+      return;
+    }
+
+    int button = getPressedNonDirectionalControllerButton();
     if (button != ButtonMapping.NO_BINDING) {
-      bindControllerDirection(button);
+      if (!bindControllerButton(button)) {
+        message = "ALREADY USED";
+        return;
+      }
+      advance();
     }
   }
 
-  private int getPressedExtraAxisDirection() {
-    if (isExtraAxisUpPressed()) {
+  private int getPressedControllerDirection() {
+    if (isControllerUpPressed()) {
       return ButtonMapping.CONTROLLER_DIRECTION_UP;
     }
-    if (isExtraAxisDownPressed()) {
+    if (isControllerDownPressed()) {
       return ButtonMapping.CONTROLLER_DIRECTION_DOWN;
     }
-    if (isExtraAxisLeftPressed()) {
+    if (isControllerLeftPressed()) {
       return ButtonMapping.CONTROLLER_DIRECTION_LEFT;
     }
-    if (isExtraAxisRightPressed()) {
+    if (isControllerRightPressed()) {
       return ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
     }
     return ButtonMapping.NO_BINDING;
+  }
+
+  private int getPressedNonDirectionalControllerButton() {
+    int pressedButton = ButtonMapping.NO_BINDING;
+    for(int button = 0; button < controllerButtonDown.length; button++) {
+      boolean down = ControllerSupport.isButtonDown(button);
+      boolean pressed = down && !controllerButtonDown[button];
+      controllerButtonDown[button] = down;
+      if (pressedButton == ButtonMapping.NO_BINDING
+          && pressed
+          && !ControllerSupport.isDirectionalButton(button)
+          && !isDraftDirectionButton(button)) {
+        pressedButton = button;
+      }
+    }
+    return pressedButton;
   }
 
   private boolean bindKey(int key) {
@@ -385,109 +351,48 @@ public class InputConfigMode implements ControllerListener, KeyListener {
     return (640 - (text.length() << 4)) >> 1;
   }
 
-  private boolean isExtraAxisUp() {
-    return isAnyAxisLessThan(EXTRA_VERTICAL_AXES, -AXIS_THRESHOLD);
+  private boolean isDraftDirectionButton(int button) {
+    return draft.controllerUp == button
+        || draft.controllerDown == button
+        || draft.controllerLeft == button
+        || draft.controllerRight == button;
   }
 
-  private boolean isExtraAxisDown() {
-    return isAnyAxisGreaterThan(EXTRA_VERTICAL_AXES, AXIS_THRESHOLD);
-  }
-
-  private boolean isExtraAxisLeft() {
-    return isAnyAxisLessThan(EXTRA_HORIZONTAL_AXES, -AXIS_THRESHOLD);
-  }
-
-  private boolean isExtraAxisRight() {
-    return isAnyAxisGreaterThan(EXTRA_HORIZONTAL_AXES, AXIS_THRESHOLD);
-  }
-
-  private boolean isExtraAxisUpPressed() {
-    boolean down = isExtraAxisUp();
-    boolean pressed = down && !extraAxisUpDown;
-    extraAxisUpDown = down;
+  private boolean isControllerUpPressed() {
+    boolean down = ControllerSupport.isUpDown();
+    boolean pressed = down && !controllerUpDown;
+    controllerUpDown = down;
     return pressed;
   }
 
-  private boolean isExtraAxisDownPressed() {
-    boolean down = isExtraAxisDown();
-    boolean pressed = down && !extraAxisDownDown;
-    extraAxisDownDown = down;
+  private boolean isControllerDownPressed() {
+    boolean down = ControllerSupport.isDownDown();
+    boolean pressed = down && !controllerDownDown;
+    controllerDownDown = down;
     return pressed;
   }
 
-  private boolean isExtraAxisLeftPressed() {
-    boolean down = isExtraAxisLeft();
-    boolean pressed = down && !extraAxisLeftDown;
-    extraAxisLeftDown = down;
+  private boolean isControllerLeftPressed() {
+    boolean down = ControllerSupport.isLeftDown();
+    boolean pressed = down && !controllerLeftDown;
+    controllerLeftDown = down;
     return pressed;
   }
 
-  private boolean isExtraAxisRightPressed() {
-    boolean down = isExtraAxisRight();
-    boolean pressed = down && !extraAxisRightDown;
-    extraAxisRightDown = down;
+  private boolean isControllerRightPressed() {
+    boolean down = ControllerSupport.isRightDown();
+    boolean pressed = down && !controllerRightDown;
+    controllerRightDown = down;
     return pressed;
   }
 
-  private boolean isAnyAxisLessThan(int[] axes, float threshold) {
-    int controllerCount = getControllerCount();
-    for(int controller = 0; controller < controllerCount; controller++) {
-      for(int i = 0; i < axes.length; i++) {
-        if (readExtraAxisValue(controller, axes[i]) < threshold) {
-          return true;
-        }
-      }
+  private void syncControllerInputState() {
+    controllerUpDown = ControllerSupport.isUpDown();
+    controllerDownDown = ControllerSupport.isDownDown();
+    controllerLeftDown = ControllerSupport.isLeftDown();
+    controllerRightDown = ControllerSupport.isRightDown();
+    for(int button = 0; button < controllerButtonDown.length; button++) {
+      controllerButtonDown[button] = ControllerSupport.isButtonDown(button);
     }
-    return false;
-  }
-
-  private boolean isAnyAxisGreaterThan(int[] axes, float threshold) {
-    int controllerCount = getControllerCount();
-    for(int controller = 0; controller < controllerCount; controller++) {
-      for(int i = 0; i < axes.length; i++) {
-        if (readExtraAxisValue(controller, axes[i]) > threshold) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  private int getControllerCount() {
-    try {
-      return Math.min(input.getControllerCount(), CONTROLLER_INDEX_LIMIT);
-    } catch(Throwable t) {
-      return 0;
-    }
-  }
-
-  private float readExtraAxisValue(int controller, int axis) {
-    try {
-      if (input.getAxisCount(controller) <= axis) {
-        return 0;
-      }
-
-      float value = input.getAxisValue(controller, axis);
-      int baselineIndex = controller * GAMEPAD_AXIS_LIMIT + axis;
-      float baseline = extraAxisBaselines[baselineIndex];
-      if (Float.isNaN(baseline)) {
-        baseline = value;
-        extraAxisBaselines[baselineIndex] = baseline;
-      }
-      if (Math.abs(value) <= AXIS_RECENTER_THRESHOLD) {
-        baseline = 0;
-        extraAxisBaselines[baselineIndex] = baseline;
-      }
-      return value - baseline;
-    } catch(Throwable t) {
-      return 0;
-    }
-  }
-
-  private void syncExtraAxisDirectionState() {
-    extraAxisUpDown = isExtraAxisUp();
-    extraAxisDownDown = isExtraAxisDown();
-    extraAxisLeftDown = isExtraAxisLeft();
-    extraAxisRightDown = isExtraAxisRight();
   }
 }

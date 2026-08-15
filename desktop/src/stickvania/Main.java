@@ -555,12 +555,8 @@ public final class Main extends BasicGame {
       fades[i] = new Color(0, 0, 0, (255 * i) / fades.length);
     }
 
+    ControllerSupport.prepareDesktopInput();
     input = gc.getInput();
-    try {
-      input.initControllers();
-    } catch(Throwable t) {
-      Log.warn("Unable to initialize controllers: " + t);
-    }
     controlInput = new StickvaniaInput(input, buttonMapping);
 
     PackedSpriteSheet pack1 = new PackedSpriteSheet("images/pack_1.def",
@@ -4376,6 +4372,7 @@ public final class Main extends BasicGame {
 
     java.awt.Toolkit.getDefaultToolkit();
 
+    ControllerSupport.prepareDesktopInput();
     Main main = new Main();
     main.scalableGame = new ScalableGame2(main, 640, 480, true);
     main.appGameContainer = new AppGameContainer(main.scalableGame);
