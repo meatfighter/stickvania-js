@@ -141,6 +141,8 @@ export class Simon extends Thing {
   
     }
     public reset(): void {
+    this.G = Main.GRAVITY;
+    this.jumpVelocity = Main.SIMON_JUMP_VELOCITY;
     this.drankPotion = false;
     this.kneeling = false;
     this.whipping = false;

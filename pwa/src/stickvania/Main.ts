@@ -3061,6 +3061,7 @@ private loadStageSegment(a: number, b: number): void {
     this.moveCamera();
 
     this.requestedSong = this.checkpoint.song;
+    this.syncSimonPhysicsProfile();
   
     }
     public checkpointReached(checkpoint: Checkpoint): void {
