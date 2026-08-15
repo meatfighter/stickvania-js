@@ -367,6 +367,12 @@ input {
     cursor: pointer;
 }
 
+.hamburger-button:hover,
+.hamburger-button:focus-visible {
+    background: #3f3f3f;
+    border-color: rgba(255, 255, 255, 0.76);
+}
+
 .hamburger-button[hidden] {
     display: none;
 }

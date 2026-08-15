@@ -260,7 +260,7 @@ function showGameShell(): HTMLElement {
     app.innerHTML = `
         <div id="game-shell" class="game-shell">
             <div id="game-host" class="game-host"></div>
-            <button id="hamburger-button" class="hamburger-button" type="button" aria-label="Return to menu" title="Return to menu" hidden>
+            <button id="hamburger-button" class="hamburger-button" type="button" aria-label="Return to menu" hidden>
                 <span></span>
             </button>
         </div>`;
