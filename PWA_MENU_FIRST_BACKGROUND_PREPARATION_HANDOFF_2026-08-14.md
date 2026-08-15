@@ -2,6 +2,8 @@
 
 Date: 2026-08-14
 
+Update, 2026-08-15: Stickvania later removed its obsolete PWA canvas loading mode entirely. The current implementation finalizes startup inside `Main.init()` instead of calling `Main.completePwaLoadingImmediately(...)`; see `PWA_PARITY_DEVIATIONS.md`.
+
 Audience: AIs implementing the same startup improvement in:
 
 - `C:\js-projects\ms-pac-man-2010-js`
@@ -426,4 +428,3 @@ Add or update each project's PWA parity/deviation document with:
 - internal Java loading countdown skipped or forced-completed
 - audio cache preservation across menu/game restarts
 - any remaining CPU work that still happens at launch
-
