@@ -97,8 +97,9 @@ PWA Behavior:
 - If preparation fails, the page shows a user-facing load error with Retry.
 - The static HTML boot fallback keeps showing animated dots for slow module downloads and switches to its static error panel only when the root module script reports an actual load error.
 - The Java in-game loading countdown is not displayed in the PWA once this background preparation path is active.
-- The PWA calls `Main.completePwaLoadingImmediately()` after `AppGameContainer.start()` while the game loop is still suspended, so the first active game frame is title/restored gameplay rather than the Java countdown.
+- The PWA TypeScript port removes the `MODE_LOADING` update/render path entirely. `Main.init()` now queues startup music resources and immediately enters either restored state or the title screen before the first active game frame.
 - Destroyed PWA containers preserve the warmed Web Audio cache so returning to the PWA menu does not force audio decode to repeat.
+- PWA saved-game snapshots were bumped to version `3` when the obsolete loading mode was removed so old snapshots with loading-mode fields are discarded.
 
 Affected Files:
 
@@ -108,7 +109,7 @@ Affected Files:
 
 Gameplay/Parity Risk:
 
-- Startup order differs from Java by design. The PWA prepares resources before the Java loading screen would normally count down, then skips that countdown entirely. Game resources, title state, and restored game state should be equivalent after loading completion.
+- Startup order differs from Java by design. The PWA prepares resources before the Java loading screen would normally count down, then enters title/restored state during `Main.init()` instead of running the Java countdown/fade path. Game resources, title state, and restored game state should be equivalent after loading completion.
 
 ## PWA-005: Hamburger Menu
 

@@ -1,4 +1,4 @@
-import { AL, AppGameContainer, ApplicationGameContainer, BasicGame, BufferUtils, Color, Cursor, CursorLoader, Display, DisplayMode, FastTrig, GameContainer, Graphics, Image, ImageData, Input, JavaRandom, LWJGLException, Log, Music, PackedSpriteSheet, PixelFormat, Renderer, SlickException, Sound, SoundStore, SpriteSheet, Sys, Mouse, ResourceLoader } from "slick2d-ts";
+import { AL, AppGameContainer, ApplicationGameContainer, BasicGame, BufferUtils, Color, Cursor, CursorLoader, Display, DisplayMode, FastTrig, GameContainer, Graphics, Image, ImageData, Input, JavaRandom, LWJGLException, Log, Music, PackedSpriteSheet, PixelFormat, Renderer, SlickException, Sound, SoundStore, SpriteSheet, Sys, Mouse } from "slick2d-ts";
 import { cc, chr, idiv, makeArray, make2D, make3D, make4D, readBinaryResource, readResourceLines, toInt, trunc } from "./JavaMath.js";
 import { AppletGameContainer2 } from "./AppletGameContainer2.js";
 import { Axe } from "./Axe.js";
@@ -101,7 +101,6 @@ export class Main extends BasicGame {
     public static readonly MODE_MAP: number = 6;
     public static readonly MODE_CASTLE_FALLS: number = 7;
     public static readonly MODE_CREDITS: number = 8;
-    public static readonly MODE_LOADING: number = 9;
     public static readonly MODE_INPUT_CONFIG: number = 10;
     public static readonly DIFFICULTY_NORMAL: number = 0;
     public static readonly DIFFICULTY_HARD: number = 1;
@@ -242,10 +241,9 @@ export class Main extends BasicGame {
     public static readonly mapBats: number[][] = [ [ 273, 208 ], [ 175, 142 ], [ 336, 108 ], [ 576, 174 ], [ 528, 77 ], [ 346, 30 ], ];
     public fades: Color[] = makeArray<Color>(23, () => null);
     private nativeCursor: Cursor = null;
-    public mode: number = Main.MODE_LOADING;
+    public mode: number = Main.MODE_TITLE_SCREEN;
     public darkDisplayMode: boolean = false;
-    private loadingIndex: number = 21;
-    private loadingAudioQueued: boolean = false;
+    private startupAudioQueued: boolean = false;
     public nativeDisplayMode: DisplayMode = null;
     public maxWidth: number = 0;
     public maxHeight: number = 0;
@@ -477,7 +475,6 @@ export class Main extends BasicGame {
     public requestedSong: Song = null;
     public currentMusic: Music = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) = null;
-    public loadingFinishedHandler: (() => void) = null;
     public stateSaveInvalidatedHandler: (() => void) = null;
     public windowedDisplayModeProvider: (() => { width: number; height: number }) = null;
     public browserFullscreenController: BrowserFullscreenController = null;
@@ -1007,6 +1004,7 @@ export class Main extends BasicGame {
     this.lands = new Sound("soundfx/lands.ogg");
 
     this.nextFrameTime = Sys.getTime();
+    this.completeStartup(gc);
 
     }
     private showMouseCursor(): void {
@@ -1197,9 +1195,6 @@ export class Main extends BasicGame {
           return;
         }
         break;
-      case Main.MODE_LOADING:
-        this.updateLoading(gc);
-        return;
       case Main.MODE_INPUT_CONFIG:
         this.updateInputConfig(gc);
         return;
@@ -2796,7 +2791,6 @@ private loadStageSegment(a: number, b: number): void {
         && this.mode != Main.MODE_ENDING
         && this.mode != Main.MODE_CASTLE_FALLS
         && this.mode != Main.MODE_TITLE_SCREEN
-        && this.mode != Main.MODE_LOADING
         && this.mode != Main.MODE_INPUT_CONFIG;
 
     }
@@ -2865,48 +2859,20 @@ private loadStageSegment(a: number, b: number): void {
     this.initTitleScreen();
   
     }
-    public isLoadingScreenActive(): boolean {
-    return this.mode == Main.MODE_LOADING;
-  
-    }
-    public completeLoadingImmediately(gc: GameContainer): void {
-    if (this.mode != Main.MODE_LOADING) {
-      return;
-    }
-    this.queueLoadingAudio();
-    this.loadingIndex = 0;
-    this.finishLoading(gc);
-  
-    }
-    public completePwaLoadingImmediately(gc: GameContainer): void {
-    if (this.mode != Main.MODE_LOADING) {
-      return;
-    }
-    this.queueLoadingAudio();
-    this.loadingIndex = 0;
+    private completeStartup(gc: GameContainer): void {
+    this.queueStartupAudio();
     if (this.loadingCompleteHandler != null) {
       const handler = this.loadingCompleteHandler;
       this.loadingCompleteHandler = null;
       if (handler(gc)) {
-        this.notifyLoadingFinished();
         return;
       }
     }
-    this.notifyLoadingFinished();
     this.initTitleScreen();
   
     }
-    private notifyLoadingFinished(): void {
-    if (this.loadingFinishedHandler != null) {
-      const handler = this.loadingFinishedHandler;
-      this.loadingFinishedHandler = null;
-      handler();
-    }
-  
-    }
     public isStateSaveReady(): boolean {
-    if (this.mode == Main.MODE_LOADING || this.loadedSegments == null || this.input == null
-        || this.controlInput == null) {
+    if (this.loadedSegments == null || this.input == null || this.controlInput == null) {
       return false;
     }
     if (this.isStageStateRequiredForStateSave()) {
@@ -2924,12 +2890,11 @@ private loadStageSegment(a: number, b: number): void {
 
     }
     public isLiveMenuOverlayAllowed(): boolean {
-    return this.mode != Main.MODE_LOADING && this.mode != Main.MODE_INPUT_CONFIG;
+    return this.mode != Main.MODE_INPUT_CONFIG;
 
     }
     private isStageStateRequiredForStateSave(): boolean {
-    return this.mode != Main.MODE_TITLE_SCREEN && this.mode != Main.MODE_INPUT_CONFIG
-        && this.mode != Main.MODE_LOADING;
+    return this.mode != Main.MODE_TITLE_SCREEN && this.mode != Main.MODE_INPUT_CONFIG;
 
     }
     private hasStageStateForStateSave(): boolean {
@@ -3760,11 +3725,11 @@ private loadStageSegment(a: number, b: number): void {
     this.nextFrameTime = Sys.getTime();
   
     }
-    private queueLoadingAudio(): void {
-    if (this.loadingAudioQueued) {
+    private queueStartupAudio(): void {
+    if (this.startupAudioQueued) {
       return;
     }
-    this.loadingAudioQueued = true;
+    this.startupAudioQueued = true;
 
     this.boss_1 = new Song("music/boss_1_intro.ogg", "music/boss_1_loop.ogg");
     this.boss_2 = new Song("music/boss_2_intro.ogg", "music/boss_2_loop.ogg");
@@ -3788,57 +3753,6 @@ private loadStageSegment(a: number, b: number): void {
     this.stage_cleared = new Music("music/stage_cleared.ogg");
     this.dracula_dead = new Music("music/dracula_dead.ogg");
   
-    }
-    private throwLoadingResourceFailure(): void {
-    const errors = ResourceLoader.getTrackedErrors();
-    if (errors.length > 0) {
-      const first = errors[0];
-      throw new SlickException(`Failed to prepare loading resource: ${first.label}`, first.error);
-    }
-    throw new SlickException("Failed to prepare loading resources.");
-  
-    }
-    private finishLoading(gc: GameContainer): void {
-    if (this.mode != Main.MODE_LOADING) {
-      return;
-    }
-    if (this.loadingCompleteHandler != null) {
-      const handler = this.loadingCompleteHandler;
-      this.loadingCompleteHandler = null;
-      if (handler(gc)) {
-        this.notifyLoadingFinished();
-        return;
-      }
-    }
-    this.notifyLoadingFinished();
-    this.fadeState = Main.FADE_OUT;
-    this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
-  
-    }
-    public updateLoading(gc: GameContainer): void {
-    this.queueLoadingAudio();
-    if (ResourceLoader.hasFailed()) {
-      this.throwLoadingResourceFailure();
-    }
-    if (ResourceLoader.hasPending()) {
-      this.nextFrameTime = Sys.getTime();
-      return;
-    }
-    if (this.loadingIndex > 0) {
-      this.loadingIndex--;
-    } else {
-      this.finishLoading(gc);
-    }
-    this.nextFrameTime = Sys.getTime();
-  
-    }
-    public renderLoading(gc: GameContainer, g: Graphics): void {
-
-    g.setColor(Color.white);
-    g.fillRect(64, 32, 512, 416);
-
-    this.drawString("LOADING", 80, 48);
-    this.drawNumber(Math.max(0, this.loadingIndex), 2, 208, 48);
   
     }
     public updateMapScreen(gc: GameContainer): void {
@@ -4253,9 +4167,6 @@ private loadStageSegment(a: number, b: number): void {
           break;
         case Main.MODE_MAP:
           this.renderMapScreen(gc, g);
-          break;
-        case Main.MODE_LOADING:
-          this.renderLoading(gc, g);
           break;
         case Main.MODE_INPUT_CONFIG:
           this.renderInputConfig(gc, g);

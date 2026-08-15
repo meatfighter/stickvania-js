@@ -17,7 +17,7 @@ const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
 const GAME_STATE_STORAGE_KEY = "stickvania.game-state";
-const GAME_STATE_VERSION = 2;
+const GAME_STATE_VERSION = 3;
 type DisplayModePreference = "light" | "dark";
 type ScreenTest = "static-loading" | "static-error" | "dynamic-loading" | "dynamic-error";
 type SlickRuntimeModule = typeof import("slick2d-ts");
@@ -334,8 +334,6 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     appContainer.setClearEachFrame(true);
     await Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false));
     await appContainer.start();
-    mainGame.completePwaLoadingImmediately(appContainer);
-    await ResourceLoader.waitForAll();
     appContainer.setErrorHandler(error => {
         console.error(error);
         destroyGame();
@@ -503,9 +501,6 @@ function hasPotentialSavedGameState(): boolean {
 }
 
 function returnToMenu(): void {
-    if (game?.isLoadingScreenActive()) {
-        return;
-    }
     if (canOpenLiveMenuOverlay()) {
         showLiveMenuOverlay();
         return;
@@ -661,9 +656,6 @@ function applyCurrentGameLifecycleSuspension(): void {
         suspendCurrentGameForLifecycle();
         return;
     }
-    if (game.isLoadingScreenActive()) {
-        return;
-    }
     if (suspendedByVisibilityLoss || suspendedByFocusLoss) {
         suspendCurrentGameForLifecycle();
         return;
@@ -674,7 +666,7 @@ function applyCurrentGameLifecycleSuspension(): void {
 }
 
 function suspendCurrentGameForLifecycle(): void {
-    if (game === null || (!liveMenuOpen && game.isLoadingScreenActive())) {
+    if (game === null) {
         return;
     }
     game.setBrowserSuspended(true);
@@ -747,20 +739,13 @@ function stopHamburgerVisibilityMonitor(): void {
 
 function updateHamburgerVisibility(): void {
     const hamburger = document.getElementById("hamburger-button") as HTMLButtonElement | null;
-    const loading = game?.isLoadingScreenActive() === true;
     const fullscreen = isGameShellFullscreen() || container?.isFullscreen() === true;
-    const hidden = liveMenuOpen || game === null || loading || fullscreen;
+    const hidden = liveMenuOpen || game === null || fullscreen;
     if (!hidden) {
         applyCurrentGameLifecycleSuspension();
     }
     if (hamburger !== null) {
         hamburger.hidden = hidden;
-    }
-    if (loading && game !== null && !liveMenuOpen) {
-        hamburgerVisibilityAnimationFrame = requestAnimationFrame(() => {
-            hamburgerVisibilityAnimationFrame = 0;
-            updateHamburgerVisibility();
-        });
     }
 }
 
