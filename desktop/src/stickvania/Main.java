@@ -48,6 +48,8 @@ public final class Main extends BasicGame {
 
   public static final int LEFT = 0;
   public static final int RIGHT = 1;
+  public static final int DISPLAY_WIDTH = 640;
+  public static final int DISPLAY_HEIGHT = 480;
 
   public static final int MODE_TITLE_SCREEN = 0;
   public static final int MODE_DEMO = 1;
@@ -236,6 +238,9 @@ public final class Main extends BasicGame {
 
   public Color[] fades = new Color[23];
   private Cursor nativeCursor;
+  private Cursor hiddenCursor;
+  private boolean mouseCursorHidden;
+  private boolean fullscreenFallbackActive;
 
   public int mode = Main.MODE_LOADING;
   private int loadingIndex = 21;
@@ -243,7 +248,7 @@ public final class Main extends BasicGame {
   public int maxWidth = 0;
   public int maxHeight = 0;
   public int maxColorDepth = 0;
-  public AppGameContainer appGameContainer;
+  public StickvaniaAppGameContainer appGameContainer;
   public AppletGameContainer2 appletGameContainer;
   public ScalableGame2 scalableGame;
   private long nextFrameTime;
@@ -532,24 +537,53 @@ public final class Main extends BasicGame {
     }
   }
 
-  public void init(GameContainer gc) throws SlickException {
+  private void findNativeDisplayMode() throws SlickException {
+
+    try {
+      DisplayMode desktopDisplayMode = Display.getDesktopDisplayMode();
+      if (isUsableDisplayMode(desktopDisplayMode)) {
+        setNativeDisplayMode(desktopDisplayMode);
+        return;
+      }
+    } catch(Throwable t) {
+      Log.warn("Unable to read desktop display mode: " + t);
+    }
 
     try {
       for(DisplayMode displayMode : Display.getAvailableDisplayModes()) {
-        if ((displayMode.getWidth() > maxWidth 
+        if (isUsableDisplayMode(displayMode)
+            && ((displayMode.getWidth() > maxWidth
                   || displayMode.getHeight() > maxHeight)
               || (displayMode.getWidth() == maxWidth
                   && displayMode.getHeight() == maxHeight
-                  && displayMode.getBitsPerPixel() > maxColorDepth)) {
-          maxWidth = displayMode.getWidth();
-          maxHeight = displayMode.getHeight();
-          maxColorDepth = displayMode.getBitsPerPixel();
-          nativeDisplayMode = displayMode;
+                  && displayMode.getBitsPerPixel() > maxColorDepth))) {
+          setNativeDisplayMode(displayMode);
         }
       } 
     } catch(Throwable t) {
       throw new SlickException("Error finding native monitor resolution.", t);
     }
+    if (nativeDisplayMode == null) {
+      throw new SlickException("Unable to determine native monitor resolution.");
+    }
+  }
+
+  private boolean isUsableDisplayMode(DisplayMode displayMode) {
+    return displayMode != null
+        && displayMode.getWidth() > 0
+        && displayMode.getHeight() > 0;
+  }
+
+  private void setNativeDisplayMode(DisplayMode displayMode) {
+    maxWidth = displayMode.getWidth();
+    maxHeight = displayMode.getHeight();
+    maxColorDepth = displayMode.getBitsPerPixel();
+    nativeDisplayMode = displayMode;
+  }
+
+  public void init(GameContainer gc) throws SlickException {
+
+    findNativeDisplayMode();
 
     for(int i = 0; i < fades.length; i++) {
       fades[i] = new Color(0, 0, 0, (255 * i) / fades.length);
@@ -1021,22 +1055,95 @@ public final class Main extends BasicGame {
   }
 
   private void showMouseCursor() {
+    if (!mouseCursorHidden) {
+      return;
+    }
     try {
       Mouse.setNativeCursor(nativeCursor);
+      mouseCursorHidden = false;
     } catch (Exception e) {
-			Log.error("Failed to load and apply cursor.", e);
-		}
+      Log.error("Failed to load and apply cursor.", e);
+    }
   }
 
   private void hideMouseCursor() {
+    if (mouseCursorHidden) {
+      return;
+    }
     try {
-			ByteBuffer buffer = BufferUtils.createByteBuffer(32 * 32 * 4);
-			Cursor cursor = CursorLoader.get().getCursor(buffer, 0, 0, 32, 32);
+      if (hiddenCursor == null) {
+        ByteBuffer buffer = BufferUtils.createByteBuffer(32 * 32 * 4);
+        hiddenCursor = CursorLoader.get().getCursor(buffer, 0, 0, 32, 32);
+      }
       nativeCursor = Mouse.getNativeCursor();
-			Mouse.setNativeCursor(cursor);
-		} catch (Exception e) {
-			Log.error("Failed to load and apply cursor.", e);
-		}
+      Mouse.setNativeCursor(hiddenCursor);
+      mouseCursorHidden = true;
+    } catch (Exception e) {
+      Log.error("Failed to load and apply cursor.", e);
+    }
+  }
+
+  private boolean isFullscreenDisplayActive(GameContainer gc) {
+    return gc.isFullscreen() || fullscreenFallbackActive;
+  }
+
+  private void enterFullscreenDisplayMode(GameContainer gc)
+      throws SlickException {
+    hideMouseCursor();
+    boolean displayModeChanged = false;
+    try {
+      if (appGameContainer == null) {
+        appletGameContainer.getContainer().setDisplayMode(true);
+      } else {
+        enterAppFullscreenDisplayMode(gc);
+      }
+      displayModeChanged = true;
+    } finally {
+      if (!displayModeChanged) {
+        showMouseCursor();
+      }
+    }
+  }
+
+  private void enterAppFullscreenDisplayMode(GameContainer gc)
+      throws SlickException {
+    long startTime = System.currentTimeMillis();
+    try {
+      appGameContainer.setNativeFullscreenDisplayMode(nativeDisplayMode);
+      fullscreenFallbackActive = false;
+      scalableGame.containerSizeChanged(gc);
+    } catch(SlickException e) {
+      Log.warn("Native fullscreen display mode failed; using "
+          + "fullscreen-sized window: " + e);
+      enterFullscreenFallbackWindow(gc);
+      return;
+    }
+
+    long elapsed = System.currentTimeMillis() - startTime;
+    if (elapsed > 1000L) {
+      Log.warn("Native fullscreen display mode took " + elapsed + " ms.");
+    }
+  }
+
+  private void enterFullscreenFallbackWindow(GameContainer gc)
+      throws SlickException {
+    appGameContainer.setDisplayMode(DISPLAY_WIDTH, DISPLAY_HEIGHT, false);
+    Display.setLocation(0, 0);
+    appGameContainer.setDisplayMode(maxWidth, maxHeight, false);
+    fullscreenFallbackActive = true;
+    scalableGame.containerSizeChanged(gc);
+  }
+
+  private void restoreWindowedDisplayMode(GameContainer gc)
+      throws SlickException {
+    showMouseCursor();
+    if (appGameContainer == null) {
+      appletGameContainer.getContainer().setFullscreen(false);
+    } else {
+      fullscreenFallbackActive = false;
+      appGameContainer.setDisplayMode(DISPLAY_WIDTH, DISPLAY_HEIGHT, false);
+      scalableGame.containerSizeChanged(gc);
+    }
   }
 
   public void update(GameContainer gc, int delta) throws SlickException {
@@ -1066,32 +1173,15 @@ public final class Main extends BasicGame {
     }
 
     if (input.isKeyPressed(Input.KEY_SPACE)) {
-      if (gc.isFullscreen()) {
-        showMouseCursor();
-        if (appGameContainer == null) {
-          appletGameContainer.getContainer().setFullscreen(false);
-        } else {
-          appGameContainer.setDisplayMode(640, 480, false);
-          scalableGame.containerSizeChanged(gc);
-        }
+      if (isFullscreenDisplayActive(gc)) {
+        restoreWindowedDisplayMode(gc);
       } else {
-        hideMouseCursor();
-        if (appGameContainer == null) {
-          appletGameContainer.getContainer().setDisplayMode(true);
-        } else {
-          appGameContainer.setDisplayMode(maxWidth, maxHeight, true);
-          scalableGame.containerSizeChanged(gc);
-        }
+        enterFullscreenDisplayMode(gc);
       }      
       nextFrameTime = Sys.getTime();
-    } else if (gc.isFullscreen() && input.isKeyPressed(Input.KEY_ESCAPE)) {
-      showMouseCursor();
-      if (appGameContainer == null) {
-        appletGameContainer.getContainer().setFullscreen(false);
-      } else {
-        appGameContainer.setDisplayMode(640, 480, false);
-        scalableGame.containerSizeChanged(gc);
-      }
+    } else if (isFullscreenDisplayActive(gc)
+        && input.isKeyPressed(Input.KEY_ESCAPE)) {
+      restoreWindowedDisplayMode(gc);
       nextFrameTime = Sys.getTime();
     }
     controlInput.update();
@@ -4374,9 +4464,11 @@ public final class Main extends BasicGame {
 
     ControllerSupport.prepareDesktopInput();
     Main main = new Main();
-    main.scalableGame = new ScalableGame2(main, 640, 480, true);
-    main.appGameContainer = new AppGameContainer(main.scalableGame);
-    main.appGameContainer.setDisplayMode(640, 480, false);
+    main.scalableGame = new ScalableGame2(
+        main, DISPLAY_WIDTH, DISPLAY_HEIGHT, true);
+    main.appGameContainer = new StickvaniaAppGameContainer(main.scalableGame);
+    main.appGameContainer.setDisplayMode(
+        DISPLAY_WIDTH, DISPLAY_HEIGHT, false);
     main.appGameContainer.setAlwaysRender(true);
     main.appGameContainer.setVSync(true);
     main.appGameContainer.setSmoothDeltas(false);
