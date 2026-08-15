@@ -29,6 +29,8 @@ export class ScalableGame2 implements Game {
     private readonly maintainAspect: boolean;
     private targetWidth = 0;
     private targetHeight = 0;
+    private xoffset = 0;
+    private yoffset = 0;
 
     public constructor(held: Game, normalWidth: number, normalHeight: number, maintainAspect: boolean = true) {
         this.held = held;
@@ -51,7 +53,9 @@ export class ScalableGame2 implements Game {
     }
 
     public render(container: GameContainer, g: Graphics): void {
-        const { xoffset, yoffset } = this.calculateOffsets(container);
+        this.calculateOffsets(container);
+        const xoffset = this.xoffset;
+        const yoffset = this.yoffset;
         const xscale = this.targetWidth / ScalableGame2.VIEWPORT_WIDTH;
         const yscale = this.targetHeight / ScalableGame2.VIEWPORT_HEIGHT;
 
@@ -103,7 +107,9 @@ export class ScalableGame2 implements Game {
     }
 
     private applyInputTransform(container: GameContainer): void {
-        const { xoffset, yoffset } = this.calculateOffsets(container);
+        this.calculateOffsets(container);
+        const xoffset = this.xoffset;
+        const yoffset = this.yoffset;
         const xscale = ScalableGame2.VIEWPORT_WIDTH / this.targetWidth;
         const yscale = ScalableGame2.VIEWPORT_HEIGHT / this.targetHeight;
         container.getInput().setScale(xscale, yscale);
@@ -113,16 +119,15 @@ export class ScalableGame2 implements Game {
         );
     }
 
-    private calculateOffsets(container: GameContainer): { xoffset: number; yoffset: number } {
-        let xoffset = 0;
-        let yoffset = 0;
+    private calculateOffsets(container: GameContainer): void {
+        this.xoffset = 0;
+        this.yoffset = 0;
         if (this.targetHeight < container.getHeight()) {
-            yoffset = Math.trunc((container.getHeight() - this.targetHeight) / 2);
+            this.yoffset = Math.trunc((container.getHeight() - this.targetHeight) / 2);
         }
         if (this.targetWidth < container.getWidth()) {
-            xoffset = Math.trunc((container.getWidth() - this.targetWidth) / 2);
+            this.xoffset = Math.trunc((container.getWidth() - this.targetWidth) / 2);
         }
-        return { xoffset, yoffset };
     }
 
     public getNormalWidth(): number {

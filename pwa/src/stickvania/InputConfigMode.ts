@@ -431,20 +431,26 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     }
 
     private isAnyAxisLessThan(axes: readonly number[], threshold: number): boolean {
-        return this.isAnyAxisMatching(axes, (value) => value < threshold);
-    }
-
-    private isAnyAxisGreaterThan(axes: readonly number[], threshold: number): boolean {
-        return this.isAnyAxisMatching(axes, (value) => value > threshold);
-    }
-
-    private isAnyAxisMatching(axes: readonly number[], predicate: (value: number) => boolean): boolean {
         if (!this.input) {
             return false;
         }
         for (let controller = 0; controller < InputConfigMode.CONTROLLER_INDEX_LIMIT; controller++) {
-            for (const axis of axes) {
-                if (predicate(this.readExtraAxisValue(controller, axis))) {
+            for (let i = 0; i < axes.length; i++) {
+                if (this.readExtraAxisValue(controller, axes[i]) < threshold) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private isAnyAxisGreaterThan(axes: readonly number[], threshold: number): boolean {
+        if (!this.input) {
+            return false;
+        }
+        for (let controller = 0; controller < InputConfigMode.CONTROLLER_INDEX_LIMIT; controller++) {
+            for (let i = 0; i < axes.length; i++) {
+                if (this.readExtraAxisValue(controller, axes[i]) > threshold) {
                     return true;
                 }
             }

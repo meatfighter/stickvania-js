@@ -307,6 +307,9 @@ export class Main extends BasicGame {
     private enterPressed: boolean = false;
     private titleMenu: number = Main.TITLE_MENU_MAIN;
     private titleSelectedIndex: number = 0;
+    private titleInputMappingLines: string[] = makeArray<string>(Main.TITLE_INPUT_ACTIONS.length, () => "");
+    private titleInputMappingX: number = 64;
+    private titleInputMappingCacheDirty: boolean = true;
     private static readonly titleBatSequence: number[] = [ 0, 1, 2, 1 ];
     public introWalkSpriteIndexIncrementor: number = 0;
     public introWalkSpriteIndex: number = 0;
@@ -2856,6 +2859,7 @@ private loadStageSegment(a: number, b: number): void {
   
     }
     public finishInputConfig(): void {
+    this.invalidateTitleInputMappingCache();
     this.initTitleScreen();
   
     }
@@ -3959,6 +3963,7 @@ private loadStageSegment(a: number, b: number): void {
         } else if (this.titleSelectedIndex == 1) {
           this.buttonMapping.resetToDefaults();
           this.buttonMapping.save();
+          this.invalidateTitleInputMappingCache();
           this.setTitleMenu(Main.TITLE_MENU_INPUT, 1);
         } else {
           this.setTitleMenu(Main.TITLE_MENU_MAIN);
@@ -4003,10 +4008,12 @@ private loadStageSegment(a: number, b: number): void {
     }
     private renderTitleInputMenu(): void {
     this.drawCenteredString("INPUT", Main.TITLE_INPUT_TITLE_Y);
-    const mappingX = this.getInputMappingX();
+    this.updateTitleInputMappingCache();
+    const mappingX = this.titleInputMappingX;
     for (let i: number = 0; i < Main.TITLE_INPUT_ACTIONS.length; i++) {
-      this.drawInputMappingLine(Main.TITLE_INPUT_ACTIONS[i], mappingX,
-          Main.TITLE_INPUT_MAPPING_Y + i * Main.TITLE_INPUT_MAPPING_ROW_HEIGHT);
+      this.drawString(this.titleInputMappingLines[i], mappingX,
+          Main.TITLE_INPUT_MAPPING_Y
+              + i * Main.TITLE_INPUT_MAPPING_ROW_HEIGHT);
     }
     const optionX = this.centerLongestMenuOptionX(Main.TITLE_INPUT_OPTIONS);
     for (let i: number = 0; i < Main.TITLE_INPUT_OPTIONS.length; i++) {
@@ -4028,19 +4035,25 @@ private loadStageSegment(a: number, b: number): void {
     this.smallHeart.draw(x, y + this.titleSelectedIndex * rowHeight);
 
     }
-    private drawInputMappingLine(action: string, x: number, y: number): void {
-    this.drawString(this.getInputMappingLine(action), x, y);
+    private invalidateTitleInputMappingCache(): void {
+    this.titleInputMappingCacheDirty = true;
 
     }
-    private getInputMappingX(): number {
+    private updateTitleInputMappingCache(): void {
+    if (!this.titleInputMappingCacheDirty) {
+      return;
+    }
     let maxLength: number = 0;
     for (let i: number = 0; i < Main.TITLE_INPUT_ACTIONS.length; i++) {
-      maxLength = Math.max(maxLength, this.getInputMappingLine(Main.TITLE_INPUT_ACTIONS[i]).length);
+      const line = this.createInputMappingLine(Main.TITLE_INPUT_ACTIONS[i]);
+      this.titleInputMappingLines[i] = line;
+      maxLength = Math.max(maxLength, line.length);
     }
-    return Math.max(64, trunc((640 - maxLength * 16) / 2));
+    this.titleInputMappingX = Math.max(64, trunc((640 - maxLength * 16) / 2));
+    this.titleInputMappingCacheDirty = false;
 
     }
-    private getInputMappingLine(action: string): string {
+    private createInputMappingLine(action: string): string {
     return action.padEnd(7, " ") + "= "
         + this.buttonMapping.keyboardLabelFor(action) + ", "
         + this.buttonMapping.controllerLabelFor(action);

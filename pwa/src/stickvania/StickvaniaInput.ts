@@ -48,13 +48,15 @@ export class StickvaniaInput {
     }
 
     public update(): void {
+        const next = this.previous;
         this.previous = this.current;
-        this.current = this.readState();
+        this.current = next;
+        this.readStateInto(this.current);
     }
 
     public clearPressedState(): void {
-        this.current = this.readState();
-        this.previous = { ...this.current };
+        this.readStateInto(this.current);
+        this.copyState(this.previous, this.current);
     }
 
     public isUp(): boolean {
@@ -97,7 +99,7 @@ export class StickvaniaInput {
         return this.isMenuSelectPressed();
     }
 
-    private readState(): InputState {
+    private readStateInto(target: InputState): void {
         const keyUp = this.input.isKeyDown(this.mapping.keyUp);
         const keyDown = this.input.isKeyDown(this.mapping.keyDown);
         const keyLeft = this.input.isKeyDown(this.mapping.keyLeft);
@@ -120,17 +122,27 @@ export class StickvaniaInput {
             && this.input.isKeyDown(Input.KEY_ENTER);
         const anyControllerSelect = this.isAnyControllerNonDirectionalButtonDown();
 
-        return {
-            up,
-            down,
-            left,
-            right,
-            jump,
-            attack,
-            menuUp: up,
-            menuDown: down,
-            menuSelect: jump || attack || enterSelect || anyControllerSelect
-        };
+        target.up = up;
+        target.down = down;
+        target.left = left;
+        target.right = right;
+        target.jump = jump;
+        target.attack = attack;
+        target.menuUp = up;
+        target.menuDown = down;
+        target.menuSelect = jump || attack || enterSelect || anyControllerSelect;
+    }
+
+    private copyState(target: InputState, source: InputState): void {
+        target.up = source.up;
+        target.down = source.down;
+        target.left = source.left;
+        target.right = source.right;
+        target.jump = source.jump;
+        target.attack = source.attack;
+        target.menuUp = source.menuUp;
+        target.menuDown = source.menuDown;
+        target.menuSelect = source.menuSelect;
     }
 
     private isKeyMappedToDirection(key: number): boolean {
@@ -184,7 +196,9 @@ export class StickvaniaInput {
             return false;
         }
 
-        for (const gamepad of navigator.getGamepads()) {
+        const gamepads = navigator.getGamepads();
+        for (let gamepadIndex = 0; gamepadIndex < gamepads.length; gamepadIndex++) {
+            const gamepad = gamepads[gamepadIndex];
             if (!gamepad) {
                 continue;
             }
@@ -227,17 +241,20 @@ export class StickvaniaInput {
     }
 
     private isAnyAxisLessThan(axes: readonly number[], threshold: number): boolean {
-        return this.isAnyAxisMatching(axes, (value) => value < threshold);
+        for (let controller = 0; controller < StickvaniaInput.CONTROLLER_INDEX_LIMIT; controller++) {
+            for (let i = 0; i < axes.length; i++) {
+                if (this.readExtraAxisValue(controller, axes[i]) < threshold) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private isAnyAxisGreaterThan(axes: readonly number[], threshold: number): boolean {
-        return this.isAnyAxisMatching(axes, (value) => value > threshold);
-    }
-
-    private isAnyAxisMatching(axes: readonly number[], predicate: (value: number) => boolean): boolean {
         for (let controller = 0; controller < StickvaniaInput.CONTROLLER_INDEX_LIMIT; controller++) {
-            for (const axis of axes) {
-                if (predicate(this.readExtraAxisValue(controller, axis))) {
+            for (let i = 0; i < axes.length; i++) {
+                if (this.readExtraAxisValue(controller, axes[i]) > threshold) {
                     return true;
                 }
             }
