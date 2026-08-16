@@ -1,76 +1,14 @@
-import { AL, AppGameContainer, ApplicationGameContainer, BasicGame, BufferUtils, Color, Cursor, CursorLoader, Display, DisplayMode, FastTrig, GameContainer, Graphics, Image, ImageData, Input, JavaRandom, LWJGLException, Log, Music, PackedSpriteSheet, PixelFormat, Renderer, SlickException, Sound, SoundStore, SpriteSheet, Sys, Mouse, ResourceLoader } from "slick2d-ts";
-import { cc, chr, idiv, makeArray, make2D, make3D, make4D, readBinaryResource, readResourceLines, toInt, trunc } from "./JavaMath.js";
-import { AppletGameContainer2 } from "./AppletGameContainer2.js";
-import { Axe } from "./Axe.js";
-import { AxeKnight } from "./AxeKnight.js";
-import { Bat } from "./Bat.js";
-import { BatBoss } from "./BatBoss.js";
-import { BatSpawner } from "./BatSpawner.js";
-import { Bird } from "./Bird.js";
-import { BirdSpawner } from "./BirdSpawner.js";
-import { Bone } from "./Bone.js";
-import { BoneDragon } from "./BoneDragon.js";
-import { BoneDragonVertebra } from "./BoneDragonVertebra.js";
-import { BonePillar } from "./BonePillar.js";
-import { Boomerang } from "./Boomerang.js";
-import { BoomerangAxe } from "./BoomerangAxe.js";
-import { BreakWall } from "./BreakWall.js";
-import { BrickFragment } from "./BrickFragment.js";
-import { BridgeBat } from "./BridgeBat.js";
-import { Candles } from "./Candles.js";
-import { Checkpoint } from "./Checkpoint.js";
-import { Dagger } from "./Dagger.js";
+import { GameContainer, Graphics } from "slick2d-ts";
 import { DieBat } from "./DieBat.js";
-import { Dog } from "./Dog.js";
-import { Door } from "./Door.js";
 import { DraculaBat } from "./DraculaBat.js";
-import { DropItem } from "./DropItem.js";
-import { Droplets } from "./Droplets.js";
-import { FadingStairs } from "./FadingStairs.js";
 import { Fireball } from "./Fireball.js";
-import { Flame } from "./Flame.js";
-import { FloatingPoints } from "./FloatingPoints.js";
-import { FloorBreaker } from "./FloorBreaker.js";
 import { FoodOrb } from "./FoodOrb.js";
-import { Frankenstein } from "./Frankenstein.js";
 import { Ghost } from "./Ghost.js";
-import { GrimReaper } from "./GrimReaper.js";
-import { HolyWater } from "./HolyWater.js";
-import { Igor } from "./Igor.js";
-import { LanceKnight } from "./LanceKnight.js";
+import { makeArray, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
-import { MedusaBoss } from "./MedusaBoss.js";
-import { MedusaHead } from "./MedusaHead.js";
-import { MedusaHeadSpawner } from "./MedusaHeadSpawner.js";
-import { Merman } from "./Merman.js";
-import { MermanSpawner } from "./MermanSpawner.js";
-import { MovingPlatform } from "./MovingPlatform.js";
-import { MummyBoss } from "./MummyBoss.js";
 import { Orb } from "./Orb.js";
-import { Raven } from "./Raven.js";
-import { RedSkeleton } from "./RedSkeleton.js";
-import { Region } from "./Region.js";
-import { ScalableGame2 } from "./ScalableGame2.js";
-import { Secret } from "./Secret.js";
-import { ShootingSpark } from "./ShootingSpark.js";
-import { Sickle } from "./Sickle.js";
-import { Simon } from "./Simon.js";
-import { SmallHeart } from "./SmallHeart.js";
-import { Snakes } from "./Snakes.js";
-import { Song } from "./Song.js";
 import { Spark } from "./Spark.js";
-import { Spikes } from "./Spikes.js";
-import { StageSegment } from "./StageSegment.js";
-import { StairsEntry } from "./StairsEntry.js";
-import { StopWatch } from "./StopWatch.js";
-import { SwoopingBat } from "./SwoopingBat.js";
 import { Thing } from "./Thing.js";
-import { ThingStack } from "./ThingStack.js";
-import { Torch } from "./Torch.js";
-import { WhiteSkeleton } from "./WhiteSkeleton.js";
-import { Wrapping } from "./Wrapping.js";
-import { Zombie } from "./Zombie.js";
-import { ZombieSpawner } from "./ZombieSpawner.js";
 
 export class Dracula extends Thing {
     public static readonly RISE_FADE_FRACTION: number = 1.0 / 80.0;
@@ -115,405 +53,405 @@ export class Dracula extends Thing {
     private dying: number = 0;
     private dieBatDelay: number = 0;
     public constructor(main: Main, x: number, y: number) {
-    super(main, 48, 96);
-    this.x = x;
-    this.y = y;
+        super(main, 48, 96);
+        this.x = x;
+        this.y = y;
 
-    this.headY = y + 64;
+        this.headY = y + 64;
 
-    for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-      this.draculaBats[i] = new DraculaBat(main);
-    }
-  
+        for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+            this.draculaBats[i] = new DraculaBat(main);
+        }
+
     }
     private headHit(): boolean {
-    if (this.direction == Main.LEFT) {
-      let x1: number = trunc(this.x) + 11;
-      let y1: number = trunc(this.y) - 16;
-      let x2: number = trunc(this.x) + 26;
-      let y2: number = trunc(this.y) + 15;
-      return this.main.intersectsWhip(x1, y1, x2, y2)
-          || this.main.intersectsWeapon(x1, y1, x2, y2);
-    } else {
-      let x1: number = trunc(this.x) + 21;
-      let y1: number = trunc(this.y) - 16;
-      let x2: number = trunc(this.x) + 36;
-      let y2: number = trunc(this.y) + 15;
-      return this.main.intersectsWhip(x1, y1, x2, y2)
-          || this.main.intersectsWeapon(x1, y1, x2, y2);
-    }
-  
+        if (this.direction == Main.LEFT) {
+            let x1: number = trunc(this.x) + 11;
+            let y1: number = trunc(this.y) - 16;
+            let x2: number = trunc(this.x) + 26;
+            let y2: number = trunc(this.y) + 15;
+            return this.main.intersectsWhip(x1, y1, x2, y2)
+                || this.main.intersectsWeapon(x1, y1, x2, y2);
+        } else {
+            let x1: number = trunc(this.x) + 21;
+            let y1: number = trunc(this.y) - 16;
+            let x2: number = trunc(this.x) + 36;
+            let y2: number = trunc(this.y) + 15;
+            return this.main.intersectsWhip(x1, y1, x2, y2)
+                || this.main.intersectsWeapon(x1, y1, x2, y2);
+        }
+
     }
     public update(gc: GameContainer): boolean {
 
-    if (this.state != Dracula.STATE_DYING) {
-      this.direction = this.x > (this.main.simon.x + 8) ? Main.LEFT : Main.RIGHT;
-    }
-    if (this.stunned > 0) {
-      this.stunned--;
-    }
+        if (this.state != Dracula.STATE_DYING) {
+            this.direction = this.x > (this.main.simon.x + 8) ? Main.LEFT : Main.RIGHT;
+        }
+        if (this.stunned > 0) {
+            this.stunned--;
+        }
 
-    if (this.state >= Dracula.STATE_CROUCHED && this.state <= Dracula.STATE_JUMPING) {
-      if (this.main.intersectsSimon(this)) {
-        this.main.hurtSimon(2);
-      }
-      if (this.stunned == 0 && (this.main.intersectsWhip(this)
-          || this.main.intersectsWeapon(this))) {
-        this.stunned = 100;
-        this.main.playSound(this.main.boss_hurt);
-        this.main.pushThing(new Spark(this.main, this));
-        if (this.hits > 0) {
-          this.hits--;
-          this.main.enemyPower = this.hits >> 1;
-          if (this.hits == 1) {
-            this.main.enemyPower = 1;
-          }
-        }
-      }
-      if (this.hits == 0 && this.state == Dracula.STATE_STANDING) {
-        this.main.killAll();
-        this.state = Dracula.STATE_FADE_TO_BATS_2;
-        this.main.playSound(this.main.dracula_to_bats);
-        this.monsterForm = false;
-        this.fadeToBats = 0;
-        this.targetX = 232;
-        this.batVx = (200 - this.x) / 182;
-        let batDirection: number = this.batVx > 0 ? Main.RIGHT : Main.LEFT;
-        for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-          let draculaBat: DraculaBat = this.draculaBats[i];
-          draculaBat.direction = batDirection;
-        }
-      }
-    }
-
-    switch(this.state) {
-      case Dracula.STATE_RESTING:
-        if (this.main.simon.x - this.main.simon.xMin < 150) {
-          this.main.killAll();
-          this.main.simon.xMax = 512;
-          this.state = Dracula.STATE_HEAD_RISING;
-        }
-        break;
-      case Dracula.STATE_HEAD_RISING:
-        if (this.headY > this.y - 16) {
-          this.headY -= 0.5;
-        } else {
-          this.state = Dracula.STATE_BODY_FADE_IN;
-        }
-        break;
-      case Dracula.STATE_BODY_FADE_IN:
-        if (++this.fadeIn == 91) {
-          this.firingDelay = 0;
-          this.state = Dracula.STATE_FIRING;
-        }
-        break;
-      case Dracula.STATE_FIRING:
-        if (this.main.intersectsSimon(this)) {
-          this.main.hurtSimon(2);
-        }
-        if (this.firingDelay++ == 0) {
-          this.capeOpen = true;
-          if (!this.releasedFoodOrb2 && this.hits <= 16) {
-            this.monsterForm = true;
-            this.releasedFoodOrb2 = true;
-            this.main.pushThing(new FoodOrb(this.main, this.x + 24, this.y + 24));
-            this.main.playSound(this.main.thunder);
-            this.main.requestSong(this.main.stage_1_2);
-          } else if (!this.releasedFoodOrb && this.hits <= 24) {
-            this.releasedFoodOrb = true;
-            this.main.pushThing(new FoodOrb(this.main, this.x + 24, this.y + 24));
-            this.main.playSound(this.main.thunder);
-          } else {
-            this.main.pushThing(new Fireball(this.main, this.x + 24, this.main.random.nextBoolean() ? this.y + 70 : this.y + 48, this.direction == Main.LEFT ? -1.5 : 1.5, 0));
-            if (this.hits <= 24) {
-              this.main.playSound(this.main.thunder);
-              let ghost: Ghost = new Ghost(this.main, this.x - 96, this.y + 64);
-              ghost.active = true;
-              ghost.hits = 1;
-              this.main.pushThing(ghost);
-              ghost = new Ghost(this.main, this.x + 112, this.y + 64);
-              ghost.active = true;
-              ghost.hits = 1;
-              this.main.pushThing(ghost);
+        if (this.state >= Dracula.STATE_CROUCHED && this.state <= Dracula.STATE_JUMPING) {
+            if (this.main.intersectsSimon(this)) {
+                this.main.hurtSimon(2);
             }
-          }
-          
-          if (this.x < 224) {
-            this.targetX = 224 + this.main.random.nextInt(208);
-          } else {
-            this.targetX = 16 + this.main.random.nextInt(208);
-          }
-          this.batVx = (this.targetX - this.x) / 182;
-          let batDirection: number = this.batVx > 0 ? Main.RIGHT : Main.LEFT;
-          for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-            let draculaBat: DraculaBat = this.draculaBats[i];
-            draculaBat.direction = batDirection;
-          }
-        } else if (this.firingDelay == 91) {
-          this.fadeToBats = 0;
-          this.state = Dracula.STATE_FADE_TO_BATS;
-          this.main.playSound(this.main.dracula_to_bats);
-        } else {
-          if (this.stunned == 0 && this.headHit()) {
-            this.stunned = 100;
-            this.main.playSound(this.main.boss_hurt);
-            this.main.pushThing(new Spark(this.main, this.x + 11, this.y - 16, 16, 32));
-            if (this.hits > 0) {
-              this.hits--;
-              this.main.enemyPower = this.hits >> 1;
-              if (this.hits == 1) {
-                this.main.enemyPower = 1;
-              } 
+            if (this.stunned == 0 && (this.main.intersectsWhip(this)
+                || this.main.intersectsWeapon(this))) {
+                this.stunned = 100;
+                this.main.playSound(this.main.boss_hurt);
+                this.main.pushThing(new Spark(this.main, this));
+                if (this.hits > 0) {
+                    this.hits--;
+                    this.main.enemyPower = this.hits >> 1;
+                    if (this.hits == 1) {
+                        this.main.enemyPower = 1;
+                    }
+                }
             }
-          } 
+            if (this.hits == 0 && this.state == Dracula.STATE_STANDING) {
+                this.main.killAll();
+                this.state = Dracula.STATE_FADE_TO_BATS_2;
+                this.main.playSound(this.main.dracula_to_bats);
+                this.monsterForm = false;
+                this.fadeToBats = 0;
+                this.targetX = 232;
+                this.batVx = (200 - this.x) / 182;
+                let batDirection: number = this.batVx > 0 ? Main.RIGHT : Main.LEFT;
+                for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                    let draculaBat: DraculaBat = this.draculaBats[i];
+                    draculaBat.direction = batDirection;
+                }
+            }
         }
-        break;
-      case Dracula.STATE_FADE_TO_BATS:
-        if (this.fadeToBats++ == 0) {
-          for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-            let draculaBat: DraculaBat = this.draculaBats[i];
-            draculaBat.x = this.x + this.main.random.nextInt(96) - 48;
-            draculaBat.Y = draculaBat.y = this.y - 16 + this.main.random.nextInt(80);
-            draculaBat.amplitude = this.main.random.nextInt(352) - 176;
-          }
-        } else if (this.fadeToBats < 45) {
-          for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-            this.draculaBats[i].update(gc);
-          }
-        } else {
-          this.state = Dracula.STATE_BATS_MOVING;
-          this.x = this.targetX;
-          if (this.monsterForm) {
-            this.y -= 64;
-          }
-          this.batsMoving = 0;
-        }
-        break;
-      case Dracula.STATE_FADE_TO_BATS_2:
-        if (this.fadeToBats++ == 0) {
-          for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-            let draculaBat: DraculaBat = this.draculaBats[i];
-            draculaBat.x = this.x + this.main.random.nextInt(96) - 16;
-            draculaBat.Y = draculaBat.y = 48 + this.y + this.main.random.nextInt(80);
-            draculaBat.amplitude = this.main.random.nextInt(352) - 176;
-          }
-        } else if (this.fadeToBats < 45) {
-          for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-            this.draculaBats[i].update(gc);
-          }
-        } else {
-          this.state = Dracula.STATE_BATS_MOVING;
-          this.x = this.targetX;
-          this.y += 64;
-          this.batsMoving = 0;
-        }
-        break;
-      case Dracula.STATE_BATS_MOVING:
-        if (++this.batsMoving < 182) {
-          for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-            let draculaBat: DraculaBat = this.draculaBats[i];
-            draculaBat.x += this.batVx;
-            draculaBat.y = draculaBat.Y + (draculaBat.amplitude
-                * Math.sin(Dracula.ANGLE_SCALE * this.batsMoving));
-            this.draculaBats[i].update(gc);
-          }
-        } else {
-          if (this.monsterForm) {
-            this.state = Dracula.STATE_FADE_TO_MONSTER;
-          } else {
-            this.state = Dracula.STATE_FADE_TO_DRACULA;
-          }
-          this.fadeToDracula = 0;
-        }
-        break;
-      case Dracula.STATE_FADE_TO_DRACULA:
-        if (++this.fadeToDracula < 45) {
-          for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-            this.draculaBats[i].update(gc);
-          }
-        } else {
-          if (this.hits == 0) {
-            this.state = Dracula.STATE_DYING;
-            this.main.requestMusic(this.main.dracula_dead);
-          } else {
-            this.firingDelay = 0;
-            this.state = Dracula.STATE_FIRING;
-          }
-        }
-        break;
-      case Dracula.STATE_FADE_TO_MONSTER:
-        if (++this.fadeToDracula < 45) {
-          for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-            this.draculaBats[i].update(gc);
-          }
-        } else {
-          this.firingDelay = 0;
-          this.state = Dracula.STATE_CROUCHED;
-          this.monsterDelay = 45;
-        }
-        break;
-      case Dracula.STATE_CROUCHED:
-        this.rx1 = 0;
-        this.rx2 = 95;
-        this.ry1 = 64;
-        this.ry2 = 157;
-        if (--this.monsterDelay == 0) {
-          this.rx1 = 0;
-          this.rx2 = 95;
-          this.ry1 = 32;
-          this.ry2 = 159;
-          this.state = Dracula.STATE_STANDING_UP;
-          this.monsterDelay = 45;
-          this.vy = -4;
-        }
-        break;
-      case Dracula.STATE_STANDING_UP:
-        this.applyGravity();
-        if (this.supported) {
-          this.monsterDelay = 45;
-          this.state = Dracula.STATE_STANDING;
-        }
-        break;
-      case Dracula.STATE_STANDING:
-        if (--this.monsterDelay == 0) {
-          this.state = Dracula.STATE_JUMPING;
-          this.vy = Dracula.JUMP_VELOCITY;
-          this.targetX = this.main.simon.x + this.main.random.nextInt(128) - 80;
-          this.vx = (this.targetX - this.x) / Dracula.JUMP_TIME;
-        }
-        break;
-      case Dracula.STATE_JUMPING:
-        this.moveX(this.vx);
-        this.applyGravity();
-        if (this.supported) {
-          this.main.playSound(this.main.lands);
-          this.state = Dracula.STATE_CROUCHED;
-          this.monsterDelay = 45;
-        }
-        break;
-      case Dracula.STATE_DYING:
-        if (++this.dying == 910) {
-          this.main.addPoints(50000);
-          this.main.pushThing(new Orb(this.main, this.main.simon.xMin + 240, 96, 91));
-          return false;
-        }
-        if (this.dieBatDelay == 0) {
-          this.dieBatDelay = 45;
-          this.main.pushThing(new DieBat(this.main, this.x + this.main.random.nextInt(80) - 32, this.y + this.main.random.nextInt(64)));
-        } else {
-          this.dieBatDelay--;
-        }
-        break;
-    }
 
-    return true;
-  
+        switch (this.state) {
+            case Dracula.STATE_RESTING:
+                if (this.main.simon.x - this.main.simon.xMin < 150) {
+                    this.main.killAll();
+                    this.main.simon.xMax = 512;
+                    this.state = Dracula.STATE_HEAD_RISING;
+                }
+                break;
+            case Dracula.STATE_HEAD_RISING:
+                if (this.headY > this.y - 16) {
+                    this.headY -= 0.5;
+                } else {
+                    this.state = Dracula.STATE_BODY_FADE_IN;
+                }
+                break;
+            case Dracula.STATE_BODY_FADE_IN:
+                if (++this.fadeIn == 91) {
+                    this.firingDelay = 0;
+                    this.state = Dracula.STATE_FIRING;
+                }
+                break;
+            case Dracula.STATE_FIRING:
+                if (this.main.intersectsSimon(this)) {
+                    this.main.hurtSimon(2);
+                }
+                if (this.firingDelay++ == 0) {
+                    this.capeOpen = true;
+                    if (!this.releasedFoodOrb2 && this.hits <= 16) {
+                        this.monsterForm = true;
+                        this.releasedFoodOrb2 = true;
+                        this.main.pushThing(new FoodOrb(this.main, this.x + 24, this.y + 24));
+                        this.main.playSound(this.main.thunder);
+                        this.main.requestSong(this.main.stage_1_2);
+                    } else if (!this.releasedFoodOrb && this.hits <= 24) {
+                        this.releasedFoodOrb = true;
+                        this.main.pushThing(new FoodOrb(this.main, this.x + 24, this.y + 24));
+                        this.main.playSound(this.main.thunder);
+                    } else {
+                        this.main.pushThing(new Fireball(this.main, this.x + 24, this.main.random.nextBoolean() ? this.y + 70 : this.y + 48, this.direction == Main.LEFT ? -1.5 : 1.5, 0));
+                        if (this.hits <= 24) {
+                            this.main.playSound(this.main.thunder);
+                            let ghost: Ghost = new Ghost(this.main, this.x - 96, this.y + 64);
+                            ghost.active = true;
+                            ghost.hits = 1;
+                            this.main.pushThing(ghost);
+                            ghost = new Ghost(this.main, this.x + 112, this.y + 64);
+                            ghost.active = true;
+                            ghost.hits = 1;
+                            this.main.pushThing(ghost);
+                        }
+                    }
+
+                    if (this.x < 224) {
+                        this.targetX = 224 + this.main.random.nextInt(208);
+                    } else {
+                        this.targetX = 16 + this.main.random.nextInt(208);
+                    }
+                    this.batVx = (this.targetX - this.x) / 182;
+                    let batDirection: number = this.batVx > 0 ? Main.RIGHT : Main.LEFT;
+                    for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                        let draculaBat: DraculaBat = this.draculaBats[i];
+                        draculaBat.direction = batDirection;
+                    }
+                } else if (this.firingDelay == 91) {
+                    this.fadeToBats = 0;
+                    this.state = Dracula.STATE_FADE_TO_BATS;
+                    this.main.playSound(this.main.dracula_to_bats);
+                } else {
+                    if (this.stunned == 0 && this.headHit()) {
+                        this.stunned = 100;
+                        this.main.playSound(this.main.boss_hurt);
+                        this.main.pushThing(new Spark(this.main, this.x + 11, this.y - 16, 16, 32));
+                        if (this.hits > 0) {
+                            this.hits--;
+                            this.main.enemyPower = this.hits >> 1;
+                            if (this.hits == 1) {
+                                this.main.enemyPower = 1;
+                            }
+                        }
+                    }
+                }
+                break;
+            case Dracula.STATE_FADE_TO_BATS:
+                if (this.fadeToBats++ == 0) {
+                    for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                        let draculaBat: DraculaBat = this.draculaBats[i];
+                        draculaBat.x = this.x + this.main.random.nextInt(96) - 48;
+                        draculaBat.Y = draculaBat.y = this.y - 16 + this.main.random.nextInt(80);
+                        draculaBat.amplitude = this.main.random.nextInt(352) - 176;
+                    }
+                } else if (this.fadeToBats < 45) {
+                    for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                        this.draculaBats[i].update(gc);
+                    }
+                } else {
+                    this.state = Dracula.STATE_BATS_MOVING;
+                    this.x = this.targetX;
+                    if (this.monsterForm) {
+                        this.y -= 64;
+                    }
+                    this.batsMoving = 0;
+                }
+                break;
+            case Dracula.STATE_FADE_TO_BATS_2:
+                if (this.fadeToBats++ == 0) {
+                    for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                        let draculaBat: DraculaBat = this.draculaBats[i];
+                        draculaBat.x = this.x + this.main.random.nextInt(96) - 16;
+                        draculaBat.Y = draculaBat.y = 48 + this.y + this.main.random.nextInt(80);
+                        draculaBat.amplitude = this.main.random.nextInt(352) - 176;
+                    }
+                } else if (this.fadeToBats < 45) {
+                    for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                        this.draculaBats[i].update(gc);
+                    }
+                } else {
+                    this.state = Dracula.STATE_BATS_MOVING;
+                    this.x = this.targetX;
+                    this.y += 64;
+                    this.batsMoving = 0;
+                }
+                break;
+            case Dracula.STATE_BATS_MOVING:
+                if (++this.batsMoving < 182) {
+                    for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                        let draculaBat: DraculaBat = this.draculaBats[i];
+                        draculaBat.x += this.batVx;
+                        draculaBat.y = draculaBat.Y + (draculaBat.amplitude
+                            * Math.sin(Dracula.ANGLE_SCALE * this.batsMoving));
+                        this.draculaBats[i].update(gc);
+                    }
+                } else {
+                    if (this.monsterForm) {
+                        this.state = Dracula.STATE_FADE_TO_MONSTER;
+                    } else {
+                        this.state = Dracula.STATE_FADE_TO_DRACULA;
+                    }
+                    this.fadeToDracula = 0;
+                }
+                break;
+            case Dracula.STATE_FADE_TO_DRACULA:
+                if (++this.fadeToDracula < 45) {
+                    for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                        this.draculaBats[i].update(gc);
+                    }
+                } else {
+                    if (this.hits == 0) {
+                        this.state = Dracula.STATE_DYING;
+                        this.main.requestMusic(this.main.dracula_dead);
+                    } else {
+                        this.firingDelay = 0;
+                        this.state = Dracula.STATE_FIRING;
+                    }
+                }
+                break;
+            case Dracula.STATE_FADE_TO_MONSTER:
+                if (++this.fadeToDracula < 45) {
+                    for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                        this.draculaBats[i].update(gc);
+                    }
+                } else {
+                    this.firingDelay = 0;
+                    this.state = Dracula.STATE_CROUCHED;
+                    this.monsterDelay = 45;
+                }
+                break;
+            case Dracula.STATE_CROUCHED:
+                this.rx1 = 0;
+                this.rx2 = 95;
+                this.ry1 = 64;
+                this.ry2 = 157;
+                if (--this.monsterDelay == 0) {
+                    this.rx1 = 0;
+                    this.rx2 = 95;
+                    this.ry1 = 32;
+                    this.ry2 = 159;
+                    this.state = Dracula.STATE_STANDING_UP;
+                    this.monsterDelay = 45;
+                    this.vy = -4;
+                }
+                break;
+            case Dracula.STATE_STANDING_UP:
+                this.applyGravity();
+                if (this.supported) {
+                    this.monsterDelay = 45;
+                    this.state = Dracula.STATE_STANDING;
+                }
+                break;
+            case Dracula.STATE_STANDING:
+                if (--this.monsterDelay == 0) {
+                    this.state = Dracula.STATE_JUMPING;
+                    this.vy = Dracula.JUMP_VELOCITY;
+                    this.targetX = this.main.simon.x + this.main.random.nextInt(128) - 80;
+                    this.vx = (this.targetX - this.x) / Dracula.JUMP_TIME;
+                }
+                break;
+            case Dracula.STATE_JUMPING:
+                this.moveX(this.vx);
+                this.applyGravity();
+                if (this.supported) {
+                    this.main.playSound(this.main.lands);
+                    this.state = Dracula.STATE_CROUCHED;
+                    this.monsterDelay = 45;
+                }
+                break;
+            case Dracula.STATE_DYING:
+                if (++this.dying == 910) {
+                    this.main.addPoints(50000);
+                    this.main.pushThing(new Orb(this.main, this.main.simon.xMin + 240, 96, 91));
+                    return false;
+                }
+                if (this.dieBatDelay == 0) {
+                    this.dieBatDelay = 45;
+                    this.main.pushThing(new DieBat(this.main, this.x + this.main.random.nextInt(80) - 32, this.y + this.main.random.nextInt(64)));
+                } else {
+                    this.dieBatDelay--;
+                }
+                break;
+        }
+
+        return true;
+
     }
     public render(gc: GameContainer, g: Graphics): void {
 
-    switch(this.state) {
-      case Dracula.STATE_RESTING:
-        break;
-      case Dracula.STATE_HEAD_RISING:
-        this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 11, this.headY, 1 - Dracula.RISE_FADE_FRACTION * (this.headY - (this.y - 16)));
-        break;
-      case Dracula.STATE_BODY_FADE_IN:
-        this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16);
-        this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, this.fadeIn * Dracula.FADE_IN_FRACTION);
-        break;
-      case Dracula.STATE_FADE_TO_BATS: {
-        let fade: number = this.fadeToBats * Dracula.FADE_TO_BATS_FRACTION;
-        for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-          this.draculaBats[i].render(gc, g, fade);
+        switch (this.state) {
+            case Dracula.STATE_RESTING:
+                break;
+            case Dracula.STATE_HEAD_RISING:
+                this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 11, this.headY, 1 - Dracula.RISE_FADE_FRACTION * (this.headY - (this.y - 16)));
+                break;
+            case Dracula.STATE_BODY_FADE_IN:
+                this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16);
+                this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, this.fadeIn * Dracula.FADE_IN_FRACTION);
+                break;
+            case Dracula.STATE_FADE_TO_BATS: {
+                let fade: number = this.fadeToBats * Dracula.FADE_TO_BATS_FRACTION;
+                for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                    this.draculaBats[i].render(gc, g, fade);
+                }
+                fade = 1 - fade;
+                if (this.direction == Main.LEFT) {
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16, fade);
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
+                } else {
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 21, this.y - 16, fade);
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
+                }
+                break;
+            }
+            case Dracula.STATE_FADE_TO_BATS_2: {
+                let fade: number = this.fadeToBats * Dracula.FADE_TO_BATS_FRACTION;
+                for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                    this.draculaBats[i].render(gc, g, fade);
+                }
+                this.main.drawFaded(this.main.draculaBoss[this.direction][4], this.x, this.y, 1 - fade);
+                break;
+            }
+            case Dracula.STATE_BATS_MOVING:
+                for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                    this.draculaBats[i].render(gc, g);
+                }
+                break;
+            case Dracula.STATE_FADE_TO_DRACULA: {
+                let fade: number = this.fadeToDracula * Dracula.FADE_TO_BATS_FRACTION;
+                for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                    this.draculaBats[i].render(gc, g, 1 - fade);
+                }
+                if (this.direction == Main.LEFT) {
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16, fade);
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
+                } else {
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 21, this.y - 16, fade);
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
+                }
+                break;
+            }
+            case Dracula.STATE_FADE_TO_MONSTER: {
+                let fade: number = this.fadeToDracula * Dracula.FADE_TO_BATS_FRACTION;
+                for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
+                    this.draculaBats[i].render(gc, g, 1 - fade);
+                }
+                this.main.drawFaded(this.main.draculaBoss[this.direction][6], this.x, this.y + 35, fade);
+                break;
+            }
+            case Dracula.STATE_CROUCHED:
+                this.main.draw(this.main.draculaBoss[this.direction][6], this.x, this.y + 35);
+                break;
+            case Dracula.STATE_STANDING_UP:
+                this.main.draw(this.main.draculaBoss[this.direction][5], this.x, this.y);
+                break;
+            case Dracula.STATE_STANDING:
+                this.main.draw(this.main.draculaBoss[this.direction][4], this.x, this.y);
+                break;
+            case Dracula.STATE_JUMPING:
+                this.main.draw(this.main.draculaBoss[this.direction][3], this.x, this.y);
+                break;
+            case Dracula.STATE_DYING: {
+                let fade: number = 1 - this.dying * Dracula.DIE_FRACTION;
+                if (this.direction == Main.LEFT) {
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16, fade);
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
+                } else {
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 21, this.y - 16, fade);
+                    this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
+                }
+                break;
+            }
+            default:
+                if (this.direction == Main.LEFT) {
+                    if (this.capeOpen) {
+                        this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 12, this.y - 16);
+                        this.main.draw(this.main.draculaBoss[this.direction][2], this.x, this.y);
+                    } else {
+                        this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16);
+                        this.main.draw(this.main.draculaBoss[this.direction][1], this.x, this.y);
+                    }
+                } else {
+                    if (this.capeOpen) {
+                        this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 20, this.y - 16);
+                        this.main.draw(this.main.draculaBoss[this.direction][2], this.x - 16, this.y);
+                    } else {
+                        this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 21, this.y - 16);
+                        this.main.draw(this.main.draculaBoss[this.direction][1], this.x, this.y);
+                    }
+                }
+                break;
         }
-        fade = 1 - fade;
-        if (this.direction == Main.LEFT) {
-          this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16, fade);
-          this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
-        } else {
-          this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 21, this.y - 16, fade);
-          this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
-        }
-        break;
-      }
-      case Dracula.STATE_FADE_TO_BATS_2: {
-        let fade: number = this.fadeToBats * Dracula.FADE_TO_BATS_FRACTION;
-        for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-          this.draculaBats[i].render(gc, g, fade);
-        }
-        this.main.drawFaded(this.main.draculaBoss[this.direction][4], this.x, this.y, 1 - fade);
-        break;
-      }
-      case Dracula.STATE_BATS_MOVING:
-        for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-          this.draculaBats[i].render(gc, g);
-        }
-        break;
-      case Dracula.STATE_FADE_TO_DRACULA: {
-        let fade: number = this.fadeToDracula * Dracula.FADE_TO_BATS_FRACTION;
-        for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-          this.draculaBats[i].render(gc, g, 1 - fade);
-        }
-        if (this.direction == Main.LEFT) {
-          this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16, fade);
-          this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
-        } else {
-          this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 21, this.y - 16, fade);
-          this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
-        }
-        break;
-      }
-      case Dracula.STATE_FADE_TO_MONSTER: {
-        let fade: number = this.fadeToDracula * Dracula.FADE_TO_BATS_FRACTION;
-        for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
-          this.draculaBats[i].render(gc, g, 1 - fade);
-        }
-        this.main.drawFaded(this.main.draculaBoss[this.direction][6], this.x, this.y + 35, fade);
-        break;
-      }
-      case Dracula.STATE_CROUCHED:
-        this.main.draw(this.main.draculaBoss[this.direction][6], this.x, this.y + 35);
-        break;
-      case Dracula.STATE_STANDING_UP:
-        this.main.draw(this.main.draculaBoss[this.direction][5], this.x, this.y);
-        break;
-      case Dracula.STATE_STANDING:
-        this.main.draw(this.main.draculaBoss[this.direction][4], this.x, this.y);
-        break;
-      case Dracula.STATE_JUMPING:
-        this.main.draw(this.main.draculaBoss[this.direction][3], this.x, this.y);
-        break;
-      case Dracula.STATE_DYING: {
-        let fade: number = 1 - this.dying * Dracula.DIE_FRACTION;
-        if (this.direction == Main.LEFT) {
-          this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16, fade);
-          this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
-        } else {
-          this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 21, this.y - 16, fade);
-          this.main.drawFaded(this.main.draculaBoss[this.direction][1], this.x, this.y, fade);
-        }
-        break;
-      }
-      default:
-        if (this.direction == Main.LEFT) {
-          if (this.capeOpen) {
-            this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 12, this.y - 16);
-            this.main.draw(this.main.draculaBoss[this.direction][2], this.x, this.y);
-          } else {
-            this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16);
-            this.main.draw(this.main.draculaBoss[this.direction][1], this.x, this.y);
-          }
-        } else {
-          if (this.capeOpen) {
-            this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 20, this.y - 16);
-            this.main.draw(this.main.draculaBoss[this.direction][2], this.x - 16, this.y);
-          } else {
-            this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 21, this.y - 16);
-            this.main.draw(this.main.draculaBoss[this.direction][1], this.x, this.y);
-          }
-        }
-        break;
-    }
-  
+
     }
 }

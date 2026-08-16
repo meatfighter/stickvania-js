@@ -1,76 +1,11 @@
-import { AL, AppGameContainer, ApplicationGameContainer, BasicGame, BufferUtils, Color, Cursor, CursorLoader, Display, DisplayMode, FastTrig, GameContainer, Graphics, Image, ImageData, Input, JavaRandom, LWJGLException, Log, Music, PackedSpriteSheet, PixelFormat, Renderer, SlickException, Sound, SoundStore, SpriteSheet, Sys, Mouse, ResourceLoader } from "slick2d-ts";
-import { cc, chr, idiv, makeArray, make2D, make3D, make4D, readBinaryResource, readResourceLines, toInt, trunc } from "./JavaMath.js";
-import { AppletGameContainer2 } from "./AppletGameContainer2.js";
-import { Axe } from "./Axe.js";
-import { AxeKnight } from "./AxeKnight.js";
-import { Bat } from "./Bat.js";
-import { BatBoss } from "./BatBoss.js";
-import { BatSpawner } from "./BatSpawner.js";
-import { Bird } from "./Bird.js";
-import { BirdSpawner } from "./BirdSpawner.js";
-import { Bone } from "./Bone.js";
+import { FastTrig, GameContainer, Graphics } from "slick2d-ts";
 import { BoneDragonVertebra } from "./BoneDragonVertebra.js";
-import { BonePillar } from "./BonePillar.js";
-import { Boomerang } from "./Boomerang.js";
-import { BoomerangAxe } from "./BoomerangAxe.js";
-import { BreakWall } from "./BreakWall.js";
-import { BrickFragment } from "./BrickFragment.js";
-import { BridgeBat } from "./BridgeBat.js";
-import { Candles } from "./Candles.js";
-import { Checkpoint } from "./Checkpoint.js";
-import { Dagger } from "./Dagger.js";
-import { DieBat } from "./DieBat.js";
-import { Dog } from "./Dog.js";
-import { Door } from "./Door.js";
-import { Dracula } from "./Dracula.js";
-import { DraculaBat } from "./DraculaBat.js";
-import { DropItem } from "./DropItem.js";
-import { Droplets } from "./Droplets.js";
-import { FadingStairs } from "./FadingStairs.js";
 import { Fireball } from "./Fireball.js";
 import { Flame } from "./Flame.js";
-import { FloatingPoints } from "./FloatingPoints.js";
-import { FloorBreaker } from "./FloorBreaker.js";
-import { FoodOrb } from "./FoodOrb.js";
-import { Frankenstein } from "./Frankenstein.js";
-import { Ghost } from "./Ghost.js";
-import { GrimReaper } from "./GrimReaper.js";
-import { HolyWater } from "./HolyWater.js";
-import { Igor } from "./Igor.js";
-import { LanceKnight } from "./LanceKnight.js";
+import { makeArray, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
-import { MedusaBoss } from "./MedusaBoss.js";
-import { MedusaHead } from "./MedusaHead.js";
-import { MedusaHeadSpawner } from "./MedusaHeadSpawner.js";
-import { Merman } from "./Merman.js";
-import { MermanSpawner } from "./MermanSpawner.js";
-import { MovingPlatform } from "./MovingPlatform.js";
-import { MummyBoss } from "./MummyBoss.js";
-import { Orb } from "./Orb.js";
-import { Raven } from "./Raven.js";
-import { RedSkeleton } from "./RedSkeleton.js";
-import { Region } from "./Region.js";
-import { ScalableGame2 } from "./ScalableGame2.js";
-import { Secret } from "./Secret.js";
-import { ShootingSpark } from "./ShootingSpark.js";
-import { Sickle } from "./Sickle.js";
-import { Simon } from "./Simon.js";
-import { SmallHeart } from "./SmallHeart.js";
-import { Snakes } from "./Snakes.js";
-import { Song } from "./Song.js";
 import { Spark } from "./Spark.js";
-import { Spikes } from "./Spikes.js";
-import { StageSegment } from "./StageSegment.js";
-import { StairsEntry } from "./StairsEntry.js";
-import { StopWatch } from "./StopWatch.js";
-import { SwoopingBat } from "./SwoopingBat.js";
 import { Thing } from "./Thing.js";
-import { ThingStack } from "./ThingStack.js";
-import { Torch } from "./Torch.js";
-import { WhiteSkeleton } from "./WhiteSkeleton.js";
-import { Wrapping } from "./Wrapping.js";
-import { Zombie } from "./Zombie.js";
-import { ZombieSpawner } from "./ZombieSpawner.js";
 
 export class BoneDragon extends Thing {
     private readonly A0: number = 0;
@@ -101,151 +36,151 @@ export class BoneDragon extends Thing {
     private minIndex: number = 0;
     private deadDelay: number = 23;
     public constructor(main: Main, x: number, y: number, item: number, avoidFloor: boolean) {
-    super(main, 32, 32);
-    this.x = x;
-    this.y = y;
-    this.item = item;
-    this.hits = main.adjustEnemyHits(this.hits);
+        super(main, 32, 32);
+        this.x = x;
+        this.y = y;
+        this.item = item;
+        this.hits = main.adjustEnemyHits(this.hits);
 
-    this.X = x + 32;
-    this.Y = y;
+        this.X = x + 32;
+        this.Y = y;
 
-    for (let i: number = 0; i < this.vertebrae.length; i++) {
-      this.vertebrae[i] = new BoneDragonVertebra(main, x + 16, y);
-    }
+        for (let i: number = 0; i < this.vertebrae.length; i++) {
+            this.vertebrae[i] = new BoneDragonVertebra(main, x + 16, y);
+        }
 
-    if (avoidFloor) {
-      this.A0 = (Math.PI / 12);
-      this.A1 = (Math.PI + Math.PI / 8);
-      this.A2 = (Math.PI / 14);
-    } else {
-      this.A0 = (Math.PI / 6);
-      this.A1 = (Math.PI);
-      this.A2 = (Math.PI / 7);
-    }
-  
+        if (avoidFloor) {
+            this.A0 = (Math.PI / 12);
+            this.A1 = (Math.PI + Math.PI / 8);
+            this.A2 = (Math.PI / 14);
+        } else {
+            this.A0 = (Math.PI / 6);
+            this.A1 = (Math.PI);
+            this.A2 = (Math.PI / 7);
+        }
+
     }
     public update(gc: GameContainer): boolean {
 
-    if (this.dead) {
-      if (--this.deadDelay == 0) {
-        let vertebra: BoneDragonVertebra = this.vertebrae[this.minIndex];
-        this.deadDelay = 23;
-        this.main.pushThing(this.main.createCandleItem(trunc(vertebra.x - 8), trunc(vertebra.y), this.item));
-        this.main.pushThing(new Flame(this.main, vertebra.x - 8, vertebra.y, 0, 0, -0.05, 0, 10));
-        this.main.playSound(this.main.snuffed);
-        if (++this.minIndex == 6) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    if (this.kill) {
-      this.hits = 0;
-      this.stunned = 0;
-    }
-
-    if (this.stunned > 0) {
-      this.stunned--;
-    } else if (this.main.intersectsWhip(this)
-        || this.main.intersectsWeapon(this) || this.kill) {
-      this.main.pushThing(new Spark(this.main, this));
-      if (--this.hits <= 0) {
-        this.dead = true;
-        this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item));
-        this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
-        this.main.addPoints(1000);
-        this.main.playSound(this.main.crumble_sfx);
-        return true;
-      } else {
-        this.stunned = 45;
-        this.main.playSound(this.main.stunned);
-      }
-    }
-
-    if (this.main.intersectsSimon(this)) {
-      this.main.hurtSimon(2);
-    }
-
-    if (this.main.timeFrozen == 0) {
-      if (this.active) {
-        if (this.mouthOpen > 0) {
-          this.mouthOpen--;
+        if (this.dead) {
+            if (--this.deadDelay == 0) {
+                let vertebra: BoneDragonVertebra = this.vertebrae[this.minIndex];
+                this.deadDelay = 23;
+                this.main.pushThing(this.main.createCandleItem(trunc(vertebra.x - 8), trunc(vertebra.y), this.item));
+                this.main.pushThing(new Flame(this.main, vertebra.x - 8, vertebra.y, 0, 0, -0.05, 0, 10));
+                this.main.playSound(this.main.snuffed);
+                if (++this.minIndex == 6) {
+                    return false;
+                }
+            }
+            return true;
         }
 
-        if (this.radius < 128) {
-          this.radius += 1;
-        } else if (this.shootDelay == 0) {
-          this.shootDelay = this.main.adjustEnemyCooldown(91 + this.main.random.nextInt(273));
-          this.mouthOpen = 46;
-          this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 8, -1.5, 0));
-          this.main.playSound(this.main.fire_ball_shot);
-        } else {
-          this.shootDelay--;
+        if (this.kill) {
+            this.hits = 0;
+            this.stunned = 0;
         }
 
-        this.angle = this.A1 + this.A0 * FastTrig.sin(this.angle2)
-            + this.A2 * FastTrig.sin(this.angle3);
-        this.angle2 += BoneDragon.dAngle2;
-        this.angle3 += BoneDragon.dAngle3;
+        if (this.stunned > 0) {
+            this.stunned--;
+        } else if (this.main.intersectsWhip(this)
+            || this.main.intersectsWeapon(this) || this.kill) {
+            this.main.pushThing(new Spark(this.main, this));
+            if (--this.hits <= 0) {
+                this.dead = true;
+                this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item));
+                this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
+                this.main.addPoints(1000);
+                this.main.playSound(this.main.crumble_sfx);
+                return true;
+            } else {
+                this.stunned = 45;
+                this.main.playSound(this.main.stunned);
+            }
+        }
 
-        let angle5: number = this.angle + this.angle4;
-        this.angle4 += BoneDragon.dAngle4;
-
-        let cos: number = FastTrig.cos(this.angle);
-        let sin: number = FastTrig.sin(this.angle);
-        let rInc: number = this.radius * .125;
-        let r: number = rInc;
-        this.tx = this.X + this.radius * cos;
-        this.ty = this.Y + this.radius * sin;
-
-        this.moveX(this.tx - this.x);
-        this.moveY(this.ty - this.y);
-
-        let ux: number = cos;
-        let uy: number = sin;
-        let vx: number = -uy;
-        let vy: number = ux;
-        let offset: number = 12 * FastTrig.sin(angle5);
-
-        let ang: number = BoneDragon.A4 * this.angle;
-
-        for (let i: number = 5; i >= 0; i--, r += rInc) {
-          let vertebra: BoneDragonVertebra = this.vertebrae[i];
-
-          if (this.main.intersectsSimon(vertebra)) {
+        if (this.main.intersectsSimon(this)) {
             this.main.hurtSimon(2);
-          }
-
-          vertebra.angle = ang;
-
-          let u: number = r;
-          let v: number = 12 * FastTrig.sin(angle5) - offset;
-          angle5 += BoneDragon.A3;
-
-          vertebra.tx = this.X + u * ux + v * vx;
-          vertebra.ty = this.Y + u * uy + v * vy;
-
-          vertebra.moveX(vertebra.tx - vertebra.x);
-          vertebra.moveY(vertebra.ty - vertebra.y);
         }
-      } else if (Math.abs(this.main.simon.x - this.x) < 256) {
-        this.active = true;
-      }
-    }
 
-    return true;
-  
+        if (this.main.timeFrozen == 0) {
+            if (this.active) {
+                if (this.mouthOpen > 0) {
+                    this.mouthOpen--;
+                }
+
+                if (this.radius < 128) {
+                    this.radius += 1;
+                } else if (this.shootDelay == 0) {
+                    this.shootDelay = this.main.adjustEnemyCooldown(91 + this.main.random.nextInt(273));
+                    this.mouthOpen = 46;
+                    this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 8, -1.5, 0));
+                    this.main.playSound(this.main.fire_ball_shot);
+                } else {
+                    this.shootDelay--;
+                }
+
+                this.angle = this.A1 + this.A0 * FastTrig.sin(this.angle2)
+                    + this.A2 * FastTrig.sin(this.angle3);
+                this.angle2 += BoneDragon.dAngle2;
+                this.angle3 += BoneDragon.dAngle3;
+
+                let angle5: number = this.angle + this.angle4;
+                this.angle4 += BoneDragon.dAngle4;
+
+                let cos: number = FastTrig.cos(this.angle);
+                let sin: number = FastTrig.sin(this.angle);
+                let rInc: number = this.radius * .125;
+                let r: number = rInc;
+                this.tx = this.X + this.radius * cos;
+                this.ty = this.Y + this.radius * sin;
+
+                this.moveX(this.tx - this.x);
+                this.moveY(this.ty - this.y);
+
+                let ux: number = cos;
+                let uy: number = sin;
+                let vx: number = -uy;
+                let vy: number = ux;
+                let offset: number = 12 * FastTrig.sin(angle5);
+
+                let ang: number = BoneDragon.A4 * this.angle;
+
+                for (let i: number = 5; i >= 0; i--, r += rInc) {
+                    let vertebra: BoneDragonVertebra = this.vertebrae[i];
+
+                    if (this.main.intersectsSimon(vertebra)) {
+                        this.main.hurtSimon(2);
+                    }
+
+                    vertebra.angle = ang;
+
+                    let u: number = r;
+                    let v: number = 12 * FastTrig.sin(angle5) - offset;
+                    angle5 += BoneDragon.A3;
+
+                    vertebra.tx = this.X + u * ux + v * vx;
+                    vertebra.ty = this.Y + u * uy + v * vy;
+
+                    vertebra.moveX(vertebra.tx - vertebra.x);
+                    vertebra.moveY(vertebra.ty - vertebra.y);
+                }
+            } else if (Math.abs(this.main.simon.x - this.x) < 256) {
+                this.active = true;
+            }
+        }
+
+        return true;
+
     }
     public render(gc: GameContainer, g: Graphics): void {
 
-    if (!this.dead) {
-      this.main.draw(this.mouthOpen > 0 ? this.main.boneDragons[1] : this.main.boneDragons[0], this.x, this.y);
-    }
-    for (let i: number = 5; i >= this.minIndex; i--) {
-      this.vertebrae[i].render(gc, g);
-    }
-  
+        if (!this.dead) {
+            this.main.draw(this.mouthOpen > 0 ? this.main.boneDragons[1] : this.main.boneDragons[0], this.x, this.y);
+        }
+        for (let i: number = 5; i >= this.minIndex; i--) {
+            this.vertebrae[i].render(gc, g);
+        }
+
     }
 }

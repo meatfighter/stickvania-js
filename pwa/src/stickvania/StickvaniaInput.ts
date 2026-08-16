@@ -204,8 +204,8 @@ export class StickvaniaInput {
             }
             for (let i = 0; i < gamepad.buttons.length; i++) {
                 if (!StickvaniaInput.isDirectionalGamepadButton(i)
-                        && !this.isMappedDirectionButton(i)
-                        && gamepad.buttons[i]?.pressed === true) {
+                    && !this.isMappedDirectionButton(i)
+                    && gamepad.buttons[i]?.pressed === true) {
                     return true;
                 }
             }

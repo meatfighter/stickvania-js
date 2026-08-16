@@ -42,7 +42,7 @@ export class Song {
     public update(): void {
         if (this.playing) {
             if ((this.intro === null || !this.intro.playing())
-                    && this.loop !== null && !this.loop.playing()) {
+                && this.loop !== null && !this.loop.playing()) {
                 this.loop.loop();
             }
         }

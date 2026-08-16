@@ -441,7 +441,7 @@ async function preloadPreparedResources(resourceRefs: readonly string[]): Promis
 
 function scheduleBackgroundPreparation(): void {
     if (backgroundPreparationScheduled || preparedRuntime !== null
-            || preparationPromise !== null || preparationError !== null) {
+        || preparationPromise !== null || preparationError !== null) {
         return;
     }
     backgroundPreparationScheduled = true;
@@ -488,7 +488,7 @@ function hasPotentialSavedGameState(): boolean {
         if (text === null) {
             return false;
         }
-        const snapshot = JSON.parse(text) as { version?: unknown };
+        const snapshot = JSON.parse(text) as { version?: unknown; };
         if (snapshot.version !== GAME_STATE_VERSION) {
             clearStoredGameState();
             return false;
@@ -528,7 +528,7 @@ function hasLiveSuspendedGame(): boolean {
 
 function showLiveMenuOverlay(): void {
     if (!canOpenLiveMenuOverlay() || game === null || container === null
-            || activeGameShell === null) {
+        || activeGameShell === null) {
         saveCurrentGameState();
         showMenu();
         return;
@@ -548,7 +548,7 @@ function showLiveMenuOverlay(): void {
 
 function resumeLiveGameFromMenu(): void {
     if (!hasLiveSuspendedGame() || game === null || container === null
-            || activeGameHost === null) {
+        || activeGameHost === null) {
         return;
     }
     const liveGame = game;
@@ -786,7 +786,7 @@ function applyResponsiveGameDisplayMode(): void {
     }
 }
 
-function getResponsiveWindowedDisplayMode(): { width: number; height: number } {
+function getResponsiveWindowedDisplayMode(): { width: number; height: number; } {
     const host = activeGameHost ?? document.getElementById("game-host");
     const fallbackDisplayMode = getResponsiveFullscreenDisplayMode();
     if (host === null) {
@@ -799,14 +799,14 @@ function getResponsiveWindowedDisplayMode(): { width: number; height: number } {
     return getAspectFitDisplayMode(width, height);
 }
 
-function getResponsiveFullscreenDisplayMode(): { width: number; height: number } {
+function getResponsiveFullscreenDisplayMode(): { width: number; height: number; } {
     const viewport = window.visualViewport;
     const width = viewport?.width || window.innerWidth || document.documentElement.clientWidth || GAME_WIDTH;
     const height = viewport?.height || window.innerHeight || document.documentElement.clientHeight || GAME_HEIGHT;
     return normalizeDisplayMode(width, height);
 }
 
-function getAspectFitDisplayMode(width: number, height: number): { width: number; height: number } {
+function getAspectFitDisplayMode(width: number, height: number): { width: number; height: number; } {
     const displayMode = normalizeDisplayMode(width, height);
     const gameAspectRatio = GAME_VIEWPORT_WIDTH / GAME_VIEWPORT_HEIGHT;
     const displayAspectRatio = displayMode.width / displayMode.height;
@@ -816,7 +816,7 @@ function getAspectFitDisplayMode(width: number, height: number): { width: number
     return normalizeDisplayMode(displayMode.width, displayMode.width / gameAspectRatio);
 }
 
-function normalizeDisplayMode(width: number, height: number): { width: number; height: number } {
+function normalizeDisplayMode(width: number, height: number): { width: number; height: number; } {
     return {
         width: Math.max(1, Math.trunc(width)),
         height: Math.max(1, Math.trunc(height))

@@ -555,8 +555,8 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
         if (this.isRuntimeResource(value) || value instanceof Song || value instanceof Thing
-                || value instanceof ThingStack || value instanceof StageSegment || value instanceof Region
-                || value instanceof StairsEntry) {
+            || value instanceof ThingStack || value instanceof StageSegment || value instanceof Region
+            || value instanceof StairsEntry) {
             return false;
         }
         if (Array.isArray(value) && this.arrayContainsRuntimeResource(value)) {
@@ -567,7 +567,7 @@ export class StickvaniaGameStateSerializer {
 
     private encodeValue(context: CaptureContext, value: unknown, path: string): EncodedValue {
         if (value === null || value === undefined || typeof value === "string"
-                || typeof value === "number" || typeof value === "boolean") {
+            || typeof value === "number" || typeof value === "boolean") {
             return value as JsonValue;
         }
         if (value instanceof Thing) {
@@ -706,32 +706,32 @@ export class StickvaniaGameStateSerializer {
 
     private decodeValue(context: RestoreContext, value: EncodedValue): unknown {
         if (value === null || value === undefined || typeof value === "string"
-                || typeof value === "number" || typeof value === "boolean") {
+            || typeof value === "number" || typeof value === "boolean") {
             return value;
         }
         if (Array.isArray(value)) {
             return value.map((item) => this.decodeValue(context, item as EncodedValue));
         }
         if (this.hasOwn(value, "$thing")) {
-            return this.thingOrNull(context, (value as { $thing: number | null }).$thing);
+            return this.thingOrNull(context, (value as { $thing: number | null; }).$thing);
         }
         if (this.hasOwn(value, "$segment")) {
-            const index = (value as { $segment: number | null }).$segment;
+            const index = (value as { $segment: number | null; }).$segment;
             return index === null ? null : context.stageSegments[index];
         }
         if (this.hasOwn(value, "$region")) {
-            const ref = (value as { $region: [number, number] | null }).$region;
+            const ref = (value as { $region: [number, number] | null; }).$region;
             return ref === null ? null : context.stageSegments[ref[0]].regions[ref[1]];
         }
         if (this.hasOwn(value, "$stairs")) {
-            const ref = (value as { $stairs: [number, number] | null }).$stairs;
+            const ref = (value as { $stairs: [number, number] | null; }).$stairs;
             return ref === null ? null : context.stageSegments[ref[0]].stairsEntries[ref[1]];
         }
         if (this.hasOwn(value, "$song")) {
-            return this.songForId(context.main, (value as { $song: SongId | null }).$song);
+            return this.songForId(context.main, (value as { $song: SongId | null; }).$song);
         }
         if (this.hasOwn(value, "$music")) {
-            return this.musicForId(context.main, (value as { $music: MusicId | null }).$music);
+            return this.musicForId(context.main, (value as { $music: MusicId | null; }).$music);
         }
         if (this.hasOwn(value, "$stack")) {
             const stack = new ThingStack();
@@ -1001,7 +1001,7 @@ export class StickvaniaGameStateSerializer {
         if (!looped) {
             return sanitized;
         }
-        const buffer = this.getField<{ duration?: unknown } | null>(music, "buffer");
+        const buffer = this.getField<{ duration?: unknown; } | null>(music, "buffer");
         const duration = typeof buffer?.duration === "number" ? buffer.duration : 0;
         if (!Number.isFinite(duration) || duration <= 0) {
             return sanitized;

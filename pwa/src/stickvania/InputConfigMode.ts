@@ -20,7 +20,7 @@ type MappingDraft = {
 };
 
 export class InputConfigMode implements ControllerListener, KeyListener {
-    private static readonly STEPS: BindingStep[] = [ "UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK" ];
+    private static readonly STEPS: BindingStep[] = ["UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK"];
     private static readonly DONE_DELAY = 30;
     private static readonly ARM_DELAY = 8;
     private static readonly MESSAGE_Y = 232;
