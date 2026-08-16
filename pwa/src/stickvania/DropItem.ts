@@ -29,13 +29,12 @@ export class DropItem extends Thing {
         this.x = x;
         this.y = y;
         this.type = type;
-
     }
+
     public update(gc: GameContainer): boolean {
         this.applyGravity();
 
         if (this.main.intersectsSimon(trunc(this.x), trunc(this.y), 31 + trunc(this.x), 31 + trunc(this.y))) {
-
             switch (this.type) {
                 case DropItem.TYPE_CHEST:
                 case DropItem.TYPE_MONEY_BAG:
@@ -130,14 +129,13 @@ export class DropItem extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.lifeTime > 90) {
             this.main.draw(this.main.dropItems[this.type], this.x, this.y);
         } else {
             this.main.drawFaded(this.main.dropItems[this.type], this.x, this.y, this.lifeTime * DropItem.FRACTION);
         }
-
     }
 }

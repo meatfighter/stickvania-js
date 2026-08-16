@@ -245,8 +245,8 @@ Recommended adaptation:
 3. Schedule background preparation after `renderMenu()` paints.
 4. Move resource preloading out of `startGame()` and into background preparation.
 5. Split `RESOURCE_REFS` into audio and non-audio:
-   - `.ogg` through `SoundStore.get().preloadAudioBuffers(...)`
-   - everything else through `ResourceLoader.preloadResources(...)`
+    - `.ogg` through `SoundStore.get().preloadAudioBuffers(...)`
+    - everything else through `ResourceLoader.preloadResources(...)`
 6. Keep `ResourceLoader.setCacheBust(CACHE_BUST)` and retry options in the preparation path.
 7. Change `startGame()` so it calls `SoundStore.get().unlock()` immediately from the click path before awaiting `ensureRuntimePrepared(...)`.
 8. Show `renderBoot(preparationProgress)` only if the user clicked before preparation finished.
@@ -293,27 +293,27 @@ Relevant current behavior observed:
 Recommended adaptation:
 
 1. Convert top-level imports in `JackalWebApp.ts`:
-   - keep only lightweight/static browser shell imports
-   - import `SoundStore` and `ResourceLoader` directly or keep the full Slick import only if it does not materially delay menu paint
-   - move `Main`, `ScalableGame`, `AppGameContainer`, `Display`, `JackalGameStateStore`, and `RESOURCE_MANIFEST` into a prepared-runtime dynamic import path
+    - keep only lightweight/static browser shell imports
+    - import `SoundStore` and `ResourceLoader` directly or keep the full Slick import only if it does not materially delay menu paint
+    - move `Main`, `ScalableGame`, `AppGameContainer`, `Display`, `JackalGameStateStore`, and `RESOURCE_MANIFEST` into a prepared-runtime dynamic import path
 2. Remove runtime dependency on `Main.DISPLAY_WIDTH` and `Main.DISPLAY_HEIGHT` from menu-time helpers:
-   - use local constants copied from Java/Jackal constants, or
-   - read them only after runtime preparation
+    - use local constants copied from Java/Jackal constants, or
+    - read them only after runtime preparation
 3. Add prepared-runtime state:
-   - `preparedRuntime`
-   - `preparationPromise`
-   - `preparationError`
-   - `preparationProgress`
-   - `backgroundPreparationScheduled`
+    - `preparedRuntime`
+    - `preparationPromise`
+    - `preparationError`
+    - `preparationProgress`
+    - `backgroundPreparationScheduled`
 4. In `showMenu()`, render the menu first, then schedule background preparation after first paint.
 5. Move `configureResourceLoader()` into the preparation path before any resource fetch:
-   - keep `ResourceLoader.removeAllResourceLocations()`
-   - keep `ResourceLoader.addResourceLocation("/resources/")`
-   - keep build-stamp cache busting
-   - keep retry options
+    - keep `ResourceLoader.removeAllResourceLocations()`
+    - keep `ResourceLoader.addResourceLocation("/resources/")`
+    - keep build-stamp cache busting
+    - keep retry options
 6. Split `RESOURCE_MANIFEST`:
-   - `.ogg` refs through `SoundStore.get().preloadAudioBuffers(...)`
-   - non-audio refs through `ResourceLoader.preloadResources(...)`
+    - `.ogg` refs through `SoundStore.get().preloadAudioBuffers(...)`
+    - non-audio refs through `ResourceLoader.preloadResources(...)`
 7. Change `startGame()` so it calls `SoundStore.get().unlock()` immediately from the click handler path, before awaiting preparation.
 8. If the user clicks before preparation completes, show the existing Jackal progress bar via `renderLoading(preparationProgress)`.
 9. If preparation already completed, skip the PWA loader.
@@ -357,28 +357,28 @@ Use this shape, adjusted to each project's names:
 1. Render the PWA menu immediately.
 2. Schedule background preparation after first paint.
 3. Preparation:
-   - configure `ResourceLoader`
-   - dynamically import the game/runtime/store/manifest modules
-   - preload non-audio resources
-   - decode audio resources
-   - save prepared constructors/modules
+    - configure `ResourceLoader`
+    - dynamically import the game/runtime/store/manifest modules
+    - preload non-audio resources
+    - decode audio resources
+    - save prepared constructors/modules
 4. Start click:
-   - call `SoundStore.get().unlock()` immediately
-   - clear saved state for New Game
-   - resume live overlay game if applicable
-   - otherwise show fallback loader only if preparation is incomplete
-   - await preparation
-   - create game/container
-   - preserve audio cache on destroy
-   - start suspended
-   - force internal loading completion
-   - wait for tracked resources
-   - start browser helpers
-   - resume loop if focus/visibility permits
+    - call `SoundStore.get().unlock()` immediately
+    - clear saved state for New Game
+    - resume live overlay game if applicable
+    - otherwise show fallback loader only if preparation is incomplete
+    - await preparation
+    - create game/container
+    - preserve audio cache on destroy
+    - start suspended
+    - force internal loading completion
+    - wait for tracked resources
+    - start browser helpers
+    - resume loop if focus/visibility permits
 5. Destroy/menu return:
-   - stop playback
-   - do not clear decoded audio buffers
-   - do not leave a running RAF loop under the menu
+    - stop playback
+    - do not clear decoded audio buffers
+    - do not leave a running RAF loop under the menu
 
 ## Cache And Dev-Server Note
 

@@ -7,6 +7,8 @@
         "stamp": "node scripts/stamp.mjs",
         "clean": "node scripts/clean-dist.mjs",
         "convert:java": "node scripts/convert-java.mjs",
+        "format": "prettier . --write --ignore-unknown",
+        "format:check": "prettier . --check --ignore-unknown",
         "dev": "npm run dev:pwa",
         "dev:pwa": "vite --config pwa/vite.config.ts --host 127.0.0.1",
         "build:pwa": "tsc --project pwa/tsconfig.json && vite build --config pwa/vite.config.ts",
@@ -29,6 +31,7 @@
         "@eslint/js": "^10.0.1",
         "@types/node": "^26.1.2",
         "eslint": "^10.8.0",
+        "prettier": "^3.9.6",
         "typescript": "^5.9.0",
         "typescript-eslint": "^8.65.0",
         "vite": "^7.0.0"

@@ -13,10 +13,9 @@ export class SmallHeart extends Thing {
 
         this.x = this.X = x;
         this.y = y;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsSimon(trunc(this.x), trunc(this.y), 15 + trunc(this.x), 15 + trunc(this.y))) {
             this.main.addHearts(1);
             this.main.playSound(this.main.bleep);
@@ -57,14 +56,13 @@ export class SmallHeart extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.lifeTime > 90) {
             this.main.draw(this.main.smallHeart, this.x, this.y);
         } else {
             this.main.drawFaded(this.main.smallHeart, this.x, this.y, this.lifeTime * SmallHeart.FRACTION);
         }
-
     }
 }

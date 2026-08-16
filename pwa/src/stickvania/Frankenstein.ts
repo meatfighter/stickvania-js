@@ -8,7 +8,7 @@ import { Thing } from "./Thing.js";
 
 export class Frankenstein extends Thing {
     public static readonly IGOR_JUMP_VELOCITY: number = -Math.sqrt(384 * 0.21);
-    public static readonly FLY_TIME: number = 2 * Math.abs(Frankenstein.IGOR_JUMP_VELOCITY) / 0.21;
+    public static readonly FLY_TIME: number = (2 * Math.abs(Frankenstein.IGOR_JUMP_VELOCITY)) / 0.21;
     public static readonly DYING_FADE: number = 1 / 455;
     public static readonly STATE_INACTIVE: number = 0;
     public static readonly STATE_WALKING: number = 1;
@@ -29,10 +29,9 @@ export class Frankenstein extends Thing {
         this.x = x;
         this.y = y;
         this.maxWalkSteps = main.random.nextInt(91) + 91;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.state == Frankenstein.STATE_WALKING || this.state == Frankenstein.STATE_PAUSED) {
             this.direction = this.main.simon.x + 16 < this.x ? Main.LEFT : Main.RIGHT;
 
@@ -122,7 +121,18 @@ export class Frankenstein extends Thing {
             case Frankenstein.STATE_DEAD:
                 if (this.deadCount < 455) {
                     if ((this.deadCount & 7) == 0) {
-                        this.main.pushThing(new Flame(this.main, this.x, this.y + this.main.random.nextInt(80), this.main.random.nextFloat() * 2 - 1, this.main.random.nextFloat() * 2 - 1, this.main.random.nextFloat() * 0.1 - 0.05, 90, 91));
+                        this.main.pushThing(
+                            new Flame(
+                                this.main,
+                                this.x,
+                                this.y + this.main.random.nextInt(80),
+                                this.main.random.nextFloat() * 2 - 1,
+                                this.main.random.nextFloat() * 2 - 1,
+                                this.main.random.nextFloat() * 0.1 - 0.05,
+                                90,
+                                91
+                            )
+                        );
                     }
                     this.deadCount++;
                 } else {
@@ -133,14 +143,13 @@ export class Frankenstein extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.state == Frankenstein.STATE_DEAD) {
             this.main.drawFaded(this.main.frankensteinBoss[this.direction][this.spriteIndex], this.x, this.y, 1 - this.deadCount * Frankenstein.DYING_FADE);
         } else {
             this.main.draw(this.main.frankensteinBoss[this.direction][this.spriteIndex], this.x, this.y);
         }
-
     }
 }

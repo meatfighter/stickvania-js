@@ -15,8 +15,8 @@ export class Torch extends Thing {
         this.x = x;
         this.y = y;
         this.item = item;
-
     }
+
     public update(gc: GameContainer): boolean {
         if (++this.spriteIndexIncrementor == 15) {
             this.spriteIndexIncrementor = 0;
@@ -34,11 +34,10 @@ export class Torch extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.fires[this.spriteIndex], this.x, this.y);
         this.main.draw(this.main.torch, this.x, this.y + 32);
-
     }
 }

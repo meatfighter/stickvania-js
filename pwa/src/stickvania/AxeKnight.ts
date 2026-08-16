@@ -29,15 +29,14 @@ export class AxeKnight extends Thing {
 
         this.hits = main.adjustEnemyHits(this.hits);
         this.throwDelay = main.adjustEnemyCooldown(main.random.nextInt(273));
-
     }
+
     public axeGone(): void {
         this.hasAxe = true;
         this.throwDelay = this.main.adjustEnemyCooldown(this.main.random.nextInt(273));
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.kill) {
             this.hits = 0;
             this.stunned = 0;
@@ -45,8 +44,7 @@ export class AxeKnight extends Thing {
 
         if (this.stunned > 0) {
             this.stunned--;
-        } else if (this.main.intersectsWhip(this)
-            || this.main.intersectsWeapon(this) || this.kill) {
+        } else if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             if (--this.hits <= 0) {
                 if (this.main.random.nextBoolean()) {
@@ -69,7 +67,6 @@ export class AxeKnight extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-
             if (this.main.simon.x + 8 < this.x) {
                 this.displayDirection = Main.LEFT;
             } else {
@@ -81,7 +78,9 @@ export class AxeKnight extends Thing {
             if (this.state != AxeKnight.STATE_INACTIVE && this.hasAxe) {
                 if (this.throwDelay <= 0) {
                     this.throwDelay = this.main.adjustEnemyCooldown(this.main.random.nextInt(273));
-                    this.main.pushThing(new BoomerangAxe(this.main, this.x + 8, this.main.random.nextBoolean() ? this.y : this.y + 32, this.displayDirection, this));
+                    this.main.pushThing(
+                        new BoomerangAxe(this.main, this.x + 8, this.main.random.nextBoolean() ? this.y : this.y + 32, this.displayDirection, this)
+                    );
                     this.hasAxe = false;
                 } else {
                     this.throwDelay--;
@@ -96,12 +95,11 @@ export class AxeKnight extends Thing {
                     break;
                 case AxeKnight.STATE_WALKING:
                     if (this.direction == Main.LEFT) {
-                        if (!this.moveX(-.5) || !this.main.isSupportive(trunc(this.x), trunc(this.y + 64))) {
+                        if (!this.moveX(-0.5) || !this.main.isSupportive(trunc(this.x), trunc(this.y + 64))) {
                             this.direction = Main.RIGHT;
                         }
                     } else {
-                        if (!this.moveX(.5)
-                            || !this.main.isSupportive(trunc(this.x + 47), trunc(this.y + 64))) {
+                        if (!this.moveX(0.5) || !this.main.isSupportive(trunc(this.x + 47), trunc(this.y + 64))) {
                             this.direction = Main.LEFT;
                         }
                     }
@@ -143,10 +141,9 @@ export class AxeKnight extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.axeKnights[this.displayDirection][this.spriteIndex], this.x, this.y);
-
     }
 }

@@ -15,21 +15,19 @@ export class BirdSpawner extends Thing {
         super(main);
         this.x1 = x1;
         this.x2 = x2;
-
     }
+
     public birdDied(): void {
         this.syncActiveCap();
         if (this.count < this.activeCap) {
             this.count++;
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         this.syncActiveCap();
 
-        if (this.main.timeFrozen > 0 || this.main.simon.x < this.x1 || this.main.simon.x > this.x2
-            || this.count == 0) {
+        if (this.main.timeFrozen > 0 || this.main.simon.x < this.x1 || this.main.simon.x > this.x2 || this.count == 0) {
             return true;
         }
 
@@ -37,14 +35,17 @@ export class BirdSpawner extends Thing {
             this.delay = this.main.adjustEnemySpawnDelay(182);
 
             this.count--;
-            let Y: number = (((trunc(this.main.simon.y)) >> 5) << 5)
-                - (this.main.random.nextInt(4) << 5) - 64;
+            let Y: number = ((trunc(this.main.simon.y) >> 5) << 5) - (this.main.random.nextInt(4) << 5) - 64;
             if (Y < 0) {
                 Y = 0;
             }
             let direction: number = this.main.random.nextBoolean()
-                ? this.main.simon.direction == Main.LEFT ? Main.RIGHT : Main.LEFT
-                : this.main.random.nextBoolean() ? Main.LEFT : Main.RIGHT;
+                ? this.main.simon.direction == Main.LEFT
+                    ? Main.RIGHT
+                    : Main.LEFT
+                : this.main.random.nextBoolean()
+                  ? Main.LEFT
+                  : Main.RIGHT;
             if (direction == Main.LEFT) {
                 this.main.pushThing(new Bird(this.main, this.main.camera + 512, Y, direction, this));
             } else {
@@ -55,11 +56,9 @@ export class BirdSpawner extends Thing {
         }
 
         return true;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
-    }
+    public render(gc: GameContainer, g: Graphics): void {}
     private syncActiveCap(): void {
         if (!Number.isFinite(this.activeCap)) {
             this.activeCap = BirdSpawner.BASE_ACTIVE_CAP;
@@ -78,6 +77,5 @@ export class BirdSpawner extends Thing {
             this.count = activeCap;
         }
         this.activeCap = activeCap;
-
     }
 }

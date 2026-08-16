@@ -41,16 +41,13 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     private draft: MappingDraft = null;
     private readonly assignedKeys = new Set<number>();
     private readonly assignedControllerButtons = new Set<number>();
-    private readonly extraAxisBaselines = new Array<number>(
-        InputConfigMode.CONTROLLER_INDEX_LIMIT * InputConfigMode.GAMEPAD_AXIS_LIMIT
-    ).fill(Number.NaN);
+    private readonly extraAxisBaselines = new Array<number>(InputConfigMode.CONTROLLER_INDEX_LIMIT * InputConfigMode.GAMEPAD_AXIS_LIMIT).fill(Number.NaN);
     private extraAxisUpDown = false;
     private extraAxisDownDown = false;
     private extraAxisLeftDown = false;
     private extraAxisRightDown = false;
 
-    public constructor(private readonly main: Main) {
-    }
+    public constructor(private readonly main: Main) {}
 
     public init(gc: GameContainer): void {
         this.input = gc.getInput();
@@ -111,8 +108,7 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.advance();
     }
 
-    public keyReleased(key: number, c: string): void {
-    }
+    public keyReleased(key: number, c: string): void {}
 
     public controllerButtonPressed(controller: number, button: number): void {
         if (!this.canAcceptInput()) {
@@ -129,36 +125,31 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.advance();
     }
 
-    public controllerButtonReleased(controller: number, button: number): void {
-    }
+    public controllerButtonReleased(controller: number, button: number): void {}
 
     public controllerLeftPressed(controller: number): void {
         this.bindControllerDirection(14);
     }
 
-    public controllerLeftReleased(controller: number): void {
-    }
+    public controllerLeftReleased(controller: number): void {}
 
     public controllerRightPressed(controller: number): void {
         this.bindControllerDirection(15);
     }
 
-    public controllerRightReleased(controller: number): void {
-    }
+    public controllerRightReleased(controller: number): void {}
 
     public controllerUpPressed(controller: number): void {
         this.bindControllerDirection(12);
     }
 
-    public controllerUpReleased(controller: number): void {
-    }
+    public controllerUpReleased(controller: number): void {}
 
     public controllerDownPressed(controller: number): void {
         this.bindControllerDirection(13);
     }
 
-    public controllerDownReleased(controller: number): void {
-    }
+    public controllerDownReleased(controller: number): void {}
 
     public setInput(input: Input): void {
         this.input = input;
@@ -168,11 +159,9 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         return true;
     }
 
-    public inputEnded(): void {
-    }
+    public inputEnded(): void {}
 
-    public inputStarted(): void {
-    }
+    public inputStarted(): void {}
 
     private canAcceptInput(): boolean {
         return !this.finished && this.armDelay == 0;

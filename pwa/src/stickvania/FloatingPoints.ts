@@ -15,20 +15,18 @@ export class FloatingPoints extends Thing {
         this.x = x;
         this.y = y;
         this.type = type;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         this.y -= 0.25;
         if (++this.count >= 91) {
             return false;
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.itemPoints[this.type], this.x, this.y);
-
     }
 }

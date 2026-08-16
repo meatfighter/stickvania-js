@@ -11,8 +11,8 @@ export class FoodOrb extends Thing {
     public static readonly STATE_FLYING: number = 1;
     public static readonly STATE_SHOOTING: number = 2;
     public static readonly FRACTION: number = 1 / 91;
-    public static readonly ANGLE1: number = (2 * Math.PI / 3);
-    public static readonly ANGLE2: number = (4 * Math.PI / 3);
+    public static readonly ANGLE1: number = (2 * Math.PI) / 3;
+    public static readonly ANGLE2: number = (4 * Math.PI) / 3;
     private angle: number = 0;
     private sx0: number = 0;
     private sy0: number = 0;
@@ -40,10 +40,9 @@ export class FoodOrb extends Thing {
         this.y = y;
         this.a = x + 16;
         this.b = y + 16;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.kill) {
             this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
             return false;
@@ -67,8 +66,8 @@ export class FoodOrb extends Thing {
             case FoodOrb.STATE_FLYING:
                 this.a += this.vx;
                 this.b += this.vy;
-                this.x = this.a + (this.radius * Math.cos(this.flyAngle)) - 16;
-                this.y = this.b + (this.radius * Math.sin(this.flyAngle)) - 16;
+                this.x = this.a + this.radius * Math.cos(this.flyAngle) - 16;
+                this.y = this.b + this.radius * Math.sin(this.flyAngle) - 16;
                 if (--this.flySteps == 0) {
                     this.flySteps = 91;
                     let tx: number = this.main.random.nextInt(384) + 64;
@@ -88,7 +87,7 @@ export class FoodOrb extends Thing {
                 if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this)) {
                     this.main.playSound(this.main.snuffed);
                     this.state = FoodOrb.STATE_SHOOTING;
-                    this.shootAngle = (0.5 * Math.PI);
+                    this.shootAngle = 0.5 * Math.PI;
                     if (this.main.simon.x + 16 < this.x) {
                         this.shootAngleInc = -0.39269908169872415480783042290994;
                     } else {
@@ -125,8 +124,8 @@ export class FoodOrb extends Thing {
         this.sy2 = this.Y + 16 * FastTrig.sin(this.angle + FoodOrb.ANGLE2);
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.state == FoodOrb.STATE_FADE_IN) {
             let fadeValue: number = this.fade * FoodOrb.FRACTION;
@@ -140,6 +139,5 @@ export class FoodOrb extends Thing {
             this.main.draw(this.main.spark, this.sx1, this.sy1);
             this.main.draw(this.main.spark, this.sx2, this.sy2);
         }
-
     }
 }

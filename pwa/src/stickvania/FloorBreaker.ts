@@ -9,8 +9,8 @@ export class FloorBreaker extends Thing {
     private delay: number = 1;
     public constructor(main: Main) {
         super(main);
-
     }
+
     private removeBlock(a: number, b: number): void {
         this.main.removeBlock(a, b);
         let x: number = a << 5;
@@ -20,10 +20,9 @@ export class FloorBreaker extends Thing {
         this.main.pushThing(new BrickFragment(this.main, x, y + 8, -1, -4));
         this.main.pushThing(new BrickFragment(this.main, x + 8 + 8, y, 1, -5));
         this.main.playSound(this.main.breaks_wall);
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.breakDelay <= 0) {
             this.breakDelay = 23;
             if (this.main.walls[6][144] != Main.WALL_EMPTY) {
@@ -50,9 +49,7 @@ export class FloorBreaker extends Thing {
         }
 
         return true;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
-    }
+    public render(gc: GameContainer, g: Graphics): void {}
 }

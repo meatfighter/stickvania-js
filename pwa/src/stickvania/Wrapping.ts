@@ -15,10 +15,9 @@ export class Wrapping extends Thing {
         this.x = x;
         this.Y = this.y = y;
         this.direction = direction;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsSimon(this)) {
             this.main.hurtSimon(2);
             this.kill = true;
@@ -63,10 +62,9 @@ export class Wrapping extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.wrappings[this.direction][this.spriteIndex], this.x, this.y);
-
     }
 }

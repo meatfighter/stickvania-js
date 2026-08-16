@@ -24,10 +24,9 @@ export class Door extends Thing {
         this.y = y;
         this.direction = direction;
         this.active = active;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (!this.active) {
             return true;
         }
@@ -35,10 +34,13 @@ export class Door extends Thing {
         if (this.direction == Main.RIGHT) {
             switch (this.state) {
                 case Door.STATE_CLOSED:
-                    if (this.main.simon.supported
-                        && (trunc(this.main.simon.y)) - 32 == trunc(this.y)
-                        && (trunc(Math.abs(this.main.simon.x - this.x + 24))) <= 32
-                        && !this.main.simon.hurt && this.main.playerPower > 0) {
+                    if (
+                        this.main.simon.supported &&
+                        trunc(this.main.simon.y) - 32 == trunc(this.y) &&
+                        trunc(Math.abs(this.main.simon.x - this.x + 24)) <= 32 &&
+                        !this.main.simon.hurt &&
+                        this.main.playerPower > 0
+                    ) {
                         this.main.enterNextRegion(this);
                     }
                     break;
@@ -81,10 +83,13 @@ export class Door extends Thing {
         } else {
             switch (this.state) {
                 case Door.STATE_CLOSED:
-                    if (this.main.simon.supported
-                        && (trunc(this.main.simon.y)) - 32 == trunc(this.y)
-                        && (trunc(Math.abs(this.main.simon.x - this.x + 24))) <= 32
-                        && !this.main.simon.hurt && this.main.playerPower > 0) {
+                    if (
+                        this.main.simon.supported &&
+                        trunc(this.main.simon.y) - 32 == trunc(this.y) &&
+                        trunc(Math.abs(this.main.simon.x - this.x + 24)) <= 32 &&
+                        !this.main.simon.hurt &&
+                        this.main.playerPower > 0
+                    ) {
                         this.main.enterNextRegion(this);
                     }
                     break;
@@ -126,8 +131,8 @@ export class Door extends Thing {
             }
         }
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.direction == Main.RIGHT) {
             if (this.state == Door.STATE_OPEN) {
@@ -146,6 +151,5 @@ export class Door extends Thing {
                 this.main.draw(this.main.doors[Main.LEFT][0], this.x, this.y);
             }
         }
-
     }
 }

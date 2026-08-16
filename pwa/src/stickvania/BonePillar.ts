@@ -17,10 +17,9 @@ export class BonePillar extends Thing {
         this.x = x;
         this.y = y;
         this.hits = main.adjustEnemyHits(this.hits);
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.kill) {
             this.hits = 0;
             this.stunned = 0;
@@ -28,8 +27,7 @@ export class BonePillar extends Thing {
 
         if (this.stunned > 0) {
             this.stunned--;
-        } else if (this.main.intersectsWhip(this)
-            || this.main.intersectsWeapon(this) || this.kill) {
+        } else if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             if (--this.hits <= 0) {
                 if (this.main.random.nextBoolean()) {
@@ -56,7 +54,7 @@ export class BonePillar extends Thing {
                 } else {
                     this.delay = this.main.adjustEnemyCooldown(364);
                 }
-                this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 18, (this.direction == Main.LEFT) ? -1.5 : 1.5, 0));
+                this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 18, this.direction == Main.LEFT ? -1.5 : 1.5, 0));
                 this.main.playSound(this.main.fire_ball_shot);
             } else {
                 this.delay--;
@@ -68,10 +66,9 @@ export class BonePillar extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.bonePillars[this.direction], this.x, this.y);
-
     }
 }

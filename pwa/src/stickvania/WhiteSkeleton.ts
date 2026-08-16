@@ -25,10 +25,9 @@ export class WhiteSkeleton extends Thing {
         this.x = x;
         this.y = y;
         this.throwDelay = main.adjustEnemyCooldown(91 + main.random.nextInt(273));
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.dead) {
             if (++this.dying == 137) {
                 if (this.main.random.nextBoolean()) {
@@ -40,7 +39,6 @@ export class WhiteSkeleton extends Thing {
                 return false;
             }
         } else {
-
             if (this.main.intersectsSimon(this)) {
                 this.main.hurtSimon(2);
             }
@@ -59,7 +57,6 @@ export class WhiteSkeleton extends Thing {
                     return false;
                 }
             } else if (this.main.timeFrozen == 0) {
-
                 if (this.main.simon.x + 16 < this.x) {
                     this.direction = Main.LEFT;
                 } else {
@@ -154,8 +151,8 @@ export class WhiteSkeleton extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.dead) {
             if (this.dying < 30) {
@@ -166,6 +163,5 @@ export class WhiteSkeleton extends Thing {
         } else {
             this.main.draw(this.main.skeletons[this.direction][this.spriteIndex], this.x, this.y);
         }
-
     }
 }

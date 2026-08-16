@@ -13,10 +13,9 @@ export class Axe extends Thing {
         this.vx = direction == Main.RIGHT ? 3 : -3;
         this.vAngle = direction == Main.RIGHT ? 6 : -6;
         this.vy = -6.5;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.soundDelay > 0) {
             this.soundDelay--;
         } else {
@@ -32,10 +31,9 @@ export class Axe extends Thing {
             return false;
         }
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.axe, this.x, this.y, this.angle);
-
     }
 }

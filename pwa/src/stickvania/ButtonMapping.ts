@@ -51,6 +51,7 @@ export class ButtonMapping {
         "GP-RIGHT",
         "GP-HOME"
     ];
+
     private static readonly KEY_TEXT = new Map<number, string>([
         [Input.KEY_A, "A"],
         [Input.KEY_B, "B"],
@@ -126,16 +127,14 @@ export class ButtonMapping {
             mapping.controllerDown = snapshot.controllerDown;
             mapping.controllerLeft = snapshot.controllerLeft;
             mapping.controllerRight = snapshot.controllerRight;
-        } catch {
-        }
+        } catch {}
         return mapping;
     }
 
     public save(): void {
         try {
             localStorage.setItem(ButtonMapping.STORAGE_KEY, JSON.stringify(this.toSnapshot()));
-        } catch {
-        }
+        } catch {}
     }
 
     public resetToDefaults(): void {
@@ -158,14 +157,18 @@ export class ButtonMapping {
     }
 
     public usesKey(key: number): boolean {
-        return this.keyJump === key || this.keyAttack === key || this.keyUp === key
-            || this.keyDown === key || this.keyLeft === key || this.keyRight === key;
+        return this.keyJump === key || this.keyAttack === key || this.keyUp === key || this.keyDown === key || this.keyLeft === key || this.keyRight === key;
     }
 
     public usesControllerButton(button: number): boolean {
-        return this.controllerJump === button || this.controllerAttack === button
-            || this.controllerUp === button || this.controllerDown === button
-            || this.controllerLeft === button || this.controllerRight === button;
+        return (
+            this.controllerJump === button ||
+            this.controllerAttack === button ||
+            this.controllerUp === button ||
+            this.controllerDown === button ||
+            this.controllerLeft === button ||
+            this.controllerRight === button
+        );
     }
 
     public keyboardLabelFor(action: string): string {
@@ -285,17 +288,19 @@ export class ButtonMapping {
         if (!snapshot || snapshot.version !== ButtonMapping.VERSION) {
             return false;
         }
-        return Number.isFinite(snapshot.keyJump)
-            && Number.isFinite(snapshot.keyAttack)
-            && Number.isFinite(snapshot.keyUp)
-            && Number.isFinite(snapshot.keyDown)
-            && Number.isFinite(snapshot.keyLeft)
-            && Number.isFinite(snapshot.keyRight)
-            && Number.isFinite(snapshot.controllerJump)
-            && Number.isFinite(snapshot.controllerAttack)
-            && Number.isFinite(snapshot.controllerUp)
-            && Number.isFinite(snapshot.controllerDown)
-            && Number.isFinite(snapshot.controllerLeft)
-            && Number.isFinite(snapshot.controllerRight);
+        return (
+            Number.isFinite(snapshot.keyJump) &&
+            Number.isFinite(snapshot.keyAttack) &&
+            Number.isFinite(snapshot.keyUp) &&
+            Number.isFinite(snapshot.keyDown) &&
+            Number.isFinite(snapshot.keyLeft) &&
+            Number.isFinite(snapshot.keyRight) &&
+            Number.isFinite(snapshot.controllerJump) &&
+            Number.isFinite(snapshot.controllerAttack) &&
+            Number.isFinite(snapshot.controllerUp) &&
+            Number.isFinite(snapshot.controllerDown) &&
+            Number.isFinite(snapshot.controllerLeft) &&
+            Number.isFinite(snapshot.controllerRight)
+        );
     }
 }

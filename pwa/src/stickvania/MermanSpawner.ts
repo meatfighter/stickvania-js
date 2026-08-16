@@ -21,17 +21,16 @@ export class MermanSpawner extends Thing {
         this.x1 = x1;
         this.x2 = x2;
         this.vy = -Math.sqrt(2 * Main.GRAVITY * (350 - y));
-
     }
+
     public mermanDied(): void {
         this.syncActiveCap();
         if (this.count < this.activeCap) {
             this.count++;
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         this.syncActiveCap();
 
         if (this.main.timeFrozen > 0) {
@@ -75,11 +74,9 @@ export class MermanSpawner extends Thing {
         }
 
         return true;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
-    }
+    public render(gc: GameContainer, g: Graphics): void {}
     private syncActiveCap(): void {
         if (!Number.isFinite(this.activeCap)) {
             this.activeCap = MermanSpawner.BASE_ACTIVE_CAP;
@@ -98,6 +95,5 @@ export class MermanSpawner extends Thing {
             this.count = activeCap;
         }
         this.activeCap = activeCap;
-
     }
 }

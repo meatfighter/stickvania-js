@@ -20,10 +20,9 @@ export class Boomerang extends Thing {
         this.state = Boomerang.STATE_FOWARD;
         this.vx = direction == Main.RIGHT ? 3 : -3;
         this.g = direction == Main.RIGHT ? Boomerang.G : -Boomerang.G;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.soundDelay > 0) {
             this.soundDelay--;
         } else {
@@ -72,10 +71,9 @@ export class Boomerang extends Thing {
             return false;
         }
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.boomerang, this.x, this.y, this.angle);
-
     }
 }

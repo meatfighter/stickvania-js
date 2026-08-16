@@ -10,14 +10,13 @@ export class BoneDragonVertebra extends Thing {
         super(main, 16, 32);
         this.x = x;
         this.y = y;
-
     }
+
     public update(gc: GameContainer): boolean {
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.boneDragons[2], this.x, this.y, this.angle);
-
     }
 }

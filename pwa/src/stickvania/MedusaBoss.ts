@@ -12,7 +12,7 @@ export class MedusaBoss extends Thing {
     public static readonly STATE_ATTACKING: number = 2;
     public static readonly STATE_DEAD: number = 3;
     public static readonly STATE_FADE_IN: number = 4;
-    private static readonly ATTACK_FRACTION: number = (1.0 / (91 * 2.0));
+    private static readonly ATTACK_FRACTION: number = 1.0 / (91 * 2.0);
     public static readonly FADE_FRACTION: number = 1 / 91;
     public fadeIn: number = 0;
     public state: number = MedusaBoss.STATE_RESTING;
@@ -30,10 +30,9 @@ export class MedusaBoss extends Thing {
         this.Y = this.y = y;
 
         this.G = 0;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.state == MedusaBoss.STATE_HOVERING || this.state == MedusaBoss.STATE_ATTACKING) {
             if (--this.spriteIndexIncrementor == 0) {
                 this.spriteIndexIncrementor = 40;
@@ -80,7 +79,7 @@ export class MedusaBoss extends Thing {
                         this.main.pushThing(new Flame(this.main, this.x + 16, this.y, 0, 0, -0.08, 30, 91));
                         this.main.pushThing(new Flame(this.main, this.x + 32, this.y, 0, 0, -0.08, 30, 91));
 
-                        this.main.pushThing(new Flame(this.main, this.x, this.y + 16, -2, .5, -0.09, 90, 91));
+                        this.main.pushThing(new Flame(this.main, this.x, this.y + 16, -2, 0.5, -0.09, 90, 91));
                         this.main.pushThing(new Flame(this.main, this.x + 8, this.y + 16, -1, 1.5, -0.11, 90, 91));
                         this.main.pushThing(new Flame(this.main, this.x + 16, this.y + 16, 0.25, 2.5, -0.13, 90, 91));
                         this.main.pushThing(new Flame(this.main, this.x + 32, this.y + 16, 1, 2, -0.12, 90, 91));
@@ -160,7 +159,6 @@ export class MedusaBoss extends Thing {
                 }
                 break;
             case MedusaBoss.STATE_ATTACKING:
-
                 this.applyGravity();
 
                 if (this.y < 0) {
@@ -175,8 +173,8 @@ export class MedusaBoss extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.state != MedusaBoss.STATE_DEAD) {
             if (this.fadeIn > 90) {
@@ -185,6 +183,5 @@ export class MedusaBoss extends Thing {
                 this.main.drawFaded(this.main.medusaBoss[this.spriteIndex], this.x, this.y, this.fadeIn * MedusaBoss.FADE_FRACTION);
             }
         }
-
     }
 }

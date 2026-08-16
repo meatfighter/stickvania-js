@@ -37,19 +37,7 @@ const slickImports = [
     "ResourceLoader"
 ];
 
-const helperImports = [
-    "cc",
-    "chr",
-    "idiv",
-    "makeArray",
-    "make2D",
-    "make3D",
-    "make4D",
-    "readBinaryResource",
-    "readResourceLines",
-    "toInt",
-    "trunc"
-];
+const helperImports = ["cc", "chr", "idiv", "makeArray", "make2D", "make3D", "make4D", "readBinaryResource", "readResourceLines", "toInt", "trunc"];
 
 const reserved = new Set([
     "abstract",
@@ -100,13 +88,13 @@ const reserved = new Set([
 const primitiveDefaults = new Map([
     ["number", "0"],
     ["boolean", "false"],
-    ["string", "\"\""]
+    ["string", '""']
 ]);
 
 const javaFiles = readdirSync(javaRoot)
-    .filter(name => name.endsWith(".java"))
+    .filter((name) => name.endsWith(".java"))
     .sort();
-const classNames = javaFiles.map(name => basename(name, ".java"));
+const classNames = javaFiles.map((name) => basename(name, ".java"));
 const classSet = new Set(classNames);
 const sourceByClass = new Map();
 const metaByClass = new Map();
@@ -147,7 +135,7 @@ function findMatching(source, openIndex, openChar = "{", closeChar = "}") {
             }
             continue;
         }
-        if (ch === "\"" || ch === "'") {
+        if (ch === '"' || ch === "'") {
             quote = ch;
             continue;
         }
@@ -195,7 +183,7 @@ function convertArrayInitializers(source) {
                 }
                 continue;
             }
-            if (ch === "\"" || ch === "'") {
+            if (ch === '"' || ch === "'") {
                 quote = ch;
                 converted += ch;
             } else if (ch === "{") {
@@ -231,8 +219,8 @@ function javaChar(raw) {
             return "\\";
         case "'":
             return "'";
-        case "\"":
-            return "\"";
+        case '"':
+            return '"';
         default:
             return raw[1] ?? "";
     }
@@ -242,7 +230,7 @@ function convertCharLiterals(source) {
     let out = "";
     for (let i = 0; i < source.length;) {
         const ch = source[i];
-        if (ch === "\"") {
+        if (ch === '"') {
             let j = i + 1;
             let escaped = false;
             while (j < source.length) {
@@ -251,7 +239,7 @@ function convertCharLiterals(source) {
                     escaped = false;
                 } else if (c === "\\") {
                     escaped = true;
-                } else if (c === "\"") {
+                } else if (c === '"') {
                     break;
                 }
             }
@@ -354,7 +342,7 @@ function splitTopLevelMembers(body) {
                 }
                 continue;
             }
-            if (ch === "\"" || ch === "'") {
+            if (ch === '"' || ch === "'") {
                 quote = ch;
                 continue;
             }
@@ -501,14 +489,14 @@ function arrayFactory(tsType) {
         return "() => false";
     }
     if (base === "string") {
-        return "() => \"\"";
+        return '() => ""';
     }
     return "() => null";
 }
 
 function convertNewArray(expr) {
     return expr.replace(/new\s+([A-Za-z0-9_]+)\s*((?:\[[^\]]*\])+)/g, (_match, javaType, dimText) => {
-        const dims = Array.from(dimText.matchAll(/\[([^\]]*)\]/g)).map(entry => entry[1].trim());
+        const dims = Array.from(dimText.matchAll(/\[([^\]]*)\]/g)).map((entry) => entry[1].trim());
         const tsType = convertType(javaType);
         const factory = arrayFactory(tsType);
         if (dims.length === 1) {
@@ -556,12 +544,15 @@ function splitParams(paramsText) {
     if (!trimmed) {
         return [];
     }
-    return trimmed.split(",").map(part => part.trim()).filter(Boolean);
+    return trimmed
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
 }
 
 function convertParams(paramsText) {
     const paramNames = [];
-    const converted = splitParams(paramsText).map(param => {
+    const converted = splitParams(paramsText).map((param) => {
         const clean = param.replace(/\bfinal\b/g, "").trim();
         const match = clean.match(/^(.+?)\s+([A-Za-z_][A-Za-z0-9_]*)$/);
         if (!match) {
@@ -635,7 +626,7 @@ function prefixIdentifiers(code, meta, paramNames, options = {}) {
     let out = "";
     for (let i = 0; i < code.length;) {
         const ch = code[i];
-        if (ch === "\"" || ch === "'" || ch === "`") {
+        if (ch === '"' || ch === "'" || ch === "`") {
             const quote = ch;
             let j = i + 1;
             let escaped = false;
@@ -663,13 +654,15 @@ function prefixIdentifiers(code, meta, paramNames, options = {}) {
             const next = nextNonSpace(code, j);
             const isProperty = prev === "." || prev === "#";
             const isDeclarationName = false;
-            if (!isProperty
-                    && !isDeclarationName
-                    && !reserved.has(token)
-                    && !classSet.has(token)
-                    && !slickImports.includes(token)
-                    && !helperImports.includes(token)
-                    && !locals.has(token)) {
+            if (
+                !isProperty &&
+                !isDeclarationName &&
+                !reserved.has(token) &&
+                !classSet.has(token) &&
+                !slickImports.includes(token) &&
+                !helperImports.includes(token) &&
+                !locals.has(token)
+            ) {
                 if (statics.has(token)) {
                     out += `${className}.${token}`;
                 } else if (!skipInstance && instance.has(token)) {
@@ -691,24 +684,26 @@ function prefixIdentifiers(code, meta, paramNames, options = {}) {
 
 function convertLocalDeclarations(body) {
     let out = body;
-    out = out.replace(/\bfor\s*\(\s*([A-Za-z0-9_<>\[\]]+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^)]+)\)/g,
-        (_match, _type, name, iterable) => `for (const ${name} of ${iterable})`);
-    out = out.replace(/\bfor\s*\(\s*([A-Za-z0-9_<>\[\]]+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/g,
-        (_match, type, name) => `for (let ${name}: ${convertType(type)} =`);
-    out = out.replace(/^(\s*)(ArrayList<[^>]+>|[A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?(?:\[\])*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^;]+);/gm,
+    out = out.replace(
+        /\bfor\s*\(\s*([A-Za-z0-9_<>\[\]]+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^)]+)\)/g,
+        (_match, _type, name, iterable) => `for (const ${name} of ${iterable})`
+    );
+    out = out.replace(/\bfor\s*\(\s*([A-Za-z0-9_<>\[\]]+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/g, (_match, type, name) => `for (let ${name}: ${convertType(type)} =`);
+    out = out.replace(
+        /^(\s*)(ArrayList<[^>]+>|[A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?(?:\[\])*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^;]+);/gm,
         (match, indent, type, name, expr) => {
             if (reserved.has(type) || type === "return" || type === "case") {
                 return match;
             }
             return `${indent}let ${name}: ${convertType(type)} = ${convertExpression(expr)};`;
-        });
-    out = out.replace(/^(\s*)(ArrayList<[^>]+>|[A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?(?:\[\])*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*;/gm,
-        (match, indent, type, name) => {
-            if (reserved.has(type) || type === "return" || type === "case") {
-                return match;
-            }
-            return `${indent}let ${name}: ${convertType(type)};`;
-        });
+        }
+    );
+    out = out.replace(/^(\s*)(ArrayList<[^>]+>|[A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?(?:\[\])*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*;/gm, (match, indent, type, name) => {
+        if (reserved.has(type) || type === "return" || type === "case") {
+            return match;
+        }
+        return `${indent}let ${name}: ${convertType(type)};`;
+    });
     out = out.replace(/\bcatch\s*\(\s*(?:Throwable|Exception|Error)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\)/g, "catch ($1)");
     out = out.replace(/\b([A-Za-z0-9_$.]+)\.toArray\(([^)]+)\);/g, "$2 = $1.slice();");
     return convertExpression(out);
@@ -738,7 +733,10 @@ function convertField(member, meta) {
 }
 
 function convertAbstractMethod(member, meta) {
-    const compact = member.replace(/\s+/g, " ").trim().replace(/\s+throws\s+[^;]+/, "");
+    const compact = member
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/\s+throws\s+[^;]+/, "");
     const match = compact.match(/^(public|private|protected)?\s*abstract\s+(.+?)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*)\);$/);
     if (!match) {
         return `    // TODO: Unconverted abstract method: ${compact}\n`;
@@ -779,14 +777,12 @@ function convertMethod(member, meta) {
 
 function importsFor(className) {
     const locals = classNames
-        .filter(name => name !== className)
-        .map(name => `import { ${name} } from "./${name}.js";`)
+        .filter((name) => name !== className)
+        .map((name) => `import { ${name} } from "./${name}.js";`)
         .join("\n");
-    return [
-        `import { ${slickImports.join(", ")} } from "slick2d-ts";`,
-        `import { ${helperImports.join(", ")} } from "./JavaMath.js";`,
-        locals
-    ].filter(Boolean).join("\n");
+    return [`import { ${slickImports.join(", ")} } from "slick2d-ts";`, `import { ${helperImports.join(", ")} } from "./JavaMath.js";`, locals]
+        .filter(Boolean)
+        .join("\n");
 }
 
 function convertClass(className) {
@@ -852,7 +848,8 @@ export class ScalableGame2 extends SlickScalableGame2 {
 }
 
 function replaceThingConstructor(out) {
-    return out.replace(/public constructor\(main: Main\) \{[\s\S]*?\n    \}/,
+    return out.replace(
+        /public constructor\(main: Main\) \{[\s\S]*?\n    \}/,
         `public constructor(main: Main, a?: number, b?: number, c?: number, d?: number) {
         this.main = main;
         if (a !== undefined && b !== undefined && c !== undefined && d !== undefined) {
@@ -864,7 +861,8 @@ function replaceThingConstructor(out) {
             this.rx2 = a - 1;
             this.ry2 = b - 1;
         }
-    }`);
+    }`
+    );
 }
 
 function postProcessClass(className, out) {
@@ -1116,7 +1114,8 @@ export class DraculaBat extends Thing {
 
 function postProcessMain(out) {
     out = out
-        .replace(/public constructor\(\) \{[\s\S]*?\n    \}\n    public init/,
+        .replace(
+            /public constructor\(\) \{[\s\S]*?\n    \}\n    public init/,
             `public constructor() {
         super("Stickvania");
         for (let i = 0; i < 3; i++) {
@@ -1126,28 +1125,34 @@ function postProcessMain(out) {
             this.endingKeyRecordings[i] = readBinaryResource("recordings/ending_" + (i + 1) + ".dat");
         }
     }
-    public init`)
+    public init`
+        )
         .replace(/\(255 \* i\) \/ this\.fades\.length/g, "idiv(255 * i, this.fades.length)")
-        .replace(/\bthis\.loadedSegments = make2D<StageSegment>\(6, 0, \(\) => null\);/g,
-            "this.loadedSegments = makeArray<StageSegment[]>(6, () => []);")
-        .replace(/\blet buffer: ByteBuffer = BufferUtils\.createByteBuffer/g,
-            "let buffer: Uint8Array = BufferUtils.createByteBuffer")
-        .replace(/\bthis\.appletGameContainer\.getContainer\(\)\.setDisplayMode\(true\);/g,
-            "this.appletGameContainer.getContainer().setFullscreen(true);")
+        .replace(/\bthis\.loadedSegments = make2D<StageSegment>\(6, 0, \(\) => null\);/g, "this.loadedSegments = makeArray<StageSegment[]>(6, () => []);")
+        .replace(/\blet buffer: ByteBuffer = BufferUtils\.createByteBuffer/g, "let buffer: Uint8Array = BufferUtils.createByteBuffer")
+        .replace(/\bthis\.appletGameContainer\.getContainer\(\)\.setDisplayMode\(true\);/g, "this.appletGameContainer.getContainer().setFullscreen(true);")
         .replace(/\bInteger\.MAX_VALUE\b/g, "Number.MAX_SAFE_INTEGER")
         .replace(/\bthis\.update\(gc\);/g, "this.updateFrame(gc);")
         .replace(/\bprivate update\(gc: GameContainer\): void/g, "private updateFrame(gc: GameContainer): void")
-        .replace(/public draw\(image: Image, x: number, y: number, angle: number\): void \{([\s\S]*?)\n    \}\n    public draw\(image: Image, x: number, y: number\): void \{([\s\S]*?)\n    \}/,
+        .replace(
+            /public draw\(image: Image, x: number, y: number, angle: number\): void \{([\s\S]*?)\n    \}\n    public draw\(image: Image, x: number, y: number\): void \{([\s\S]*?)\n    \}/,
             `public draw(image: Image, x: number, y: number, angle?: number): void {
         if (angle !== undefined) {$1
             return;
         }$2
-    }`)
-        .replace(/public static main\(args: string\[\]\): void \{[\s\S]*?\n    \}\n/, `public static main(_args: string[]): void {
+    }`
+        )
+        .replace(
+            /public static main\(args: string\[\]\): void \{[\s\S]*?\n    \}\n/,
+            `public static main(_args: string[]): void {
         throw new Error("Use the PWA bootstrap in src/main.ts instead of Main.main().");
-    }\n`);
+    }\n`
+        );
     out = out
-        .replace(/\bcase (MODE_[A-Z0-9_]+|FADE_[A-Z0-9_]+|FADE_REASON_[A-Z0-9_]+|CANDLE_ITEM_[A-Z0-9_]+|TILE_[A-Z0-9_]+|WEAPON_[A-Z0-9_]+|BLOCK_[A-Z0-9_]+|WALL_[A-Z0-9_]+|WHIP_[A-Z0-9_]+):/g, "case Main.$1:")
+        .replace(
+            /\bcase (MODE_[A-Z0-9_]+|FADE_[A-Z0-9_]+|FADE_REASON_[A-Z0-9_]+|CANDLE_ITEM_[A-Z0-9_]+|TILE_[A-Z0-9_]+|WEAPON_[A-Z0-9_]+|BLOCK_[A-Z0-9_]+|WALL_[A-Z0-9_]+|WHIP_[A-Z0-9_]+):/g,
+            "case Main.$1:"
+        )
         .replace(/\bpublic title: Image = null;/g, "public titleImage: Image = null;")
         .replace(/\bthis\.title\b/g, "this.titleImage")
         .replace(/\bpublic killAll: boolean = false;/g, "public killAllFlag: boolean = false;")
@@ -1160,16 +1165,16 @@ function postProcessMain(out) {
         .replace(/\bthis\.whipOffsets\b/g, "Main.whipOffsets")
         .replace(/\bthis\.mapBats\b/g, "Main.mapBats")
         .replace(/\bthis\.titleBatSequence\b/g, "Main.titleBatSequence");
-    out = replaceBetween(out, "    private loadStageSegment", "    private drawNumber",
-        `${manualLoadStageSegment()}\n\n    private drawNumber`);
-    out = replaceBetween(out, "    public addPoints(dropItem: DropItem): void", "    public hurtSimon",
-        `${manualAddPoints()}\n    public hurtSimon`);
-    out = replaceBetween(out, "    private drawString(string: string, x: number, y: number", "    public getWall",
-        `${manualDrawString()}\n    public getWall`);
-    out = replaceBetween(out, "    public pushWeapon", "    public removeBlock",
-        `${manualPushThings()}\n    public removeBlock`);
-    out = replaceBetween(out, "    public intersectsWeapon", "    private static readonly credits",
-        `${manualIntersections()}\n    private static readonly credits`);
+    out = replaceBetween(out, "    private loadStageSegment", "    private drawNumber", `${manualLoadStageSegment()}\n\n    private drawNumber`);
+    out = replaceBetween(out, "    public addPoints(dropItem: DropItem): void", "    public hurtSimon", `${manualAddPoints()}\n    public hurtSimon`);
+    out = replaceBetween(out, "    private drawString(string: string, x: number, y: number", "    public getWall", `${manualDrawString()}\n    public getWall`);
+    out = replaceBetween(out, "    public pushWeapon", "    public removeBlock", `${manualPushThings()}\n    public removeBlock`);
+    out = replaceBetween(
+        out,
+        "    public intersectsWeapon",
+        "    private static readonly credits",
+        `${manualIntersections()}\n    private static readonly credits`
+    );
     return out;
 }
 
@@ -1263,7 +1268,6 @@ function manualAddPoints() {
         }
     }`;
 }
-
 
 function manualPushThings() {
     return `    public pushWeapon(weapon: Thing): void {

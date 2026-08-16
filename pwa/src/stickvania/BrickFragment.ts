@@ -9,8 +9,8 @@ export class BrickFragment extends Thing {
         this.y = y;
         this.vx = vx;
         this.vy = vy;
-
     }
+
     public update(gc: GameContainer): boolean {
         this.x += this.vx;
         this.y += this.vy;
@@ -21,10 +21,9 @@ export class BrickFragment extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.brickFragment, this.x, this.y);
-
     }
 }

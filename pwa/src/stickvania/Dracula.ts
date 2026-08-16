@@ -14,8 +14,8 @@ export class Dracula extends Thing {
     public static readonly RISE_FADE_FRACTION: number = 1.0 / 80.0;
     public static readonly FADE_IN_FRACTION: number = 1.0 / 91.0;
     public static readonly FADE_TO_BATS_FRACTION: number = 1.0 / 45.0;
-    public static readonly ANGLE_SCALE: number = (Math.PI / 182);
-    public static readonly JUMP_VELOCITY: number = -(Math.sqrt(0.21 * 256));
+    public static readonly ANGLE_SCALE: number = Math.PI / 182;
+    public static readonly JUMP_VELOCITY: number = -Math.sqrt(0.21 * 256);
     public static readonly JUMP_TIME: number = 71;
     public static readonly DIE_FRACTION: number = 1 / 910.0;
     public static readonly STATE_RESTING: number = 0;
@@ -62,30 +62,27 @@ export class Dracula extends Thing {
         for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
             this.draculaBats[i] = new DraculaBat(main);
         }
-
     }
+
     private headHit(): boolean {
         if (this.direction == Main.LEFT) {
             let x1: number = trunc(this.x) + 11;
             let y1: number = trunc(this.y) - 16;
             let x2: number = trunc(this.x) + 26;
             let y2: number = trunc(this.y) + 15;
-            return this.main.intersectsWhip(x1, y1, x2, y2)
-                || this.main.intersectsWeapon(x1, y1, x2, y2);
+            return this.main.intersectsWhip(x1, y1, x2, y2) || this.main.intersectsWeapon(x1, y1, x2, y2);
         } else {
             let x1: number = trunc(this.x) + 21;
             let y1: number = trunc(this.y) - 16;
             let x2: number = trunc(this.x) + 36;
             let y2: number = trunc(this.y) + 15;
-            return this.main.intersectsWhip(x1, y1, x2, y2)
-                || this.main.intersectsWeapon(x1, y1, x2, y2);
+            return this.main.intersectsWhip(x1, y1, x2, y2) || this.main.intersectsWeapon(x1, y1, x2, y2);
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.state != Dracula.STATE_DYING) {
-            this.direction = this.x > (this.main.simon.x + 8) ? Main.LEFT : Main.RIGHT;
+            this.direction = this.x > this.main.simon.x + 8 ? Main.LEFT : Main.RIGHT;
         }
         if (this.stunned > 0) {
             this.stunned--;
@@ -95,8 +92,7 @@ export class Dracula extends Thing {
             if (this.main.intersectsSimon(this)) {
                 this.main.hurtSimon(2);
             }
-            if (this.stunned == 0 && (this.main.intersectsWhip(this)
-                || this.main.intersectsWeapon(this))) {
+            if (this.stunned == 0 && (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this))) {
                 this.stunned = 100;
                 this.main.playSound(this.main.boss_hurt);
                 this.main.pushThing(new Spark(this.main, this));
@@ -162,7 +158,15 @@ export class Dracula extends Thing {
                         this.main.pushThing(new FoodOrb(this.main, this.x + 24, this.y + 24));
                         this.main.playSound(this.main.thunder);
                     } else {
-                        this.main.pushThing(new Fireball(this.main, this.x + 24, this.main.random.nextBoolean() ? this.y + 70 : this.y + 48, this.direction == Main.LEFT ? -1.5 : 1.5, 0));
+                        this.main.pushThing(
+                            new Fireball(
+                                this.main,
+                                this.x + 24,
+                                this.main.random.nextBoolean() ? this.y + 70 : this.y + 48,
+                                this.direction == Main.LEFT ? -1.5 : 1.5,
+                                0
+                            )
+                        );
                         if (this.hits <= 24) {
                             this.main.playSound(this.main.thunder);
                             let ghost: Ghost = new Ghost(this.main, this.x - 96, this.y + 64);
@@ -251,8 +255,7 @@ export class Dracula extends Thing {
                     for (let i: number = this.draculaBats.length - 1; i >= 0; i--) {
                         let draculaBat: DraculaBat = this.draculaBats[i];
                         draculaBat.x += this.batVx;
-                        draculaBat.y = draculaBat.Y + (draculaBat.amplitude
-                            * Math.sin(Dracula.ANGLE_SCALE * this.batsMoving));
+                        draculaBat.y = draculaBat.Y + draculaBat.amplitude * Math.sin(Dracula.ANGLE_SCALE * this.batsMoving);
                         this.draculaBats[i].update(gc);
                     }
                 } else {
@@ -345,15 +348,19 @@ export class Dracula extends Thing {
         }
 
         return true;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
+    public render(gc: GameContainer, g: Graphics): void {
         switch (this.state) {
             case Dracula.STATE_RESTING:
                 break;
             case Dracula.STATE_HEAD_RISING:
-                this.main.drawFaded(this.main.draculaBoss[this.direction][0], this.x + 11, this.headY, 1 - Dracula.RISE_FADE_FRACTION * (this.headY - (this.y - 16)));
+                this.main.drawFaded(
+                    this.main.draculaBoss[this.direction][0],
+                    this.x + 11,
+                    this.headY,
+                    1 - Dracula.RISE_FADE_FRACTION * (this.headY - (this.y - 16))
+                );
                 break;
             case Dracula.STATE_BODY_FADE_IN:
                 this.main.draw(this.main.draculaBoss[this.direction][0], this.x + 11, this.y - 16);
@@ -452,6 +459,5 @@ export class Dracula extends Thing {
                 }
                 break;
         }
-
     }
 }

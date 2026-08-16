@@ -50,18 +50,17 @@ export class BoneDragon extends Thing {
         }
 
         if (avoidFloor) {
-            this.A0 = (Math.PI / 12);
-            this.A1 = (Math.PI + Math.PI / 8);
-            this.A2 = (Math.PI / 14);
+            this.A0 = Math.PI / 12;
+            this.A1 = Math.PI + Math.PI / 8;
+            this.A2 = Math.PI / 14;
         } else {
-            this.A0 = (Math.PI / 6);
-            this.A1 = (Math.PI);
-            this.A2 = (Math.PI / 7);
+            this.A0 = Math.PI / 6;
+            this.A1 = Math.PI;
+            this.A2 = Math.PI / 7;
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.dead) {
             if (--this.deadDelay == 0) {
                 let vertebra: BoneDragonVertebra = this.vertebrae[this.minIndex];
@@ -83,8 +82,7 @@ export class BoneDragon extends Thing {
 
         if (this.stunned > 0) {
             this.stunned--;
-        } else if (this.main.intersectsWhip(this)
-            || this.main.intersectsWeapon(this) || this.kill) {
+        } else if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             if (--this.hits <= 0) {
                 this.dead = true;
@@ -120,8 +118,7 @@ export class BoneDragon extends Thing {
                     this.shootDelay--;
                 }
 
-                this.angle = this.A1 + this.A0 * FastTrig.sin(this.angle2)
-                    + this.A2 * FastTrig.sin(this.angle3);
+                this.angle = this.A1 + this.A0 * FastTrig.sin(this.angle2) + this.A2 * FastTrig.sin(this.angle3);
                 this.angle2 += BoneDragon.dAngle2;
                 this.angle3 += BoneDragon.dAngle3;
 
@@ -130,7 +127,7 @@ export class BoneDragon extends Thing {
 
                 let cos: number = FastTrig.cos(this.angle);
                 let sin: number = FastTrig.sin(this.angle);
-                let rInc: number = this.radius * .125;
+                let rInc: number = this.radius * 0.125;
                 let r: number = rInc;
                 this.tx = this.X + this.radius * cos;
                 this.ty = this.Y + this.radius * sin;
@@ -171,16 +168,14 @@ export class BoneDragon extends Thing {
         }
 
         return true;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
+    public render(gc: GameContainer, g: Graphics): void {
         if (!this.dead) {
             this.main.draw(this.mouthOpen > 0 ? this.main.boneDragons[1] : this.main.boneDragons[0], this.x, this.y);
         }
         for (let i: number = 5; i >= this.minIndex; i--) {
             this.vertebrae[i].render(gc, g);
         }
-
     }
 }

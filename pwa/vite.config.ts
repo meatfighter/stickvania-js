@@ -25,19 +25,14 @@ function versionedHtmlPlugin(): PluginOption {
 }
 
 function renderVersionPlaceholders(text: string): string {
-    return text
-        .replaceAll("%APP_VERSION%", versionInfo.version)
-        .replaceAll("%BUILD_STAMP%", encodedBuildStamp);
+    return text.replaceAll("%APP_VERSION%", versionInfo.version).replaceAll("%BUILD_STAMP%", encodedBuildStamp);
 }
 
 function ensureAppModuleScriptId(text: string): string {
-    if (text.includes("id=\"app-module-script\"")) {
+    if (text.includes('id="app-module-script"')) {
         return text;
     }
-    return text.replace(
-        /<script\b(?=[^>]*\btype="module")(?=[^>]*\bsrc=)/,
-        "<script id=\"app-module-script\""
-    );
+    return text.replace(/<script\b(?=[^>]*\btype="module")(?=[^>]*\bsrc=)/, '<script id="app-module-script"');
 }
 
 function versionedStaticAssetsPlugin(): PluginOption {
@@ -69,10 +64,7 @@ function versionedStaticAssetsPlugin(): PluginOption {
 export default defineConfig(({ command }) => ({
     root: rootDir,
     base: command === "build" ? "/pwa/" : "/",
-    plugins: [
-        versionedHtmlPlugin(),
-        versionedStaticAssetsPlugin()
-    ],
+    plugins: [versionedHtmlPlugin(), versionedStaticAssetsPlugin()],
     define: {
         __APP_VERSION__: JSON.stringify(versionInfo.version),
         __BUILD_STAMP__: JSON.stringify(versionInfo.buildStamp)

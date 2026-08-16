@@ -12,12 +12,12 @@ The original NetBeans Java game used the old title text and fixed keyboard contr
 - Difficulty menu: `NORMAL`, `HARD`.
 - Remappable logical controls: `UP`, `DOWN`, `LEFT`, `RIGHT`, `JUMP`, `ATTACK`.
 - Default mapping:
-  - `UP = UP, GP-UP`
-  - `DOWN = DOWN, GP-DOWN`
-  - `LEFT = LEFT, GP-LEFT`
-  - `RIGHT = RIGHT, GP-RIGHT`
-  - `JUMP = X, GP-A`
-  - `ATTACK = Z, GP-X`
+    - `UP = UP, GP-UP`
+    - `DOWN = DOWN, GP-DOWN`
+    - `LEFT = LEFT, GP-LEFT`
+    - `RIGHT = RIGHT, GP-RIGHT`
+    - `JUMP = X, GP-A`
+    - `ATTACK = Z, GP-X`
 - `Space` remains reserved for fullscreen and cannot be remapped.
 - `Escape` remains reserved for fullscreen exit and cannot be remapped.
 - `UP + ATTACK` uses the Castlevania-style subweapon intent; if no subweapon can be emitted during live play, it falls back to whip.

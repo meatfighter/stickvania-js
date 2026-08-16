@@ -20,8 +20,8 @@ export class BridgeBat extends Thing {
         this.y = y;
 
         this.spriteIndex = 1;
-
     }
+
     private findTarget(): void {
         if (this.main.simon.x < this.x + 16) {
             this.targetX = this.main.simon.x - 16 - this.main.random.nextInt(96);
@@ -29,12 +29,11 @@ export class BridgeBat extends Thing {
             this.targetX = this.main.simon.x + 48 + this.main.random.nextInt(96);
         }
         if (this.main.random.nextInt(5) < 3) {
-            let targetY: number = this.main.random.nextInt(5) < 3
-                ? this.main.simon.y + 8 : this.main.simon.y - 80;
+            let targetY: number = this.main.random.nextInt(5) < 3 ? this.main.simon.y + 8 : this.main.simon.y - 80;
             this.applyingGravity = true;
             let t: number = 2 * Math.abs(this.main.simon.x - this.x - 16);
             let h: number = Math.abs(targetY - this.y);
-            this.G = 2 * h / (t * t);
+            this.G = (2 * h) / (t * t);
             this.vy = Math.min(4, Math.sqrt(2 * this.G * h));
             if (targetY > this.y) {
                 this.G = -this.G;
@@ -44,10 +43,9 @@ export class BridgeBat extends Thing {
         } else {
             this.applyingGravity = false;
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, -0.9, 0, -0.06, 0, 10));
@@ -62,7 +60,6 @@ export class BridgeBat extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-
             if (++this.spriteIndexIncrementor == 40) {
                 this.spriteIndexIncrementor = 0;
                 if (this.state != BridgeBat.STATE_INACTIVE) {
@@ -116,10 +113,9 @@ export class BridgeBat extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.batBoss[this.spriteIndex], this.x, this.y);
-
     }
 }

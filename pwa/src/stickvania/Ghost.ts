@@ -19,10 +19,9 @@ export class Ghost extends Thing {
         this.x = x;
         this.y = y;
         this.hits = main.adjustEnemyHits(this.hits);
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.fadeIn == 91) {
             if (this.kill) {
                 this.hits = 0;
@@ -31,8 +30,7 @@ export class Ghost extends Thing {
 
             if (this.stunned > 0) {
                 this.stunned--;
-            } else if (this.main.intersectsWhip(this)
-                || this.main.intersectsWeapon(this) || this.kill) {
+            } else if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
                 this.main.pushThing(new Spark(this.main, this));
                 if (--this.hits <= 0) {
                     if (this.main.random.nextBoolean()) {
@@ -93,14 +91,13 @@ export class Ghost extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.fadeIn > 90) {
             this.main.draw(this.main.ghosts[this.direction][this.spriteIndex], this.x, this.y);
         } else {
             this.main.drawFaded(this.main.ghosts[this.direction][this.spriteIndex], this.x, this.y, this.fadeIn * Ghost.FRACTION);
         }
-
     }
 }

@@ -10,10 +10,9 @@ export class Secret extends Thing {
         super(main, 576, 128);
         this.x = x;
         this.y = y;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsSimon(this)) {
             if (this.delay > 0) {
                 this.delay--;
@@ -45,9 +44,7 @@ export class Secret extends Thing {
         }
 
         return true;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
-    }
+    public render(gc: GameContainer, g: Graphics): void {}
 }

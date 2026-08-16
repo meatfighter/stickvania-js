@@ -15,8 +15,8 @@ export class BreakWall extends Thing {
         this.x = j << 5;
         this.y = i << 5;
         this.item = item;
-
     }
+
     public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this)) {
             this.main.removeBlock(this.j, this.i);
@@ -29,10 +29,7 @@ export class BreakWall extends Thing {
             return false;
         }
         return true;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
-
-    }
+    public render(gc: GameContainer, g: Graphics): void {}
 }

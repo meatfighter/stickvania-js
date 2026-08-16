@@ -32,6 +32,7 @@ export abstract class Thing {
             this.ry2 = b - 1;
         }
     }
+
     public abstract render(gc: GameContainer, g: Graphics): void;
     public abstract update(gc: GameContainer): boolean;
     public moveY(dy: number): boolean {
@@ -79,20 +80,13 @@ export abstract class Thing {
 
         this.y = targetY;
         return true;
-
     }
+
     public moveX(dx: number): boolean {
-
-
-
-
-
-
         let y1: number = trunc(this.y + this.ry1);
         let y2: number = trunc(this.y + this.ry2);
 
         if (dx < 0) {
-
             let x1: number = trunc(this.x + this.rx1);
             let x2: number = trunc(this.x + this.rx1 + dx);
 
@@ -100,18 +94,14 @@ export abstract class Thing {
                 for (let i: number = y1; i <= y2; i += 32) {
                     let a: number = this.main.getWall(j, i);
                     let b: number = this.main.getWall(j - 1, i);
-                    if (!((a == WALL_EMPTY && b == WALL_EMPTY)
-                        || (a == WALL_PLATFORM
-                            && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
+                    if (!((a == WALL_EMPTY && b == WALL_EMPTY) || (a == WALL_PLATFORM && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
                         this.x = j - this.rx1;
                         return false;
                     }
                 }
                 let a: number = this.main.getWall(j, y2);
                 let b: number = this.main.getWall(j - 1, y2);
-                if (!((a == WALL_EMPTY && b == WALL_EMPTY)
-                    || (a == WALL_PLATFORM
-                        && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
+                if (!((a == WALL_EMPTY && b == WALL_EMPTY) || (a == WALL_PLATFORM && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
                     this.x = j - this.rx1;
                     return false;
                 }
@@ -123,9 +113,7 @@ export abstract class Thing {
                 this.x = this.main.simon.xMin - this.rx1;
                 return false;
             }
-
         } else {
-
             let x1: number = trunc(this.x + this.rx2);
             let x2: number = trunc(this.x + this.rx2 + dx);
 
@@ -133,18 +121,14 @@ export abstract class Thing {
                 for (let i: number = y1; i <= y2; i += 32) {
                     let a: number = this.main.getWall(j, i);
                     let b: number = this.main.getWall(j + 1, i);
-                    if (!((a == WALL_EMPTY && b == WALL_EMPTY)
-                        || (a == WALL_PLATFORM
-                            && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
+                    if (!((a == WALL_EMPTY && b == WALL_EMPTY) || (a == WALL_PLATFORM && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
                         this.x = j - this.rx2;
                         return false;
                     }
                 }
                 let a: number = this.main.getWall(j, y2);
                 let b: number = this.main.getWall(j + 1, y2);
-                if (!((a == WALL_EMPTY && b == WALL_EMPTY)
-                    || (a == WALL_PLATFORM
-                        && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
+                if (!((a == WALL_EMPTY && b == WALL_EMPTY) || (a == WALL_PLATFORM && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
                     this.x = j - this.rx2;
                     return false;
                 }
@@ -159,10 +143,9 @@ export abstract class Thing {
         }
 
         return true;
-
     }
-    public applyGravityWithPlatforms(): void {
 
+    public applyGravityWithPlatforms(): void {
         this.supported = false;
 
         let targetY: number = this.y + this.vy;
@@ -231,10 +214,9 @@ export abstract class Thing {
         }
 
         this.y = targetY;
-
     }
-    public applyGravity(): void {
 
+    public applyGravity(): void {
         this.supported = false;
 
         let targetY: number = this.y + this.vy;
@@ -283,6 +265,5 @@ export abstract class Thing {
         }
 
         this.y = targetY;
-
     }
 }

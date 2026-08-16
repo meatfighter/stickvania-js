@@ -20,8 +20,8 @@ export class Raven extends Thing {
         super(main, 32, 32);
         this.x = x;
         this.y = y;
-
     }
+
     private findTarget(): void {
         if (this.main.simon.x + 16 < this.x) {
             this.targetX = this.main.simon.x + 16 - this.main.random.nextInt(96);
@@ -29,12 +29,11 @@ export class Raven extends Thing {
             this.targetX = this.main.simon.x + 48 + this.main.random.nextInt(96);
         }
         if (this.main.random.nextBoolean()) {
-            let targetY: number = this.main.random.nextBoolean()
-                ? this.main.simon.y + 8 : this.main.simon.y - 64;
+            let targetY: number = this.main.random.nextBoolean() ? this.main.simon.y + 8 : this.main.simon.y - 64;
             this.applyingGravity = true;
             let t: number = Math.abs(this.main.simon.x + 16 - this.x);
             let h: number = Math.abs(targetY - this.y);
-            this.G = 2 * h / (t * t);
+            this.G = (2 * h) / (t * t);
             this.vy = Math.min(4, Math.sqrt(2 * this.G * h));
             if (targetY > this.y) {
                 this.G = -this.G;
@@ -44,10 +43,9 @@ export class Raven extends Thing {
         } else {
             this.applyingGravity = false;
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
@@ -57,7 +55,6 @@ export class Raven extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-
             if (this.main.simon.x + 16 < this.x) {
                 this.direction = Main.LEFT;
             } else {
@@ -121,10 +118,9 @@ export class Raven extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.ravens[this.direction][Raven.spriteSequence[this.spriteIndex]], this.x, this.y);
-
     }
 }

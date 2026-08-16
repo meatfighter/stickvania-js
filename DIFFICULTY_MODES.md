@@ -24,11 +24,11 @@ This file defines the current difficulty contract for the PWA and the updated Ja
 NORMAL uses current PWA behavior:
 
 - Player-controlled Simon uses the PWA player physics profile:
-  - Gravity: `0.130027228`
-  - Jump velocity: `-4.262100987`
+    - Gravity: `0.130027228`
+    - Jump velocity: `-4.262100987`
 - Demo, cutscene, ending, and game-controlled Simon behavior use the original Java physics profile:
-  - Gravity: `0.21`
-  - Jump velocity: `-5.25`
+    - Gravity: `0.21`
+    - Jump velocity: `-5.25`
 - Enemy health, spawner timing, attack cooldowns, and damage are otherwise the current Java-port/PWA baseline.
 
 ## HARD Activation
@@ -36,10 +36,10 @@ NORMAL uses current PWA behavior:
 HARD gameplay rules use two gates:
 
 - Player damage uses `Main.isHardDifficultyActiveForGameplay()`.
-  - This is true only when the mode is `MODE_PLAYING`, Simon exists, Simon is alive, the player has power, no door transition is active, the stage is not beaten, and floor breaking is not active.
+    - This is true only when the mode is `MODE_PLAYING`, Simon exists, Simon is alive, the player has power, no door transition is active, the stage is not beaten, and floor breaking is not active.
 - Enemy health and delay construction use the stage-state gate.
-  - This is false during demo, credits, ending, castle falls, title, loading, and input configuration.
-  - It is allowed while preparing user-gameplay stage state during intro, map, continue, and restore flows.
+    - This is false during demo, credits, ending, castle falls, title, loading, and input configuration.
+    - It is allowed while preparing user-gameplay stage state during intro, map, continue, and restore flows.
 
 ## HARD Player Damage
 
@@ -58,13 +58,13 @@ Boss contact/projectile damage also goes through this rule if it calls `hurtSimo
 
 HARD increases regular multi-hit enemy health by 1 hit:
 
-| Enemy | NORMAL Hits | HARD Hits | File |
-| --- | ---: | ---: | --- |
-| AxeKnight | 3 | 4 | `pwa/src/stickvania/AxeKnight.ts`, `desktop/src/stickvania/AxeKnight.java` |
-| BoneDragon | 5 | 6 | `pwa/src/stickvania/BoneDragon.ts`, `desktop/src/stickvania/BoneDragon.java` |
-| BonePillar | 3 | 4 | `pwa/src/stickvania/BonePillar.ts`, `desktop/src/stickvania/BonePillar.java` |
-| Ghost | 2 | 3 | `pwa/src/stickvania/Ghost.ts`, `desktop/src/stickvania/Ghost.java` |
-| LanceKnight | 2 | 3 | `pwa/src/stickvania/LanceKnight.ts`, `desktop/src/stickvania/LanceKnight.java` |
+| Enemy       | NORMAL Hits | HARD Hits | File                                                                           |
+| ----------- | ----------: | --------: | ------------------------------------------------------------------------------ |
+| AxeKnight   |           3 |         4 | `pwa/src/stickvania/AxeKnight.ts`, `desktop/src/stickvania/AxeKnight.java`     |
+| BoneDragon  |           5 |         6 | `pwa/src/stickvania/BoneDragon.ts`, `desktop/src/stickvania/BoneDragon.java`   |
+| BonePillar  |           3 |         4 | `pwa/src/stickvania/BonePillar.ts`, `desktop/src/stickvania/BonePillar.java`   |
+| Ghost       |           2 |         3 | `pwa/src/stickvania/Ghost.ts`, `desktop/src/stickvania/Ghost.java`             |
+| LanceKnight |           2 |         3 | `pwa/src/stickvania/LanceKnight.ts`, `desktop/src/stickvania/LanceKnight.java` |
 
 Boss health is intentionally unchanged.
 
@@ -72,35 +72,35 @@ Boss health is intentionally unchanged.
 
 HARD reduces positive non-boss spawner reset delays to `trunc(baseDelay * 0.66)`, with a minimum positive delay of `1`.
 
-| Spawner | NORMAL Delay | HARD Delay | File |
-| --- | ---: | ---: | --- |
-| ZombieSpawner | 273 | 180 | `pwa/src/stickvania/ZombieSpawner.ts`, `desktop/src/stickvania/ZombieSpawner.java` |
-| BatSpawner | 546 | 360 | `pwa/src/stickvania/BatSpawner.ts`, `desktop/src/stickvania/BatSpawner.java` |
-| BirdSpawner | 182 | 120 | `pwa/src/stickvania/BirdSpawner.ts`, `desktop/src/stickvania/BirdSpawner.java` |
-| MedusaHeadSpawner | 273 | 180 | `pwa/src/stickvania/MedusaHeadSpawner.ts`, `desktop/src/stickvania/MedusaHeadSpawner.java` |
-| MermanSpawner | 182 | 120 | `pwa/src/stickvania/MermanSpawner.ts`, `desktop/src/stickvania/MermanSpawner.java` |
+| Spawner           | NORMAL Delay | HARD Delay | File                                                                                       |
+| ----------------- | -----------: | ---------: | ------------------------------------------------------------------------------------------ |
+| ZombieSpawner     |          273 |        180 | `pwa/src/stickvania/ZombieSpawner.ts`, `desktop/src/stickvania/ZombieSpawner.java`         |
+| BatSpawner        |          546 |        360 | `pwa/src/stickvania/BatSpawner.ts`, `desktop/src/stickvania/BatSpawner.java`               |
+| BirdSpawner       |          182 |        120 | `pwa/src/stickvania/BirdSpawner.ts`, `desktop/src/stickvania/BirdSpawner.java`             |
+| MedusaHeadSpawner |          273 |        180 | `pwa/src/stickvania/MedusaHeadSpawner.ts`, `desktop/src/stickvania/MedusaHeadSpawner.java` |
+| MermanSpawner     |          182 |        120 | `pwa/src/stickvania/MermanSpawner.ts`, `desktop/src/stickvania/MermanSpawner.java`         |
 
 HARD also increases selected active ambient enemy caps by 1 during live stage state:
 
-| Spawner | NORMAL Active Cap | HARD Active Cap | File |
-| --- | ---: | ---: | --- |
-| ZombieSpawner | 3 | 4 | `pwa/src/stickvania/ZombieSpawner.ts`, `desktop/src/stickvania/ZombieSpawner.java` |
-| BirdSpawner | 3 | 4 | `pwa/src/stickvania/BirdSpawner.ts`, `desktop/src/stickvania/BirdSpawner.java` |
-| MermanSpawner | 2 | 3 | `pwa/src/stickvania/MermanSpawner.ts`, `desktop/src/stickvania/MermanSpawner.java` |
+| Spawner       | NORMAL Active Cap | HARD Active Cap | File                                                                               |
+| ------------- | ----------------: | --------------: | ---------------------------------------------------------------------------------- |
+| ZombieSpawner |                 3 |               4 | `pwa/src/stickvania/ZombieSpawner.ts`, `desktop/src/stickvania/ZombieSpawner.java` |
+| BirdSpawner   |                 3 |               4 | `pwa/src/stickvania/BirdSpawner.ts`, `desktop/src/stickvania/BirdSpawner.java`     |
+| MermanSpawner |                 2 |               3 | `pwa/src/stickvania/MermanSpawner.ts`, `desktop/src/stickvania/MermanSpawner.java` |
 
 ## HARD Enemy Attack Cooldowns
 
 HARD reduces positive non-boss attack/cooldown delays to `trunc(baseDelay * 0.70)`, with a minimum positive delay of `1`.
 
-| Enemy | NORMAL Delay Expression | HARD Result | File |
-| --- | --- | --- | --- |
-| AxeKnight | `random.nextInt(273)` | Same random call, result multiplied by `0.70`; zero remains zero | `pwa/src/stickvania/AxeKnight.ts`, `desktop/src/stickvania/AxeKnight.java` |
-| BoneDragon | `91 + random.nextInt(273)` | `63..254` | `pwa/src/stickvania/BoneDragon.ts`, `desktop/src/stickvania/BoneDragon.java` |
-| BonePillar short fireball gap | `60` | `42` | `pwa/src/stickvania/BonePillar.ts`, `desktop/src/stickvania/BonePillar.java` |
-| BonePillar long fireball gap | `364` | `254` | `pwa/src/stickvania/BonePillar.ts`, `desktop/src/stickvania/BonePillar.java` |
-| Merman initial shot delay | `45 + random.nextInt(45)` | `31..62` | `pwa/src/stickvania/Merman.ts`, `desktop/src/stickvania/Merman.java` |
-| Merman repeat shot delay | `91 + random.nextInt(273)` | `63..254` | `pwa/src/stickvania/Merman.ts`, `desktop/src/stickvania/Merman.java` |
-| WhiteSkeleton throw delay | `91 + random.nextInt(273)` | `63..254` | `pwa/src/stickvania/WhiteSkeleton.ts`, `desktop/src/stickvania/WhiteSkeleton.java` |
+| Enemy                         | NORMAL Delay Expression    | HARD Result                                                      | File                                                                               |
+| ----------------------------- | -------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| AxeKnight                     | `random.nextInt(273)`      | Same random call, result multiplied by `0.70`; zero remains zero | `pwa/src/stickvania/AxeKnight.ts`, `desktop/src/stickvania/AxeKnight.java`         |
+| BoneDragon                    | `91 + random.nextInt(273)` | `63..254`                                                        | `pwa/src/stickvania/BoneDragon.ts`, `desktop/src/stickvania/BoneDragon.java`       |
+| BonePillar short fireball gap | `60`                       | `42`                                                             | `pwa/src/stickvania/BonePillar.ts`, `desktop/src/stickvania/BonePillar.java`       |
+| BonePillar long fireball gap  | `364`                      | `254`                                                            | `pwa/src/stickvania/BonePillar.ts`, `desktop/src/stickvania/BonePillar.java`       |
+| Merman initial shot delay     | `45 + random.nextInt(45)`  | `31..62`                                                         | `pwa/src/stickvania/Merman.ts`, `desktop/src/stickvania/Merman.java`               |
+| Merman repeat shot delay      | `91 + random.nextInt(273)` | `63..254`                                                        | `pwa/src/stickvania/Merman.ts`, `desktop/src/stickvania/Merman.java`               |
+| WhiteSkeleton throw delay     | `91 + random.nextInt(273)` | `63..254`                                                        | `pwa/src/stickvania/WhiteSkeleton.ts`, `desktop/src/stickvania/WhiteSkeleton.java` |
 
 Boss timing is intentionally unchanged in this pass.
 
@@ -108,14 +108,14 @@ Boss timing is intentionally unchanged in this pass.
 
 HARD reduces selected regular enemy behavior pauses to `trunc(baseDelay * 0.75)`, with a minimum positive delay of `1`. Movement speeds and movement distances are unchanged.
 
-| Enemy | NORMAL Delay Expression | HARD Result | File |
-| --- | --- | --- | --- |
-| WhiteSkeleton stand pause | `23 + random.nextInt(46)` | `17..51` | `pwa/src/stickvania/WhiteSkeleton.ts`, `desktop/src/stickvania/WhiteSkeleton.java` |
-| WhiteSkeleton walk duration | `91 + random.nextInt(273)` | `68..272` | `pwa/src/stickvania/WhiteSkeleton.ts`, `desktop/src/stickvania/WhiteSkeleton.java` |
-| Raven hover pause | `91 + random.nextInt(91)` | `68..135` | `pwa/src/stickvania/Raven.ts`, `desktop/src/stickvania/Raven.java` |
-| BridgeBat hover pause | `random.nextInt(43)` | zero remains zero; positive values become `1..31` | `pwa/src/stickvania/BridgeBat.ts`, `desktop/src/stickvania/BridgeBat.java` |
-| AxeKnight standing threshold | `43` | `32` | `pwa/src/stickvania/AxeKnight.ts`, `desktop/src/stickvania/AxeKnight.java` |
-| AxeKnight standing reset | `random.nextInt(43)` | zero remains zero; positive values become `1..31` | `pwa/src/stickvania/AxeKnight.ts`, `desktop/src/stickvania/AxeKnight.java` |
+| Enemy                        | NORMAL Delay Expression    | HARD Result                                       | File                                                                               |
+| ---------------------------- | -------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| WhiteSkeleton stand pause    | `23 + random.nextInt(46)`  | `17..51`                                          | `pwa/src/stickvania/WhiteSkeleton.ts`, `desktop/src/stickvania/WhiteSkeleton.java` |
+| WhiteSkeleton walk duration  | `91 + random.nextInt(273)` | `68..272`                                         | `pwa/src/stickvania/WhiteSkeleton.ts`, `desktop/src/stickvania/WhiteSkeleton.java` |
+| Raven hover pause            | `91 + random.nextInt(91)`  | `68..135`                                         | `pwa/src/stickvania/Raven.ts`, `desktop/src/stickvania/Raven.java`                 |
+| BridgeBat hover pause        | `random.nextInt(43)`       | zero remains zero; positive values become `1..31` | `pwa/src/stickvania/BridgeBat.ts`, `desktop/src/stickvania/BridgeBat.java`         |
+| AxeKnight standing threshold | `43`                       | `32`                                              | `pwa/src/stickvania/AxeKnight.ts`, `desktop/src/stickvania/AxeKnight.java`         |
+| AxeKnight standing reset     | `random.nextInt(43)`       | zero remains zero; positive values become `1..31` | `pwa/src/stickvania/AxeKnight.ts`, `desktop/src/stickvania/AxeKnight.java`         |
 
 ## Explicit Non-Changes
 

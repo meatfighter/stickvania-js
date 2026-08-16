@@ -19,10 +19,9 @@ export class Fireball extends Thing {
         } else {
             this.image = main.fireballs[Main.RIGHT];
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x - 8, this.y, 0, 0, -0.05, 0, 10));
@@ -46,10 +45,9 @@ export class Fireball extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.image, this.x, this.y);
-
     }
 }

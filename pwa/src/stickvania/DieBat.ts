@@ -14,10 +14,9 @@ export class DieBat extends Thing {
         this.x = x;
         this.y = y;
         this.direction = main.random.nextBoolean() ? Main.LEFT : Main.RIGHT;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.spriteDelay == 0) {
             this.spriteDelay = 10;
             if (this.spriteIndex == 0) {
@@ -37,10 +36,9 @@ export class DieBat extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.bats[this.direction][DieBat.spriteSequence[this.spriteIndex]], this.x, this.y);
-
     }
 }

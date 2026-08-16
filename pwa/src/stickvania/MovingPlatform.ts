@@ -10,7 +10,7 @@ export class MovingPlatform extends Thing {
     public static readonly ACCELERATION_DISTANCE: number = 16;
     public static readonly ACCELERATION_TIME: number = 45;
     public static readonly VELOCITY: number = 1;
-    public static readonly A: number = 2 * MovingPlatform.ACCELERATION_DISTANCE / (MovingPlatform.ACCELERATION_TIME * MovingPlatform.ACCELERATION_TIME);
+    public static readonly A: number = (2 * MovingPlatform.ACCELERATION_DISTANCE) / (MovingPlatform.ACCELERATION_TIME * MovingPlatform.ACCELERATION_TIME);
     public state: number = MovingPlatform.STATE_RIGHT_ACCELERATING;
     public x1: number = 0;
     public x2: number = 0;
@@ -20,10 +20,9 @@ export class MovingPlatform extends Thing {
         this.y = y;
         this.x1 = x1;
         this.x2 = x2;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         this.x += this.vx;
 
         switch (this.state) {
@@ -54,10 +53,9 @@ export class MovingPlatform extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.platform, this.x, this.y);
-
     }
 }

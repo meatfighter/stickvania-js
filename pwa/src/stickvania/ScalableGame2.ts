@@ -1,20 +1,15 @@
-import {
-    GL11,
-    Game,
-    GameContainer,
-    Graphics,
-    InputListener,
-    SlickCallable
-} from "slick2d-ts";
+import { GL11, Game, GameContainer, Graphics, InputListener, SlickCallable } from "slick2d-ts";
 
 function isInputListener(value: unknown): value is InputListener {
     const candidate = value as Partial<InputListener> | null;
-    return !!candidate
-        && typeof candidate.setInput === "function"
-        && typeof candidate.isAcceptingInput === "function"
-        && typeof candidate.keyPressed === "function"
-        && typeof candidate.mousePressed === "function"
-        && typeof candidate.controllerButtonPressed === "function";
+    return (
+        !!candidate &&
+        typeof candidate.setInput === "function" &&
+        typeof candidate.isAcceptingInput === "function" &&
+        typeof candidate.keyPressed === "function" &&
+        typeof candidate.mousePressed === "function" &&
+        typeof candidate.controllerButtonPressed === "function"
+    );
 }
 
 export class ScalableGame2 implements Game {
@@ -61,11 +56,7 @@ export class ScalableGame2 implements Game {
 
         SlickCallable.enterSafeBlock();
         g.setClip(xoffset, yoffset, this.targetWidth, this.targetHeight);
-        GL11.glTranslatef(
-            xoffset - ScalableGame2.VIEWPORT_X * xscale,
-            yoffset - ScalableGame2.VIEWPORT_Y * yscale,
-            0
-        );
+        GL11.glTranslatef(xoffset - ScalableGame2.VIEWPORT_X * xscale, yoffset - ScalableGame2.VIEWPORT_Y * yscale, 0);
         GL11.glScalef(xscale, yscale, 0);
         GL11.glPushMatrix();
         this.held.render(container, g);
@@ -76,8 +67,7 @@ export class ScalableGame2 implements Game {
         this.renderOverlay(container, g);
     }
 
-    protected renderOverlay(_container: GameContainer, _g: Graphics): void {
-    }
+    protected renderOverlay(_container: GameContainer, _g: Graphics): void {}
 
     public closeRequested(): boolean {
         return this.held.closeRequested();
@@ -113,10 +103,7 @@ export class ScalableGame2 implements Game {
         const xscale = ScalableGame2.VIEWPORT_WIDTH / this.targetWidth;
         const yscale = ScalableGame2.VIEWPORT_HEIGHT / this.targetHeight;
         container.getInput().setScale(xscale, yscale);
-        container.getInput().setOffset(
-            ScalableGame2.VIEWPORT_X - xoffset * xscale,
-            ScalableGame2.VIEWPORT_Y - yoffset * yscale
-        );
+        container.getInput().setOffset(ScalableGame2.VIEWPORT_X - xoffset * xscale, ScalableGame2.VIEWPORT_Y - yoffset * yscale);
     }
 
     private calculateOffsets(container: GameContainer): void {

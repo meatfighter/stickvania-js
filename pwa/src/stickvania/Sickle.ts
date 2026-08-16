@@ -34,10 +34,9 @@ export class Sickle extends Thing {
             this.g = -Sickle.G;
             this.targetX = Math.max(grimReaper.x - 128, main.camera + 32);
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.soundDelay > 0) {
             this.soundDelay--;
         } else {
@@ -102,10 +101,9 @@ export class Sickle extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.sickle, this.x, this.y, this.angle);
-
     }
 }

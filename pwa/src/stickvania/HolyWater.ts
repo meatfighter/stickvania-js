@@ -19,8 +19,8 @@ export class HolyWater extends Thing {
         this.direction = direction;
         this.state = HolyWater.STATE_DROPPING;
         main.playSound(main.threw_dagger);
-
     }
+
     public update(gc: GameContainer): boolean {
         if (this.state == HolyWater.STATE_DROPPING) {
             this.applyGravity();
@@ -52,14 +52,13 @@ export class HolyWater extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.state == HolyWater.STATE_DROPPING) {
             this.main.draw(this.main.holyWaters[this.direction], this.x, this.y);
         } else {
             this.main.draw(this.main.fires[this.spriteIndex], this.x, this.y);
         }
-
     }
 }

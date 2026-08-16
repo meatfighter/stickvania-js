@@ -15,17 +15,16 @@ export class ZombieSpawner extends Thing {
         this.y = y;
         this.x1 = x1;
         this.x2 = x2;
-
     }
+
     public zombieDied(): void {
         this.syncActiveCap();
         if (this.count < this.activeCap) {
             this.count++;
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         this.syncActiveCap();
 
         if (this.main.timeFrozen > 0) {
@@ -59,11 +58,9 @@ export class ZombieSpawner extends Thing {
         }
 
         return true;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
-    }
+    public render(gc: GameContainer, g: Graphics): void {}
     private syncActiveCap(): void {
         if (!Number.isFinite(this.activeCap)) {
             this.activeCap = ZombieSpawner.BASE_ACTIVE_CAP;
@@ -82,6 +79,5 @@ export class ZombieSpawner extends Thing {
             this.count = activeCap;
         }
         this.activeCap = activeCap;
-
     }
 }

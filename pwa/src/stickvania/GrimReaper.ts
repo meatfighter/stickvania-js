@@ -42,18 +42,17 @@ export class GrimReaper extends Thing {
 
         this.G = 0.05;
 
-        let t: number = Math.sqrt(2 * (y - this.y) / this.G);
+        let t: number = Math.sqrt((2 * (y - this.y)) / this.G);
         this.fadeTime = trunc(t);
         this.FADE_FRACTION = 1 / t;
         this.vy = this.G * t;
-
     }
+
     public sickleGone(): void {
         this.sickles++;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         this.direction = this.main.simon.x - this.x - 8 < 0 ? Main.LEFT : Main.RIGHT;
 
         if (this.state == GrimReaper.STATE_THROWING || this.state == GrimReaper.STATE_FLYING) {
@@ -75,8 +74,7 @@ export class GrimReaper extends Thing {
                         this.main.pushThing(new Orb(this.main, this.main.simon.xMin + 240, 96, 546));
                         for (let i: number = 0; i < 4; i++) {
                             for (let j: number = 0; j < 3; j++) {
-                                if ((i == 0 && j == 0) || (i == 0 && j == 2)
-                                    || (i == 3 && j == 0) || (i == 3 && j == 2)) {
+                                if ((i == 0 && j == 0) || (i == 0 && j == 2) || (i == 3 && j == 0) || (i == 3 && j == 2)) {
                                     continue;
                                 }
                                 this.main.pushThing(new Flame(this.main, this.x + (j << 5) - 16, this.y + (i << 5) + 16, 0, 0, -0.0004, 0, 455));
@@ -84,13 +82,23 @@ export class GrimReaper extends Thing {
                         }
                         for (let i: number = 0; i < 4; i++) {
                             for (let j: number = 0; j < 3; j++) {
-                                if ((i == 0 && j == 0) || (i == 0 && j == 2)
-                                    || (i == 3 && j == 0) || (i == 3 && j == 2)) {
+                                if ((i == 0 && j == 0) || (i == 0 && j == 2) || (i == 3 && j == 0) || (i == 3 && j == 2)) {
                                     continue;
                                 }
                                 this.main.pushThing(new Flame(this.main, this.x + (j << 5), this.y + (i << 5), 0, 0, -0.0002, 0, 455));
                                 for (let k: number = 0; k < 5; k++) {
-                                    this.main.pushThing(new Flame(this.main, this.x + 8 + this.main.random.nextInt(64), this.y + this.main.random.nextInt(64), this.main.random.nextFloat() * 4 - 2, -1, 0.08, ((j << 2) + i) * 45 + (k << 2), 35));
+                                    this.main.pushThing(
+                                        new Flame(
+                                            this.main,
+                                            this.x + 8 + this.main.random.nextInt(64),
+                                            this.y + this.main.random.nextInt(64),
+                                            this.main.random.nextFloat() * 4 - 2,
+                                            -1,
+                                            0.08,
+                                            ((j << 2) + i) * 45 + (k << 2),
+                                            35
+                                        )
+                                    );
                                 }
                             }
                         }
@@ -148,7 +156,7 @@ export class GrimReaper extends Thing {
                             this.flyTime = trunc(Math.abs(this.targetX - this.x));
 
                             let targetY: number = this.main.simon.y - 40;
-                            this.angleInc = (0.5 * Math.PI / this.flyTime);
+                            this.angleInc = (0.5 * Math.PI) / this.flyTime;
                             this.startY = this.y;
                             this.dy = targetY - this.y;
                             this.angle = 0;
@@ -179,8 +187,8 @@ export class GrimReaper extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.state != GrimReaper.STATE_DEAD) {
             if (this.fadeIn >= this.fadeTime) {
@@ -189,6 +197,5 @@ export class GrimReaper extends Thing {
                 this.main.drawFaded(this.main.grimReaperBoss[this.direction], this.x, this.y, this.fadeIn * this.FADE_FRACTION);
             }
         }
-
     }
 }

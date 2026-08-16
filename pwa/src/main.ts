@@ -23,8 +23,7 @@ type ScreenTest = "static-loading" | "static-error" | "dynamic-loading" | "dynam
 type SlickRuntimeModule = typeof import("slick2d-ts");
 type MainConstructor = typeof import("./stickvania/Main.js").Main;
 type ScalableGame2Constructor = typeof import("./stickvania/ScalableGame2.js").ScalableGame2;
-type StickvaniaGameStateStoreConstructor =
-    typeof import("./stickvania/persistence/StickvaniaGameStateStore.js").StickvaniaGameStateStore;
+type StickvaniaGameStateStoreConstructor = typeof import("./stickvania/persistence/StickvaniaGameStateStore.js").StickvaniaGameStateStore;
 
 type PreparedRuntime = {
     slick: SlickRuntimeModule;
@@ -78,11 +77,12 @@ function updateVolumeUi(volumeInput: HTMLInputElement, volumeValue: HTMLElement,
 }
 
 function volumeIconSvg(value: number): string {
-    const waves = Math.round(value * 100) === 0
-        ? `<path d="M18 9l5 5m0-5l-5 5"></path>`
-        : value < 0.33
-            ? `<path d="M17 10a4 4 0 0 1 0 4"></path>`
-            : value < 0.66
+    const waves =
+        Math.round(value * 100) === 0
+            ? `<path d="M18 9l5 5m0-5l-5 5"></path>`
+            : value < 0.33
+              ? `<path d="M17 10a4 4 0 0 1 0 4"></path>`
+              : value < 0.66
                 ? `<path d="M17 8a6 6 0 0 1 0 8"></path><path d="M20 6a9 9 0 0 1 0 12"></path>`
                 : `<path d="M17 8a6 6 0 0 1 0 8"></path><path d="M20 6a9 9 0 0 1 0 12"></path><path d="M23 4a12 12 0 0 1 0 16"></path>`;
 
@@ -334,7 +334,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     appContainer.setClearEachFrame(true);
     await Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false));
     await appContainer.start();
-    appContainer.setErrorHandler(error => {
+    appContainer.setErrorHandler((error) => {
         console.error(error);
         destroyGame();
         showLoadError("Unable to continue.", "Reload the page and try again.", () => {
@@ -372,14 +372,14 @@ async function ensureRuntimePrepared(forceRetry = false): Promise<PreparedRuntim
     ResourceLoader.setCacheBust(__BUILD_STAMP__);
     ResourceLoader.setRetryOptions(RESOURCE_CACHE_RETRY_COUNT, RESOURCE_CACHE_RETRY_DELAY_MS);
     preparationPromise = prepareRuntime()
-        .then(runtime => {
+        .then((runtime) => {
             preparedRuntime = runtime;
             preparationError = null;
             preparationProgress = 1;
             refreshVisibleBootProgress();
             return runtime;
         })
-        .catch(error => {
+        .catch((error) => {
             preparationError = error;
             throw error;
         })
@@ -390,13 +390,7 @@ async function ensureRuntimePrepared(forceRetry = false): Promise<PreparedRuntim
 }
 
 async function prepareRuntime(): Promise<PreparedRuntime> {
-    const [
-        slick,
-        mainModule,
-        scalableGameModule,
-        gameStateStoreModule,
-        resourceModule
-    ] = await Promise.all([
+    const [slick, mainModule, scalableGameModule, gameStateStoreModule, resourceModule] = await Promise.all([
         import("slick2d-ts"),
         import("./stickvania/Main.js"),
         import("./stickvania/ScalableGame2.js"),
@@ -415,7 +409,7 @@ async function prepareRuntime(): Promise<PreparedRuntime> {
 
 async function preloadPreparedResources(resourceRefs: readonly string[]): Promise<void> {
     const audioRefs = resourceRefs.filter(isAudioResourceRef);
-    const nonAudioRefs = resourceRefs.filter(ref => !isAudioResourceRef(ref));
+    const nonAudioRefs = resourceRefs.filter((ref) => !isAudioResourceRef(ref));
     const total = audioRefs.length + nonAudioRefs.length;
     let audioLoaded = 0;
     let nonAudioLoaded = 0;
@@ -426,11 +420,11 @@ async function preloadPreparedResources(resourceRefs: readonly string[]): Promis
 
     updateProgress();
     await Promise.all([
-        ResourceLoader.preloadResources(nonAudioRefs, progress => {
+        ResourceLoader.preloadResources(nonAudioRefs, (progress) => {
             nonAudioLoaded = progress.loaded;
             updateProgress();
         }),
-        SoundStore.get().preloadAudioBuffers(audioRefs, progress => {
+        SoundStore.get().preloadAudioBuffers(audioRefs, (progress) => {
             audioLoaded = progress.loaded;
             updateProgress();
         })
@@ -440,15 +434,14 @@ async function preloadPreparedResources(resourceRefs: readonly string[]): Promis
 }
 
 function scheduleBackgroundPreparation(): void {
-    if (backgroundPreparationScheduled || preparedRuntime !== null
-        || preparationPromise !== null || preparationError !== null) {
+    if (backgroundPreparationScheduled || preparedRuntime !== null || preparationPromise !== null || preparationError !== null) {
         return;
     }
     backgroundPreparationScheduled = true;
     requestAnimationFrame(() => {
         window.setTimeout(() => {
             backgroundPreparationScheduled = false;
-            void ensureRuntimePrepared().catch(error => {
+            void ensureRuntimePrepared().catch((error) => {
                 console.warn("Stickvania background preparation failed.", error);
             });
         }, 0);
@@ -488,7 +481,7 @@ function hasPotentialSavedGameState(): boolean {
         if (text === null) {
             return false;
         }
-        const snapshot = JSON.parse(text) as { version?: unknown; };
+        const snapshot = JSON.parse(text) as { version?: unknown };
         if (snapshot.version !== GAME_STATE_VERSION) {
             clearStoredGameState();
             return false;
@@ -510,25 +503,17 @@ function returnToMenu(): void {
 }
 
 function canOpenLiveMenuOverlay(): boolean {
-    return game !== null
-        && container !== null
-        && activeGameShell !== null
-        && activeGameHost !== null
-        && game.isStateSaveReady()
-        && game.isLiveMenuOverlayAllowed();
+    return (
+        game !== null && container !== null && activeGameShell !== null && activeGameHost !== null && game.isStateSaveReady() && game.isLiveMenuOverlayAllowed()
+    );
 }
 
 function hasLiveSuspendedGame(): boolean {
-    return liveMenuOpen
-        && menuOverlay !== null
-        && game !== null
-        && container !== null
-        && activeGameHost !== null;
+    return liveMenuOpen && menuOverlay !== null && game !== null && container !== null && activeGameHost !== null;
 }
 
 function showLiveMenuOverlay(): void {
-    if (!canOpenLiveMenuOverlay() || game === null || container === null
-        || activeGameShell === null) {
+    if (!canOpenLiveMenuOverlay() || game === null || container === null || activeGameShell === null) {
         saveCurrentGameState();
         showMenu();
         return;
@@ -547,8 +532,7 @@ function showLiveMenuOverlay(): void {
 }
 
 function resumeLiveGameFromMenu(): void {
-    if (!hasLiveSuspendedGame() || game === null || container === null
-        || activeGameHost === null) {
+    if (!hasLiveSuspendedGame() || game === null || container === null || activeGameHost === null) {
         return;
     }
     const liveGame = game;
@@ -608,8 +592,7 @@ function saveCurrentGameState(): boolean {
 function clearStoredGameState(): void {
     try {
         localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-    } catch {
-    }
+    } catch {}
     gameStateStore?.clear();
 }
 
@@ -771,22 +754,19 @@ function applyResponsiveGameDisplayMode(): void {
         return;
     }
 
-    const displayMode = containerFullscreen
-        ? getResponsiveFullscreenDisplayMode()
-        : getResponsiveWindowedDisplayMode();
+    const displayMode = containerFullscreen ? getResponsiveFullscreenDisplayMode() : getResponsiveWindowedDisplayMode();
     try {
-        void Promise.resolve(container.setDisplayMode(displayMode.width, displayMode.height, containerFullscreen))
-            .catch(error => {
-                console.error(error);
-                showError("Unable to resize the game. Reload the page and try again.");
-            });
+        void Promise.resolve(container.setDisplayMode(displayMode.width, displayMode.height, containerFullscreen)).catch((error) => {
+            console.error(error);
+            showError("Unable to resize the game. Reload the page and try again.");
+        });
     } catch (error) {
         console.error(error);
         showError("Unable to resize the game. Reload the page and try again.");
     }
 }
 
-function getResponsiveWindowedDisplayMode(): { width: number; height: number; } {
+function getResponsiveWindowedDisplayMode(): { width: number; height: number } {
     const host = activeGameHost ?? document.getElementById("game-host");
     const fallbackDisplayMode = getResponsiveFullscreenDisplayMode();
     if (host === null) {
@@ -799,14 +779,14 @@ function getResponsiveWindowedDisplayMode(): { width: number; height: number; } 
     return getAspectFitDisplayMode(width, height);
 }
 
-function getResponsiveFullscreenDisplayMode(): { width: number; height: number; } {
+function getResponsiveFullscreenDisplayMode(): { width: number; height: number } {
     const viewport = window.visualViewport;
     const width = viewport?.width || window.innerWidth || document.documentElement.clientWidth || GAME_WIDTH;
     const height = viewport?.height || window.innerHeight || document.documentElement.clientHeight || GAME_HEIGHT;
     return normalizeDisplayMode(width, height);
 }
 
-function getAspectFitDisplayMode(width: number, height: number): { width: number; height: number; } {
+function getAspectFitDisplayMode(width: number, height: number): { width: number; height: number } {
     const displayMode = normalizeDisplayMode(width, height);
     const gameAspectRatio = GAME_VIEWPORT_WIDTH / GAME_VIEWPORT_HEIGHT;
     const displayAspectRatio = displayMode.width / displayMode.height;
@@ -816,7 +796,7 @@ function getAspectFitDisplayMode(width: number, height: number): { width: number
     return normalizeDisplayMode(displayMode.width, displayMode.width / gameAspectRatio);
 }
 
-function normalizeDisplayMode(width: number, height: number): { width: number; height: number; } {
+function normalizeDisplayMode(width: number, height: number): { width: number; height: number } {
     return {
         width: Math.max(1, Math.trunc(width)),
         height: Math.max(1, Math.trunc(height))
@@ -831,9 +811,10 @@ function enterGameShellFullscreen(): void {
     if (activeGameShell === null || isGameShellFullscreen() || !activeGameShell.requestFullscreen) {
         return;
     }
-    void activeGameShell.requestFullscreen()
+    void activeGameShell
+        .requestFullscreen()
         .then(scheduleResponsiveGameResize)
-        .catch(error => {
+        .catch((error) => {
             console.error(error);
         });
 }
@@ -842,9 +823,10 @@ function exitGameShellFullscreen(): void {
     if (!isGameShellFullscreen() || !document.exitFullscreen) {
         return;
     }
-    void document.exitFullscreen()
+    void document
+        .exitFullscreen()
         .then(scheduleResponsiveGameResize)
-        .catch(error => {
+        .catch((error) => {
             console.error(error);
         });
 }
@@ -947,7 +929,7 @@ async function registerServiceWorker(): Promise<void> {
 function startPwaMenu(): void {
     setAudioVolume(volume);
     showMenu();
-    void registerServiceWorker().catch(error => console.warn("Service worker registration failed.", error));
+    void registerServiceWorker().catch((error) => console.warn("Service worker registration failed.", error));
 }
 
 function setupPageLifecycleHandlers(): void {
@@ -995,8 +977,7 @@ function safeReadVolume(): number {
 function writeVolume(value: number): void {
     try {
         localStorage.setItem("stickvania-volume", String(Math.round(value * 100)));
-    } catch {
-    }
+    } catch {}
 }
 
 function safeReadDisplayModePreference(): DisplayModePreference {
@@ -1010,17 +991,11 @@ function safeReadDisplayModePreference(): DisplayModePreference {
 function writeDisplayModePreference(value: DisplayModePreference): void {
     try {
         localStorage.setItem(DISPLAY_MODE_STORAGE_KEY, value);
-    } catch {
-    }
+    } catch {}
 }
 
 function escapeHtml(text: string): string {
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 if (!shouldKeepStaticTestScreen()) {

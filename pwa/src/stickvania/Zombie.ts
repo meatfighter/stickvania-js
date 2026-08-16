@@ -17,10 +17,9 @@ export class Zombie extends Thing {
         this.y = y;
         this.direction = direction;
         this.zombieSpawner = zombieSpawner;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             if (this.main.random.nextBoolean()) {
@@ -64,10 +63,9 @@ export class Zombie extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.zombies[this.direction][this.spriteIndex], this.x, this.y);
-
     }
 }

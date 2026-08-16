@@ -28,16 +28,16 @@ export class MummyBoss extends Thing {
         this.y = y;
         this.originalDirection = this.direction = direction;
         this.shootDelay = 91 + main.random.nextInt(91);
-
     }
+
     private findTarget(): void {
         if (this.originalDirection == Main.RIGHT) {
             this.targetX = this.main.simon.x + 16 - this.main.random.nextInt(192);
         } else {
             this.targetX = this.main.simon.x + 16 + this.main.random.nextInt(192);
         }
-
     }
+
     public moveX(dx: number): boolean {
         let target: number = this.x + dx;
         if (target < this.main.simon.xMin) {
@@ -49,10 +49,9 @@ export class MummyBoss extends Thing {
         }
         this.x = target;
         return true;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.state == MummyBoss.STATE_STANDING || this.state == MummyBoss.STATE_WALKING) {
             if (this.main.intersectsSimon(this)) {
                 this.main.hurtSimon(2);
@@ -84,7 +83,7 @@ export class MummyBoss extends Thing {
                             this.main.addPoints(3000);
                             this.main.pushThing(new Orb(this.main, this.main.simon.xMin + 240, 96, 273));
 
-                            this.main.pushThing(new Flame(this.main, this.x - 16, this.y + 42, -2, .5, -0.09, 90, 91));
+                            this.main.pushThing(new Flame(this.main, this.x - 16, this.y + 42, -2, 0.5, -0.09, 90, 91));
                             this.main.pushThing(new Flame(this.main, this.x - 8, this.y + 42, -1, 1.5, -0.11, 90, 91));
                             this.main.pushThing(new Flame(this.main, this.x, this.y + 42, 0.25, 2.5, -0.13, 90, 91));
                             this.main.pushThing(new Flame(this.main, this.x + 8, this.y + 42, 1, 2, -0.12, 90, 91));
@@ -172,12 +171,11 @@ export class MummyBoss extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.state != MummyBoss.STATE_DEAD) {
             this.main.draw(this.main.mummyBoss[this.direction][MummyBoss.walkingPattern[this.spriteIndex]], this.x, this.y);
         }
-
     }
 }

@@ -18,10 +18,9 @@ export class SwoopingBat extends Thing {
         this.x = x;
         this.y = y;
         this.Y = y;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
@@ -31,10 +30,8 @@ export class SwoopingBat extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-
             if (this.sleeping) {
-                if (Math.abs(this.main.simon.y - this.y) < 80
-                    && Math.abs(this.main.simon.x - this.x) < 200) {
+                if (Math.abs(this.main.simon.y - this.y) < 80 && Math.abs(this.main.simon.x - this.x) < 200) {
                     this.sleeping = false;
                     if (this.x < this.main.simon.x) {
                         this.direction = Main.RIGHT;
@@ -44,14 +41,13 @@ export class SwoopingBat extends Thing {
                     this.targetY = this.main.simon.y + 8;
                 }
             } else {
-
                 if (this.Y < this.targetY) {
                     this.Y += 1;
                 } else if (this.Y > this.targetY) {
                     this.Y -= 1;
                 }
 
-                this.y = this.Y + (8 * FastTrig.sin(this.angle));
+                this.y = this.Y + 8 * FastTrig.sin(this.angle);
                 this.angle += 0.05;
 
                 if (this.direction == Main.RIGHT) {
@@ -84,14 +80,13 @@ export class SwoopingBat extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.sleeping) {
             this.main.draw(this.main.bats[this.direction][0], this.x, this.y);
         } else {
             this.main.draw(this.main.bats[this.direction][SwoopingBat.spriteSequence[this.spriteIndex]], this.x, this.y);
         }
-
     }
 }

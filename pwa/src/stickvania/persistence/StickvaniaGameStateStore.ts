@@ -1,9 +1,6 @@
 import type { GameContainer } from "slick2d-ts";
 import type { Main } from "../Main.js";
-import {
-    GAME_STATE_VERSION,
-    type StickvaniaGameStateSnapshot
-} from "./GameStateSnapshot.js";
+import { GAME_STATE_VERSION, type StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { StickvaniaGameStateSerializer } from "./StickvaniaGameStateSerializer.js";
 
 export class StickvaniaGameStateStore {
@@ -11,8 +8,7 @@ export class StickvaniaGameStateStore {
 
     private readonly serializer = new StickvaniaGameStateSerializer();
 
-    public constructor(private readonly appVersion: string) {
-    }
+    public constructor(private readonly appVersion: string) {}
 
     public save(main: Main): boolean {
         if (!main.isStateSaveReady()) {
@@ -57,8 +53,7 @@ export class StickvaniaGameStateStore {
     public clear(): void {
         try {
             localStorage.removeItem(StickvaniaGameStateStore.STORAGE_KEY);
-        } catch {
-        }
+        } catch {}
     }
 
     private readSnapshot(): StickvaniaGameStateSnapshot | null {

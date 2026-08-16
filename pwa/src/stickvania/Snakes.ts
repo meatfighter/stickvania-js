@@ -13,10 +13,9 @@ export class Snakes extends Thing {
         this.y = y;
         this.vx = vx;
         this.vy = vy;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsSimon(this)) {
             this.main.hurtSimon(2);
             this.kill = true;
@@ -50,14 +49,13 @@ export class Snakes extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.vx < 0) {
             this.main.draw(this.main.snakes[Main.LEFT][this.spriteIndex], this.x, this.y);
         } else {
             this.main.draw(this.main.snakes[Main.RIGHT][this.spriteIndex], this.x, this.y);
         }
-
     }
 }

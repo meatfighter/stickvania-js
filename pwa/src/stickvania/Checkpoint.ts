@@ -14,16 +14,13 @@ export class Checkpoint extends Thing {
         this.y = y;
         this.stageSegmentIndex = stageSegmentIndex;
         this.regionIndex = regionIndex;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         this.main.checkpointReached(this);
 
         return false;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
-    }
+    public render(gc: GameContainer, g: Graphics): void {}
 }

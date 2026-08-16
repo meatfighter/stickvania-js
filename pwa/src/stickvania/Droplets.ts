@@ -9,10 +9,9 @@ export class Droplets extends Thing {
         this.y = y;
         this.vx = vx;
         this.vy = vy;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.vy > 0 && this.y > 352) {
             return false;
         }
@@ -23,10 +22,9 @@ export class Droplets extends Thing {
         this.vy += Main.GRAVITY;
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.droplets, this.x, this.y);
-
     }
 }

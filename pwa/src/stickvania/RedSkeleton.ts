@@ -22,10 +22,9 @@ export class RedSkeleton extends Thing {
         this.y = y;
 
         this.direction = main.random.nextBoolean() ? Main.LEFT : Main.RIGHT;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.kill) {
             if (this.main.random.nextBoolean()) {
                 this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h")));
@@ -46,7 +45,6 @@ export class RedSkeleton extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-
             this.applyGravity();
 
             switch (this.state) {
@@ -57,12 +55,11 @@ export class RedSkeleton extends Thing {
                     break;
                 case RedSkeleton.STATE_WALKING:
                     if (this.direction == Main.LEFT) {
-                        if (!this.moveX(-.5) || !this.main.isSupportive(trunc(this.x), trunc(this.y + 64))) {
+                        if (!this.moveX(-0.5) || !this.main.isSupportive(trunc(this.x), trunc(this.y + 64))) {
                             this.direction = Main.RIGHT;
                         }
                     } else {
-                        if (!this.moveX(.5)
-                            || !this.main.isSupportive(trunc(this.x + 31), trunc(this.y + 64))) {
+                        if (!this.moveX(0.5) || !this.main.isSupportive(trunc(this.x + 31), trunc(this.y + 64))) {
                             this.direction = Main.LEFT;
                         }
                     }
@@ -84,7 +81,7 @@ export class RedSkeleton extends Thing {
                         this.standingDelay = 0;
                         this.state = RedSkeleton.STATE_WALKING;
                         if (this.direction == Main.LEFT) {
-                            if ((this.main.simon.x + 16) - this.x >= 64) {
+                            if (this.main.simon.x + 16 - this.x >= 64) {
                                 this.direction = Main.RIGHT;
                             }
                         } else {
@@ -103,7 +100,7 @@ export class RedSkeleton extends Thing {
                         this.spriteIndex = 0;
                         this.standingDelay = 0;
                         if (this.direction == Main.LEFT) {
-                            if ((this.main.simon.x + 16) - this.x >= 64) {
+                            if (this.main.simon.x + 16 - this.x >= 64) {
                                 this.direction = Main.RIGHT;
                             }
                         } else {
@@ -117,8 +114,8 @@ export class RedSkeleton extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.state == RedSkeleton.STATE_CRUMBLING) {
             if (this.crumbling < 20 || this.crumbling > 253) {
@@ -129,6 +126,5 @@ export class RedSkeleton extends Thing {
         } else {
             this.main.draw(this.main.skeletons[this.direction][this.spriteIndex], this.x, this.y);
         }
-
     }
 }

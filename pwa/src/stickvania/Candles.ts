@@ -14,8 +14,8 @@ export class Candles extends Thing {
         this.x = x;
         this.y = y;
         this.item = item;
-
     }
+
     public update(gc: GameContainer): boolean {
         if (++this.spriteIndexIncrementor == 15) {
             this.spriteIndexIncrementor = 0;
@@ -32,10 +32,9 @@ export class Candles extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.candles[this.spriteIndex], this.x, this.y);
-
     }
 }

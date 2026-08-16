@@ -22,7 +22,7 @@ export class Merman extends Thing {
         this.y = 352;
         this.vy = vy;
         this.mermanSpawner = mermanSpawner;
-        this.direction = (main.simon.x < x) ? Main.LEFT : Main.RIGHT;
+        this.direction = main.simon.x < x ? Main.LEFT : Main.RIGHT;
 
         this.shootDelay = main.adjustEnemyCooldown(main.random.nextInt(45) + 45);
 
@@ -31,10 +31,9 @@ export class Merman extends Thing {
         main.pushThing(new Droplets(main, x + 8, 352, 0.2, -8));
 
         main.playSound(main.splash);
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             if (this.main.random.nextBoolean()) {
@@ -47,8 +46,7 @@ export class Merman extends Thing {
             return false;
         }
 
-        if ((this.vy > 0 && this.y > 352)
-            || this.x < this.main.camera - 64 || this.x > this.main.camera + 576) {
+        if ((this.vy > 0 && this.y > 352) || this.x < this.main.camera - 64 || this.x > this.main.camera + 576) {
             this.mermanSpawner.mermanDied();
             if (this.vy > 0 && this.y > 352) {
                 this.main.pushThing(new Droplets(this.main, this.x + 8, 352, -1, -5.5));
@@ -60,14 +58,13 @@ export class Merman extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-
             this.applyGravity();
 
             if (this.supported) {
                 if (this.shooting > 0) {
                     this.spriteIndex = 2;
                     if (--this.shooting == 0) {
-                        this.direction = (this.direction == Main.LEFT) ? Main.RIGHT : Main.LEFT;
+                        this.direction = this.direction == Main.LEFT ? Main.RIGHT : Main.LEFT;
                         this.spriteIndex = 0;
                         this.spriteIndexIncrementor = 0;
                     }
@@ -92,14 +89,13 @@ export class Merman extends Thing {
                     if (--this.shootDelay == 0) {
                         this.shootDelay = this.main.adjustEnemyCooldown(this.main.random.nextInt(273) + 91);
                         this.shooting = 70;
-                        this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 18, (this.direction == Main.LEFT) ? -1.5 : 1.5, 0));
+                        this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 18, this.direction == Main.LEFT ? -1.5 : 1.5, 0));
                         this.main.playSound(this.main.merman_spit);
                     }
                 }
-
             } else {
                 this.spriteIndex = 0;
-                this.direction = (this.main.simon.x < this.x) ? Main.LEFT : Main.RIGHT;
+                this.direction = this.main.simon.x < this.x ? Main.LEFT : Main.RIGHT;
             }
         }
 
@@ -108,10 +104,9 @@ export class Merman extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.mermen[this.direction][this.spriteIndex], this.x, this.y);
-
     }
 }

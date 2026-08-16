@@ -12,10 +12,9 @@ export class Spikes extends Thing {
         this.x = x;
         this.top = this.y = y;
         this.index = index;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.timeFrozen == 0) {
             if (this.lifting) {
                 if (this.liftFast) {
@@ -48,10 +47,9 @@ export class Spikes extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.spikes, this.x, this.y);
-
     }
 }

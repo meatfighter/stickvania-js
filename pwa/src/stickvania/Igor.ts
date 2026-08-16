@@ -15,10 +15,9 @@ export class Igor extends Thing {
         super(main, 32, 32);
         this.x = x;
         this.y = y;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
@@ -31,9 +30,7 @@ export class Igor extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-
             if (this.active) {
-
                 this.applyGravity();
 
                 if (this.y > 352) {
@@ -75,7 +72,6 @@ export class Igor extends Thing {
                 if (this.main.intersectsSimon(this)) {
                     this.main.hurtSimon(3);
                 }
-
             } else if (this.x >= this.main.camera - 32 && this.x <= this.main.camera + 544) {
                 this.active = true;
             } else if (this.main.simon.x + 16 < this.x) {
@@ -86,10 +82,9 @@ export class Igor extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.igors[this.direction][this.spriteIndex], this.x, this.y);
-
     }
 }

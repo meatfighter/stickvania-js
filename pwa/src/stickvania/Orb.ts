@@ -12,10 +12,9 @@ export class Orb extends Thing {
         this.x = x;
         this.y = y;
         this.appearDelay = appearDelay;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.appearDelay > 0) {
             this.appearDelay--;
             return true;
@@ -24,7 +23,6 @@ export class Orb extends Thing {
         if (this.fadeIn < 91) {
             this.fadeIn++;
         } else {
-
             if (this.soundDelay > 0) {
                 this.soundDelay--;
             } else {
@@ -41,8 +39,8 @@ export class Orb extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.appearDelay == 0) {
             if (this.fadeIn > 90) {
@@ -51,6 +49,5 @@ export class Orb extends Thing {
                 this.main.drawFaded(this.main.orb, this.x, this.y, this.fadeIn * Orb.FRACTION);
             }
         }
-
     }
 }

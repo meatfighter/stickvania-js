@@ -17,10 +17,9 @@ export class Dog extends Thing {
         super(main, 64, 32);
         this.x = x;
         this.y = y;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, -1, 0, -0.08, 0, 10));
@@ -40,7 +39,6 @@ export class Dog extends Thing {
                     this.state = this.STATE_RUNNING;
                 }
             } else {
-
                 this.applyGravity();
 
                 if (this.state == this.STATE_RUNNING) {
@@ -66,9 +64,7 @@ export class Dog extends Thing {
                             this.direction = Main.LEFT;
                         }
                     }
-
                 } else {
-
                     if (this.supported) {
                         this.state = this.STATE_RUNNING;
 
@@ -91,8 +87,8 @@ export class Dog extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         switch (this.state) {
             case this.STATE_RESTING:
@@ -105,6 +101,5 @@ export class Dog extends Thing {
                 this.main.draw(this.main.dogs[this.direction][2], this.x, this.y);
                 break;
         }
-
     }
 }

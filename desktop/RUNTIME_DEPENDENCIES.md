@@ -6,26 +6,26 @@ This directory includes a conservative legacy Slick2D/LWJGL runtime set to impro
 
 Copied into `desktop/lib/`:
 
-| Target | Source | Notes |
-| --- | --- | --- |
-| `slick.jar` | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\slick.jar` | Slick2D jar already used by the working Ms. Pac-Man desktop archive. |
-| `lwjgl.jar` | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\lwjgl.jar` | LWJGL 2.8.5-era jar with 64-bit native pairing. |
-| `lwjgl_util.jar` | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\lwjgl_util.jar` | LWJGL utility classes. |
-| `jinput.jar` | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\jinput.jar` | JInput jar paired with the LWJGL runtime set. |
-| `jogg-0.0.7.jar` | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\jogg-0.0.7.jar` | OGG dependency. |
-| `jorbis-0.0.17.jar` | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\jorbis-0.0.17.jar` | OGG dependency. |
-| `lwjgl_util_applet.jar` | `C:\NetBeansProjects\stickvania\lib\lwjgl_util_applet.jar` | Preserved for the copied NetBeans/app Applet metadata; not required by the desktop Maven launcher. |
-| `natives-*.jar` | `C:\NetBeansProjects\stickvania\lib\` | Preserved for legacy project completeness; the desktop launcher uses unpacked natives instead. |
+| Target                  | Source                                                            | Notes                                                                                              |
+| ----------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `slick.jar`             | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\slick.jar`         | Slick2D jar already used by the working Ms. Pac-Man desktop archive.                               |
+| `lwjgl.jar`             | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\lwjgl.jar`         | LWJGL 2.8.5-era jar with 64-bit native pairing.                                                    |
+| `lwjgl_util.jar`        | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\lwjgl_util.jar`    | LWJGL utility classes.                                                                             |
+| `jinput.jar`            | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\jinput.jar`        | JInput jar paired with the LWJGL runtime set.                                                      |
+| `jogg-0.0.7.jar`        | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\jogg-0.0.7.jar`    | OGG dependency.                                                                                    |
+| `jorbis-0.0.17.jar`     | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\jorbis-0.0.17.jar` | OGG dependency.                                                                                    |
+| `lwjgl_util_applet.jar` | `C:\NetBeansProjects\stickvania\lib\lwjgl_util_applet.jar`        | Preserved for the copied NetBeans/app Applet metadata; not required by the desktop Maven launcher. |
+| `natives-*.jar`         | `C:\NetBeansProjects\stickvania\lib\`                             | Preserved for legacy project completeness; the desktop launcher uses unpacked natives instead.     |
 
 ## Native Libraries
 
 Copied from the working Ms. Pac-Man desktop archive runtime layout:
 
-| Target | Contents |
-| --- | --- |
+| Target                     | Contents                                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `desktop/natives/windows/` | `lwjgl.dll`, `lwjgl64.dll`, `OpenAL32.dll`, `OpenAL64.dll`, `jinput-dx8.dll`, `jinput-dx8_64.dll`, `jinput-raw.dll`, `jinput-raw_64.dll` |
-| `desktop/natives/linux/` | `liblwjgl.so`, `liblwjgl64.so`, `libopenal.so`, `libopenal64.so`, `libjinput-linux.so`, `libjinput-linux64.so` |
-| `desktop/natives/macosx/` | `liblwjgl.jnilib`, `libjinput-osx.jnilib`, `openal.dylib` |
+| `desktop/natives/linux/`   | `liblwjgl.so`, `liblwjgl64.so`, `libopenal.so`, `libopenal64.so`, `libjinput-linux.so`, `libjinput-linux64.so`                           |
+| `desktop/natives/macosx/`  | `liblwjgl.jnilib`, `libjinput-osx.jnilib`, `openal.dylib`                                                                                |
 
 ## Compatibility Notes
 

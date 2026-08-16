@@ -4,10 +4,186 @@ import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
 
 export class Simon extends Thing {
-    public static readonly standingWhipTable: number[][][][] = [[[[62, 15], [-14, 15]], [[47, 10], [-15, 10]], [[-43, 17], [59, 17]],], [[[62, 15], [-14, 15]], [[47, 10], [-15, 10]], [[-43, 17], [59, 17]],], [[[62, 15], [-14, 15]], [[47, 10], [-15, 10]], [[-75, 17], [59, 17]],],];
-    public static readonly kneelingWhipTable: number[][][][] = [[[[63, 30], [-15, 30]], [[48, 25], [-16, 25]], [[-44, 31], [59, 31]],], [[[63, 30], [-15, 30]], [[48, 25], [-16, 25]], [[-44, 31], [59, 31]],], [[[63, 30], [-15, 30]], [[48, 25], [-16, 25]], [[-76, 31], [60, 31]],],];
-    public static readonly upWhipTable: number[][][][] = [[[[62, 13], [-14, 13]], [[46, 9], [-14, 9]], [[-42, 13], [58, 13]],], [[[62, 13], [-14, 13]], [[46, 9], [-14, 9]], [[-42, 13], [58, 13]],], [[[62, 13], [-14, 13]], [[46, 9], [-14, 9]], [[-74, 13], [58, 13]],],];
-    public static readonly downWhipTable: number[][][][] = [[[[60, 12], [-12, 12]], [[44, 6], [-12, 6]], [[-45, 12], [61, 12]],], [[[60, 12], [-12, 12]], [[44, 6], [-12, 6]], [[-45, 12], [61, 12]],], [[[60, 12], [-12, 12]], [[44, 6], [-12, 6]], [[-77, 12], [61, 12]],],];
+    public static readonly standingWhipTable: number[][][][] = [
+        [
+            [
+                [62, 15],
+                [-14, 15]
+            ],
+            [
+                [47, 10],
+                [-15, 10]
+            ],
+            [
+                [-43, 17],
+                [59, 17]
+            ]
+        ],
+        [
+            [
+                [62, 15],
+                [-14, 15]
+            ],
+            [
+                [47, 10],
+                [-15, 10]
+            ],
+            [
+                [-43, 17],
+                [59, 17]
+            ]
+        ],
+        [
+            [
+                [62, 15],
+                [-14, 15]
+            ],
+            [
+                [47, 10],
+                [-15, 10]
+            ],
+            [
+                [-75, 17],
+                [59, 17]
+            ]
+        ]
+    ];
+
+    public static readonly kneelingWhipTable: number[][][][] = [
+        [
+            [
+                [63, 30],
+                [-15, 30]
+            ],
+            [
+                [48, 25],
+                [-16, 25]
+            ],
+            [
+                [-44, 31],
+                [59, 31]
+            ]
+        ],
+        [
+            [
+                [63, 30],
+                [-15, 30]
+            ],
+            [
+                [48, 25],
+                [-16, 25]
+            ],
+            [
+                [-44, 31],
+                [59, 31]
+            ]
+        ],
+        [
+            [
+                [63, 30],
+                [-15, 30]
+            ],
+            [
+                [48, 25],
+                [-16, 25]
+            ],
+            [
+                [-76, 31],
+                [60, 31]
+            ]
+        ]
+    ];
+
+    public static readonly upWhipTable: number[][][][] = [
+        [
+            [
+                [62, 13],
+                [-14, 13]
+            ],
+            [
+                [46, 9],
+                [-14, 9]
+            ],
+            [
+                [-42, 13],
+                [58, 13]
+            ]
+        ],
+        [
+            [
+                [62, 13],
+                [-14, 13]
+            ],
+            [
+                [46, 9],
+                [-14, 9]
+            ],
+            [
+                [-42, 13],
+                [58, 13]
+            ]
+        ],
+        [
+            [
+                [62, 13],
+                [-14, 13]
+            ],
+            [
+                [46, 9],
+                [-14, 9]
+            ],
+            [
+                [-74, 13],
+                [58, 13]
+            ]
+        ]
+    ];
+
+    public static readonly downWhipTable: number[][][][] = [
+        [
+            [
+                [60, 12],
+                [-12, 12]
+            ],
+            [
+                [44, 6],
+                [-12, 6]
+            ],
+            [
+                [-45, 12],
+                [61, 12]
+            ]
+        ],
+        [
+            [
+                [60, 12],
+                [-12, 12]
+            ],
+            [
+                [44, 6],
+                [-12, 6]
+            ],
+            [
+                [-45, 12],
+                [61, 12]
+            ]
+        ],
+        [
+            [
+                [60, 12],
+                [-12, 12]
+            ],
+            [
+                [44, 6],
+                [-12, 6]
+            ],
+            [
+                [-77, 12],
+                [61, 12]
+            ]
+        ]
+    ];
+
     public static readonly walkSpriteIndexes: number[] = [0, 1, 2, 1];
     public walkSpriteIndexIncrementor: number = 0;
     public walkSpriteIndex: number = 0;
@@ -36,8 +212,8 @@ export class Simon extends Thing {
     public jumpVelocity: number = Main.SIMON_JUMP_VELOCITY;
     public constructor(main: Main) {
         super(main, 20, 4, 24, 60);
-
     }
+
     private changeWalkSprite(): void {
         if (++this.walkSpriteIndexIncrementor == 16) {
             this.walkSpriteIndexIncrementor = 0;
@@ -45,32 +221,32 @@ export class Simon extends Thing {
                 this.walkSpriteIndex = 0;
             }
         }
-
     }
+
     public kneel(): void {
         this.kneeling = true;
-
     }
+
     public walkLeft(): void {
         this.kneeling = false;
         this.direction = Main.LEFT;
         this.moveX(-2);
         this.changeWalkSprite();
-
     }
+
     public walkRight(): void {
         this.kneeling = false;
         this.direction = Main.RIGHT;
         this.moveX(2);
         this.changeWalkSprite();
-
     }
+
     public stand(): void {
         this.kneeling = false;
         this.walkSpriteIndexIncrementor = 13;
         this.walkSpriteIndex = 0;
-
     }
+
     public reset(): void {
         this.G = Main.GRAVITY;
         this.jumpVelocity = Main.SIMON_JUMP_VELOCITY;
@@ -113,10 +289,9 @@ export class Simon extends Thing {
             this.main.weaponRepeats = Main.WEAPON_REPEATS_SINGLE;
             this.main.weaponType = Main.WEAPON_TYPE_NONE;
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         this.applyGravityWithPlatforms();
 
         if (this.main.playerPower == 0 && this.supported) {
@@ -149,8 +324,8 @@ export class Simon extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.dead > 0) {
             if (this.dead < 30) {
@@ -211,11 +386,9 @@ export class Simon extends Thing {
                         }
                     }
                 } else {
-                    this.main.draw(this.main.simonWalking
-                    [this.direction][Simon.walkSpriteIndexes[this.walkSpriteIndex]], this.x, this.y);
+                    this.main.draw(this.main.simonWalking[this.direction][Simon.walkSpriteIndexes[this.walkSpriteIndex]], this.x, this.y);
                 }
             }
         }
-
     }
 }

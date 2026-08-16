@@ -239,19 +239,19 @@ Java Behavior:
 PWA Behavior:
 
 - The title screen menu is now:
-  - `START`
-  - `OPTIONS`
+    - `START`
+    - `OPTIONS`
 - The options menu is:
-  - `INPUT`
-  - `DIFFICULTY`
-  - `DONE`
+    - `INPUT`
+    - `DIFFICULTY`
+    - `DONE`
 - The difficulty menu is:
-  - `NORMAL`
-  - `HARD`
+    - `NORMAL`
+    - `HARD`
 - The input menu shows current keyboard/gamepad mappings and offers:
-  - `CHANGE`
-  - `RESET`
-  - `DONE`
+    - `CHANGE`
+    - `RESET`
+    - `DONE`
 - `RESET` restores the default mapping, saves it to `localStorage`, and remains on the input menu.
 - The title demo timeout runs only from the main title menu.
 
@@ -275,12 +275,12 @@ Java Behavior:
 PWA Behavior:
 
 - Default mapping:
-  - `UP = UP, GP-UP`
-  - `DOWN = DOWN, GP-DOWN`
-  - `LEFT = LEFT, GP-LEFT`
-  - `RIGHT = RIGHT, GP-RIGHT`
-  - `JUMP = X, GP-A`
-  - `ATTACK = Z, GP-X`
+    - `UP = UP, GP-UP`
+    - `DOWN = DOWN, GP-DOWN`
+    - `LEFT = LEFT, GP-LEFT`
+    - `RIGHT = RIGHT, GP-RIGHT`
+    - `JUMP = X, GP-A`
+    - `ATTACK = Z, GP-X`
 - `Space` is reserved for fullscreen toggle and cannot be mapped.
 - `Escape` is reserved for fullscreen exit and cannot be mapped.
 - Input mapping is saved in `localStorage` under `stickvania.input-mapping`.
@@ -306,14 +306,14 @@ Gameplay/Parity Risk:
 Java Behavior:
 
 - Simon uses Java gravity and jump velocity during all contexts:
-  - `Main.GRAVITY = 0.21`
-  - `Main.SIMON_JUMP_VELOCITY = -5.25`
+    - `Main.GRAVITY = 0.21`
+    - `Main.SIMON_JUMP_VELOCITY = -5.25`
 
 PWA Behavior:
 
 - During live user-controlled gameplay only, Simon uses:
-  - `Main.PLAYER_CONTROLLED_GRAVITY = 0.130027228`
-  - `Main.PLAYER_CONTROLLED_JUMP_VELOCITY = -4.262100987`
+    - `Main.PLAYER_CONTROLLED_GRAVITY = 0.130027228`
+    - `Main.PLAYER_CONTROLLED_JUMP_VELOCITY = -4.262100987`
 - Demo, credits, ending, cutscene, and game-controlled states use the original Java values.
 - Dog, WhiteSkeleton, enemies, items, and non-Simon objects continue using original gravity unless their own class logic says otherwise.
 
@@ -360,6 +360,7 @@ Affected Files:
 Gameplay/Parity Risk:
 
 - HARD intentionally diverges from Java and NORMAL.
+
 ## PWA-014: Dark Display Mode
 
 Java Behavior:

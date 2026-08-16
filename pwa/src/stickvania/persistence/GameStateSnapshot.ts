@@ -2,7 +2,7 @@ export const GAME_STATE_VERSION = 3;
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | JsonRecord;
-export type JsonRecord = { [key: string]: JsonValue; };
+export type JsonRecord = { [key: string]: JsonValue };
 
 export type ThingRefSnapshot = {
     $thing: number | null;
@@ -28,16 +28,10 @@ export type MusicRefSnapshot = {
     $music: MusicId | null;
 };
 
-export type EncodedValue = JsonValue
-    | ThingRefSnapshot
-    | SegmentRefSnapshot
-    | RegionRefSnapshot
-    | StairsRefSnapshot
-    | SongRefSnapshot
-    | MusicRefSnapshot
-    | ThingStackSnapshot;
+export type EncodedValue =
+    JsonValue | ThingRefSnapshot | SegmentRefSnapshot | RegionRefSnapshot | StairsRefSnapshot | SongRefSnapshot | MusicRefSnapshot | ThingStackSnapshot;
 
-export type EncodedRecord = { [key: string]: EncodedValue; };
+export type EncodedRecord = { [key: string]: EncodedValue };
 
 export type ThingStackSnapshot = {
     $stack: {

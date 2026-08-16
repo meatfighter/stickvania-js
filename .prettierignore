@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+
+desktop/build/
+desktop/dist/
+desktop/target/
+desktop/lib/
+desktop/natives/
+releases/

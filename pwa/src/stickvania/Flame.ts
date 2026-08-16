@@ -26,10 +26,9 @@ export class Flame extends Thing {
         if (appearanceDelay == 0) {
             this.state = Flame.STATE_FLAME_UP;
         }
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.state != Flame.STATE_HIDDEN) {
             this.x += this.vx;
             this.y += this.vy;
@@ -61,7 +60,7 @@ export class Flame extends Thing {
                     this.delay = 5;
                 } else {
                     if (--this.delay == 0) {
-                        this.spriteIndex = (this.spriteIndex == 3) ? 4 : 3;
+                        this.spriteIndex = this.spriteIndex == 3 ? 4 : 3;
                         this.delay = 5;
                     }
                 }
@@ -79,12 +78,11 @@ export class Flame extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.state != Flame.STATE_HIDDEN) {
             this.main.draw(this.main.fires[this.spriteIndex], this.x, this.y);
         }
-
     }
 }

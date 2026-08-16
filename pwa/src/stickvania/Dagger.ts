@@ -10,8 +10,8 @@ export class Dagger extends Thing {
         this.y = y;
         this.direction = direction;
         main.playSound(main.threw_dagger);
-
     }
+
     public update(gc: GameContainer): boolean {
         if (this.direction == Main.RIGHT) {
             this.x += 6;
@@ -22,10 +22,9 @@ export class Dagger extends Thing {
             return false;
         }
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.daggers[this.direction], this.x, this.y);
-
     }
 }

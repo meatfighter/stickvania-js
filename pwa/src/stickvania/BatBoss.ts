@@ -11,7 +11,7 @@ export class BatBoss extends Thing {
     public static readonly STATE_HOVERING: number = 1;
     public static readonly STATE_ATTACKING: number = 2;
     public static readonly STATE_DEAD: number = 3;
-    private static readonly ATTACK_FRACTION: number = (1.0 / (91 * 2.0));
+    private static readonly ATTACK_FRACTION: number = 1.0 / (91 * 2.0);
     public state: number = BatBoss.STATE_RESTING;
     public spriteIndex: number = 0;
     public spriteIndexIncrementor: number = 40;
@@ -25,12 +25,10 @@ export class BatBoss extends Thing {
         this.y = y;
 
         this.G = 0;
-
     }
+
     public update(gc: GameContainer): boolean {
-
         if (this.state == BatBoss.STATE_HOVERING || this.state == BatBoss.STATE_ATTACKING) {
-
             if (--this.spriteIndexIncrementor == 0) {
                 this.spriteIndexIncrementor = 40;
                 this.main.playSound(this.main.wing_flaps);
@@ -76,7 +74,7 @@ export class BatBoss extends Thing {
                         this.main.pushThing(new Flame(this.main, this.x + 32, this.y, 0, 0, -0.08, 30, 91));
                         this.main.pushThing(new Flame(this.main, this.x + 64, this.y, 0, 0, -0.08, 30, 91));
 
-                        this.main.pushThing(new Flame(this.main, this.x, this.y + 16, -2, .5, -0.09, 90, 91));
+                        this.main.pushThing(new Flame(this.main, this.x, this.y + 16, -2, 0.5, -0.09, 90, 91));
                         this.main.pushThing(new Flame(this.main, this.x + 16, this.y + 16, -1, 1.5, -0.11, 90, 91));
                         this.main.pushThing(new Flame(this.main, this.x + 32, this.y + 16, 0.25, 2.5, -0.13, 90, 91));
                         this.main.pushThing(new Flame(this.main, this.x + 48, this.y + 16, 1, 2, -0.12, 90, 91));
@@ -148,7 +146,6 @@ export class BatBoss extends Thing {
                 }
                 break;
             case BatBoss.STATE_ATTACKING:
-
                 this.applyGravity();
 
                 if (this.y < 0) {
@@ -163,12 +160,11 @@ export class BatBoss extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.state != BatBoss.STATE_DEAD) {
             this.main.draw(this.main.batBoss[this.spriteIndex], this.x, this.y);
         }
-
     }
 }

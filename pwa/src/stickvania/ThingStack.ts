@@ -28,8 +28,7 @@ export class ThingStack {
     }
 
     public clear(): void {
-        while (this.pop() !== null) {
-        }
+        while (this.pop() !== null) {}
     }
 
     public moveAll(thingStack: ThingStack): void {

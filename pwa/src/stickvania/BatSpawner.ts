@@ -11,10 +11,9 @@ export class BatSpawner extends Thing {
         super(main);
         this.x1 = x1;
         this.x2 = x2;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.timeFrozen > 0) {
             return true;
         }
@@ -35,9 +34,7 @@ export class BatSpawner extends Thing {
         }
 
         return true;
-
     }
-    public render(gc: GameContainer, g: Graphics): void {
 
-    }
+    public render(gc: GameContainer, g: Graphics): void {}
 }

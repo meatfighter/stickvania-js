@@ -21,10 +21,9 @@ export class Bird extends Thing {
         this.birdSpawner = birdSpawner;
 
         this.vx = direction == Main.LEFT ? -4 : 4;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, -0.9, 0, -0.06, 0, 10));
@@ -38,7 +37,6 @@ export class Bird extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-
             this.x += this.vx;
             this.vx *= 0.95;
             if (++this.spriteIndexIncrementor == 46) {
@@ -58,10 +56,12 @@ export class Bird extends Thing {
             if (!this.dropped && Math.abs(this.main.simon.x + 16 - this.x) < 128) {
                 let X: number = trunc(this.x) + 16;
                 let Y: number = trunc(this.y) + 56;
-                if (this.main.getWall(X, Y) == Main.WALL_EMPTY
-                    && this.main.getWall(X + 32, Y) == Main.WALL_EMPTY
-                    && this.main.getWall(X, Y + 32) == Main.WALL_EMPTY
-                    && this.main.getWall(X + 32, Y + 32) == Main.WALL_EMPTY) {
+                if (
+                    this.main.getWall(X, Y) == Main.WALL_EMPTY &&
+                    this.main.getWall(X + 32, Y) == Main.WALL_EMPTY &&
+                    this.main.getWall(X, Y + 32) == Main.WALL_EMPTY &&
+                    this.main.getWall(X + 32, Y + 32) == Main.WALL_EMPTY
+                ) {
                     this.dropped = true;
                     this.main.pushThing(new Igor(this.main, X, Y));
                 }
@@ -73,13 +73,12 @@ export class Bird extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.birds[this.direction][this.spriteIndex], this.x, this.y);
         if (!this.dropped) {
             this.main.draw(this.main.igors[this.direction][0], this.x + 16, this.y + 56);
         }
-
     }
 }

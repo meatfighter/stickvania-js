@@ -5,8 +5,8 @@ import { Thing } from "./Thing.js";
 
 export class StopWatch extends Thing {
     public static readonly FRACTION: number = 1 / 91;
-    public static readonly ANGLE1: number = (2 * Math.PI / 3);
-    public static readonly ANGLE2: number = (4 * Math.PI / 3);
+    public static readonly ANGLE1: number = (2 * Math.PI) / 3;
+    public static readonly ANGLE2: number = (4 * Math.PI) / 3;
     public lifeTime: number = 455;
     private angle: number = 0;
     private sx0: number = 0;
@@ -19,10 +19,9 @@ export class StopWatch extends Thing {
     public constructor(main: Main) {
         super(main, 0, -10000, 32, 32);
         main.timeFrozen += 455;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.lifeTime > 0) {
             this.lifeTime--;
             this.main.timeFrozen--;
@@ -49,8 +48,8 @@ export class StopWatch extends Thing {
         this.sy2 = this.y + 16 * FastTrig.sin(this.angle + StopWatch.ANGLE2);
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         if (this.lifeTime > 90) {
             this.main.draw(this.main.dropItems[DropItem.TYPE_STOP_WATCH], this.x, this.y);
@@ -64,6 +63,5 @@ export class StopWatch extends Thing {
             this.main.drawFaded(this.main.spark, this.sx1, this.sy1, fade);
             this.main.drawFaded(this.main.spark, this.sx2, this.sy2, fade);
         }
-
     }
 }

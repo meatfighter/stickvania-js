@@ -21,10 +21,9 @@ export class LanceKnight extends Thing {
 
         this.hits = main.adjustEnemyHits(this.hits);
         this.direction = main.random.nextBoolean() ? Main.LEFT : Main.RIGHT;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.kill) {
             this.hits = 0;
             this.stunned = 0;
@@ -32,8 +31,7 @@ export class LanceKnight extends Thing {
 
         if (this.stunned > 0) {
             this.stunned--;
-        } else if (this.main.intersectsWhip(this)
-            || this.main.intersectsWeapon(this) || this.kill) {
+        } else if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             if (--this.hits <= 0) {
                 if (this.main.random.nextBoolean()) {
@@ -54,7 +52,6 @@ export class LanceKnight extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-
             if (++this.spriteIndexIncrementor == 32) {
                 this.spriteIndexIncrementor = 0;
                 if (++this.spriteIndex == 4) {
@@ -64,12 +61,12 @@ export class LanceKnight extends Thing {
 
             if (this.changeDirectionDelay > 0) {
                 if (--this.changeDirectionDelay == 0) {
-                    this.direction = (this.direction == Main.LEFT) ? Main.RIGHT : Main.LEFT;
+                    this.direction = this.direction == Main.LEFT ? Main.RIGHT : Main.LEFT;
                 }
             }
 
             if (this.direction == Main.LEFT) {
-                if (!this.moveX(-.5) || !this.main.isSupportive(trunc(this.x), trunc(this.y + 64))) {
+                if (!this.moveX(-0.5) || !this.main.isSupportive(trunc(this.x), trunc(this.y + 64))) {
                     this.direction = Main.RIGHT;
                     if (this.changeDirection) {
                         this.changeDirection = false;
@@ -79,7 +76,7 @@ export class LanceKnight extends Thing {
                     }
                 }
             } else {
-                if (!this.moveX(.5) || !this.main.isSupportive(trunc(this.x + 31), trunc(this.y + 64))) {
+                if (!this.moveX(0.5) || !this.main.isSupportive(trunc(this.x + 31), trunc(this.y + 64))) {
                     this.direction = Main.LEFT;
                     if (this.changeDirection) {
                         this.changeDirection = false;
@@ -92,10 +89,9 @@ export class LanceKnight extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.lanceKnight[this.direction][LanceKnight.walkSpriteIndexes[this.spriteIndex]], this.x, this.y);
-
     }
 }

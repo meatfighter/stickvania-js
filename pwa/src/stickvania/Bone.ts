@@ -15,10 +15,9 @@ export class Bone extends Thing {
         this.vy = vy;
 
         this.vAngle = vx > 0 ? 6 : -6;
-
     }
-    public update(gc: GameContainer): boolean {
 
+    public update(gc: GameContainer): boolean {
         if (this.main.intersectsSimon(this)) {
             this.main.hurtSimon(2);
             this.kill = true;
@@ -43,10 +42,9 @@ export class Bone extends Thing {
         }
 
         return true;
-
     }
+
     public render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.bone, this.x + 8, this.y, this.angle);
-
     }
 }

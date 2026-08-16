@@ -29,13 +29,7 @@ const serviceWorkerGlobals = {
 
 export default tseslint.config(
     {
-        ignores: [
-            "dist/**",
-            "desktop/build/**",
-            "desktop/dist/**",
-            "desktop/target/**",
-            "node_modules/**"
-        ]
+        ignores: ["dist/**", "desktop/build/**", "desktop/dist/**", "desktop/target/**", "node_modules/**"]
     },
     js.configs.recommended,
     ...tseslint.configs.recommended,
@@ -56,6 +50,7 @@ export default tseslint.config(
             "@typescript-eslint/no-non-null-assertion": "off",
             "no-empty": "off",
             "no-case-declarations": "off",
+            "lines-between-class-members": ["error", "always", { exceptAfterSingleLine: true }],
             "prefer-const": "off"
         }
     },
