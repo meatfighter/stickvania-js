@@ -38,11 +38,15 @@ public class StickvaniaInput {
   }
 
   public void update() {
+    if (ControllerSupport.refreshControllersIfNeeded()) {
+      clearPressedState();
+    }
     previous = current;
     current = readState();
   }
 
   public void clearPressedState() {
+    ControllerSupport.refreshControllersIfNeeded();
     current = readState();
     previous = copy(current);
   }
