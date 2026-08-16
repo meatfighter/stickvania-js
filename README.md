@@ -16,3 +16,7 @@ Useful commands:
 - `npm.cmd run release:desktop` refreshes the committed desktop release zip.
 - `npm.cmd run build` builds the full release bundle.
 - `npm.cmd run run:desktop` launches the built desktop jar with the local Windows native libraries.
+
+## License
+
+Project code is licensed under GPL-3.0-or-later unless a file says otherwise. Third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
