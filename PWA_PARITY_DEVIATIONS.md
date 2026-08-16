@@ -99,7 +99,7 @@ PWA Behavior:
 - The Java in-game loading countdown is not displayed in the PWA once this background preparation path is active.
 - The PWA TypeScript port removes the `MODE_LOADING` update/render path entirely. `Main.init()` now queues startup music resources and immediately enters either restored state or the title screen before the first active game frame.
 - Destroyed PWA containers preserve the warmed Web Audio cache so returning to the PWA menu does not force audio decode to repeat.
-- PWA saved-game snapshots were bumped to version `3` when the obsolete loading mode was removed so old snapshots with loading-mode fields are discarded.
+- PWA saved-game snapshots were bumped to version `4` when full title/menu/input snapshots were added, so old development snapshots with earlier menu behavior are discarded.
 
 Affected Files:
 
@@ -172,11 +172,12 @@ PWA Behavior:
 - If the PWA hamburger menu is open over a live suspended game, `Continue` resumes the live object graph instead of deserializing.
 - A fresh serialized snapshot is still written before showing the live overlay, so browser reload while the overlay is open can fall back to local-storage Continue.
 - The current difficulty value is captured as part of the exact game-state snapshot.
-- Stored game state is cleared when the running game reaches title/main menu, title submenus, input configuration, or the game-over Continue/End menu.
+- Stored game state remains valid across title/main menu, title submenus, input configuration, and the game-over Continue/End menu.
 
 Affected Files:
 
 - `pwa/src/main.ts`
+- `pwa/src/stickvania/InputConfigMode.ts`
 - `pwa/src/stickvania/Main.ts`
 - `pwa/src/stickvania/persistence/GameStateSnapshot.ts`
 - `pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts`
@@ -419,15 +420,19 @@ Java Behavior:
 PWA Behavior:
 
 - The PWA saves restorable state when focus is lost, the page is hidden, or the hamburger menu is opened.
-- Saved state now covers gameplay, demo playback, intro, map, castle-fall, credits, and other stage-backed non-menu modes.
+- Saved state now covers gameplay, demo playback, intro, map, castle-fall, credits, title/menu states, input configuration, the Game Over Continue/End menu, and other restorable modes.
 - Stage-backed modes save stage roots, active things, random state, fade state, timers, and audio continuation data.
-- Title/main menu, title submenus, input configuration, and the Game Over Continue/End menu clear saved game state instead of storing no-stage snapshots.
+- Title/main menu and title submenus save no-stage snapshots while preserving the initialized runtime `Simon` object for later stage creation.
+- Input configuration saves its draft mapping, current prompt step, delays, message state, and listener-backed mode state so Continue can resume the exact remapping screen.
+- The Game Over Continue/End menu remains a stage-backed snapshot because its Java behavior creates the current stage behind that menu.
 - Starting a new game also clears saved game state.
-- Existing no-stage menu snapshots from earlier development builds are discarded when the PWA checks whether `Continue` is available.
+- Missing, malformed, unsupported, or older-version snapshots are cleared silently and simply disable `Continue`.
+- Saved-state validation rejects unsupported modes, mode/stage mismatches, mode-field mismatches, impossible stage segment counts, malformed Thing ids, oversized stacks, invalid audio ids, and invalid encoded references before restore is attempted.
 
 Affected Files:
 
 - `pwa/src/main.ts`
+- `pwa/src/stickvania/InputConfigMode.ts`
 - `pwa/src/stickvania/Main.ts`
 - `pwa/src/stickvania/persistence/GameStateSnapshot.ts`
 - `pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts`

@@ -17,8 +17,10 @@ const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
 const GAME_STATE_STORAGE_KEY = "stickvania.game-state";
-const GAME_STATE_VERSION = 3;
-const INVALIDATING_GAME_STATE_MODES = new Set([0, 2, 10]);
+const GAME_STATE_VERSION = 4;
+const GAME_STATE_STAGELESS_MODES = new Set([0, 10]);
+const GAME_STATE_RESTORABLE_MODES = new Set([0, 1, 2, 4, 5, 6, 7, 8, 10]);
+const GAME_STATE_MODE_INPUT_CONFIG = 10;
 type DisplayModePreference = "light" | "dark";
 type ScreenTest = "static-loading" | "static-error" | "dynamic-loading" | "dynamic-error";
 type SlickRuntimeModule = typeof import("slick2d-ts");
@@ -282,12 +284,18 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
         const runtime = await ensureRuntimePrepared(preparationError !== null);
         runtimePrepared = true;
         await audioUnlockPromise;
+        if (restoreSavedGame && !getGameStateStore(runtime).hasValidSave()) {
+            clearStoredGameState();
+            showMenu();
+            return;
+        }
         await launchPreparedGame(runtime, restoreSavedGame);
     } catch (error) {
         console.error(error);
         destroyGame();
         if (restoreSavedGame && runtimePrepared) {
-            showMenu("Unable to restore the saved game. Start a new game and try again.");
+            clearStoredGameState();
+            showMenu();
             return;
         }
         showLoadError("Unable to start.", "Check your connection and try again.", () => {
@@ -301,6 +309,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     activeGameHost = host;
     runtime.slick.Display.setParent(host);
     const mainGame = new runtime.Main();
+    let restoreFailed = false;
     mainGame.darkDisplayMode = displayModePreference === "dark";
     const scalableGame = new runtime.ScalableGame2(mainGame, GAME_WIDTH, GAME_HEIGHT, true);
     const displayMode = getResponsiveWindowedDisplayMode();
@@ -313,7 +322,6 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     game = mainGame;
     mainGame.appGameContainer = appContainer;
     mainGame.scalableGame = scalableGame;
-    mainGame.stateSaveInvalidatedHandler = clearStoredGameState;
     mainGame.windowedDisplayModeProvider = getResponsiveWindowedDisplayMode;
     mainGame.browserFullscreenController = {
         isFullscreen: isGameShellFullscreen,
@@ -323,7 +331,8 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     if (restoreSavedGame) {
         mainGame.loadingCompleteHandler = (gc) => {
             if (!getGameStateStore(runtime).restore(mainGame, gc)) {
-                throw new Error("Saved game could not be restored.");
+                restoreFailed = true;
+                return false;
             }
             mainGame.darkDisplayMode = displayModePreference === "dark";
             return true;
@@ -336,6 +345,12 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     appContainer.setClearEachFrame(true);
     await Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false));
     await appContainer.start();
+    if (restoreFailed) {
+        clearStoredGameState();
+        destroyGame();
+        showMenu();
+        return;
+    }
     appContainer.setErrorHandler((error) => {
         console.error(error);
         destroyGame();
@@ -483,13 +498,44 @@ function hasPotentialSavedGameState(): boolean {
         if (text === null) {
             return false;
         }
-        const snapshot = JSON.parse(text) as { mode?: unknown; stage?: unknown; version?: unknown };
+        const snapshot = JSON.parse(text) as {
+            audio?: { songs?: unknown };
+            inputConfigMode?: unknown;
+            mainFields?: unknown;
+            mode?: unknown;
+            random?: unknown;
+            stage?: unknown;
+            things?: unknown;
+            version?: unknown;
+        };
+        const stageValue = snapshot.stage;
+        const mainFieldsValue = snapshot.mainFields;
+        const hasStageShape =
+            stageValue !== null &&
+            typeof stageValue === "object" &&
+            typeof (stageValue as { stageIndex?: unknown }).stageIndex === "number" &&
+            Array.isArray((stageValue as { segments?: unknown }).segments);
         if (
             snapshot.version !== GAME_STATE_VERSION ||
             typeof snapshot.mode !== "number" ||
-            INVALIDATING_GAME_STATE_MODES.has(snapshot.mode) ||
-            snapshot.stage === null ||
-            snapshot.stage === undefined
+            !GAME_STATE_RESTORABLE_MODES.has(snapshot.mode) ||
+            !Array.isArray(snapshot.things) ||
+            stageValue === undefined ||
+            (stageValue !== null && typeof stageValue !== "object") ||
+            (stageValue === null && snapshot.things.length !== 0) ||
+            (GAME_STATE_STAGELESS_MODES.has(snapshot.mode) && stageValue !== null) ||
+            (!GAME_STATE_STAGELESS_MODES.has(snapshot.mode) && stageValue === null) ||
+            (stageValue !== null && !hasStageShape) ||
+            (snapshot.mode === GAME_STATE_MODE_INPUT_CONFIG && snapshot.inputConfigMode == null) ||
+            (snapshot.mode !== GAME_STATE_MODE_INPUT_CONFIG && snapshot.inputConfigMode != null) ||
+            mainFieldsValue === null ||
+            typeof mainFieldsValue !== "object" ||
+            (mainFieldsValue as { mode?: unknown }).mode !== snapshot.mode ||
+            snapshot.random === null ||
+            typeof snapshot.random !== "object" ||
+            snapshot.audio === null ||
+            typeof snapshot.audio !== "object" ||
+            !Array.isArray(snapshot.audio.songs)
         ) {
             clearStoredGameState();
             return false;
@@ -585,10 +631,6 @@ function focusGameCanvas(): void {
 
 function saveCurrentGameState(): boolean {
     if (game === null) {
-        return false;
-    }
-    if (game.isStateSaveInvalidatingMenuActive()) {
-        clearStoredGameState();
         return false;
     }
     if (!game.isStateSaveReady()) {

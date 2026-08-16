@@ -48,6 +48,12 @@ type RestoreContext = {
     thingById: Map<number, Thing>;
 };
 
+type SnapshotReferenceLimits = {
+    thingCount: number;
+    segmentCount: number;
+    regionCounts: number[];
+};
+
 const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "fades",
     "nativeCursor",
@@ -222,7 +228,6 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "inputConfigMode",
     "startupAudioQueued",
     "loadingCompleteHandler",
-    "stateSaveInvalidatedHandler",
     "windowedDisplayModeProvider",
     "browserFullscreenController",
     "darkDisplayMode",
@@ -251,6 +256,49 @@ const SONG_IDS: SongId[] = [
 
 const STANDALONE_MUSIC_IDS: MusicId[] = ["game_over", "map_1", "map_2", "map_3", "map_4", "prologue", "simon_killed", "stage_cleared", "dracula_dead"];
 
+const RESTORABLE_MODES = new Set<number>([
+    Main.MODE_TITLE_SCREEN,
+    Main.MODE_DEMO,
+    Main.MODE_CONTINUE_SCREEN,
+    Main.MODE_PLAYING,
+    Main.MODE_INTRO,
+    Main.MODE_MAP,
+    Main.MODE_CASTLE_FALLS,
+    Main.MODE_CREDITS,
+    Main.MODE_INPUT_CONFIG
+]);
+
+const STAGELESS_MODES = new Set<number>([Main.MODE_TITLE_SCREEN, Main.MODE_INPUT_CONFIG]);
+const EXPECTED_STAGE_SEGMENT_COUNTS = [2, 4, 3, 2, 4, 3];
+const MAX_SAVED_STACK_CAPACITY = 4096;
+const MAX_SAVED_GRID_ROWS = 128;
+const MAX_SAVED_GRID_COLUMNS = 4096;
+const MAX_SAVED_STAIRS_INDEX = 255;
+const SONG_ID_SET = new Set<string>(SONG_IDS);
+const MUSIC_IDS: MusicId[] = [
+    ...STANDALONE_MUSIC_IDS,
+    "boss_1.intro",
+    "boss_1.loop",
+    "boss_2.intro",
+    "boss_2.loop",
+    "ending.loop",
+    "stage_1_1.loop",
+    "stage_1_2.intro",
+    "stage_1_2.loop",
+    "stage_2_1.intro",
+    "stage_2_1.loop",
+    "stage_3_1.intro",
+    "stage_3_1.loop",
+    "stage_4_1.loop",
+    "stage_4_2.loop",
+    "stage_5_1.intro",
+    "stage_5_1.loop",
+    "stage_6_1.loop",
+    "stage_6_2.intro",
+    "stage_6_2.loop"
+];
+const MUSIC_ID_SET = new Set<string>(MUSIC_IDS);
+
 export class StickvaniaGameStateSerializer {
     public createSnapshot(main: Main, appVersion: string): StickvaniaGameStateSnapshot {
         if (!main.isStateSaveReady()) {
@@ -268,6 +316,7 @@ export class StickvaniaGameStateSerializer {
             savedAt: new Date().toISOString(),
             mode: this.snapshotMode(main),
             mainFields: this.captureMainFields(context),
+            inputConfigMode: main.captureInputConfigModeState(),
             random: this.captureRandom(main.random),
             stage,
             things,
@@ -296,6 +345,7 @@ export class StickvaniaGameStateSerializer {
         } else {
             this.clearMainStageRoots(main);
         }
+        main.restoreInputConfigModeState(gc, snapshot.inputConfigMode);
         this.restoreAudio(context, snapshot.audio);
         main.setBrowserSuspended(false);
         main.clearInputPressedRecords();
@@ -303,24 +353,375 @@ export class StickvaniaGameStateSerializer {
     }
 
     public isSupportedSnapshot(snapshot: StickvaniaGameStateSnapshot): boolean {
-        if (!snapshot || snapshot.version !== GAME_STATE_VERSION) {
+        if (!snapshot || typeof snapshot !== "object" || snapshot.version !== GAME_STATE_VERSION) {
             return false;
         }
-        if (snapshot.mode === Main.MODE_TITLE_SCREEN || snapshot.mode === Main.MODE_CONTINUE_SCREEN || snapshot.mode === Main.MODE_INPUT_CONFIG) {
+        if (!this.isSupportedMode(snapshot.mode) || !Array.isArray(snapshot.things) || !this.isPlainRecord(snapshot.mainFields)) {
             return false;
         }
-        if (typeof snapshot.mode !== "number" || !Array.isArray(snapshot.things)) {
+        if (snapshot.mainFields.mode !== snapshot.mode || !this.areThingSnapshotsValid(snapshot.things)) {
             return false;
         }
-        if (snapshot.stage === null) {
-            return false;
-        } else if (!snapshot.stage) {
+
+        const stageRequired = !STAGELESS_MODES.has(snapshot.mode);
+        if (stageRequired) {
+            if (!this.isStageSnapshotValid(snapshot.stage, snapshot.things.length)) {
+                return false;
+            }
+        } else if (snapshot.stage !== null || snapshot.things.length !== 0) {
             return false;
         }
-        if (!snapshot.audio || !Array.isArray(snapshot.audio.songs)) {
+        if (snapshot.mode === Main.MODE_INPUT_CONFIG) {
+            if (!this.isInputConfigSnapshotShape(snapshot.inputConfigMode)) {
+                return false;
+            }
+        } else if (snapshot.inputConfigMode != null) {
             return false;
         }
-        return snapshot.things.every((thing) => !!THING_TYPES[thing.type]);
+        if (!this.isRandomSnapshotShape(snapshot.random)) {
+            return false;
+        }
+        if (!this.isAudioSnapshotShape(snapshot.audio)) {
+            return false;
+        }
+
+        const references = this.createSnapshotReferenceLimits(snapshot.stage, snapshot.things.length);
+        return (
+            this.isEncodedRecordReferencesValid(snapshot.mainFields, references) &&
+            snapshot.things.every((thing) => this.isEncodedRecordReferencesValid(thing.fields, references))
+        );
+    }
+
+    private isSupportedMode(mode: unknown): mode is number {
+        return this.isFiniteInteger(mode) && RESTORABLE_MODES.has(mode);
+    }
+
+    private isStageSnapshotValid(snapshot: unknown, thingCount: number): snapshot is StageSnapshot {
+        if (!this.isPlainRecord(snapshot)) {
+            return false;
+        }
+        const stageIndex = snapshot.stageIndex;
+        if (!this.isFiniteInteger(stageIndex) || stageIndex < 0 || stageIndex >= EXPECTED_STAGE_SEGMENT_COUNTS.length) {
+            return false;
+        }
+        const expectedSegmentCount = EXPECTED_STAGE_SEGMENT_COUNTS[stageIndex];
+        if (!Array.isArray(snapshot.segments) || snapshot.segments.length !== expectedSegmentCount) {
+            return false;
+        }
+        return (
+            this.isNullableIndex(snapshot.currentSegmentIndex, expectedSegmentCount) &&
+            this.isNullableThingId(snapshot.checkpoint, thingCount) &&
+            this.isNullableThingId(snapshot.simon, thingCount) &&
+            this.isNullableThingId(snapshot.door, thingCount) &&
+            (snapshot.platforms === null || this.isThingIdArray(snapshot.platforms, thingCount)) &&
+            this.isStackSnapshotValid(snapshot.regionThingStack, thingCount) &&
+            this.isStackSnapshotValid(snapshot.regionStackSwap, thingCount) &&
+            this.isStackSnapshotValid(snapshot.weaponsStack, thingCount) &&
+            this.isStackSnapshotValid(snapshot.weaponsStackSwap, thingCount) &&
+            this.isStackSnapshotValid(snapshot.oldThingStack, thingCount) &&
+            snapshot.segments.every((segment, index) => this.isSegmentSnapshotValid(segment, index, thingCount))
+        );
+    }
+
+    private isSegmentSnapshotValid(snapshot: unknown, segmentIndex: number, thingCount: number): snapshot is SegmentSnapshot {
+        if (!this.isPlainRecord(snapshot) || !Array.isArray(snapshot.regions)) {
+            return false;
+        }
+        return (
+            (snapshot.direction === Main.LEFT || snapshot.direction === Main.RIGHT) &&
+            snapshot.stageSegmentIndex === segmentIndex &&
+            this.isNumberGridSnapshot(snapshot.map) &&
+            this.isNumberGridSnapshot(snapshot.walls) &&
+            this.isFiniteInteger(snapshot.mapWidth) &&
+            snapshot.mapWidth >= 0 &&
+            this.isFiniteInteger(snapshot.regionIndex) &&
+            snapshot.regionIndex >= 0 &&
+            snapshot.regionIndex < snapshot.regions.length &&
+            snapshot.regions.every((region) => this.isRegionSnapshotValid(region, thingCount))
+        );
+    }
+
+    private isRegionSnapshotValid(snapshot: unknown, thingCount: number): snapshot is RegionSnapshot {
+        if (!this.isPlainRecord(snapshot)) {
+            return false;
+        }
+        return (
+            this.isFiniteNumber(snapshot.min) &&
+            this.isFiniteNumber(snapshot.max) &&
+            this.isNullableThingId(snapshot.checkpoint, thingCount) &&
+            this.isStackSnapshotValid(snapshot.thingStack, thingCount) &&
+            this.isThingIdArray(snapshot.platforms, thingCount) &&
+            this.isFiniteInteger(snapshot.stageNumber)
+        );
+    }
+
+    private isStackSnapshotValid(snapshot: unknown, thingCount: number): snapshot is ThingStackSnapshot {
+        if (!this.isPlainRecord(snapshot) || !this.isPlainRecord(snapshot.$stack) || !Array.isArray(snapshot.$stack.things)) {
+            return false;
+        }
+        return (
+            this.isFiniteInteger(snapshot.$stack.capacity) &&
+            snapshot.$stack.capacity >= snapshot.$stack.things.length &&
+            snapshot.$stack.capacity <= MAX_SAVED_STACK_CAPACITY &&
+            snapshot.$stack.things.length <= MAX_SAVED_STACK_CAPACITY &&
+            snapshot.$stack.things.every((id) => this.isNullableThingId(id, thingCount))
+        );
+    }
+
+    private isNumberGridSnapshot(value: unknown): value is number[][] {
+        if (!Array.isArray(value) || value.length > MAX_SAVED_GRID_ROWS) {
+            return false;
+        }
+        return value.every(
+            (row) => Array.isArray(row) && row.length <= MAX_SAVED_GRID_COLUMNS && row.every((cell) => this.isFiniteInteger(cell))
+        );
+    }
+
+    private areThingSnapshotsValid(snapshots: ThingSnapshot[]): boolean {
+        if (snapshots.length > MAX_SAVED_STACK_CAPACITY) {
+            return false;
+        }
+        for (let i = 0; i < snapshots.length; i++) {
+            const thing = snapshots[i];
+            if (
+                !this.isPlainRecord(thing) ||
+                thing.id !== i ||
+                typeof thing.type !== "string" ||
+                !THING_TYPES[thing.type] ||
+                !this.isPlainRecord(thing.fields)
+            ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private isInputConfigSnapshotShape(snapshot: unknown): boolean {
+        if (!this.isPlainRecord(snapshot) || !this.isPlainRecord(snapshot.draft)) {
+            return false;
+        }
+        const draftFields = [
+            "keyJump",
+            "keyAttack",
+            "keyUp",
+            "keyDown",
+            "keyLeft",
+            "keyRight",
+            "controllerJump",
+            "controllerAttack",
+            "controllerUp",
+            "controllerDown",
+            "controllerLeft",
+            "controllerRight"
+        ];
+        return (
+            this.isFiniteInteger(snapshot.stepIndex) &&
+            this.isFiniteInteger(snapshot.doneDelay) &&
+            this.isFiniteInteger(snapshot.armDelay) &&
+            typeof snapshot.message === "string" &&
+            typeof snapshot.finished === "boolean" &&
+            draftFields.every((field) => this.isFiniteInteger((snapshot.draft as FieldBag)[field])) &&
+            this.isFiniteIntegerArray(snapshot.assignedKeys, 6) &&
+            this.isFiniteIntegerArray(snapshot.assignedControllerButtons, 6) &&
+            Array.isArray(snapshot.extraAxisBaselines) &&
+            snapshot.extraAxisBaselines.length <= 256 &&
+            snapshot.extraAxisBaselines.every((value) => value === null || this.isFiniteNumber(value)) &&
+            typeof snapshot.extraAxisUpDown === "boolean" &&
+            typeof snapshot.extraAxisDownDown === "boolean" &&
+            typeof snapshot.extraAxisLeftDown === "boolean" &&
+            typeof snapshot.extraAxisRightDown === "boolean"
+        );
+    }
+
+    private isRandomSnapshotShape(snapshot: unknown): snapshot is RandomSnapshot {
+        if (!this.isPlainRecord(snapshot)) {
+            return false;
+        }
+        return (
+            this.isFiniteInteger(snapshot.seed0) &&
+            this.isFiniteInteger(snapshot.seed1) &&
+            this.isFiniteInteger(snapshot.seed2)
+        );
+    }
+
+    private isAudioSnapshotShape(snapshot: unknown): snapshot is AudioSnapshot {
+        if (!this.isPlainRecord(snapshot) || !Array.isArray(snapshot.songs)) {
+            return false;
+        }
+        return (
+            this.isNullableSongId(snapshot.currentSong) &&
+            this.isNullableSongId(snapshot.requestedSong) &&
+            (snapshot.currentMusic === null || this.isMusicSnapshotShape(snapshot.currentMusic)) &&
+            snapshot.songs.every((song) => this.isSongSnapshotShape(song))
+        );
+    }
+
+    private isSongSnapshotShape(snapshot: unknown): snapshot is SongSnapshot {
+        if (!this.isPlainRecord(snapshot)) {
+            return false;
+        }
+        return (
+            typeof snapshot.id === "string" &&
+            SONG_ID_SET.has(snapshot.id) &&
+            typeof snapshot.playing === "boolean" &&
+            (snapshot.intro === null || this.isMusicSnapshotShape(snapshot.intro)) &&
+            (snapshot.loop === null || this.isMusicSnapshotShape(snapshot.loop))
+        );
+    }
+
+    private isMusicSnapshotShape(snapshot: unknown): snapshot is MusicSnapshot {
+        if (!this.isPlainRecord(snapshot)) {
+            return false;
+        }
+        return (
+            typeof snapshot.id === "string" &&
+            MUSIC_ID_SET.has(snapshot.id) &&
+            typeof snapshot.looped === "boolean" &&
+            typeof snapshot.paused === "boolean" &&
+            typeof snapshot.playing === "boolean" &&
+            this.isFiniteNumber(snapshot.playbackRate) &&
+            this.isFiniteNumber(snapshot.position) &&
+            snapshot.position >= 0 &&
+            this.isFiniteNumber(snapshot.volume)
+        );
+    }
+
+    private createSnapshotReferenceLimits(stage: StageSnapshot | null, thingCount: number): SnapshotReferenceLimits {
+        return {
+            thingCount,
+            segmentCount: stage === null ? 0 : stage.segments.length,
+            regionCounts: stage === null ? [] : stage.segments.map((segment) => segment.regions.length)
+        };
+    }
+
+    private isEncodedRecordReferencesValid(record: EncodedRecord, limits: SnapshotReferenceLimits): boolean {
+        if (!this.isPlainRecord(record)) {
+            return false;
+        }
+        return Object.values(record).every((value) => this.isEncodedValueReferencesValid(value as EncodedValue, limits));
+    }
+
+    private isEncodedValueReferencesValid(value: EncodedValue, limits: SnapshotReferenceLimits): boolean {
+        if (value === null || value === undefined || typeof value === "string" || typeof value === "boolean") {
+            return true;
+        }
+        if (typeof value === "number") {
+            return this.isFiniteNumber(value);
+        }
+        if (Array.isArray(value)) {
+            return value.every((item) => this.isEncodedValueReferencesValid(item as EncodedValue, limits));
+        }
+        if (!this.isPlainRecord(value)) {
+            return false;
+        }
+
+        const referenceTagCount = this.referenceTagCount(value);
+        if (referenceTagCount > 1) {
+            return false;
+        }
+        if (this.hasOwn(value, "$thing")) {
+            return Object.keys(value).length === 1 && this.isNullableThingId((value as { $thing: unknown }).$thing, limits.thingCount);
+        }
+        if (this.hasOwn(value, "$segment")) {
+            return Object.keys(value).length === 1 && this.isNullableIndex((value as { $segment: unknown }).$segment, limits.segmentCount);
+        }
+        if (this.hasOwn(value, "$region")) {
+            return Object.keys(value).length === 1 && this.isNullableRegionRef((value as { $region: unknown }).$region, limits);
+        }
+        if (this.hasOwn(value, "$stairs")) {
+            return Object.keys(value).length === 1 && this.isNullableStairsRef((value as { $stairs: unknown }).$stairs, limits);
+        }
+        if (this.hasOwn(value, "$song")) {
+            return Object.keys(value).length === 1 && this.isNullableSongId((value as { $song: unknown }).$song);
+        }
+        if (this.hasOwn(value, "$music")) {
+            return Object.keys(value).length === 1 && this.isNullableMusicId((value as { $music: unknown }).$music);
+        }
+        if (this.hasOwn(value, "$stack")) {
+            return Object.keys(value).length === 1 && this.isStackSnapshotValid(value as unknown as ThingStackSnapshot, limits.thingCount);
+        }
+
+        return Object.values(value).every((child) => this.isEncodedValueReferencesValid(child as EncodedValue, limits));
+    }
+
+    private referenceTagCount(value: JsonRecord): number {
+        let count = 0;
+        if (this.hasOwn(value, "$thing")) {
+            count++;
+        }
+        if (this.hasOwn(value, "$segment")) {
+            count++;
+        }
+        if (this.hasOwn(value, "$region")) {
+            count++;
+        }
+        if (this.hasOwn(value, "$stairs")) {
+            count++;
+        }
+        if (this.hasOwn(value, "$song")) {
+            count++;
+        }
+        if (this.hasOwn(value, "$music")) {
+            count++;
+        }
+        if (this.hasOwn(value, "$stack")) {
+            count++;
+        }
+        return count;
+    }
+
+    private isNullableThingId(value: unknown, thingCount: number): value is number | null {
+        return value === null || (this.isFiniteInteger(value) && value >= 0 && value < thingCount);
+    }
+
+    private isNullableIndex(value: unknown, length: number): value is number | null {
+        return value === null || (this.isFiniteInteger(value) && value >= 0 && value < length);
+    }
+
+    private isThingIdArray(value: unknown, thingCount: number): value is Array<number | null> {
+        return Array.isArray(value) && value.every((id) => this.isNullableThingId(id, thingCount));
+    }
+
+    private isNullableRegionRef(value: unknown, limits: SnapshotReferenceLimits): value is [number, number] | null {
+        if (value === null) {
+            return true;
+        }
+        if (!Array.isArray(value) || value.length !== 2 || !this.isFiniteInteger(value[0]) || !this.isFiniteInteger(value[1])) {
+            return false;
+        }
+        const segment = value[0];
+        const region = value[1];
+        return segment >= 0 && segment < limits.segmentCount && region >= 0 && region < limits.regionCounts[segment];
+    }
+
+    private isNullableStairsRef(value: unknown, limits: SnapshotReferenceLimits): value is [number, number] | null {
+        if (value === null) {
+            return true;
+        }
+        if (!Array.isArray(value) || value.length !== 2 || !this.isFiniteInteger(value[0]) || !this.isFiniteInteger(value[1])) {
+            return false;
+        }
+        return value[0] >= 0 && value[0] < limits.segmentCount && value[1] >= 0 && value[1] <= MAX_SAVED_STAIRS_INDEX;
+    }
+
+    private isNullableSongId(value: unknown): value is SongId | null {
+        return value === null || (typeof value === "string" && SONG_ID_SET.has(value));
+    }
+
+    private isNullableMusicId(value: unknown): value is MusicId | null {
+        return value === null || (typeof value === "string" && MUSIC_ID_SET.has(value));
+    }
+
+    private isFiniteIntegerArray(value: unknown, maxLength: number): value is number[] {
+        return Array.isArray(value) && value.length <= maxLength && value.every((item) => this.isFiniteInteger(item));
+    }
+
+    private isFiniteInteger(value: unknown): value is number {
+        return typeof value === "number" && Number.isFinite(value) && Math.trunc(value) === value;
+    }
+
+    private isFiniteNumber(value: unknown): value is number {
+        return typeof value === "number" && Number.isFinite(value);
     }
 
     private createCaptureContext(main: Main): CaptureContext {
@@ -508,35 +909,13 @@ export class StickvaniaGameStateSerializer {
             if (!this.shouldCaptureMainField(key, value)) {
                 continue;
             }
-            fields[key] = this.encodeValue(context, this.mainFieldValueForSnapshot(main, key, value), `Main.${key}`);
+            fields[key] = this.encodeValue(context, value, `Main.${key}`);
         }
         return fields;
     }
 
-    private mainFieldValueForSnapshot(main: Main, key: string, value: unknown): unknown {
-        if (main.mode !== Main.MODE_INPUT_CONFIG) {
-            return value;
-        }
-        switch (key) {
-            case "mode":
-                return Main.MODE_TITLE_SCREEN;
-            case "titleMenu":
-                return Main.TITLE_MENU_INPUT;
-            case "titleSelectedIndex":
-                return 0;
-            case "fadeState":
-                return Main.FADE_DONE;
-            case "fade":
-                return Main.FADE_DONE;
-            case "fadeReason":
-                return 0;
-            default:
-                return value;
-        }
-    }
-
     private snapshotMode(main: Main): number {
-        return main.mode === Main.MODE_INPUT_CONFIG ? Main.MODE_TITLE_SCREEN : main.mode;
+        return main.mode;
     }
 
     private shouldCaptureMainField(key: string, value: unknown): boolean {
@@ -676,7 +1055,6 @@ export class StickvaniaGameStateSerializer {
         this.setField(main, "stageSegments", null);
         this.setField(main, "stageSegment", null);
         this.setField(main, "checkpoint", null);
-        main.simon = null as any;
         main.door = null as any;
         main.map = null;
         main.walls = null;

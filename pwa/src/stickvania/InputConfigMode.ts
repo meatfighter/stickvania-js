@@ -4,7 +4,7 @@ import type { Main } from "./Main.js";
 
 type BindingStep = "UP" | "DOWN" | "LEFT" | "RIGHT" | "JUMP" | "ATTACK";
 
-type MappingDraft = {
+export type MappingDraft = {
     keyJump: number;
     keyAttack: number;
     keyUp: number;
@@ -17,6 +17,22 @@ type MappingDraft = {
     controllerDown: number;
     controllerLeft: number;
     controllerRight: number;
+};
+
+export type InputConfigModeSnapshot = {
+    stepIndex: number;
+    doneDelay: number;
+    armDelay: number;
+    message: string;
+    finished: boolean;
+    draft: MappingDraft;
+    assignedKeys: number[];
+    assignedControllerButtons: number[];
+    extraAxisBaselines: Array<number | null>;
+    extraAxisUpDown: boolean;
+    extraAxisDownDown: boolean;
+    extraAxisLeftDown: boolean;
+    extraAxisRightDown: boolean;
 };
 
 export class InputConfigMode implements ControllerListener, KeyListener {
@@ -58,6 +74,54 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.assignedControllerButtons.clear();
         this.extraAxisBaselines.fill(Number.NaN);
         this.syncExtraAxisDirectionState();
+        this.main.clearInputPressedRecords();
+    }
+
+    public createSnapshot(): InputConfigModeSnapshot {
+        return {
+            stepIndex: this.stepIndex,
+            doneDelay: this.doneDelay,
+            armDelay: this.armDelay,
+            message: this.message,
+            finished: this.finished,
+            draft: this.cloneDraft(this.draft ?? this.createDraft()),
+            assignedKeys: Array.from(this.assignedKeys),
+            assignedControllerButtons: Array.from(this.assignedControllerButtons),
+            extraAxisBaselines: this.extraAxisBaselines.map((value) => (Number.isFinite(value) ? value : null)),
+            extraAxisUpDown: this.extraAxisUpDown,
+            extraAxisDownDown: this.extraAxisDownDown,
+            extraAxisLeftDown: this.extraAxisLeftDown,
+            extraAxisRightDown: this.extraAxisRightDown
+        };
+    }
+
+    public restoreSnapshot(gc: GameContainer, snapshot: InputConfigModeSnapshot): void {
+        this.dispose();
+        this.input = gc.getInput();
+        this.input.addKeyListener(this);
+        this.input.addControllerListener(this);
+        this.stepIndex = this.clampStepIndex(snapshot.stepIndex, snapshot.finished);
+        this.doneDelay = this.sanitizedDelay(snapshot.doneDelay);
+        this.armDelay = this.sanitizedDelay(snapshot.armDelay);
+        this.message = typeof snapshot.message === "string" ? snapshot.message : "";
+        this.finished = Boolean(snapshot.finished);
+        this.draft = this.cloneDraft(snapshot.draft ?? this.createDraft());
+        this.assignedKeys.clear();
+        this.copyFiniteNumbersIntoSet(this.assignedKeys, snapshot.assignedKeys);
+        this.assignedControllerButtons.clear();
+        this.copyFiniteNumbersIntoSet(this.assignedControllerButtons, snapshot.assignedControllerButtons);
+        this.extraAxisBaselines.fill(Number.NaN);
+        if (Array.isArray(snapshot.extraAxisBaselines)) {
+            const limit = Math.min(snapshot.extraAxisBaselines.length, this.extraAxisBaselines.length);
+            for (let i = 0; i < limit; i++) {
+                const value = snapshot.extraAxisBaselines[i];
+                this.extraAxisBaselines[i] = typeof value === "number" && Number.isFinite(value) ? value : Number.NaN;
+            }
+        }
+        this.extraAxisUpDown = Boolean(snapshot.extraAxisUpDown);
+        this.extraAxisDownDown = Boolean(snapshot.extraAxisDownDown);
+        this.extraAxisLeftDown = Boolean(snapshot.extraAxisLeftDown);
+        this.extraAxisRightDown = Boolean(snapshot.extraAxisRightDown);
         this.main.clearInputPressedRecords();
     }
 
@@ -279,6 +343,50 @@ export class InputConfigMode implements ControllerListener, KeyListener {
             controllerLeft: mapping.controllerLeft,
             controllerRight: mapping.controllerRight
         };
+    }
+
+    private cloneDraft(draft: MappingDraft): MappingDraft {
+        return {
+            keyJump: this.sanitizedBinding(draft.keyJump),
+            keyAttack: this.sanitizedBinding(draft.keyAttack),
+            keyUp: this.sanitizedBinding(draft.keyUp),
+            keyDown: this.sanitizedBinding(draft.keyDown),
+            keyLeft: this.sanitizedBinding(draft.keyLeft),
+            keyRight: this.sanitizedBinding(draft.keyRight),
+            controllerJump: this.sanitizedBinding(draft.controllerJump),
+            controllerAttack: this.sanitizedBinding(draft.controllerAttack),
+            controllerUp: this.sanitizedBinding(draft.controllerUp),
+            controllerDown: this.sanitizedBinding(draft.controllerDown),
+            controllerLeft: this.sanitizedBinding(draft.controllerLeft),
+            controllerRight: this.sanitizedBinding(draft.controllerRight)
+        };
+    }
+
+    private sanitizedBinding(value: unknown): number {
+        return typeof value === "number" && Number.isFinite(value) ? Math.trunc(value) : ButtonMapping.NO_BINDING;
+    }
+
+    private sanitizedDelay(value: unknown): number {
+        return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+    }
+
+    private clampStepIndex(value: unknown, finished: unknown): number {
+        if (typeof value !== "number" || !Number.isFinite(value)) {
+            return 0;
+        }
+        const upper = finished ? InputConfigMode.STEPS.length : InputConfigMode.STEPS.length - 1;
+        return Math.max(0, Math.min(upper, Math.trunc(value)));
+    }
+
+    private copyFiniteNumbersIntoSet(target: Set<number>, values: unknown): void {
+        if (!Array.isArray(values)) {
+            return;
+        }
+        for (const value of values) {
+            if (typeof value === "number" && Number.isFinite(value)) {
+                target.add(Math.trunc(value));
+            }
+        }
     }
 
     private clearDraftKey(key: number): void {

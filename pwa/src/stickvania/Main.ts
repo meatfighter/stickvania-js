@@ -48,7 +48,7 @@ import { Ghost } from "./Ghost.js";
 import { GrimReaper } from "./GrimReaper.js";
 import { HolyWater } from "./HolyWater.js";
 import { Igor } from "./Igor.js";
-import { InputConfigMode } from "./InputConfigMode.js";
+import { InputConfigMode, type InputConfigModeSnapshot } from "./InputConfigMode.js";
 import { cc, chr, idiv, make2D, make3D, makeArray, readBinaryResource, readResourceLines, trunc } from "./JavaMath.js";
 import { LanceKnight } from "./LanceKnight.js";
 import { MedusaBoss } from "./MedusaBoss.js";
@@ -519,7 +519,6 @@ export class Main extends BasicGame {
     public requestedSong: Song = null;
     public currentMusic: Music = null;
     public loadingCompleteHandler: (gc: GameContainer) => boolean = null;
-    public stateSaveInvalidatedHandler: () => void = null;
     public windowedDisplayModeProvider: () => { width: number; height: number } = null;
     public browserFullscreenController: BrowserFullscreenController = null;
     private browserSuspended: boolean = false;
@@ -2845,9 +2844,6 @@ export class Main extends BasicGame {
     }
 
     public isStateSaveReady(): boolean {
-        if (this.isStateSaveInvalidatingMenuActive()) {
-            return false;
-        }
         if (this.loadedSegments == null || this.input == null || this.controlInput == null) {
             return false;
         }
@@ -2855,10 +2851,6 @@ export class Main extends BasicGame {
             return this.hasStageStateForStateSave();
         }
         return true;
-    }
-
-    public isStateSaveInvalidatingMenuActive(): boolean {
-        return this.mode == Main.MODE_TITLE_SCREEN || this.mode == Main.MODE_CONTINUE_SCREEN || this.mode == Main.MODE_INPUT_CONFIG;
     }
 
     public shouldCaptureStageForStateSave(): boolean {
@@ -2870,7 +2862,7 @@ export class Main extends BasicGame {
     }
 
     private isStageStateRequiredForStateSave(): boolean {
-        return true;
+        return this.mode != Main.MODE_TITLE_SCREEN && this.mode != Main.MODE_INPUT_CONFIG;
     }
 
     private hasStageStateForStateSave(): boolean {
@@ -2886,12 +2878,6 @@ export class Main extends BasicGame {
             this.weaponsStackSwap != null &&
             this.oldThingStack != null
         );
-    }
-
-    private notifyStateSaveInvalidated(): void {
-        if (this.stateSaveInvalidatedHandler != null) {
-            this.stateSaveInvalidatedHandler();
-        }
     }
 
     public addPlayers(players: number): void {
@@ -3608,7 +3594,6 @@ export class Main extends BasicGame {
 
     public initContinueScreen(): void {
         this.mode = Main.MODE_CONTINUE_SCREEN;
-        this.notifyStateSaveInvalidated();
 
         this.players = 4;
         this.score = 0;
@@ -3656,13 +3641,31 @@ export class Main extends BasicGame {
 
     public initInputConfig(gc: GameContainer): void {
         this.mode = Main.MODE_INPUT_CONFIG;
-        this.notifyStateSaveInvalidated();
         if (this.inputConfigMode != null) {
             this.inputConfigMode.dispose();
         }
         this.inputConfigMode = new InputConfigMode(this);
         this.inputConfigMode.init(gc);
         this.nextFrameTime = Sys.getTime();
+    }
+
+    public captureInputConfigModeState(): InputConfigModeSnapshot | null {
+        if (this.mode != Main.MODE_INPUT_CONFIG || this.inputConfigMode == null) {
+            return null;
+        }
+        return this.inputConfigMode.createSnapshot();
+    }
+
+    public restoreInputConfigModeState(gc: GameContainer, snapshot: InputConfigModeSnapshot | null): void {
+        if (this.inputConfigMode != null) {
+            this.inputConfigMode.dispose();
+            this.inputConfigMode = null;
+        }
+        if (this.mode != Main.MODE_INPUT_CONFIG || snapshot == null) {
+            return;
+        }
+        this.inputConfigMode = new InputConfigMode(this);
+        this.inputConfigMode.restoreSnapshot(gc, snapshot);
     }
 
     public updateInputConfig(gc: GameContainer): void {
@@ -3814,7 +3817,6 @@ export class Main extends BasicGame {
         }
 
         this.mode = Main.MODE_TITLE_SCREEN;
-        this.notifyStateSaveInvalidated();
 
         this.titleTimeout = 1365;
         this.titleBatX = 0;

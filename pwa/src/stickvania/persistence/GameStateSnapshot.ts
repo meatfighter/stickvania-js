@@ -1,4 +1,6 @@
-export const GAME_STATE_VERSION = 3;
+import type { InputConfigModeSnapshot } from "../InputConfigMode.js";
+
+export const GAME_STATE_VERSION = 4;
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | JsonRecord;
@@ -160,6 +162,7 @@ export type StickvaniaGameStateSnapshot = {
     savedAt: string;
     mode: number;
     mainFields: EncodedRecord;
+    inputConfigMode: InputConfigModeSnapshot | null;
     random: RandomSnapshot;
     stage: StageSnapshot | null;
     things: ThingSnapshot[];
