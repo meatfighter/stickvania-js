@@ -306,13 +306,14 @@ export class StickvaniaGameStateSerializer {
         if (!snapshot || snapshot.version !== GAME_STATE_VERSION) {
             return false;
         }
+        if (snapshot.mode === Main.MODE_TITLE_SCREEN || snapshot.mode === Main.MODE_CONTINUE_SCREEN || snapshot.mode === Main.MODE_INPUT_CONFIG) {
+            return false;
+        }
         if (typeof snapshot.mode !== "number" || !Array.isArray(snapshot.things)) {
             return false;
         }
         if (snapshot.stage === null) {
-            if (snapshot.things.length !== 0) {
-                return false;
-            }
+            return false;
         } else if (!snapshot.stage) {
             return false;
         }

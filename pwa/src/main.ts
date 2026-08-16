@@ -18,6 +18,7 @@ const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
 const GAME_STATE_STORAGE_KEY = "stickvania.game-state";
 const GAME_STATE_VERSION = 3;
+const INVALIDATING_GAME_STATE_MODES = new Set([0, 2, 10]);
 type DisplayModePreference = "light" | "dark";
 type ScreenTest = "static-loading" | "static-error" | "dynamic-loading" | "dynamic-error";
 type SlickRuntimeModule = typeof import("slick2d-ts");
@@ -312,6 +313,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     game = mainGame;
     mainGame.appGameContainer = appContainer;
     mainGame.scalableGame = scalableGame;
+    mainGame.stateSaveInvalidatedHandler = clearStoredGameState;
     mainGame.windowedDisplayModeProvider = getResponsiveWindowedDisplayMode;
     mainGame.browserFullscreenController = {
         isFullscreen: isGameShellFullscreen,
@@ -481,8 +483,14 @@ function hasPotentialSavedGameState(): boolean {
         if (text === null) {
             return false;
         }
-        const snapshot = JSON.parse(text) as { version?: unknown };
-        if (snapshot.version !== GAME_STATE_VERSION) {
+        const snapshot = JSON.parse(text) as { mode?: unknown; stage?: unknown; version?: unknown };
+        if (
+            snapshot.version !== GAME_STATE_VERSION ||
+            typeof snapshot.mode !== "number" ||
+            INVALIDATING_GAME_STATE_MODES.has(snapshot.mode) ||
+            snapshot.stage === null ||
+            snapshot.stage === undefined
+        ) {
             clearStoredGameState();
             return false;
         }
@@ -577,6 +585,10 @@ function focusGameCanvas(): void {
 
 function saveCurrentGameState(): boolean {
     if (game === null) {
+        return false;
+    }
+    if (game.isStateSaveInvalidatingMenuActive()) {
+        clearStoredGameState();
         return false;
     }
     if (!game.isStateSaveReady()) {

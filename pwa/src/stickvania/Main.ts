@@ -2845,6 +2845,9 @@ export class Main extends BasicGame {
     }
 
     public isStateSaveReady(): boolean {
+        if (this.isStateSaveInvalidatingMenuActive()) {
+            return false;
+        }
         if (this.loadedSegments == null || this.input == null || this.controlInput == null) {
             return false;
         }
@@ -2855,7 +2858,7 @@ export class Main extends BasicGame {
     }
 
     public isStateSaveInvalidatingMenuActive(): boolean {
-        return false;
+        return this.mode == Main.MODE_TITLE_SCREEN || this.mode == Main.MODE_CONTINUE_SCREEN || this.mode == Main.MODE_INPUT_CONFIG;
     }
 
     public shouldCaptureStageForStateSave(): boolean {
@@ -2867,7 +2870,7 @@ export class Main extends BasicGame {
     }
 
     private isStageStateRequiredForStateSave(): boolean {
-        return this.mode != Main.MODE_TITLE_SCREEN && this.mode != Main.MODE_INPUT_CONFIG;
+        return true;
     }
 
     private hasStageStateForStateSave(): boolean {

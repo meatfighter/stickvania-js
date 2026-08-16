@@ -419,12 +419,11 @@ Java Behavior:
 PWA Behavior:
 
 - The PWA saves restorable state when focus is lost, the page is hidden, or the hamburger menu is opened.
-- Saved state now covers gameplay, Game Over, demo playback, intro, map, castle-fall, credits, title, options, difficulty, and input-menu screens.
+- Saved state now covers gameplay, demo playback, intro, map, castle-fall, credits, and other stage-backed non-menu modes.
 - Stage-backed modes save stage roots, active things, random state, fade state, timers, and audio continuation data.
-- Title/input-menu states save without stage roots so stale gameplay objects are not treated as part of the menu state.
-- The transient input remapping capture screen is normalized to the title input menu when persisted; active browser event-listener state is not serialized.
-- Starting a new game is the explicit action that clears saved game state. Entering title or Game Over no longer invalidates Continue by itself.
-- Existing v1 save records are discarded because the PWA save schema changed to nullable stage snapshots in version 2.
+- Title/main menu, title submenus, input configuration, and the Game Over Continue/End menu clear saved game state instead of storing no-stage snapshots.
+- Starting a new game also clears saved game state.
+- Existing no-stage menu snapshots from earlier development builds are discarded when the PWA checks whether `Continue` is available.
 
 Affected Files:
 
