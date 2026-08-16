@@ -128,6 +128,9 @@ export class Main extends BasicGame {
     private static readonly TITLE_OPTIONS_OPTIONS: string[] = ["INPUT", "DIFFICULTY", "DONE"];
     private static readonly TITLE_DIFFICULTY_OPTIONS: string[] = ["NORMAL", "HARD"];
     private static readonly GAME_OVER_OPTIONS: string[] = ["CONTINUE", "END"];
+    // Temporary stage_3_0 candle-data test hook. Remove after verification.
+    private static readonly TEMP_START_STAGE_3_0_TEST: boolean = true;
+    private static readonly TEMP_STAGE_3_0_TEST_STAGE_INDEX: number = 3;
     public static readonly CANDLE_ITEM_AXE: number = cc("a");
     public static readonly CANDLE_ITEM_BOOMERANG: number = cc("b");
     public static readonly CANDLE_ITEM_CHEST: number = cc("c");
@@ -1143,7 +1146,11 @@ export class Main extends BasicGame {
                         this.initCastleFalls();
                         break;
                     case Main.FADE_REASON_SHOW_INTRO:
-                        this.initIntro();
+                        if (Main.TEMP_START_STAGE_3_0_TEST) {
+                            this.initStage30TestStart();
+                        } else {
+                            this.initIntro();
+                        }
                         break;
                     case Main.FADE_REASON_SHOW_CONTINUE_SCREEN:
                         this.initContinueScreen();
@@ -3511,6 +3518,17 @@ export class Main extends BasicGame {
 
         this.random = new JavaRandom(0xdeadbeef | 0);
 
+        this.nextFrameTime = Sys.getTime();
+    }
+
+    private initStage30TestStart(): void {
+        this.mode = Main.MODE_PLAYING;
+        this.players = 3;
+        this.score = 0;
+        this.stageIndex = Main.TEMP_STAGE_3_0_TEST_STAGE_INDEX;
+        this.random = new JavaRandom();
+        this.createStage(this.stageIndex, true);
+        this.clearInputPressedRecords();
         this.nextFrameTime = Sys.getTime();
     }
 
