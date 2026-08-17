@@ -22,6 +22,7 @@ export class SmallHeart extends Thing {
             return false;
         }
 
+        let wasSupported: boolean = this.supported;
         this.supported = false;
 
         let targetY: number = this.y + 0.5;
@@ -38,6 +39,9 @@ export class SmallHeart extends Thing {
                     this.y = i - this.ry2;
                     this.vy = 0;
                     this.supported = true;
+                    if (!wasSupported) {
+                        this.main.playRumble("itemLand");
+                    }
 
                     if (--this.lifeTime == 0) {
                         return false;

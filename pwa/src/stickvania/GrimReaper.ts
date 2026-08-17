@@ -67,6 +67,7 @@ export class GrimReaper extends Thing {
                     if (this.power <= 0) {
                         this.main.fireSparks(this.x + 24, this.y + 32);
                         this.main.killAll();
+                        this.main.playRumble("bossFinalHit");
                         this.main.playSound(this.main.boss_killed_1);
                         this.main.stopSong();
                         this.main.addPoints(7000);

@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en">
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Stickvania Rumble Test</title>
         <style>
             :root {
@@ -20,9 +20,7 @@
                 margin: 0;
                 min-height: 100vh;
                 background:
-                    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
-                    linear-gradient(0deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
-                    #fff;
+                    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(0deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px), #fff;
                 background-size: 32px 32px;
             }
 
@@ -162,7 +160,10 @@
                 padding: 12px;
                 background: #000;
                 color: #fff;
-                font: 13px/1.45 Consolas, "Courier New", monospace;
+                font:
+                    13px/1.45 Consolas,
+                    "Courier New",
+                    monospace;
                 white-space: pre-wrap;
             }
 
@@ -205,238 +206,6 @@
             </section>
         </main>
 
-        <script>
-            const effects = [
-                ["playerHurt", "Player Hurt", "Accepted damage / knockback", 220, 0.72, 0.28],
-                ["playerDeath", "Player Death", "Death hit, not pit-specific", 360, 0.9, 0.45],
-                ["bossFinalHit", "Boss Final Hit", "Final hit that starts boss death", 420, 1, 0.65],
-                ["blockBreak", "Block Break", "Breakable wall shatter", 110, 0.48, 0.72],
-                ["floorBreak", "Floor Break", "Mummy floor blocks", 140, 0.62, 0.75],
-                ["draculaLand", "Dracula Land", "Blue monster impact", 260, 0.95, 0.42],
-                ["castleCrumble", "Castle Crumble", "Ending castle collapse", 520, 0.78, 0.32],
-                ["orbLand", "Orb Land", "Boss orb touches ground", 170, 0.55, 0.22],
-                ["orbCollect", "Orb Collect", "Simon collects orb", 260, 0.62, 0.78],
-                ["itemLand", "Item Land", "Ordinary item lands", 60, 0.16, 0.24],
-                ["majorItemCollect", "Major Item Collect", "Weapon, meat, 1UP, repeat item", 130, 0.25, 0.62],
-                ["whipUpgrade", "Whip Upgrade", "Whip item advances whip", 220, 0.42, 0.88],
-                ["spikesLand", "Spikes Land", "Falling spikes impact", 95, 0.6, 0.95],
-                ["doorOpen", "Door Open", "Light door pulse", 90, 0.2, 0.3],
-                ["stopwatch", "Stopwatch", "Time stop tick", 80, 0.12, 0.55],
-                ["weaponImpactLight", "Weapon Impact", "Dagger / axe / boomerang contact", 70, 0.2, 0.55],
-                ["holyWaterImpact", "Holy Water Impact", "Holy water ignites", 160, 0.38, 0.82],
-                ["weaponThrow", "Weapon Throw", "Optional launch tap", 45, 0.14, 0.3],
-                ["snakeLand", "Snake Land", "Medusa snake lands", 65, 0.2, 0.28]
-            ];
-
-            const logElement = document.getElementById("log");
-            const statusElement = document.getElementById("gamepad-status");
-            const targetSelect = document.getElementById("target-select");
-            const effectButtonsElement = document.getElementById("effect-buttons");
-
-            function log(message) {
-                const time = new Date().toLocaleTimeString();
-                logElement.textContent = `[${time}] ${message}\n${logElement.textContent}`;
-            }
-
-            function getGamepads() {
-                if (!navigator.getGamepads) {
-                    return [];
-                }
-                return Array.from(navigator.getGamepads()).filter(Boolean);
-            }
-
-            function getHapticActuators(gamepad) {
-                return Array.from(gamepad.hapticActuators || []).filter(Boolean);
-            }
-
-            function getActuatorDescriptions(gamepad) {
-                const descriptions = [];
-                if (gamepad.vibrationActuator) {
-                    descriptions.push(describeActuator("vibrationActuator", gamepad.vibrationActuator));
-                }
-                getHapticActuators(gamepad).forEach((actuator, index) => descriptions.push(describeActuator(`hapticActuators[${index}]`, actuator)));
-                return descriptions;
-            }
-
-            function describeActuator(label, actuator) {
-                const effects = Array.isArray(actuator.effects) && actuator.effects.length > 0 ? actuator.effects.join(", ") : "unknown effects";
-                const methods = [
-                    typeof actuator.playEffect === "function" ? "playEffect" : "",
-                    typeof actuator.pulse === "function" ? "pulse" : "",
-                    typeof actuator.reset === "function" ? "reset" : ""
-                ].filter(Boolean);
-                return `${label}: ${methods.join("/") || "no methods"}; ${effects}`;
-            }
-
-            function renderGamepads() {
-                const gamepads = getGamepads();
-                const selectedValue = targetSelect.value;
-                targetSelect.replaceChildren(new Option("All supported gamepads", "all"));
-                for (const gamepad of gamepads) {
-                    targetSelect.add(new Option(`#${gamepad.index} ${gamepad.id}`, String(gamepad.index)));
-                }
-                if ([...targetSelect.options].some((option) => option.value === selectedValue)) {
-                    targetSelect.value = selectedValue;
-                }
-
-                if (gamepads.length === 0) {
-                    statusElement.innerHTML = `<p class="muted">No gamepads visible yet. Press a button on your controller, then refresh.</p>`;
-                    return;
-                }
-
-                statusElement.replaceChildren(
-                    ...gamepads.map((gamepad) => {
-                        const card = document.createElement("article");
-                        card.className = "gamepad-card";
-                        const actuators = getActuatorDescriptions(gamepad);
-                        card.innerHTML = `
-                            <strong>#${gamepad.index} ${escapeHtml(gamepad.id)}</strong>
-                            <div>Mapping: ${escapeHtml(gamepad.mapping || "unknown")}</div>
-                            <div>Buttons: ${gamepad.buttons.length}; Axes: ${gamepad.axes.length}</div>
-                            <div>${actuators.length > 0 ? escapeHtml(actuators.join(" | ")) : "No haptic actuator detected"}</div>`;
-                        return card;
-                    })
-                );
-            }
-
-            function selectedGamepads() {
-                const gamepads = getGamepads();
-                if (targetSelect.value === "all") {
-                    return gamepads;
-                }
-                const index = Number(targetSelect.value);
-                return gamepads.filter((gamepad) => gamepad.index === index);
-            }
-
-            async function playEffectOnGamepad(gamepad, effect) {
-                const params = {
-                    startDelay: 0,
-                    duration: effect.duration,
-                    strongMagnitude: effect.strong,
-                    weakMagnitude: effect.weak
-                };
-
-                const result = await tryActuator(gamepad.vibrationActuator, "vibrationActuator", params);
-                if (result.handled) {
-                    return result.message;
-                }
-
-                const hapticActuators = getHapticActuators(gamepad);
-                for (let i = 0; i < hapticActuators.length; i++) {
-                    const actuatorResult = await tryActuator(hapticActuators[i], `hapticActuators[${i}]`, params);
-                    if (actuatorResult.handled) {
-                        return actuatorResult.message;
-                    }
-                }
-
-                return "no supported haptic actuator";
-            }
-
-            async function tryActuator(actuator, label, params) {
-                if (!actuator) {
-                    return { handled: false, message: `${label}: missing` };
-                }
-
-                if (typeof actuator.playEffect === "function") {
-                    const supportsDualRumble = !Array.isArray(actuator.effects) || actuator.effects.length === 0 || actuator.effects.includes("dual-rumble");
-                    if (supportsDualRumble) {
-                        try {
-                            const result = await actuator.playEffect("dual-rumble", params);
-                            return { handled: true, message: `${label}.playEffect: ${result || "started"}` };
-                        } catch (error) {
-                            log(`${label}.playEffect failed: ${error && error.name ? error.name : error}`);
-                        }
-                    }
-                }
-
-                if (typeof actuator.pulse === "function") {
-                    try {
-                        const intensity = Math.max(params.strongMagnitude, params.weakMagnitude);
-                        const result = await actuator.pulse(intensity, params.duration);
-                        return { handled: result !== false, message: `${label}.pulse: ${result === false ? "rejected" : "started"}` };
-                    } catch (error) {
-                        log(`${label}.pulse failed: ${error && error.name ? error.name : error}`);
-                    }
-                }
-
-                return { handled: false, message: `${label}: unsupported` };
-            }
-
-            async function playEffect(effect) {
-                const gamepads = selectedGamepads();
-                if (gamepads.length === 0) {
-                    log(`${effect.label}: no selected gamepad`);
-                    renderGamepads();
-                    return;
-                }
-                log(`${effect.label}: duration ${effect.duration}ms, strong ${effect.strong}, weak ${effect.weak}`);
-                const results = await Promise.all(gamepads.map((gamepad) => playEffectOnGamepad(gamepad, effect)));
-                results.forEach((result, index) => log(`#${gamepads[index].index} ${result}`));
-                renderGamepads();
-            }
-
-            async function stopRumble() {
-                const gamepads = selectedGamepads();
-                for (const gamepad of gamepads) {
-                    const actuators = [gamepad.vibrationActuator, ...getHapticActuators(gamepad)].filter(Boolean);
-                    for (const actuator of actuators) {
-                        if (typeof actuator.reset === "function") {
-                            try {
-                                await actuator.reset();
-                            } catch {}
-                        } else if (typeof actuator.playEffect === "function") {
-                            try {
-                                await actuator.playEffect("dual-rumble", {
-                                    duration: 1,
-                                    strongMagnitude: 0,
-                                    weakMagnitude: 0
-                                });
-                            } catch {}
-                        }
-                    }
-                }
-                log("Stop requested.");
-            }
-
-            function renderEffectButtons() {
-                effectButtonsElement.replaceChildren(
-                    ...effects.map(([id, label, description, duration, strong, weak]) => {
-                        const button = document.createElement("button");
-                        button.className = "effect-button";
-                        button.type = "button";
-                        button.innerHTML = `${escapeHtml(label)}<span>${escapeHtml(description)}</span>`;
-                        button.addEventListener("click", () => playEffect({ id, label, duration, strong, weak }));
-                        return button;
-                    })
-                );
-            }
-
-            function escapeHtml(value) {
-                return String(value)
-                    .replaceAll("&", "&amp;")
-                    .replaceAll("<", "&lt;")
-                    .replaceAll(">", "&gt;")
-                    .replaceAll('"', "&quot;")
-                    .replaceAll("'", "&#39;");
-            }
-
-            document.getElementById("refresh-button").addEventListener("click", () => {
-                renderGamepads();
-                log("Gamepad list refreshed.");
-            });
-            document.getElementById("stop-button").addEventListener("click", stopRumble);
-            window.addEventListener("gamepadconnected", (event) => {
-                renderGamepads();
-                log(`Connected #${event.gamepad.index}: ${event.gamepad.id}`);
-            });
-            window.addEventListener("gamepaddisconnected", (event) => {
-                renderGamepads();
-                log(`Disconnected #${event.gamepad.index}: ${event.gamepad.id}`);
-            });
-
-            renderEffectButtons();
-            renderGamepads();
-            log("Ready. If no gamepad appears, press a controller button and refresh.");
-        </script>
+        <script type="module" src="/src/rumble/RumbleTestPage.ts"></script>
     </body>
 </html>

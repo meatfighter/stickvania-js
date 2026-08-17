@@ -60,6 +60,7 @@ export class BatBoss extends Thing {
                     if (this.main.enemyPower <= 0) {
                         this.main.enemyPower = 0;
                         this.main.fireSparks(this.x + 32, this.y + 8);
+                        this.main.playRumble("bossFinalHit");
                         this.main.playSound(this.main.boss_killed_1);
                         this.main.stopSong();
                         this.main.killAll();

@@ -32,9 +32,16 @@ export class DropItem extends Thing {
     }
 
     public update(gc: GameContainer): boolean {
+        const wasSupported: boolean = this.supported;
         this.applyGravity();
+        if (!wasSupported && this.supported) {
+            this.main.playRumble("itemLand");
+        }
 
         if (this.main.intersectsSimon(trunc(this.x), trunc(this.y), 31 + trunc(this.x), 31 + trunc(this.y))) {
+            if (this.isMajorRumbleItem()) {
+                this.main.playRumble("majorItemCollect");
+            }
             switch (this.type) {
                 case DropItem.TYPE_CHEST:
                 case DropItem.TYPE_MONEY_BAG:
@@ -88,6 +95,7 @@ export class DropItem extends Thing {
                     this.main.setWeapon(Main.WEAPON_TYPE_HOLY_WATER);
                     break;
                 case DropItem.TYPE_KILL_ALL:
+                    this.main.playRumble("rosary");
                     this.main.fireSparks(this.x, this.y);
                     this.main.killAll();
                     break;
@@ -104,6 +112,7 @@ export class DropItem extends Thing {
                     this.main.addPlayers(1);
                     break;
                 case DropItem.TYPE_POTION:
+                    this.main.playRumble("invincibilityPotion");
                     this.main.simon.invincible = 728;
                     this.main.simon.drankPotion = true;
                     break;
@@ -129,6 +138,23 @@ export class DropItem extends Thing {
         }
 
         return true;
+    }
+
+    private isMajorRumbleItem(): boolean {
+        switch (this.type) {
+            case DropItem.TYPE_AXE:
+            case DropItem.TYPE_BOOMERANG:
+            case DropItem.TYPE_DAGGER:
+            case DropItem.TYPE_DOUBLE:
+            case DropItem.TYPE_HOLY_WATER:
+            case DropItem.TYPE_MEAT:
+            case DropItem.TYPE_1UP:
+            case DropItem.TYPE_STOP_WATCH:
+            case DropItem.TYPE_TRIPLE:
+                return true;
+            default:
+                return false;
+        }
     }
 
     public render(gc: GameContainer, g: Graphics): void {

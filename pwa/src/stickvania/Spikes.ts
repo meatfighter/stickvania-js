@@ -35,6 +35,7 @@ export class Spikes extends Thing {
                 if (this.supported || (this.index == 1 && this.y >= this.top + 78)) {
                     this.lifting = true;
                     this.main.playSound(this.main.ching);
+                    this.main.playRumble("spikesLand");
                     if (this.index == 1) {
                         this.y = this.top + 78;
                     }

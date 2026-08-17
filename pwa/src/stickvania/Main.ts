@@ -76,6 +76,8 @@ import { ThingStack } from "./ThingStack.js";
 import { Torch } from "./Torch.js";
 import { WhiteSkeleton } from "./WhiteSkeleton.js";
 import { ZombieSpawner } from "./ZombieSpawner.js";
+import type { RumbleEffectId } from "../rumble/RumbleEffects.js";
+import type { RumbleManager } from "../rumble/RumbleManager.js";
 
 type BrowserFullscreenController = {
     isFullscreen(): boolean;
@@ -128,6 +130,7 @@ export class Main extends BasicGame {
     private static readonly TITLE_OPTIONS_OPTIONS: string[] = ["INPUT", "DIFFICULTY", "DONE"];
     private static readonly TITLE_DIFFICULTY_OPTIONS: string[] = ["NORMAL", "HARD"];
     private static readonly GAME_OVER_OPTIONS: string[] = ["CONTINUE", "END"];
+    private static readonly CASTLE_CRUMBLE_RUMBLE_TICK_MS: number = 1000 / 91;
     public static readonly CANDLE_ITEM_AXE: number = cc("a");
     public static readonly CANDLE_ITEM_BOOMERANG: number = cc("b");
     public static readonly CANDLE_ITEM_CHEST: number = cc("c");
@@ -292,6 +295,8 @@ export class Main extends BasicGame {
     public appGameContainer: AppGameContainer = null;
     public appletGameContainer: AppletGameContainer2 = null;
     public scalableGame: ScalableGame2 = null;
+    public rumble: RumbleManager = null;
+    private whipImpactRumbledThisSwing: boolean = false;
     private nextFrameTime: number = 0;
     private loadedSegments: StageSegment[][] = null;
     private stageSegments: StageSegment[] = null;
@@ -371,6 +376,7 @@ export class Main extends BasicGame {
     private castleFallSparkY: number = 0;
     private castleFallSparkDelay: number = 0;
     private castleFallDelay: number = 0;
+    private castleCrumbleRumbleTicks: number = 0;
     public continueSelected: boolean = true;
     public door: Door = null;
     public oldThingStack: ThingStack = new ThingStack();
@@ -1449,12 +1455,14 @@ export class Main extends BasicGame {
                 this.simon.whipping = true;
                 this.simon.whipIncrementor = 0;
                 this.simon.whipIndex = 0;
+                this.whipImpactRumbledThisSwing = false;
                 this.simon.releasedWhip = false;
             } else if (keyDownSubWeapon && this.canUseSubWeapon()) {
                 this.simon.throwing = true;
                 this.simon.whipping = true;
                 this.simon.whipIncrementor = 0;
                 this.simon.whipIndex = 0;
+                this.whipImpactRumbledThisSwing = false;
                 this.simon.releasedWhip = false;
             }
         }
@@ -1732,22 +1740,27 @@ export class Main extends BasicGame {
             case Main.WEAPON_TYPE_AXE:
                 this.pushWeapon(new Axe(this, x, y, this.simon.direction));
                 this.removeHearts(1);
+                this.playRumble("weaponThrow");
                 break;
             case Main.WEAPON_TYPE_BOOMERANG:
                 this.pushWeapon(new Boomerang(this, x + 1, y + 1, this.simon.direction));
                 this.removeHearts(1);
+                this.playRumble("weaponThrow");
                 break;
             case Main.WEAPON_TYPE_DAGGER:
                 this.pushWeapon(new Dagger(this, x, y, this.simon.direction));
                 this.removeHearts(1);
+                this.playRumble("weaponThrow");
                 break;
             case Main.WEAPON_TYPE_HOLY_WATER:
                 this.pushWeapon(new HolyWater(this, x, y, this.simon.direction));
                 this.removeHearts(1);
+                this.playRumble("weaponThrow");
                 break;
             case Main.WEAPON_TYPE_STOP_WATCH:
                 this.pushWeapon(new StopWatch(this));
                 this.removeHearts(5);
+                this.playRumble("stopwatch");
                 break;
         }
     }
@@ -2636,6 +2649,7 @@ export class Main extends BasicGame {
         this.whipDestroyed();
         if (this.simon.whipType < 2) {
             this.playSound(this.advance_whip);
+            this.playRumble("whipUpgrade");
             this.simon.whipType++;
             this.simon.flashing = 60;
         }
@@ -2660,6 +2674,58 @@ export class Main extends BasicGame {
         if (this.mode == Main.MODE_PLAYING || this.mode == Main.MODE_DEMO || this.mode == Main.MODE_TITLE_SCREEN) {
             sound.play();
         }
+    }
+
+    public playRumble(effect: RumbleEffectId): void {
+        if (this.rumble == null || this.browserSuspended || !this.isRumbleModeAllowed()) {
+            return;
+        }
+        this.rumble.play(effect);
+    }
+
+    public stopRumble(effect: RumbleEffectId): void {
+        this.rumble?.stop(effect);
+    }
+
+    public stopAllRumbles(): void {
+        this.rumble?.stopAll();
+    }
+
+    public resumeBrowserOnlyRumbles(): void {
+        if (this.rumble == null || this.browserSuspended || !this.isRumbleModeAllowed()) {
+            return;
+        }
+        if (this.mode == Main.MODE_CASTLE_FALLS && this.isCastleCrumbleActive()) {
+            this.rumble.playFromOffset("castleCrumble", this.getCastleCrumbleRumbleOffsetMs());
+        }
+        if (this.mode == Main.MODE_PLAYING && this.hasActiveStopWatch()) {
+            this.rumble.play("stopwatch");
+        }
+    }
+
+    private isRumbleModeAllowed(): boolean {
+        return this.mode == Main.MODE_PLAYING || this.mode == Main.MODE_CASTLE_FALLS;
+    }
+
+    private isCastleCrumbleActive(): boolean {
+        return this.castleFallSparkCount > 0 || this.castleFallY < 220 || this.castleFallDelay > 0;
+    }
+
+    private getCastleCrumbleRumbleOffsetMs(): number {
+        return this.castleCrumbleRumbleTicks * Main.CASTLE_CRUMBLE_RUMBLE_TICK_MS;
+    }
+
+    private hasActiveStopWatch(): boolean {
+        if (this.weaponsStack == null) {
+            return false;
+        }
+        const weapons: Thing[] = this.weaponsStack.things;
+        for (let i: number = this.weaponsStack.top; i >= 0; i--) {
+            if (weapons[i] instanceof StopWatch) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public stopSong(): void {
@@ -2709,6 +2775,7 @@ export class Main extends BasicGame {
         this.currentMusic = null;
         this.currentSong = null;
         this.requestedSong = null;
+        this.stopAllRumbles();
     }
 
     public setBrowserSuspended(suspended: boolean): void {
@@ -2718,6 +2785,7 @@ export class Main extends BasicGame {
         this.browserSuspended = suspended;
         if (suspended) {
             this.stopAllSoundEffects();
+            this.stopAllRumbles();
             if (this.appGameContainer != null) {
                 this.browserSuspendedMusicOn = this.appGameContainer.isMusicOn();
                 this.browserSuspendedSoundOn = this.appGameContainer.isSoundOn();
@@ -2942,6 +3010,7 @@ export class Main extends BasicGame {
         if (this.playerPower < 0) {
             this.playerPower = 0;
         }
+        this.playRumble(this.playerPower == 0 ? "playerDeath" : "playerHurt");
 
         if (this.playerPower == 0) {
             this.simon.onStairs = false;
@@ -3075,6 +3144,9 @@ export class Main extends BasicGame {
                     y2 as number
                 )
             ) {
+                if (!weapon.intersected) {
+                    this.playRumble("weaponImpactLight");
+                }
                 weapon.intersected = true;
                 return true;
             }
@@ -3137,7 +3209,12 @@ export class Main extends BasicGame {
             rx1 -= 16;
         }
 
-        return this.intersects(rx1, ry1, rx2, ry2, x1, y1 as number, x2 as number, y2 as number);
+        const hit = this.intersects(rx1, ry1, rx2, ry2, x1, y1 as number, x2 as number, y2 as number);
+        if (hit && !this.whipImpactRumbledThisSwing) {
+            this.playRumble("weaponImpactLight");
+            this.whipImpactRumbledThisSwing = true;
+        }
+        return hit;
     }
 
     public intersectsSimon(thingOrX1: Thing | number, y1?: number, x2?: number, y2?: number): boolean {
@@ -3389,7 +3466,7 @@ export class Main extends BasicGame {
                 }
             } else {
                 this.creditsDelay--;
-                if (this.creditsPresents && this.input.isKeyPressed(Input.KEY_ENTER)) {
+                if (this.creditsPresents && this.controlInput.isAnyNonDirectionalPressed()) {
                     this.creditsDelay = 0;
                 }
             }
@@ -3418,6 +3495,8 @@ export class Main extends BasicGame {
 
     public initCastleFalls(): void {
         this.mode = Main.MODE_CASTLE_FALLS;
+        this.castleCrumbleRumbleTicks = 0;
+        this.playRumble("castleCrumble");
 
         this.castleFallDelay = 91;
         this.castleFallX = 410;
@@ -3430,6 +3509,10 @@ export class Main extends BasicGame {
     }
 
     public updateCastleFalls(gc: GameContainer): void {
+        if (this.isCastleCrumbleActive()) {
+            this.castleCrumbleRumbleTicks++;
+        }
+
         if (this.castleFallSparkCount > 0) {
             if (this.castleFallSparkDelay > 0) {
                 this.castleFallSparkDelay--;
@@ -3449,6 +3532,7 @@ export class Main extends BasicGame {
             if (this.castleFallY < 220) {
                 this.castleFallY += 0.2;
             } else if (this.castleFallDelay == 0) {
+                this.stopRumble("castleCrumble");
                 this.fadeState = Main.FADE_OUT;
                 this.fadeReason = Main.FADE_REASON_SHOW_CREDITS;
             } else {

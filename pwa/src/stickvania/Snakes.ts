@@ -42,7 +42,11 @@ export class Snakes extends Thing {
             if (!this.moveX(this.vx)) {
                 this.vx = -this.vx;
             }
+            const wasSupported: boolean = this.supported;
             this.applyGravity();
+            if (!wasSupported && this.supported) {
+                this.main.playRumble("snakeLand");
+            }
             if (this.y > 352 || this.x > this.main.camera + 576 || this.x < this.main.camera - 64) {
                 return false;
             }

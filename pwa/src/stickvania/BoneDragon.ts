@@ -113,6 +113,7 @@ export class BoneDragon extends Thing {
                     this.shootDelay = this.main.adjustEnemyCooldown(91 + this.main.random.nextInt(273));
                     this.mouthOpen = 46;
                     this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 8, -1.5, 0));
+                    this.main.playRumble("fireProjectile");
                     this.main.playSound(this.main.fire_ball_shot);
                 } else {
                     this.shootDelay--;

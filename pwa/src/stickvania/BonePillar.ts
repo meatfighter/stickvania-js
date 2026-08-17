@@ -55,6 +55,7 @@ export class BonePillar extends Thing {
                     this.delay = this.main.adjustEnemyCooldown(364);
                 }
                 this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 18, this.direction == Main.LEFT ? -1.5 : 1.5, 0));
+                this.main.playRumble("fireProjectile");
                 this.main.playSound(this.main.fire_ball_shot);
             } else {
                 this.delay--;

@@ -196,75 +196,64 @@ input {
     font-variant-numeric: tabular-nums;
 }
 
-.display-row {
-    display: grid;
-    width: min(300px, 100%);
-    grid-template-columns: 1fr 74px 1fr;
+.settings-row {
+    display: flex;
+    width: min(360px, 100%);
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    gap: 30px;
+}
+
+.setting-switch-row {
+    display: grid;
+    grid-template-columns: max-content 66px;
+    align-items: center;
+    gap: 10px;
     color: #ffffff;
     font-size: 16px;
     font-weight: 700;
 }
 
-.display-label-button {
-    border: 0;
-    background: transparent;
-    color: #777777;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: 700;
-    padding: 0;
-}
-
-.display-label-button:first-child {
-    text-align: right;
-}
-
-.display-label-button:last-child {
-    text-align: left;
-}
-
-.display-label-button[aria-pressed="true"] {
-    color: #ffffff;
-}
-
-.display-label-button:hover,
-.display-label-button:focus-visible {
-    color: #ffffff;
-    outline: none;
-    text-decoration: underline;
-}
-
-.display-switch {
+.menu-switch {
     position: relative;
-    width: 74px;
-    height: 36px;
-    border: 2px solid #ffffff;
+    width: 66px;
+    height: 34px;
+    border: 2px solid #555555;
     border-radius: 999px;
     background: #000000;
     cursor: pointer;
     padding: 0;
+    transition:
+        background 160ms ease-out,
+        border-color 160ms ease-out;
 }
 
-.display-switch span {
+.menu-switch span {
     position: absolute;
     top: 4px;
     left: 4px;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background: #ffffff;
     content: "";
-    transition: transform 160ms ease-out;
+    transition:
+        background 160ms ease-out,
+        transform 160ms ease-out;
 }
 
-.display-switch[data-mode="dark"] span {
-    transform: translateX(38px);
+.menu-switch[data-enabled="true"] {
+    border-color: #ffffff;
+    background: #ffffff;
 }
 
-.display-switch:hover,
-.display-switch:focus-visible {
+.menu-switch[data-enabled="true"] span {
+    background: #000000;
+    transform: translateX(32px);
+}
+
+.menu-switch:hover,
+.menu-switch:focus-visible {
     outline: none;
 }
 

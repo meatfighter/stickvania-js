@@ -28,11 +28,13 @@ export class Orb extends Thing {
             } else {
                 this.soundDelay = 70;
                 this.main.playSound(this.main.heartbeat);
+                this.main.playRumble("orbHeartbeat");
             }
 
             this.applyGravity();
 
             if (this.main.intersectsSimon(this)) {
+                this.main.playRumble("orbCollect");
                 this.main.beatStage();
                 return false;
             }

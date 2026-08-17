@@ -99,6 +99,7 @@ export class MummyBoss extends Thing {
                     if (this.hits == 0) {
                         this.state = MummyBoss.STATE_DEAD;
 
+                        this.main.playRumble("bossFinalHit");
                         this.main.playSound(this.main.boss_killed_3);
 
                         this.main.pushThing(new Flame(this.main, this.x - 16, this.y + 42, 0, 0, -0.09, 0, 91));

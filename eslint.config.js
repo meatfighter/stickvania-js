@@ -9,13 +9,17 @@ const browserGlobals = {
     HTMLElement: "readonly",
     HTMLButtonElement: "readonly",
     HTMLInputElement: "readonly",
+    HTMLSelectElement: "readonly",
     ResizeObserver: "readonly",
     cancelAnimationFrame: "readonly",
     clearTimeout: "readonly",
     location: "readonly",
     localStorage: "readonly",
     navigator: "readonly",
+    Option: "readonly",
+    performance: "readonly",
     requestAnimationFrame: "readonly",
+    setTimeout: "readonly",
     window: "readonly"
 };
 

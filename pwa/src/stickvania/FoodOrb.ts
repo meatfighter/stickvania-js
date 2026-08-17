@@ -102,6 +102,7 @@ export class FoodOrb extends Thing {
                 if (this.shootDelay == 0) {
                     this.shootDelay = 5;
                     this.main.pushThing(new Fireball(this.main, this.x - 8, this.y - 8, 4 * FastTrig.cos(this.shootAngle), 4 * FastTrig.sin(this.shootAngle)));
+                    this.main.playRumble("fireProjectile");
                     this.shootAngle += this.shootAngleInc;
                     if (--this.shots == 0) {
                         this.main.pushThing(new DropItem(this.main, trunc(this.x), trunc(this.y), DropItem.TYPE_MEAT));

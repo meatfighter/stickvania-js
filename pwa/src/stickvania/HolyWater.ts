@@ -32,6 +32,9 @@ export class HolyWater extends Thing {
                 this.ry2 = 31;
                 this.state = HolyWater.STATE_FIRE;
                 this.main.playSound(this.main.used_holy_water);
+                if (!this.intersected) {
+                    this.main.playRumble("weaponImpactLight");
+                }
             }
         } else {
             if (++this.delay == 15) {

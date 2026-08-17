@@ -99,6 +99,9 @@ export class Dracula extends Thing {
                 if (this.hits > 0) {
                     this.hits--;
                     this.main.enemyPower = this.hits >> 1;
+                    if (this.hits == 0) {
+                        this.main.playRumble("bossFinalHit");
+                    }
                     if (this.hits == 1) {
                         this.main.enemyPower = 1;
                     }
@@ -167,6 +170,7 @@ export class Dracula extends Thing {
                                 0
                             )
                         );
+                        this.main.playRumble("fireProjectile");
                         if (this.hits <= 24) {
                             this.main.playSound(this.main.thunder);
                             let ghost: Ghost = new Ghost(this.main, this.x - 96, this.y + 64);
@@ -328,6 +332,7 @@ export class Dracula extends Thing {
                 this.applyGravity();
                 if (this.supported) {
                     this.main.playSound(this.main.lands);
+                    this.main.playRumble("draculaLand");
                     this.state = Dracula.STATE_CROUCHED;
                     this.monsterDelay = 45;
                 }

@@ -50,6 +50,7 @@ export class Door extends Thing {
                         this.state = Door.STATE_DIAGONAL_1;
                         this.doorDelay = 10;
                         this.main.playSound(this.main.door_opens_1);
+                        this.main.playRumble("doorOpen");
                     }
                     break;
                 case Door.STATE_DIAGONAL_1:
@@ -99,6 +100,7 @@ export class Door extends Thing {
                         this.state = Door.STATE_DIAGONAL_1;
                         this.doorDelay = 10;
                         this.main.playSound(this.main.door_opens_2);
+                        this.main.playRumble("doorOpen");
                     }
                     break;
                 case Door.STATE_DIAGONAL_1:

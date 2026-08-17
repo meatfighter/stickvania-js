@@ -20,6 +20,7 @@ export class FloorBreaker extends Thing {
         this.main.pushThing(new BrickFragment(this.main, x, y + 8, -1, -4));
         this.main.pushThing(new BrickFragment(this.main, x + 8 + 8, y, 1, -5));
         this.main.playSound(this.main.breaks_wall);
+        this.main.playRumble("floorBreak");
     }
 
     public update(gc: GameContainer): boolean {

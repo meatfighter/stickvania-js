@@ -3411,7 +3411,7 @@ public final class Main extends BasicGame {
         }
       } else {
         creditsDelay--;
-        if (creditsPresents && input.isKeyPressed(Input.KEY_ENTER)) {
+        if (creditsPresents && controlInput.isAnyNonDirectionalPressed()) {
           creditsDelay = 0;
         }
       }

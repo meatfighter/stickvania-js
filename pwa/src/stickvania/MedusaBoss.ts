@@ -66,6 +66,7 @@ export class MedusaBoss extends Thing {
                         this.main.enemyPower = 0;
                         this.main.fireSparks(this.x + 32, this.y + 8);
                         this.main.killAll();
+                        this.main.playRumble("bossFinalHit");
                         this.main.playSound(this.main.boss_killed_2);
                         this.main.stopSong();
                         this.main.addPoints(3000);

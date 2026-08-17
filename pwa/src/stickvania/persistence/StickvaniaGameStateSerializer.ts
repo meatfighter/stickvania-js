@@ -61,6 +61,8 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "appGameContainer",
     "appletGameContainer",
     "scalableGame",
+    "rumble",
+    "whipImpactRumbledThisSwing",
     "loadedSegments",
     "stageSegments",
     "stageSegment",
@@ -472,9 +474,7 @@ export class StickvaniaGameStateSerializer {
         if (!Array.isArray(value) || value.length > MAX_SAVED_GRID_ROWS) {
             return false;
         }
-        return value.every(
-            (row) => Array.isArray(row) && row.length <= MAX_SAVED_GRID_COLUMNS && row.every((cell) => this.isFiniteInteger(cell))
-        );
+        return value.every((row) => Array.isArray(row) && row.length <= MAX_SAVED_GRID_COLUMNS && row.every((cell) => this.isFiniteInteger(cell)));
     }
 
     private areThingSnapshotsValid(snapshots: ThingSnapshot[]): boolean {
@@ -537,11 +537,7 @@ export class StickvaniaGameStateSerializer {
         if (!this.isPlainRecord(snapshot)) {
             return false;
         }
-        return (
-            this.isFiniteInteger(snapshot.seed0) &&
-            this.isFiniteInteger(snapshot.seed1) &&
-            this.isFiniteInteger(snapshot.seed2)
-        );
+        return this.isFiniteInteger(snapshot.seed0) && this.isFiniteInteger(snapshot.seed1) && this.isFiniteInteger(snapshot.seed2);
     }
 
     private isAudioSnapshotShape(snapshot: unknown): snapshot is AudioSnapshot {

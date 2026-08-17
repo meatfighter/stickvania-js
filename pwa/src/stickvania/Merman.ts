@@ -90,6 +90,7 @@ export class Merman extends Thing {
                         this.shootDelay = this.main.adjustEnemyCooldown(this.main.random.nextInt(273) + 91);
                         this.shooting = 70;
                         this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 18, this.direction == Main.LEFT ? -1.5 : 1.5, 0));
+                        this.main.playRumble("fireProjectile");
                         this.main.playSound(this.main.merman_spit);
                     }
                 }

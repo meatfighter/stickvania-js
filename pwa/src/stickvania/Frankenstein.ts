@@ -50,6 +50,7 @@ export class Frankenstein extends Thing {
                         this.state = Frankenstein.STATE_DEAD;
                         this.main.fireSparks(this.x, this.y + 32);
                         this.main.killAll();
+                        this.main.playRumble("bossFinalHit");
                         this.main.playSound(this.main.boss_killed_1);
                         this.main.stopSong();
                         this.main.addPoints(5000);
