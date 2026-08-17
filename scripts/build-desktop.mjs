@@ -201,7 +201,7 @@ function tryNativeMaven() {
         return false;
     }
     console.log("Building desktop archive with Maven.");
-    run(command, ["package"], desktopDir);
+    run(command, ["package", `-Drevision=${version.version}`], desktopDir);
     normalizeMavenOutputs();
     return true;
 }
@@ -217,7 +217,7 @@ function tryWslMaven() {
         return false;
     }
     console.log("Building desktop archive with WSL2 Maven.");
-    run("wsl.exe", ["sh", "-lc", `cd ${quoteSh(windowsPathToWslPath(desktopDir))} && mvn package`]);
+    run("wsl.exe", ["sh", "-lc", `cd ${quoteSh(windowsPathToWslPath(desktopDir))} && mvn package -Drevision=${quoteSh(version.version)}`]);
     normalizeMavenOutputs();
     return true;
 }

@@ -1,6 +1,6 @@
 # Stickvania Legacy Java Source
 
-This directory is an archival copy of the Java project from `C:\NetBeansProjects\stickvania`.
+This directory is an archival copy of the original Java Stickvania project.
 
 Copied into this repository:
 

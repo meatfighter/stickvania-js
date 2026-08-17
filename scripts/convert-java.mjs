@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
-const javaRoot = "C:/NetBeansProjects/stickvania/src/stickvania";
+const javaRoot = process.env.STICKVANIA_JAVA_SRC ?? "desktop/src/stickvania";
 const outRoot = "pwa/src/stickvania";
 
 const slickImports = [

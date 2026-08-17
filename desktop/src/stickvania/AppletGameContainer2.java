@@ -523,8 +523,6 @@ public class AppletGameContainer2 extends Applet {
           xoffset = (screenWidth - newWidth) / 2;
           yoffset = (screenHeight - newHeight) / 2;
 
-          System.out.format("%d %d %d %d%n", xoffset, yoffset, newWidth, newHeight);
-
           // scale game to match new resolution
           GL11.glViewport(xoffset, yoffset, newWidth, newHeight);
 

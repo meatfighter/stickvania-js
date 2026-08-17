@@ -157,6 +157,63 @@
                 }
             </style>
         </noscript>
+        <script>
+            (function () {
+                window.__stickvaniaBooted = false;
+
+                function getBootScreen() {
+                    return document.getElementById("static-boot-screen");
+                }
+
+                function showStaticBootFailure() {
+                    if (window.__stickvaniaBooted) {
+                        return;
+                    }
+                    var boot = getBootScreen();
+                    if (!boot) {
+                        window.addEventListener("DOMContentLoaded", showStaticBootFailure, { once: true });
+                        return;
+                    }
+                    if (!boot.isConnected) {
+                        return;
+                    }
+                    boot.classList.add("static-boot-failed");
+                }
+
+                function hasSameOriginUrl(urlText) {
+                    try {
+                        var url = new URL(urlText, window.location.href);
+                        return url.origin === window.location.origin;
+                    } catch (error) {
+                        return false;
+                    }
+                }
+
+                function isInitialAssetFailure(target) {
+                    if (!target || window.__stickvaniaBooted) {
+                        return false;
+                    }
+                    if (target instanceof HTMLScriptElement) {
+                        return target.type === "module" && hasSameOriginUrl(target.src);
+                    }
+                    if (target instanceof HTMLLinkElement) {
+                        return target.rel === "stylesheet" && hasSameOriginUrl(target.href);
+                    }
+                    return false;
+                }
+
+                window.addEventListener(
+                    "error",
+                    function (event) {
+                        if (isInitialAssetFailure(event.target) || (!window.__stickvaniaBooted && event.target === window)) {
+                            showStaticBootFailure();
+                        }
+                    },
+                    true
+                );
+                window.addEventListener("unhandledrejection", showStaticBootFailure);
+            })();
+        </script>
         <title>Stickvania</title>
     </head>
     <body>
@@ -175,37 +232,6 @@
                 </section>
             </div>
         </main>
-        <script>
-            (function () {
-                var params = new URLSearchParams(window.location.search);
-                var testScreen = params.get("testScreen");
-                var boot = document.getElementById("static-boot-screen");
-                if (!boot) {
-                    return;
-                }
-                if (testScreen === "static-error") {
-                    boot.classList.add("static-boot-failed");
-                    return;
-                }
-                if (testScreen === "static-loading") {
-                    return;
-                }
-                window.addEventListener(
-                    "error",
-                    function (event) {
-                        var target = event.target;
-                        if (!target || target.id !== "app-module-script") {
-                            return;
-                        }
-                        if (!boot.isConnected) {
-                            return;
-                        }
-                        boot.classList.add("static-boot-failed");
-                    },
-                    true
-                );
-            })();
-        </script>
-        <script id="app-module-script" type="module" src="/src/main.ts"></script>
+        <script type="module" src="/src/main.ts"></script>
     </body>
 </html>

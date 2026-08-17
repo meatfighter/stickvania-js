@@ -4,6 +4,19 @@ This project depends on slick2d-ts for the browser runtime. slick2d-ts is distri
 
 Desktop Java runtime dependencies are documented separately in desktop/RUNTIME_DEPENDENCIES.md where present.
 
+## Bundled Desktop Runtime Components
+
+The Java desktop distribution bundles a legacy Slick2D/LWJGL runtime stack so the game can run without a separate runtime setup.
+
+| Component              | Bundled Files                                                       | License / Notice                                                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LWJGL 2                | `lwjgl.jar`, `lwjgl_util.jar`, LWJGL native libraries               | BSD license. See the LWJGL 2 license at https://legacy.lwjgl.org/license.php.html.                                                                                                                        |
+| JInput                 | `jinput.jar`, JInput native libraries                               | BSD-style license. JInput package metadata commonly identifies the license as BSD.                                                                                                                        |
+| JOrbis / JOGG          | `jorbis-0.0.17.jar`, `jogg-0.0.7.jar`                               | GNU Lesser General Public License. The JOrbis project identifies itself as LGPL-licensed.                                                                                                                 |
+| OpenAL runtime library | `OpenAL32.dll`, `OpenAL64.dll`, Linux/macOS OpenAL native libraries | OpenAL implementations vary by binary. The bundled legacy runtime should be treated as a dynamically linked third-party audio runtime and verified against the source package used for the final release. |
+
+These notices are included for release hygiene. Before publishing a binary desktop release, verify the exact source and license text for each vendored legacy binary and include any required full license files alongside the release artifact.
+
 ## slick2d-ts
 
 BSD 3-Clause License

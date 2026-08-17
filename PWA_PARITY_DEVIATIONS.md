@@ -455,7 +455,7 @@ PWA Behavior:
 - Rumble is a PWA preference, not saved game state; Continue always uses the current launch-menu preference.
 - The implementation uses the browser Gamepad Haptics API when available and silently no-ops on browsers or gamepads without haptic actuators.
 - The helper tries connected gamepads through `vibrationActuator.playEffect("dual-rumble")`, `hapticActuators[].playEffect("dual-rumble")`, and then `pulse()` as a lowest-common-denominator fallback.
-- The real game and `pwa/rumble-test.html` share the same effect catalog in `pwa/src/rumble/RumbleEffects.ts`, so the PWA uses the exact patterns tested on the standalone page.
+- The real game uses the shared effect catalog in `pwa/src/rumble/RumbleEffects.ts`.
 - Rumble is gated to live gameplay plus the ending castle-crumble scene. Title screen, menus, demo playback, loading, intro, map, credits, and other non-live gameplay modes do not trigger rumble.
 - Rumble is stopped and suspended when the browser loses focus, the page is hidden, the PWA menu opens, rumble is disabled, or the game container is destroyed.
 - Ongoing browser-only effects restart from active game state when a suspended live game resumes. Stopwatch ticks restart their repeating tick pattern. Castle crumble resumes from a game-tick offset so the authored rumble sequence does not restart from the beginning after focus/menu suspension.
@@ -463,12 +463,10 @@ PWA Behavior:
 
 Affected Files:
 
-- `pwa/rumble-test.html`
 - `pwa/src/main.ts`
 - `pwa/src/rumble/BrowserHaptics.ts`
 - `pwa/src/rumble/RumbleEffects.ts`
 - `pwa/src/rumble/RumbleManager.ts`
-- `pwa/src/rumble/RumbleTestPage.ts`
 - `pwa/src/styles.css`
 - `pwa/src/stickvania/BatBoss.ts`
 - `pwa/src/stickvania/BreakWall.ts`

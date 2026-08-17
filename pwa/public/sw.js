@@ -1,7 +1,7 @@
 const VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
 const CACHE_NAME = `stickvania-pwa-${VERSION}`;
 const CACHE_PREFIXES = ["stickvania-", "stickvania-pwa-"];
-const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./images/icon.png"];
+const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./images/icon.png", "./images/icon-192.png", "./images/icon-512.png"];
 
 function canUseCacheApi(request) {
     const url = new URL(request.url);

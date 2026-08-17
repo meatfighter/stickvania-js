@@ -4,6 +4,7 @@ desktop/build/
 desktop/dist/
 desktop/target/
 desktop/nbproject/private/
+releases/*.zip
 releases/*.tmp
 releases/*.log
 *.log

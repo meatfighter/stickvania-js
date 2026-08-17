@@ -85,14 +85,6 @@ Workspace Java desktop source:
 - `desktop/src/stickvania/WhiteSkeleton.java`
 - `desktop/src/stickvania/ZombieSpawner.java`
 
-These same files were copied into `C:\NetBeansProjects\stickvania\src\stickvania` on 2026-08-12.
-
-The previous NetBeans copies of overwritten files were backed up to:
-
-```text
-C:\NetBeansProjects\stickvania\.codex-backup-menu-input-difficulty-20260812-094225
-```
-
 ## Validation
 
 Passed:
@@ -105,8 +97,6 @@ This built:
 
 - `desktop\target\stickvania-desktop.jar`
 - `desktop\target\stickvania-desktop.zip`
-
-Also passed a direct source compile of `C:\NetBeansProjects\stickvania\src\stickvania` against its own `lib` jars, with output written inside this repo at `.tmp\netbeans-compile\classes`.
 
 One compatibility change was needed for the older NetBeans Slick jar:
 
@@ -122,7 +112,7 @@ One Java gamepad-direction fix was added after runtime testing:
 - Controller direction remapping now stores Slick native direction sentinel values when Slick emits `controllerUpPressed`, `controllerDownPressed`, `controllerLeftPressed`, or `controllerRightPressed`.
 - The menu's "any non-directional controller button selects" scan excludes buttons currently mapped as logical directions.
 
-One Java/PWA extra-axis support pass was added after comparing against `C:\js-projects\ms-pac-man-2010-js`:
+One Java/PWA extra-axis support pass was added after comparing against another Slick2D desktop port:
 
 - Runtime direction polling checks extra horizontal axes `2` and `6`.
 - Runtime direction polling checks extra vertical axes `3` and `7`.

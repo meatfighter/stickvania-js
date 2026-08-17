@@ -24,11 +24,16 @@ const GAME_STATE_STAGELESS_MODES = new Set([0, 10]);
 const GAME_STATE_RESTORABLE_MODES = new Set([0, 1, 2, 4, 5, 6, 7, 8, 10]);
 const GAME_STATE_MODE_INPUT_CONFIG = 10;
 type DisplayModePreference = "light" | "dark";
-type ScreenTest = "static-loading" | "static-error" | "dynamic-loading" | "dynamic-error";
 type SlickRuntimeModule = typeof import("slick2d-ts");
 type MainConstructor = typeof import("./stickvania/Main.js").Main;
 type ScalableGame2Constructor = typeof import("./stickvania/ScalableGame2.js").ScalableGame2;
 type StickvaniaGameStateStoreConstructor = typeof import("./stickvania/persistence/StickvaniaGameStateStore.js").StickvaniaGameStateStore;
+
+declare global {
+    interface Window {
+        __stickvaniaBooted?: boolean;
+    }
+}
 
 type PreparedRuntime = {
     slick: SlickRuntimeModule;
@@ -63,6 +68,7 @@ let preparationPromise: Promise<PreparedRuntime> | null = null;
 let preparationError: unknown = null;
 let preparationProgress = 0;
 let backgroundPreparationScheduled = false;
+let initialServiceWorkerReadyPromise: Promise<void> | null = null;
 let suspendedByFocusLoss = false;
 let suspendedByVisibilityLoss = false;
 let gameStateStore: StickvaniaGameStateStore | null = null;
@@ -177,37 +183,9 @@ function showError(message: string): void {
     });
 }
 
-function getScreenTest(): ScreenTest | null {
-    const value = new URLSearchParams(window.location.search).get("testScreen");
-    switch (value) {
-        case "static-loading":
-        case "static-error":
-        case "dynamic-loading":
-        case "dynamic-error":
-            return value;
-        default:
-            return null;
-    }
-}
-
-function shouldKeepStaticTestScreen(): boolean {
-    const screenTest = getScreenTest();
-    return screenTest === "static-loading" || screenTest === "static-error";
-}
-
-function showDynamicLoadingTestScreen(): void {
-    let progress = 0;
-    showBoot(progress);
-    window.setInterval(() => {
-        progress = progress >= 1 ? 0 : Math.min(1, progress + 0.04);
-        showBoot(progress);
-    }, 160);
-}
-
 function showMenu(errorText = ""): void {
     destroyGame();
     renderRootMenu(errorText);
-    scheduleBackgroundPreparation();
 }
 
 function renderRootMenu(errorText = ""): HTMLElement {
@@ -423,6 +401,7 @@ async function ensureRuntimePrepared(forceRetry = false): Promise<PreparedRuntim
         throw preparationError;
     }
 
+    await waitForInitialServiceWorkerReady();
     ResourceLoader.clearFailures();
     ResourceLoader.setCacheBust(__BUILD_STAMP__);
     ResourceLoader.setRetryOptions(RESOURCE_CACHE_RETRY_COUNT, RESOURCE_CACHE_RETRY_DELAY_MS);
@@ -1022,12 +1001,40 @@ async function registerServiceWorker(): Promise<void> {
     }
     const version = encodeURIComponent(`${__APP_VERSION__}-${__BUILD_STAMP__}`);
     await navigator.serviceWorker.register(`${BASE_URL}sw.js?v=${version}`, { scope: BASE_URL });
+    await navigator.serviceWorker.ready;
+    await waitForServiceWorkerController();
+}
+
+async function waitForInitialServiceWorkerReady(): Promise<void> {
+    if (initialServiceWorkerReadyPromise === null) {
+        return;
+    }
+    await initialServiceWorkerReadyPromise.catch(() => undefined);
+}
+
+async function waitForServiceWorkerController(): Promise<void> {
+    if (navigator.serviceWorker.controller !== null) {
+        return;
+    }
+    await new Promise<void>((resolve) => {
+        const finish = () => {
+            window.clearTimeout(timeout);
+            navigator.serviceWorker.removeEventListener("controllerchange", finish);
+            resolve();
+        };
+        const timeout = window.setTimeout(finish, 3000);
+        navigator.serviceWorker.addEventListener("controllerchange", finish);
+    });
 }
 
 function startPwaMenu(): void {
     setAudioVolume(volume);
     showMenu();
-    void registerServiceWorker().catch((error) => console.warn("Service worker registration failed.", error));
+    window.__stickvaniaBooted = true;
+    initialServiceWorkerReadyPromise = registerServiceWorker().catch((error) => {
+        console.warn("Service worker registration failed.", error);
+    });
+    void initialServiceWorkerReadyPromise.finally(scheduleBackgroundPreparation);
 }
 
 function setupPageLifecycleHandlers(): void {
@@ -1044,18 +1051,6 @@ function setupPageLifecycleHandlers(): void {
 
 async function boot(): Promise<void> {
     app = document.getElementById("app") as HTMLElement;
-    const screenTest = getScreenTest();
-    if (screenTest === "dynamic-loading") {
-        showDynamicLoadingTestScreen();
-        return;
-    }
-    if (screenTest === "dynamic-error") {
-        showLoadError("Unable to start.", "Check your connection and try again.", () => {
-            startPwaMenu();
-        });
-        return;
-    }
-
     setupPageLifecycleHandlers();
     startPwaMenu();
 }
@@ -1110,10 +1105,8 @@ function escapeHtml(text: string): string {
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-if (!shouldKeepStaticTestScreen()) {
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", () => void boot(), { once: true });
-    } else {
-        void boot();
-    }
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => void boot(), { once: true });
+} else {
+    void boot();
 }

@@ -6,16 +6,16 @@ This directory includes a conservative legacy Slick2D/LWJGL runtime set to impro
 
 Copied into `desktop/lib/`:
 
-| Target                  | Source                                                            | Notes                                                                                              |
-| ----------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `slick.jar`             | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\slick.jar`         | Slick2D jar already used by the working Ms. Pac-Man desktop archive.                               |
-| `lwjgl.jar`             | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\lwjgl.jar`         | LWJGL 2.8.5-era jar with 64-bit native pairing.                                                    |
-| `lwjgl_util.jar`        | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\lwjgl_util.jar`    | LWJGL utility classes.                                                                             |
-| `jinput.jar`            | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\jinput.jar`        | JInput jar paired with the LWJGL runtime set.                                                      |
-| `jogg-0.0.7.jar`        | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\jogg-0.0.7.jar`    | OGG dependency.                                                                                    |
-| `jorbis-0.0.17.jar`     | `C:\js-projects\ms-pac-man-2010-js\desktop\lib\jorbis-0.0.17.jar` | OGG dependency.                                                                                    |
-| `lwjgl_util_applet.jar` | `C:\NetBeansProjects\stickvania\lib\lwjgl_util_applet.jar`        | Preserved for the copied NetBeans/app Applet metadata; not required by the desktop Maven launcher. |
-| `natives-*.jar`         | `C:\NetBeansProjects\stickvania\lib\`                             | Preserved for legacy project completeness; the desktop launcher uses unpacked natives instead.     |
+| Target                  | Source                                      | Notes                                                                                              |
+| ----------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `slick.jar`             | Legacy Slick2D/LWJGL runtime set            | Slick2D jar paired with the desktop runtime.                                                       |
+| `lwjgl.jar`             | Legacy Slick2D/LWJGL runtime set            | LWJGL 2.8.5-era jar with 64-bit native pairing.                                                    |
+| `lwjgl_util.jar`        | Legacy Slick2D/LWJGL runtime set            | LWJGL utility classes.                                                                             |
+| `jinput.jar`            | Legacy Slick2D/LWJGL runtime set            | JInput jar paired with the LWJGL runtime set.                                                      |
+| `jogg-0.0.7.jar`        | Legacy Slick2D/LWJGL runtime set            | OGG dependency.                                                                                    |
+| `jorbis-0.0.17.jar`     | Legacy Slick2D/LWJGL runtime set            | OGG dependency.                                                                                    |
+| `lwjgl_util_applet.jar` | Original Stickvania Java project dependency | Preserved for the copied NetBeans/app Applet metadata; not required by the desktop Maven launcher. |
+| `natives-*.jar`         | Original Stickvania Java project dependency | Preserved for legacy project completeness; the desktop launcher uses unpacked natives instead.     |
 
 ## Native Libraries
 

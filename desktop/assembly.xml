@@ -44,6 +44,10 @@
             <source>${project.basedir}/../LICENSE</source>
             <outputDirectory>/</outputDirectory>
         </file>
+        <file>
+            <source>${project.basedir}/../THIRD_PARTY_NOTICES.md</source>
+            <outputDirectory>/</outputDirectory>
+        </file>
     </files>
     <fileSets>
         <fileSet>
