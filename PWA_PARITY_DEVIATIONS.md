@@ -458,7 +458,8 @@ PWA Behavior:
 - The real game uses the shared effect catalog in `pwa/src/rumble/RumbleEffects.ts`.
 - Rumble is gated to live gameplay plus the ending castle-crumble scene. Title screen, menus, demo playback, loading, intro, map, credits, and other non-live gameplay modes do not trigger rumble.
 - Rumble is stopped and suspended when the browser loses focus, the page is hidden, the PWA menu opens, rumble is disabled, or the game container is destroyed.
-- Ongoing browser-only effects restart from active game state when a suspended live game resumes. Stopwatch ticks restart their repeating tick pattern. Castle crumble resumes from a game-tick offset so the authored rumble sequence does not restart from the beginning after focus/menu suspension.
+- Short haptic effects stop during browser/PWA suspension and are not replayed on resume, matching the sound-effect pause behavior. Stopwatch haptics are triggered by the actual stopwatch sound ticks after gameplay resumes. Castle crumble resumes from a game-tick offset so the authored rumble sequence does not restart from the beginning after focus/menu suspension.
+- Whip and subweapon impact rumble is tied to accepted impact checks instead of `Thing.intersected`, so reusable weapons such as the axe, boomerang, and holy-water flame can rumble on later valid hits without changing weapon collision/removal behavior.
 - Current effects are player hurt, player death, boss final hit, breakable wall, mummy floor break, Dracula monster landing, ending castle crumble, orb heartbeat, orb collect, ordinary item landing, major item collect, invincibility potion collect, whip upgrade, falling spike landing, creaky door-opening squeak, rosary screen clear, stopwatch ticks, fire projectile launch, thrown-weapon tap, light whip/weapon impact, and Medusa snake landing.
 
 Affected Files:
@@ -484,6 +485,7 @@ Affected Files:
 - `pwa/src/stickvania/SmallHeart.ts`
 - `pwa/src/stickvania/Snakes.ts`
 - `pwa/src/stickvania/Spikes.ts`
+- `pwa/src/stickvania/StopWatch.ts`
 - `pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts`
 
 Gameplay/Parity Risk:

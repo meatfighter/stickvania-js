@@ -29,3 +29,7 @@ export function copyDirectory(source, target) {
     }
     cpSync(source, target, { recursive: true });
 }
+
+export function renderTemplate(text, replacements) {
+    return Object.entries(replacements).reduce((output, [key, value]) => output.replaceAll(key, value), text);
+}

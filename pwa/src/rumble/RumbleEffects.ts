@@ -45,19 +45,6 @@ export type RumbleEffect = {
     readonly minIntervalMs?: number;
 };
 
-function makeStopwatchPattern(): RumbleStep[] {
-    const pattern: RumbleStep[] = [];
-    const tickInterval = Math.round((69 / 91) * 1000);
-    const tickDuration = 46;
-    for (let i = 0; i < 7; i++) {
-        pattern.push({ duration: tickDuration, strong: 0.1, weak: 0.5 });
-        if (i < 6) {
-            pattern.push({ delay: tickInterval - tickDuration });
-        }
-    }
-    return pattern;
-}
-
 function makeCastleCrumblePattern(): RumbleStep[] {
     const pattern: RumbleStep[] = [{ delay: Math.round((45 / 91) * 1000) }];
 
@@ -252,9 +239,9 @@ export const RUMBLE_EFFECTS: readonly RumbleEffect[] = [
     {
         id: "stopwatch",
         label: "Stopwatch",
-        description: "Fixed-rate time stop ticks",
+        description: "Single time stop tick",
         channel: "stopwatch",
-        pattern: makeStopwatchPattern()
+        pattern: pulse(46, 0.1, 0.5)
     },
     {
         id: "orbHeartbeat",
@@ -269,16 +256,14 @@ export const RUMBLE_EFFECTS: readonly RumbleEffect[] = [
         label: "Fire Projectile",
         description: "Fireball launch flutter",
         channel: "weapon",
-        pattern: [{ duration: 48, strong: 0.22, weak: 0.58 }, { delay: 18 }, { duration: 64, strong: 0.12, weak: 0.38 }],
-        minIntervalMs: 80
+        pattern: [{ duration: 48, strong: 0.22, weak: 0.58 }, { delay: 18 }, { duration: 64, strong: 0.12, weak: 0.38 }]
     },
     {
         id: "weaponImpactLight",
         label: "Weapon Impact",
         description: "Whip / dagger / axe / boomerang / holy water contact",
         channel: "impact",
-        pattern: pulse(75, 0.18, 0.42),
-        minIntervalMs: 60
+        pattern: pulse(75, 0.18, 0.42)
     },
     {
         id: "weaponThrow",

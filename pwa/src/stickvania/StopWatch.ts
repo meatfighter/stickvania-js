@@ -34,6 +34,7 @@ export class StopWatch extends Thing {
         } else {
             this.soundDelay = 68;
             this.main.playSound(this.main.watch_tick);
+            this.main.playRumble("stopwatch");
         }
 
         this.x = this.main.simon.x + 16;

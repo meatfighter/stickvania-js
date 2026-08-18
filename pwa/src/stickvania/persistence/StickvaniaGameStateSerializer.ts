@@ -62,7 +62,6 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "appletGameContainer",
     "scalableGame",
     "rumble",
-    "whipImpactRumbledThisSwing",
     "loadedSegments",
     "stageSegments",
     "stageSegment",

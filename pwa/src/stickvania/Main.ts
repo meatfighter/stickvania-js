@@ -296,7 +296,6 @@ export class Main extends BasicGame {
     public appletGameContainer: AppletGameContainer2 = null;
     public scalableGame: ScalableGame2 = null;
     public rumble: RumbleManager = null;
-    private whipImpactRumbledThisSwing: boolean = false;
     private nextFrameTime: number = 0;
     private loadedSegments: StageSegment[][] = null;
     private stageSegments: StageSegment[] = null;
@@ -1455,14 +1454,12 @@ export class Main extends BasicGame {
                 this.simon.whipping = true;
                 this.simon.whipIncrementor = 0;
                 this.simon.whipIndex = 0;
-                this.whipImpactRumbledThisSwing = false;
                 this.simon.releasedWhip = false;
             } else if (keyDownSubWeapon && this.canUseSubWeapon()) {
                 this.simon.throwing = true;
                 this.simon.whipping = true;
                 this.simon.whipIncrementor = 0;
                 this.simon.whipIndex = 0;
-                this.whipImpactRumbledThisSwing = false;
                 this.simon.releasedWhip = false;
             }
         }
@@ -1760,7 +1757,6 @@ export class Main extends BasicGame {
             case Main.WEAPON_TYPE_STOP_WATCH:
                 this.pushWeapon(new StopWatch(this));
                 this.removeHearts(5);
-                this.playRumble("stopwatch");
                 break;
         }
     }
@@ -2698,9 +2694,6 @@ export class Main extends BasicGame {
         if (this.mode == Main.MODE_CASTLE_FALLS && this.isCastleCrumbleActive()) {
             this.rumble.playFromOffset("castleCrumble", this.getCastleCrumbleRumbleOffsetMs());
         }
-        if (this.mode == Main.MODE_PLAYING && this.hasActiveStopWatch()) {
-            this.rumble.play("stopwatch");
-        }
     }
 
     private isRumbleModeAllowed(): boolean {
@@ -2713,19 +2706,6 @@ export class Main extends BasicGame {
 
     private getCastleCrumbleRumbleOffsetMs(): number {
         return this.castleCrumbleRumbleTicks * Main.CASTLE_CRUMBLE_RUMBLE_TICK_MS;
-    }
-
-    private hasActiveStopWatch(): boolean {
-        if (this.weaponsStack == null) {
-            return false;
-        }
-        const weapons: Thing[] = this.weaponsStack.things;
-        for (let i: number = this.weaponsStack.top; i >= 0; i--) {
-            if (weapons[i] instanceof StopWatch) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public stopSong(): void {
@@ -3122,10 +3102,19 @@ export class Main extends BasicGame {
     public intersectsWeapon(thingOrX1: Thing | number, y1?: number, x2?: number, y2?: number): boolean {
         if (thingOrX1 instanceof Thing) {
             const thing = thingOrX1;
-            return this.intersectsWeapon(thing.rx1 + trunc(thing.x), thing.ry1 + trunc(thing.y), thing.rx2 + trunc(thing.x), thing.ry2 + trunc(thing.y));
+            return this.intersectsWeaponRect(
+                thing.rx1 + trunc(thing.x),
+                thing.ry1 + trunc(thing.y),
+                thing.rx2 + trunc(thing.x),
+                thing.ry2 + trunc(thing.y),
+                !thing.kill
+            );
         }
 
-        const x1 = thingOrX1;
+        return this.intersectsWeaponRect(thingOrX1, y1 as number, x2 as number, y2 as number, true);
+    }
+
+    private intersectsWeaponRect(x1: number, y1: number, x2: number, y2: number, rumbleImpact: boolean): boolean {
         if (this.playerPower === 0) {
             return false;
         }
@@ -3139,12 +3128,12 @@ export class Main extends BasicGame {
                     weapon.rx2 + trunc(weapon.x),
                     weapon.ry2 + trunc(weapon.y),
                     x1,
-                    y1 as number,
-                    x2 as number,
-                    y2 as number
+                    y1,
+                    x2,
+                    y2
                 )
             ) {
-                if (!weapon.intersected) {
+                if (rumbleImpact) {
                     this.playRumble("weaponImpactLight");
                 }
                 weapon.intersected = true;
@@ -3157,10 +3146,19 @@ export class Main extends BasicGame {
     public intersectsWhip(thingOrX1: Thing | number, y1?: number, x2?: number, y2?: number): boolean {
         if (thingOrX1 instanceof Thing) {
             const thing = thingOrX1;
-            return this.intersectsWhip(thing.rx1 + trunc(thing.x), thing.ry1 + trunc(thing.y), thing.rx2 + trunc(thing.x), thing.ry2 + trunc(thing.y));
+            return this.intersectsWhipRect(
+                thing.rx1 + trunc(thing.x),
+                thing.ry1 + trunc(thing.y),
+                thing.rx2 + trunc(thing.x),
+                thing.ry2 + trunc(thing.y),
+                !thing.kill
+            );
         }
 
-        const x1 = thingOrX1;
+        return this.intersectsWhipRect(thingOrX1, y1 as number, x2 as number, y2 as number, true);
+    }
+
+    private intersectsWhipRect(x1: number, y1: number, x2: number, y2: number, rumbleImpact: boolean): boolean {
         if (!this.simon.whipping || this.simon.whipIndex !== 2 || this.simon.throwing || this.playerPower === 0) {
             return false;
         }
@@ -3209,10 +3207,9 @@ export class Main extends BasicGame {
             rx1 -= 16;
         }
 
-        const hit = this.intersects(rx1, ry1, rx2, ry2, x1, y1 as number, x2 as number, y2 as number);
-        if (hit && !this.whipImpactRumbledThisSwing) {
+        const hit = this.intersects(rx1, ry1, rx2, ry2, x1, y1, x2, y2);
+        if (hit && rumbleImpact) {
             this.playRumble("weaponImpactLight");
-            this.whipImpactRumbledThisSwing = true;
         }
         return hit;
     }
