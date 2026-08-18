@@ -2777,8 +2777,21 @@ export class Main extends BasicGame {
                 this.appGameContainer.setMusicOn(this.browserSuspendedMusicOn);
                 this.appGameContainer.setSoundOn(this.browserSuspendedSoundOn);
             }
+            this.resumeBrowserAudio();
             this.clearInputPressedRecords();
             this.resetNextFrameTime();
+        }
+    }
+
+    private resumeBrowserAudio(): void {
+        if (this.appGameContainer == null || !this.browserSuspendedMusicOn || !this.appGameContainer.isMusicOn()) {
+            return;
+        }
+        if (this.currentMusic != null) {
+            this.currentMusic.resume();
+        }
+        if (this.currentSong != null) {
+            this.currentSong.resumeAfterBrowserSuspension();
         }
     }
 

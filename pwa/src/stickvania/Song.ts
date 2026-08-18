@@ -47,6 +47,31 @@ export class Song {
         }
     }
 
+    public resumeAfterBrowserSuspension(): void {
+        if (!this.playing) {
+            return;
+        }
+        if (this.resumeMusicPart(this.intro)) {
+            return;
+        }
+        if (this.resumeMusicPart(this.loop)) {
+            return;
+        }
+        if (this.loop !== null) {
+            this.loop.loop();
+        } else if (this.intro !== null) {
+            this.intro.play();
+        }
+    }
+
+    private resumeMusicPart(music: Music): boolean {
+        if (music === null || !music.playing()) {
+            return false;
+        }
+        music.resume();
+        return true;
+    }
+
     public getIntroForState(): Music {
         return this.intro;
     }

@@ -148,6 +148,7 @@ PWA Behavior:
 - On focus loss/page hide, the current game is suspended and sound effects are stopped.
 - On focus regain/page show, the game resumes with input pressed records cleared.
 - Save-ready game state is captured before suspension/page hide.
+- When suspension is lifted, the PWA explicitly resumes the current `Music`/`Song` wrapper so browser-suspended Web Audio tracks recover in modes that do not request music every frame, including castle-fall and credits.
 - A live PWA menu overlay counts as a browser suspension reason, so focus/visibility events cannot resume gameplay behind the menu.
 
 Affected Files:
