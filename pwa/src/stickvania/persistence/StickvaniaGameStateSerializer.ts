@@ -28,7 +28,7 @@ import {
     type ThingSnapshot,
     type ThingStackSnapshot
 } from "./GameStateSnapshot.js";
-import { THING_TYPES } from "./ThingTypeRegistry.js";
+import { getThingTypeId, isThingTypeId, THING_TYPES } from "./ThingTypeRegistry.js";
 
 type FieldBag = Record<string, any>;
 
@@ -483,13 +483,7 @@ export class StickvaniaGameStateSerializer {
         }
         for (let i = 0; i < snapshots.length; i++) {
             const thing = snapshots[i];
-            if (
-                !this.isPlainRecord(thing) ||
-                thing.id !== i ||
-                typeof thing.type !== "string" ||
-                !THING_TYPES[thing.type] ||
-                !this.isPlainRecord(thing.fields)
-            ) {
+            if (!this.isPlainRecord(thing) || thing.id !== i || !isThingTypeId(thing.type) || !this.isPlainRecord(thing.fields)) {
                 return false;
             }
         }
@@ -875,17 +869,18 @@ export class StickvaniaGameStateSerializer {
     }
 
     private captureThing(context: CaptureContext, thing: Thing, id: number): ThingSnapshot {
+        const type = getThingTypeId(thing);
         const fields: EncodedRecord = {};
         for (const key of Object.keys(thing as unknown as FieldBag)) {
             const value = this.getField<unknown>(thing, key);
             if (!this.shouldCaptureThingField(key, value)) {
                 continue;
             }
-            fields[key] = this.encodeValue(context, value, `${thing.constructor.name}.${key}`);
+            fields[key] = this.encodeValue(context, value, `${type}.${key}`);
         }
         return {
             id,
-            type: thing.constructor.name,
+            type,
             fields
         };
     }

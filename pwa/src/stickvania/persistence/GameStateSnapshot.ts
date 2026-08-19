@@ -1,6 +1,7 @@
 import type { InputConfigModeSnapshot } from "../InputConfigMode.js";
+import type { ThingTypeId } from "./ThingTypeRegistry.js";
 
-export const GAME_STATE_VERSION = 4;
+export const GAME_STATE_VERSION = 5;
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | JsonRecord;
@@ -44,7 +45,7 @@ export type ThingStackSnapshot = {
 
 export type ThingSnapshot = {
     id: number;
-    type: string;
+    type: ThingTypeId;
     fields: EncodedRecord;
 };
 

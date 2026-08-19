@@ -8,6 +8,9 @@ import { distDir, rootDir } from "./build-utils.mjs";
 
 const distPwaDir = join(distDir, "pwa");
 const serviceWorkerPath = join(distPwaDir, "sw.js");
+const gameStateSnapshotSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStateSnapshot.ts");
+const gameStateSerializerSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "StickvaniaGameStateSerializer.ts");
+const thingTypeRegistrySourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "ThingTypeRegistry.ts");
 const inputMappingStorageKey = "stickvania.input-mapping";
 const inputMappingVersion = 5;
 const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
@@ -43,6 +46,13 @@ function actualPrecacheUrls() {
     const match = serviceWorker.match(/const PRECACHE_URLS = (\[[\s\S]*?\]);/);
     assert.ok(match, "Built service worker should contain a generated PRECACHE_URLS declaration.");
     return JSON.parse(match[1]);
+}
+
+function builtJavaScript() {
+    return collectFiles(distPwaDir)
+        .filter((file) => file.endsWith(".js"))
+        .map((file) => readFileSync(file, "utf8"))
+        .join("\n");
 }
 
 function createLocalStorageMock() {
@@ -110,6 +120,19 @@ test("PWA service worker normalizes build-stamp cache-busting parameters", () =>
     assert.match(serviceWorker, /const IGNORED_CACHE_SEARCH_PARAMS = new Set\(\["v"\]\);/);
     assert.match(serviceWorker, /url\.searchParams\.delete\(param\);/);
     assert.match(serviceWorker, /caches\.match\(createCacheUrl\(request\)\)/);
+});
+
+test("PWA game-state Thing type IDs are stable through production minification", () => {
+    const snapshotSource = readFileSync(gameStateSnapshotSourcePath, "utf8");
+    const registrySource = readFileSync(thingTypeRegistrySourcePath, "utf8");
+    const serializerSource = readFileSync(gameStateSerializerSourcePath, "utf8");
+    const builtSource = builtJavaScript();
+
+    assert.match(snapshotSource, /export const GAME_STATE_VERSION = 5;/);
+    assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
+    assert.match(serializerSource, /getThingTypeId\(thing\)/);
+    assert.doesNotMatch(serializerSource, /constructor\.name/);
+    assert.doesNotMatch(builtSource, /\.constructor\.name/);
 });
 
 test("ButtonMapping accepts persisted integer bindings and NO_BINDING", async () => {

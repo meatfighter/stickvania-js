@@ -64,10 +64,11 @@ import { Zombie } from "../Zombie.js";
 import { ZombieSpawner } from "../ZombieSpawner.js";
 
 export type ThingConstructor = {
+    readonly name: string;
     readonly prototype: Thing;
 };
 
-export const THING_TYPES: Record<string, ThingConstructor> = {
+export const THING_TYPES = {
     Axe,
     AxeKnight,
     Bat,
@@ -131,4 +132,25 @@ export const THING_TYPES: Record<string, ThingConstructor> = {
     Wrapping,
     Zombie,
     ZombieSpawner
-};
+} as const satisfies Record<string, ThingConstructor>;
+
+export type ThingTypeId = keyof typeof THING_TYPES;
+
+const THING_TYPE_IDS = new Set<string>(Object.keys(THING_TYPES));
+
+export const THING_TYPE_ID_BY_CONSTRUCTOR: ReadonlyMap<ThingConstructor, ThingTypeId> = new Map(
+    Object.entries(THING_TYPES).map(([typeId, constructor]) => [constructor, typeId as ThingTypeId])
+);
+
+export function isThingTypeId(value: unknown): value is ThingTypeId {
+    return typeof value === "string" && THING_TYPE_IDS.has(value);
+}
+
+export function getThingTypeId(thing: Thing): ThingTypeId {
+    const constructor = thing.constructor as unknown as ThingConstructor;
+    const typeId = THING_TYPE_ID_BY_CONSTRUCTOR.get(constructor);
+    if (typeId === undefined) {
+        throw new Error(`Unregistered Thing type: ${constructor.name}`);
+    }
+    return typeId;
+}
