@@ -11,6 +11,23 @@ type InputState = {
     menuUp: boolean;
     menuDown: boolean;
     menuSelect: boolean;
+    menuUpKeyboard: boolean;
+    menuUpController: boolean;
+    menuDownKeyboard: boolean;
+    menuDownController: boolean;
+    menuSelectJumpKeyboard: boolean;
+    menuSelectAttackKeyboard: boolean;
+    menuSelectEnterKeyboard: boolean;
+    menuSelectJumpController: boolean;
+    menuSelectAttackController: boolean;
+    menuSelectAnyController: boolean;
+};
+
+type AxisDirections = {
+    up: boolean;
+    down: boolean;
+    left: boolean;
+    right: boolean;
 };
 
 function createEmptyState(): InputState {
@@ -23,7 +40,26 @@ function createEmptyState(): InputState {
         attack: false,
         menuUp: false,
         menuDown: false,
-        menuSelect: false
+        menuSelect: false,
+        menuUpKeyboard: false,
+        menuUpController: false,
+        menuDownKeyboard: false,
+        menuDownController: false,
+        menuSelectJumpKeyboard: false,
+        menuSelectAttackKeyboard: false,
+        menuSelectEnterKeyboard: false,
+        menuSelectJumpController: false,
+        menuSelectAttackController: false,
+        menuSelectAnyController: false
+    };
+}
+
+function createEmptyAxisDirections(): AxisDirections {
+    return {
+        up: false,
+        down: false,
+        left: false,
+        right: false
     };
 }
 
@@ -36,6 +72,7 @@ export class StickvaniaInput {
     private static readonly EXTRA_VERTICAL_AXES = [3, 7];
     private previous: InputState = createEmptyState();
     private current: InputState = createEmptyState();
+    private readonly extraAxisDirections = createEmptyAxisDirections();
     private readonly extraAxisBaselines = new Array<number>(StickvaniaInput.CONTROLLER_INDEX_LIMIT * StickvaniaInput.GAMEPAD_AXIS_LIMIT).fill(Number.NaN);
 
     public constructor(
@@ -82,15 +119,28 @@ export class StickvaniaInput {
     }
 
     public isMenuUpPressed(): boolean {
-        return this.current.menuUp && !this.previous.menuUp;
+        return (
+            StickvaniaInput.pressed(this.current.menuUpKeyboard, this.previous.menuUpKeyboard) ||
+            StickvaniaInput.pressed(this.current.menuUpController, this.previous.menuUpController)
+        );
     }
 
     public isMenuDownPressed(): boolean {
-        return this.current.menuDown && !this.previous.menuDown;
+        return (
+            StickvaniaInput.pressed(this.current.menuDownKeyboard, this.previous.menuDownKeyboard) ||
+            StickvaniaInput.pressed(this.current.menuDownController, this.previous.menuDownController)
+        );
     }
 
     public isMenuSelectPressed(): boolean {
-        return this.current.menuSelect && !this.previous.menuSelect;
+        return (
+            StickvaniaInput.pressed(this.current.menuSelectJumpKeyboard, this.previous.menuSelectJumpKeyboard) ||
+            StickvaniaInput.pressed(this.current.menuSelectAttackKeyboard, this.previous.menuSelectAttackKeyboard) ||
+            StickvaniaInput.pressed(this.current.menuSelectEnterKeyboard, this.previous.menuSelectEnterKeyboard) ||
+            StickvaniaInput.pressed(this.current.menuSelectJumpController, this.previous.menuSelectJumpController) ||
+            StickvaniaInput.pressed(this.current.menuSelectAttackController, this.previous.menuSelectAttackController) ||
+            StickvaniaInput.pressed(this.current.menuSelectAnyController, this.previous.menuSelectAnyController)
+        );
     }
 
     public isAnyNonDirectionalPressed(): boolean {
@@ -98,18 +148,19 @@ export class StickvaniaInput {
     }
 
     private readStateInto(target: InputState): void {
+        this.readExtraAxisDirectionsInto(this.extraAxisDirections);
         const keyUp = this.input.isKeyDown(this.mapping.keyUp);
         const keyDown = this.input.isKeyDown(this.mapping.keyDown);
         const keyLeft = this.input.isKeyDown(this.mapping.keyLeft);
         const keyRight = this.input.isKeyDown(this.mapping.keyRight);
         const keyJump = this.input.isKeyDown(this.mapping.keyJump);
         const keyAttack = this.input.isKeyDown(this.mapping.keyAttack);
-        const controllerUp = this.isControllerBindingDown(this.mapping.controllerUp);
-        const controllerDown = this.isControllerBindingDown(this.mapping.controllerDown);
-        const controllerLeft = this.isControllerBindingDown(this.mapping.controllerLeft);
-        const controllerRight = this.isControllerBindingDown(this.mapping.controllerRight);
-        const controllerJump = this.isControllerBindingDown(this.mapping.controllerJump);
-        const controllerAttack = this.isControllerBindingDown(this.mapping.controllerAttack);
+        const controllerUp = this.isControllerBindingDown(this.mapping.controllerUp, this.extraAxisDirections);
+        const controllerDown = this.isControllerBindingDown(this.mapping.controllerDown, this.extraAxisDirections);
+        const controllerLeft = this.isControllerBindingDown(this.mapping.controllerLeft, this.extraAxisDirections);
+        const controllerRight = this.isControllerBindingDown(this.mapping.controllerRight, this.extraAxisDirections);
+        const controllerJump = this.isControllerBindingDown(this.mapping.controllerJump, this.extraAxisDirections);
+        const controllerAttack = this.isControllerBindingDown(this.mapping.controllerAttack, this.extraAxisDirections);
         const up = keyUp || controllerUp;
         const down = keyDown || controllerDown;
         const left = keyLeft || controllerLeft;
@@ -128,6 +179,16 @@ export class StickvaniaInput {
         target.menuUp = up;
         target.menuDown = down;
         target.menuSelect = jump || attack || enterSelect || anyControllerSelect;
+        target.menuUpKeyboard = keyUp;
+        target.menuUpController = controllerUp;
+        target.menuDownKeyboard = keyDown;
+        target.menuDownController = controllerDown;
+        target.menuSelectJumpKeyboard = keyJump;
+        target.menuSelectAttackKeyboard = keyAttack;
+        target.menuSelectEnterKeyboard = enterSelect;
+        target.menuSelectJumpController = controllerJump;
+        target.menuSelectAttackController = controllerAttack;
+        target.menuSelectAnyController = anyControllerSelect;
     }
 
     private copyState(target: InputState, source: InputState): void {
@@ -140,41 +201,58 @@ export class StickvaniaInput {
         target.menuUp = source.menuUp;
         target.menuDown = source.menuDown;
         target.menuSelect = source.menuSelect;
+        target.menuUpKeyboard = source.menuUpKeyboard;
+        target.menuUpController = source.menuUpController;
+        target.menuDownKeyboard = source.menuDownKeyboard;
+        target.menuDownController = source.menuDownController;
+        target.menuSelectJumpKeyboard = source.menuSelectJumpKeyboard;
+        target.menuSelectAttackKeyboard = source.menuSelectAttackKeyboard;
+        target.menuSelectEnterKeyboard = source.menuSelectEnterKeyboard;
+        target.menuSelectJumpController = source.menuSelectJumpController;
+        target.menuSelectAttackController = source.menuSelectAttackController;
+        target.menuSelectAnyController = source.menuSelectAnyController;
     }
 
     private isKeyMappedToDirection(key: number): boolean {
         return this.mapping.keyUp === key || this.mapping.keyDown === key || this.mapping.keyLeft === key || this.mapping.keyRight === key;
     }
 
-    private isControllerBindingDown(button: number): boolean {
+    private static pressed(current: boolean, previous: boolean): boolean {
+        return current && !previous;
+    }
+
+    private isControllerBindingDown(button: number, extraAxes: AxisDirections): boolean {
+        if (button === ButtonMapping.NO_BINDING) {
+            return false;
+        }
         switch (button) {
             case 12:
-                return this.isControllerUpDown() || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
+                return this.isControllerUpDown(extraAxes) || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
             case 13:
-                return this.isControllerDownDown() || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
+                return this.isControllerDownDown(extraAxes) || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
             case 14:
-                return this.isControllerLeftDown() || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
+                return this.isControllerLeftDown(extraAxes) || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
             case 15:
-                return this.isControllerRightDown() || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
+                return this.isControllerRightDown(extraAxes) || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
             default:
                 return this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
         }
     }
 
-    private isControllerUpDown(): boolean {
-        return this.input.isControllerUp(Input.ANY_CONTROLLER) || this.isExtraAxisUpDown();
+    private isControllerUpDown(extraAxes: AxisDirections): boolean {
+        return this.input.isControllerUp(Input.ANY_CONTROLLER) || extraAxes.up;
     }
 
-    private isControllerDownDown(): boolean {
-        return this.input.isControllerDown(Input.ANY_CONTROLLER) || this.isExtraAxisDownDown();
+    private isControllerDownDown(extraAxes: AxisDirections): boolean {
+        return this.input.isControllerDown(Input.ANY_CONTROLLER) || extraAxes.down;
     }
 
-    private isControllerLeftDown(): boolean {
-        return this.input.isControllerLeft(Input.ANY_CONTROLLER) || this.isExtraAxisLeftDown();
+    private isControllerLeftDown(extraAxes: AxisDirections): boolean {
+        return this.input.isControllerLeft(Input.ANY_CONTROLLER) || extraAxes.left;
     }
 
-    private isControllerRightDown(): boolean {
-        return this.input.isControllerRight(Input.ANY_CONTROLLER) || this.isExtraAxisRightDown();
+    private isControllerRightDown(extraAxes: AxisDirections): boolean {
+        return this.input.isControllerRight(Input.ANY_CONTROLLER) || extraAxes.right;
     }
 
     private isAnyControllerNonDirectionalButtonDown(): boolean {
@@ -210,46 +288,39 @@ export class StickvaniaInput {
         return button >= 12 && button <= 15;
     }
 
-    private isExtraAxisUpDown(): boolean {
-        return this.isAnyAxisLessThan(StickvaniaInput.EXTRA_VERTICAL_AXES, -StickvaniaInput.AXIS_THRESHOLD);
-    }
-
-    private isExtraAxisDownDown(): boolean {
-        return this.isAnyAxisGreaterThan(StickvaniaInput.EXTRA_VERTICAL_AXES, StickvaniaInput.AXIS_THRESHOLD);
-    }
-
-    private isExtraAxisLeftDown(): boolean {
-        return this.isAnyAxisLessThan(StickvaniaInput.EXTRA_HORIZONTAL_AXES, -StickvaniaInput.AXIS_THRESHOLD);
-    }
-
-    private isExtraAxisRightDown(): boolean {
-        return this.isAnyAxisGreaterThan(StickvaniaInput.EXTRA_HORIZONTAL_AXES, StickvaniaInput.AXIS_THRESHOLD);
-    }
-
-    private isAnyAxisLessThan(axes: readonly number[], threshold: number): boolean {
+    private readExtraAxisDirectionsInto(target: AxisDirections): void {
+        target.up = false;
+        target.down = false;
+        target.left = false;
+        target.right = false;
         for (let controller = 0; controller < StickvaniaInput.CONTROLLER_INDEX_LIMIT; controller++) {
-            for (let i = 0; i < axes.length; i++) {
-                if (this.readExtraAxisValue(controller, axes[i]) < threshold) {
-                    return true;
-                }
+            const axisCount = this.input.getAxisCount(controller);
+            if (axisCount <= 0) {
+                continue;
+            }
+            this.readExtraAxisPairInto(target, controller, axisCount, StickvaniaInput.EXTRA_VERTICAL_AXES, true);
+            this.readExtraAxisPairInto(target, controller, axisCount, StickvaniaInput.EXTRA_HORIZONTAL_AXES, false);
+            if (target.up && target.down && target.left && target.right) {
+                return;
             }
         }
-        return false;
     }
 
-    private isAnyAxisGreaterThan(axes: readonly number[], threshold: number): boolean {
-        for (let controller = 0; controller < StickvaniaInput.CONTROLLER_INDEX_LIMIT; controller++) {
-            for (let i = 0; i < axes.length; i++) {
-                if (this.readExtraAxisValue(controller, axes[i]) > threshold) {
-                    return true;
-                }
+    private readExtraAxisPairInto(target: AxisDirections, controller: number, axisCount: number, axes: readonly number[], vertical: boolean): void {
+        for (let i = 0; i < axes.length; i++) {
+            const value = this.readExtraAxisValue(controller, axes[i], axisCount);
+            if (vertical) {
+                target.up ||= value < -StickvaniaInput.AXIS_THRESHOLD;
+                target.down ||= value > StickvaniaInput.AXIS_THRESHOLD;
+            } else {
+                target.left ||= value < -StickvaniaInput.AXIS_THRESHOLD;
+                target.right ||= value > StickvaniaInput.AXIS_THRESHOLD;
             }
         }
-        return false;
     }
 
-    private readExtraAxisValue(controller: number, axis: number): number {
-        if (this.input.getAxisCount(controller) <= axis) {
+    private readExtraAxisValue(controller: number, axis: number, axisCount: number): number {
+        if (axisCount <= axis) {
             return 0;
         }
 

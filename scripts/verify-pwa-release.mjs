@@ -86,6 +86,19 @@ async function importButtonMapping() {
     return import(`${pathToFileURL(outputPath).href}?v=${Date.now()}`);
 }
 
+async function importStickvaniaInput() {
+    const outputDirectory = join(tempRoot, "stickvania-input");
+    const buttonMappingOutputPath = join(outputDirectory, "ButtonMapping.js");
+    const inputOutputPath = join(outputDirectory, "StickvaniaInput.mjs");
+
+    rmSync(outputDirectory, { recursive: true, force: true });
+    mkdirSync(outputDirectory, { recursive: true });
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ButtonMapping.ts"), buttonMappingOutputPath);
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "StickvaniaInput.ts"), inputOutputPath);
+
+    return import(`${pathToFileURL(inputOutputPath).href}?v=${Date.now()}`);
+}
+
 async function importGameStatePreflight() {
     const outputDirectory = join(tempRoot, "game-state-preflight");
     const schemaOutputPath = join(outputDirectory, "GameStateSchema.js");
@@ -160,6 +173,80 @@ function validPotentialGameStateSnapshot(version) {
             songs: []
         }
     };
+}
+
+function createTestButtonMapping(overrides = {}) {
+    return {
+        keyJump: 10,
+        keyAttack: 11,
+        keyUp: 12,
+        keyDown: 13,
+        keyLeft: 14,
+        keyRight: 15,
+        controllerJump: 0,
+        controllerAttack: 2,
+        controllerUp: 12,
+        controllerDown: 13,
+        controllerLeft: 14,
+        controllerRight: 15,
+        ...overrides
+    };
+}
+
+class FakeStickvaniaInput {
+    keys = new Set();
+    buttons = new Set();
+    axes = Array.from({ length: 16 }, () => []);
+    axisCountCalls = 0;
+    axisValueCalls = 0;
+    controllerUp = false;
+    controllerDown = false;
+    controllerLeft = false;
+    controllerRight = false;
+
+    isKeyDown(key) {
+        return this.keys.has(key);
+    }
+
+    isButtonPressed(index, controller) {
+        void controller;
+        return this.buttons.has(index);
+    }
+
+    isControllerUp(controller) {
+        void controller;
+        return this.controllerUp;
+    }
+
+    isControllerDown(controller) {
+        void controller;
+        return this.controllerDown;
+    }
+
+    isControllerLeft(controller) {
+        void controller;
+        return this.controllerLeft;
+    }
+
+    isControllerRight(controller) {
+        void controller;
+        return this.controllerRight;
+    }
+
+    getAxisCount(controller) {
+        this.axisCountCalls++;
+        return this.axes[controller]?.length ?? 0;
+    }
+
+    getAxisValue(controller, axis) {
+        this.axisValueCalls++;
+        return this.axes[controller]?.[axis] ?? 0;
+    }
+
+    resetAxisCounters() {
+        this.axisCountCalls = 0;
+        this.axisValueCalls = 0;
+    }
 }
 
 function installThrowingLocalStorage() {
@@ -243,6 +330,46 @@ test("PWA root-menu preflight clears obsolete or malformed saved games", async (
     storage.setItem(GAME_STATE_STORAGE_KEY, "{");
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), null);
+});
+
+test("StickvaniaInput preserves Java-style keyboard/controller menu edges", async () => {
+    const { StickvaniaInput } = await importStickvaniaInput();
+
+    const directionMapping = createTestButtonMapping();
+    const directionInput = new FakeStickvaniaInput();
+    directionInput.keys.add(directionMapping.keyUp);
+    const directionControl = new StickvaniaInput(directionInput, directionMapping);
+
+    directionInput.buttons.add(directionMapping.controllerUp);
+    directionControl.update();
+    assert.equal(directionControl.isMenuUpPressed(), true);
+
+    directionControl.update();
+    assert.equal(directionControl.isMenuUpPressed(), false);
+
+    const selectMapping = createTestButtonMapping();
+    const selectInput = new FakeStickvaniaInput();
+    selectInput.keys.add(selectMapping.keyJump);
+    const selectControl = new StickvaniaInput(selectInput, selectMapping);
+
+    selectInput.buttons.add(selectMapping.controllerAttack);
+    selectControl.update();
+    assert.equal(selectControl.isMenuSelectPressed(), true);
+});
+
+test("StickvaniaInput reads extra gamepad axes once per update", async () => {
+    const { StickvaniaInput } = await importStickvaniaInput();
+    const fakeInput = new FakeStickvaniaInput();
+    fakeInput.axes[0] = [0, 0, 0, 0, 0, 0, 0, 0];
+    const control = new StickvaniaInput(fakeInput, createTestButtonMapping());
+
+    fakeInput.axes[0][3] = -1;
+    fakeInput.resetAxisCounters();
+    control.update();
+
+    assert.equal(control.isUp(), true);
+    assert.equal(fakeInput.axisCountCalls, 16);
+    assert.equal(fakeInput.axisValueCalls, 4);
 });
 
 test("ButtonMapping accepts persisted integer bindings and NO_BINDING", async () => {
