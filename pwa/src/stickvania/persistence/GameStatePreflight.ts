@@ -26,6 +26,14 @@ export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage)
     }
 }
 
+export function hasPotentialBrowserStoredStickvaniaGameState(): boolean {
+    try {
+        return hasPotentialStoredStickvaniaGameState(localStorage);
+    } catch {
+        return false;
+    }
+}
+
 export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boolean {
     if (!isRecord(snapshot)) {
         return false;

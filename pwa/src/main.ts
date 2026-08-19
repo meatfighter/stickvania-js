@@ -3,7 +3,7 @@ import { SoundStore } from "slick2d-ts/slick/openal/SoundStore";
 import { ResourceLoader } from "slick2d-ts/slick/util/ResourceLoader";
 import { RumbleManager } from "./rumble/RumbleManager.js";
 import type { Main } from "./stickvania/Main.js";
-import { hasPotentialStoredStickvaniaGameState } from "./stickvania/persistence/GameStatePreflight.js";
+import { hasPotentialBrowserStoredStickvaniaGameState } from "./stickvania/persistence/GameStatePreflight.js";
 import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
 import type { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
 import "./styles.css";
@@ -507,7 +507,7 @@ function getLoadedGameStateStore(): StickvaniaGameStateStore | null {
 }
 
 function hasPotentialSavedGameState(): boolean {
-    return hasPotentialStoredStickvaniaGameState(localStorage);
+    return hasPotentialBrowserStoredStickvaniaGameState();
 }
 
 function returnToMenu(): void {

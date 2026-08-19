@@ -101,6 +101,7 @@ async function importGameStatePreflight() {
     return {
         GAME_STATE_STORAGE_KEY: schema.GAME_STATE_STORAGE_KEY,
         GAME_STATE_VERSION: schema.GAME_STATE_VERSION,
+        hasPotentialBrowserStoredStickvaniaGameState: preflight.hasPotentialBrowserStoredStickvaniaGameState,
         hasPotentialStoredStickvaniaGameState: preflight.hasPotentialStoredStickvaniaGameState
     };
 }
@@ -161,6 +162,23 @@ function validPotentialGameStateSnapshot(version) {
     };
 }
 
+function installThrowingLocalStorage() {
+    const previousDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        get() {
+            throw new Error("localStorage is unavailable.");
+        }
+    });
+    return () => {
+        if (previousDescriptor === undefined) {
+            delete globalThis.localStorage;
+        } else {
+            Object.defineProperty(globalThis, "localStorage", previousDescriptor);
+        }
+    };
+}
+
 test("PWA service worker precaches the built PWA output", () => {
     assert.ok(existsSync(serviceWorkerPath), "Run npm.cmd run build:pwa before release verification.");
     assert.deepEqual(actualPrecacheUrls(), expectedPrecacheUrls());
@@ -187,7 +205,8 @@ test("PWA game-state Thing type IDs are stable through production minification",
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);
     assert.doesNotMatch(serializerSource, /constructor\.name/);
-    assert.match(mainSource, /hasPotentialStoredStickvaniaGameState\(localStorage\)/);
+    assert.match(mainSource, /hasPotentialBrowserStoredStickvaniaGameState\(\)/);
+    assert.doesNotMatch(mainSource, /hasPotentialStoredStickvaniaGameState\(localStorage\)/);
     assert.doesNotMatch(mainSource, /const GAME_STATE_VERSION\s*=/);
     assert.doesNotMatch(mainSource, /const GAME_STATE_STORAGE_KEY\s*=/);
     assert.doesNotMatch(builtSource, /\.constructor\.name/);
@@ -200,6 +219,17 @@ test("PWA root-menu preflight accepts current-version saved games", async () => 
 
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), true);
     assert.notEqual(storage.getItem(GAME_STATE_STORAGE_KEY), null);
+});
+
+test("PWA root-menu preflight handles unavailable localStorage", async () => {
+    const { hasPotentialBrowserStoredStickvaniaGameState } = await importGameStatePreflight();
+    const restoreLocalStorage = installThrowingLocalStorage();
+
+    try {
+        assert.equal(hasPotentialBrowserStoredStickvaniaGameState(), false);
+    } finally {
+        restoreLocalStorage();
+    }
 });
 
 test("PWA root-menu preflight clears obsolete or malformed saved games", async () => {

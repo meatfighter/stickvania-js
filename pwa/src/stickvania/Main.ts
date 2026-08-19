@@ -546,9 +546,6 @@ export class Main extends BasicGame {
     }
 
     private static loadDifficulty(): number {
-        if (typeof localStorage === "undefined") {
-            return Main.DIFFICULTY_NORMAL;
-        }
         try {
             const value = Number.parseInt(localStorage.getItem(Main.DIFFICULTY_STORAGE_KEY) ?? "", 10);
             if (value == Main.DIFFICULTY_HARD) {
@@ -560,9 +557,6 @@ export class Main extends BasicGame {
 
     public setDifficulty(difficulty: number): void {
         this.difficulty = difficulty == Main.DIFFICULTY_HARD ? Main.DIFFICULTY_HARD : Main.DIFFICULTY_NORMAL;
-        if (typeof localStorage === "undefined") {
-            return;
-        }
         try {
             localStorage.setItem(Main.DIFFICULTY_STORAGE_KEY, String(this.difficulty));
         } catch {}
