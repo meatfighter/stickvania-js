@@ -1,5 +1,6 @@
 import { Color, GameContainer, Image, JavaRandom, Music, Sound } from "slick2d-ts";
 import { Checkpoint } from "../Checkpoint.js";
+import { ButtonMapping } from "../ButtonMapping.js";
 import { Fireball } from "../Fireball.js";
 import { Main } from "../Main.js";
 import { Region } from "../Region.js";
@@ -519,9 +520,9 @@ export class StickvaniaGameStateSerializer {
             this.isFiniteInteger(snapshot.armDelay) &&
             typeof snapshot.message === "string" &&
             typeof snapshot.finished === "boolean" &&
-            draftFields.every((field) => this.isFiniteInteger((snapshot.draft as FieldBag)[field])) &&
-            this.isFiniteIntegerArray(snapshot.assignedKeys, 6) &&
-            this.isFiniteIntegerArray(snapshot.assignedControllerButtons, 6) &&
+            draftFields.every((field) => ButtonMapping.isValidBinding((snapshot.draft as FieldBag)[field])) &&
+            this.isAssignedInputCodeArray(snapshot.assignedKeys, 6) &&
+            this.isAssignedInputCodeArray(snapshot.assignedControllerButtons, 6) &&
             Array.isArray(snapshot.extraAxisBaselines) &&
             snapshot.extraAxisBaselines.length <= 256 &&
             snapshot.extraAxisBaselines.every((value) => value === null || this.isFiniteNumber(value)) &&
@@ -707,8 +708,8 @@ export class StickvaniaGameStateSerializer {
         return value === null || (typeof value === "string" && MUSIC_ID_SET.has(value));
     }
 
-    private isFiniteIntegerArray(value: unknown, maxLength: number): value is number[] {
-        return Array.isArray(value) && value.length <= maxLength && value.every((item) => this.isFiniteInteger(item));
+    private isAssignedInputCodeArray(value: unknown, maxLength: number): value is number[] {
+        return Array.isArray(value) && value.length <= maxLength && value.every((item) => this.isFiniteInteger(item) && item >= 0);
     }
 
     private isFiniteInteger(value: unknown): value is number {

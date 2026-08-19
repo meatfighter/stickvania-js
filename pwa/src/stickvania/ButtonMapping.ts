@@ -111,7 +111,7 @@ export class ButtonMapping {
             if (text === null) {
                 return mapping;
             }
-            const snapshot = JSON.parse(text) as ButtonMappingSnapshot;
+            const snapshot = JSON.parse(text) as unknown;
             if (!ButtonMapping.isSupportedSnapshot(snapshot)) {
                 return mapping;
             }
@@ -284,23 +284,31 @@ export class ButtonMapping {
         };
     }
 
-    private static isSupportedSnapshot(snapshot: ButtonMappingSnapshot): boolean {
-        if (!snapshot || snapshot.version !== ButtonMapping.VERSION) {
+    public static isValidBinding(value: unknown): value is number {
+        return typeof value === "number" && Number.isInteger(value) && (value === ButtonMapping.NO_BINDING || value >= 0);
+    }
+
+    private static isSupportedSnapshot(snapshot: unknown): snapshot is ButtonMappingSnapshot {
+        if (typeof snapshot !== "object" || snapshot === null) {
+            return false;
+        }
+        const value = snapshot as Partial<ButtonMappingSnapshot>;
+        if (value.version !== ButtonMapping.VERSION) {
             return false;
         }
         return (
-            Number.isFinite(snapshot.keyJump) &&
-            Number.isFinite(snapshot.keyAttack) &&
-            Number.isFinite(snapshot.keyUp) &&
-            Number.isFinite(snapshot.keyDown) &&
-            Number.isFinite(snapshot.keyLeft) &&
-            Number.isFinite(snapshot.keyRight) &&
-            Number.isFinite(snapshot.controllerJump) &&
-            Number.isFinite(snapshot.controllerAttack) &&
-            Number.isFinite(snapshot.controllerUp) &&
-            Number.isFinite(snapshot.controllerDown) &&
-            Number.isFinite(snapshot.controllerLeft) &&
-            Number.isFinite(snapshot.controllerRight)
+            ButtonMapping.isValidBinding(value.keyJump) &&
+            ButtonMapping.isValidBinding(value.keyAttack) &&
+            ButtonMapping.isValidBinding(value.keyUp) &&
+            ButtonMapping.isValidBinding(value.keyDown) &&
+            ButtonMapping.isValidBinding(value.keyLeft) &&
+            ButtonMapping.isValidBinding(value.keyRight) &&
+            ButtonMapping.isValidBinding(value.controllerJump) &&
+            ButtonMapping.isValidBinding(value.controllerAttack) &&
+            ButtonMapping.isValidBinding(value.controllerUp) &&
+            ButtonMapping.isValidBinding(value.controllerDown) &&
+            ButtonMapping.isValidBinding(value.controllerLeft) &&
+            ButtonMapping.isValidBinding(value.controllerRight)
         );
     }
 }

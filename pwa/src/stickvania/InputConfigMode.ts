@@ -363,7 +363,7 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     }
 
     private sanitizedBinding(value: unknown): number {
-        return typeof value === "number" && Number.isFinite(value) ? Math.trunc(value) : ButtonMapping.NO_BINDING;
+        return ButtonMapping.isValidBinding(value) ? value : ButtonMapping.NO_BINDING;
     }
 
     private sanitizedDelay(value: unknown): number {
@@ -383,10 +383,14 @@ export class InputConfigMode implements ControllerListener, KeyListener {
             return;
         }
         for (const value of values) {
-            if (typeof value === "number" && Number.isFinite(value)) {
-                target.add(Math.trunc(value));
+            if (InputConfigMode.isAssignedInputCode(value)) {
+                target.add(value);
             }
         }
+    }
+
+    private static isAssignedInputCode(value: unknown): value is number {
+        return typeof value === "number" && Number.isInteger(value) && value >= 0;
     }
 
     private clearDraftKey(key: number): void {

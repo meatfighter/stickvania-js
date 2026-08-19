@@ -7,7 +7,6 @@
     "scripts": {
         "stamp": "node scripts/stamp.mjs",
         "clean": "node scripts/clean-dist.mjs",
-        "convert:java": "node scripts/convert-java.mjs",
         "format": "prettier . --write --ignore-unknown",
         "format:check": "prettier . --check --ignore-unknown",
         "dev": "npm run dev:pwa",
@@ -20,6 +19,7 @@
         "build": "npm run stamp && npm run clean && npm run build:pwa && npm run build:about && npm run build:desktop && npm run assemble",
         "typecheck": "tsc --project pwa/tsconfig.json",
         "lint": "eslint \"pwa/src/**/*.ts\" \"pwa/vite.config.ts\" \"pwa/public/sw.js\"",
+        "test:pwa-release": "npm run build:pwa && node scripts/verify-pwa-release.mjs",
         "preview": "npm run preview:pwa",
         "preview:pwa": "vite preview --config pwa/vite.config.ts --host 127.0.0.1",
         "preview:dist": "vite preview --host 127.0.0.1 --outDir dist",
