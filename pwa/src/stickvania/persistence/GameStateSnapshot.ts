@@ -1,7 +1,7 @@
 import type { InputConfigModeSnapshot } from "../InputConfigMode.js";
 import type { ThingTypeId } from "./ThingTypeRegistry.js";
 
-export const GAME_STATE_VERSION = 5;
+export { GAME_STATE_VERSION } from "./GameStateSchema.js";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | JsonRecord;

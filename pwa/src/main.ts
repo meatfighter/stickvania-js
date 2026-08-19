@@ -3,6 +3,8 @@ import { SoundStore } from "slick2d-ts/slick/openal/SoundStore";
 import { ResourceLoader } from "slick2d-ts/slick/util/ResourceLoader";
 import { RumbleManager } from "./rumble/RumbleManager.js";
 import type { Main } from "./stickvania/Main.js";
+import { hasPotentialStoredStickvaniaGameState } from "./stickvania/persistence/GameStatePreflight.js";
+import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
 import type { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
 import "./styles.css";
 
@@ -18,11 +20,6 @@ const BASE_URL = import.meta.env.BASE_URL;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
-const GAME_STATE_STORAGE_KEY = "stickvania.game-state";
-const GAME_STATE_VERSION = 4;
-const GAME_STATE_STAGELESS_MODES = new Set([0, 10]);
-const GAME_STATE_RESTORABLE_MODES = new Set([0, 1, 2, 4, 5, 6, 7, 8, 10]);
-const GAME_STATE_MODE_INPUT_CONFIG = 10;
 type DisplayModePreference = "light" | "dark";
 type SlickRuntimeModule = typeof import("slick2d-ts");
 type MainConstructor = typeof import("./stickvania/Main.js").Main;
@@ -510,58 +507,7 @@ function getLoadedGameStateStore(): StickvaniaGameStateStore | null {
 }
 
 function hasPotentialSavedGameState(): boolean {
-    try {
-        const text = localStorage.getItem(GAME_STATE_STORAGE_KEY);
-        if (text === null) {
-            return false;
-        }
-        const snapshot = JSON.parse(text) as {
-            audio?: { songs?: unknown };
-            inputConfigMode?: unknown;
-            mainFields?: unknown;
-            mode?: unknown;
-            random?: unknown;
-            stage?: unknown;
-            things?: unknown;
-            version?: unknown;
-        };
-        const stageValue = snapshot.stage;
-        const mainFieldsValue = snapshot.mainFields;
-        const hasStageShape =
-            stageValue !== null &&
-            typeof stageValue === "object" &&
-            typeof (stageValue as { stageIndex?: unknown }).stageIndex === "number" &&
-            Array.isArray((stageValue as { segments?: unknown }).segments);
-        if (
-            snapshot.version !== GAME_STATE_VERSION ||
-            typeof snapshot.mode !== "number" ||
-            !GAME_STATE_RESTORABLE_MODES.has(snapshot.mode) ||
-            !Array.isArray(snapshot.things) ||
-            stageValue === undefined ||
-            (stageValue !== null && typeof stageValue !== "object") ||
-            (stageValue === null && snapshot.things.length !== 0) ||
-            (GAME_STATE_STAGELESS_MODES.has(snapshot.mode) && stageValue !== null) ||
-            (!GAME_STATE_STAGELESS_MODES.has(snapshot.mode) && stageValue === null) ||
-            (stageValue !== null && !hasStageShape) ||
-            (snapshot.mode === GAME_STATE_MODE_INPUT_CONFIG && snapshot.inputConfigMode == null) ||
-            (snapshot.mode !== GAME_STATE_MODE_INPUT_CONFIG && snapshot.inputConfigMode != null) ||
-            mainFieldsValue === null ||
-            typeof mainFieldsValue !== "object" ||
-            (mainFieldsValue as { mode?: unknown }).mode !== snapshot.mode ||
-            snapshot.random === null ||
-            typeof snapshot.random !== "object" ||
-            snapshot.audio === null ||
-            typeof snapshot.audio !== "object" ||
-            !Array.isArray(snapshot.audio.songs)
-        ) {
-            clearStoredGameState();
-            return false;
-        }
-        return true;
-    } catch {
-        clearStoredGameState();
-        return false;
-    }
+    return hasPotentialStoredStickvaniaGameState(localStorage);
 }
 
 function returnToMenu(): void {

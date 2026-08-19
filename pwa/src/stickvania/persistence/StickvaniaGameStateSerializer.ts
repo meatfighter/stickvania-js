@@ -10,7 +10,6 @@ import { StairsEntry } from "../StairsEntry.js";
 import { Thing } from "../Thing.js";
 import { ThingStack } from "../ThingStack.js";
 import {
-    GAME_STATE_VERSION,
     type AudioSnapshot,
     type EncodedRecord,
     type EncodedValue,
@@ -28,6 +27,7 @@ import {
     type ThingSnapshot,
     type ThingStackSnapshot
 } from "./GameStateSnapshot.js";
+import { GAME_STATE_VERSION } from "./GameStateSchema.js";
 import { getThingTypeId, isThingTypeId, THING_TYPES } from "./ThingTypeRegistry.js";
 
 type FieldBag = Record<string, any>;
