@@ -20,10 +20,11 @@
         "typecheck": "tsc --project pwa/tsconfig.json",
         "lint": "eslint \"pwa/src/**/*.ts\" \"pwa/vite.config.ts\" \"pwa/public/sw.js\"",
         "test:pwa-release": "npm run build:pwa && node scripts/verify-pwa-release.mjs",
+        "verify": "npm run format:check && npm run lint && npm run test:pwa-release && npm run build:about && npm run build:desktop",
         "preview": "npm run preview:pwa",
         "preview:pwa": "vite preview --config pwa/vite.config.ts --host 127.0.0.1",
         "preview:dist": "vite preview --host 127.0.0.1 --outDir dist",
-        "release:desktop": "npm run build:desktop && node scripts/copy-desktop-release.mjs",
+        "release:desktop": "npm run verify && node scripts/copy-desktop-release.mjs",
         "run:desktop": "node scripts/run-desktop.mjs"
     },
     "dependencies": {

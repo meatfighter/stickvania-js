@@ -72,7 +72,8 @@ function writeServiceWorkerPrecacheManifest(): void {
     writeFileSync(serviceWorkerPath, serviceWorker.replace(serviceWorkerPrecachePattern, formatPrecacheDeclaration(urls)));
 }
 
-function versionedStaticAssetsPlugin(): PluginOption {
+function versionedStaticAssetsPlugin(command: string): PluginOption {
+    const isBuild = command === "build";
     return {
         name: "stickvania-versioned-static-assets",
         generateBundle(_options, bundle): void {
@@ -84,6 +85,10 @@ function versionedStaticAssetsPlugin(): PluginOption {
             }
         },
         closeBundle(): void {
+            if (!isBuild) {
+                return;
+            }
+
             const indexPath = join(distPwaDir, "index.html");
             if (existsSync(indexPath)) {
                 writeFileSync(indexPath, renderVersionPlaceholders(readFileSync(indexPath, "utf8")));
@@ -102,7 +107,7 @@ function versionedStaticAssetsPlugin(): PluginOption {
 export default defineConfig(({ command }) => ({
     root: rootDir,
     base: command === "build" ? "/pwa/" : "/",
-    plugins: [versionedHtmlPlugin(), versionedStaticAssetsPlugin()],
+    plugins: [versionedHtmlPlugin(), versionedStaticAssetsPlugin(command)],
     define: {
         __APP_VERSION__: JSON.stringify(versionInfo.version),
         __BUILD_STAMP__: JSON.stringify(versionInfo.buildStamp)
