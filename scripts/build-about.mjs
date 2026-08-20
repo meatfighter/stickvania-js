@@ -3,7 +3,9 @@ import { join } from "node:path";
 import { distDir, ensureDirectory, readVersion, renderTemplate, rootDir } from "./build-utils.mjs";
 
 const version = readVersion();
+const cacheVersion = `${version.version}-${version.buildStamp}`;
 const encodedBuildStamp = encodeURIComponent(version.buildStamp);
+const encodedCacheVersion = encodeURIComponent(cacheVersion);
 const aboutDir = join(rootDir, "about");
 const assetsDir = join(distDir, "assets");
 const sourceImagesDir = join(rootDir, "pwa", "public", "images");
@@ -12,7 +14,7 @@ const replacements = {
     __BUILD_STAMP__: version.buildStamp,
     __BUILD_STAMP_ENCODED__: encodedBuildStamp,
     __DESKTOP_ZIP__: `downloads/stickvania-desktop.zip?v=${encodedBuildStamp}`,
-    __PWA_URL__: `pwa/?v=${encodedBuildStamp}`
+    __PWA_URL__: `pwa/?v=${encodedCacheVersion}`
 };
 
 ensureDirectory(distDir);

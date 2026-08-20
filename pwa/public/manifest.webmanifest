@@ -2,7 +2,7 @@
     "name": "Stickvania",
     "short_name": "Stickvania",
     "description": "A browser PWA port of Stickvania.",
-    "start_url": "./?v=%BUILD_STAMP%",
+    "start_url": "./?v=%CACHE_VERSION%",
     "scope": ".",
     "display": "standalone",
     "orientation": "landscape",
@@ -10,19 +10,19 @@
     "theme_color": "#000000",
     "icons": [
         {
-            "src": "images/icon.png?v=%BUILD_STAMP%",
+            "src": "images/icon.png?v=%CACHE_VERSION%",
             "sizes": "32x32",
             "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "images/icon-192.png?v=%BUILD_STAMP%",
+            "src": "images/icon-192.png?v=%CACHE_VERSION%",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any maskable"
         },
         {
-            "src": "images/icon-512.png?v=%BUILD_STAMP%",
+            "src": "images/icon-512.png?v=%CACHE_VERSION%",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any maskable"

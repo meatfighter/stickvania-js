@@ -11,8 +11,11 @@ interface VersionInfo {
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
 const distPwaDir = join(rootDir, "..", "dist", "pwa");
 const versionInfo = JSON.parse(readFileSync(new URL("../version.json", import.meta.url), "utf8")) as VersionInfo;
+const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedBuildStamp = encodeURIComponent(versionInfo.buildStamp);
+const encodedCacheVersion = encodeURIComponent(cacheVersion);
 const serviceWorkerPrecachePattern = /const PRECACHE_URLS = \[[\s\S]*?\];/;
+const serviceWorkerVersionPlaceholder = '"__SERVICE_WORKER_VERSION__"';
 
 function versionedHtmlPlugin(): PluginOption {
     return {
@@ -27,7 +30,10 @@ function versionedHtmlPlugin(): PluginOption {
 }
 
 function renderVersionPlaceholders(text: string): string {
-    return text.replaceAll("%APP_VERSION%", versionInfo.version).replaceAll("%BUILD_STAMP%", encodedBuildStamp);
+    return text
+        .replaceAll("%APP_VERSION%", versionInfo.version)
+        .replaceAll("%BUILD_STAMP%", encodedBuildStamp)
+        .replaceAll("%CACHE_VERSION%", encodedCacheVersion);
 }
 
 function collectFiles(directory: string): string[] {
@@ -50,11 +56,23 @@ function createPrecacheUrls(): string[] {
         .sort()
         .map((file) => `./${file}`);
 
-    return ["./", ...fileUrls];
+    return ["./", ...fileUrls].map(addCacheVersion);
+}
+
+function addCacheVersion(url: string): string {
+    return `${url}${url.includes("?") ? "&" : "?"}v=${encodedCacheVersion}`;
 }
 
 function formatPrecacheDeclaration(urls: string[]): string {
     return `const PRECACHE_URLS = ${JSON.stringify(urls, null, 4)};`;
+}
+
+function renderServiceWorker(text: string): string {
+    if (!text.includes(serviceWorkerVersionPlaceholder)) {
+        throw new Error("Unable to find service worker version placeholder in built service worker.");
+    }
+
+    return renderVersionPlaceholders(text).replaceAll(serviceWorkerVersionPlaceholder, JSON.stringify(cacheVersion));
 }
 
 function writeServiceWorkerPrecacheManifest(): void {
@@ -63,7 +81,7 @@ function writeServiceWorkerPrecacheManifest(): void {
         return;
     }
 
-    const serviceWorker = readFileSync(serviceWorkerPath, "utf8");
+    const serviceWorker = renderServiceWorker(readFileSync(serviceWorkerPath, "utf8"));
     const urls = createPrecacheUrls();
     if (!serviceWorkerPrecachePattern.test(serviceWorker)) {
         throw new Error("Unable to find PRECACHE_URLS declaration in built service worker.");
@@ -110,7 +128,8 @@ export default defineConfig(({ command }) => ({
     plugins: [versionedHtmlPlugin(), versionedStaticAssetsPlugin(command)],
     define: {
         __APP_VERSION__: JSON.stringify(versionInfo.version),
-        __BUILD_STAMP__: JSON.stringify(versionInfo.buildStamp)
+        __BUILD_STAMP__: JSON.stringify(versionInfo.buildStamp),
+        __CACHE_VERSION__: JSON.stringify(cacheVersion)
     },
     build: {
         outDir: "../dist/pwa",

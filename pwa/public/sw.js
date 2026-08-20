@@ -1,7 +1,6 @@
-const VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
+const VERSION = "__SERVICE_WORKER_VERSION__";
 const CACHE_NAME = `stickvania-pwa-${VERSION}`;
 const CACHE_PREFIXES = ["stickvania-", "stickvania-pwa-"];
-const IGNORED_CACHE_SEARCH_PARAMS = new Set(["v"]);
 const PRECACHE_URLS = ["./", "./index.html", "./manifest.webmanifest", "./images/icon.png", "./images/icon-192.png", "./images/icon-512.png"];
 
 function canUseCacheApi(request) {
@@ -11,39 +10,46 @@ function canUseCacheApi(request) {
 
 function createCacheUrl(requestOrUrl) {
     const url = new URL(typeof requestOrUrl === "string" ? requestOrUrl : requestOrUrl.url, self.registration.scope);
-    if (url.origin === self.location.origin) {
-        for (const param of IGNORED_CACHE_SEARCH_PARAMS) {
-            url.searchParams.delete(param);
-        }
+    if (url.origin === self.location.origin && !url.searchParams.has("v")) {
+        url.searchParams.set("v", VERSION);
     }
     url.hash = "";
     return url.href;
 }
 
-self.addEventListener("message", (event) => {
-    if (event.data === "skip-waiting") {
-        self.skipWaiting();
+function createNavigationIndexCacheUrl(request) {
+    const indexUrl = new URL("./index.html", self.registration.scope);
+    const requestUrl = new URL(request.url);
+    if (requestUrl.origin === self.location.origin && requestUrl.searchParams.has("v")) {
+        indexUrl.searchParams.set("v", requestUrl.searchParams.get("v"));
     }
-});
+    return createCacheUrl(indexUrl.href);
+}
+
+const PRECACHE_CACHE_URLS = PRECACHE_URLS.map((url) => createCacheUrl(url));
+const PRECACHE_URL_SET = new Set(PRECACHE_CACHE_URLS);
 
 function remember(request, response) {
     if (!response.ok) {
-        return;
+        return Promise.resolve(false);
     }
     const cacheUrl = createCacheUrl(request);
+    if (!PRECACHE_URL_SET.has(cacheUrl)) {
+        return Promise.resolve(false);
+    }
     const copy = response.clone();
-    caches
+    return caches
         .open(CACHE_NAME)
         .then((cache) => cache.put(cacheUrl, copy))
-        .catch(() => undefined);
+        .then(() => true)
+        .catch(() => false);
 }
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
         (async () => {
             const cache = await caches.open(CACHE_NAME);
-            await cache.addAll(PRECACHE_URLS.map((url) => createCacheUrl(url)));
-            await self.skipWaiting();
+            await cache.addAll(PRECACHE_CACHE_URLS);
         })()
     );
 });
@@ -66,13 +72,14 @@ self.addEventListener("fetch", (event) => {
         return;
     }
     if (request.mode === "navigate") {
+        const indexCacheUrl = createNavigationIndexCacheUrl(request);
         event.respondWith(
             fetch(request)
                 .then((response) => {
-                    remember("./index.html", response);
+                    remember(indexCacheUrl, response);
                     return response;
                 })
-                .catch(() => caches.match(createCacheUrl("./index.html")))
+                .catch(() => caches.match(indexCacheUrl).then((cached) => cached || caches.match(createCacheUrl("./index.html"))))
         );
         return;
     }

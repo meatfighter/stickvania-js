@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
+import { runInNewContext } from "node:vm";
 import test from "node:test";
 import ts from "typescript";
-import { distDir, rootDir } from "./build-utils.mjs";
+import { distDir, readVersion, rootDir } from "./build-utils.mjs";
 
 const distPwaDir = join(distDir, "pwa");
+const packageJsonPath = join(rootDir, "package.json");
 const serviceWorkerPath = join(distPwaDir, "sw.js");
 const mainSourcePath = join(rootDir, "pwa", "src", "main.ts");
 const gameStateSchemaSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStateSchema.ts");
@@ -17,6 +19,9 @@ const thingTypeRegistrySourcePath = join(rootDir, "pwa", "src", "stickvania", "p
 const inputMappingStorageKey = "stickvania.input-mapping";
 const inputMappingVersion = 5;
 const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
+const versionInfo = readVersion();
+const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
+const encodedCacheVersion = encodeURIComponent(cacheVersion);
 
 test.after(() => {
     rmSync(tempRoot, { recursive: true, force: true });
@@ -41,7 +46,15 @@ function expectedPrecacheUrls() {
         .filter((file) => file !== "sw.js")
         .sort()
         .map((file) => `./${file}`);
-    return ["./", ...fileUrls];
+    return ["./", ...fileUrls].map(addCacheVersion);
+}
+
+function addCacheVersion(url) {
+    return `${url}${url.includes("?") ? "&" : "?"}v=${encodedCacheVersion}`;
+}
+
+function expectedPrecacheCacheUrls() {
+    return expectedPrecacheUrls().map((url) => new URL(url, "https://example.test/pwa/").href);
 }
 
 function actualPrecacheUrls() {
@@ -51,11 +64,129 @@ function actualPrecacheUrls() {
     return JSON.parse(match[1]);
 }
 
+function packageScripts() {
+    return JSON.parse(readFileSync(packageJsonPath, "utf8")).scripts;
+}
+
+function countOccurrences(text, pattern) {
+    return text.split(pattern).length - 1;
+}
+
 function builtJavaScript() {
     return collectFiles(distPwaDir)
         .filter((file) => file.endsWith(".js"))
         .map((file) => readFileSync(file, "utf8"))
         .join("\n");
+}
+
+function evaluateBuiltServiceWorker(locationVersion = cacheVersion) {
+    const events = [];
+    const openedCaches = [];
+    const addAllCalls = [];
+    const cachePuts = [];
+    const deletedCaches = [];
+    let clientsClaimCount = 0;
+    let skipWaitingCount = 0;
+    const workerUrl = new URL(`https://example.test/pwa/sw.js?v=${encodeURIComponent(locationVersion)}`);
+    const context = {
+        URL,
+        console,
+        self: {
+            location: workerUrl,
+            registration: {
+                scope: "https://example.test/pwa/"
+            },
+            clients: {
+                claim() {
+                    clientsClaimCount++;
+                    return Promise.resolve();
+                }
+            },
+            addEventListener(type, listener) {
+                events.push({ type, listener });
+            },
+            skipWaiting() {
+                skipWaitingCount++;
+                return Promise.resolve();
+            }
+        },
+        caches: {
+            open(name) {
+                openedCaches.push(name);
+                return Promise.resolve({
+                    addAll(urls) {
+                        addAllCalls.push([...urls]);
+                        return Promise.resolve();
+                    },
+                    put(url, response) {
+                        cachePuts.push({ cacheName: name, url, response });
+                        return Promise.resolve();
+                    }
+                });
+            },
+            keys() {
+                return Promise.resolve([`stickvania-pwa-old`, `stickvania-old`, `stickvania-pwa-${cacheVersion}`, "unrelated-cache"]);
+            },
+            delete(name) {
+                deletedCaches.push(name);
+                return Promise.resolve(true);
+            },
+            match(url) {
+                return Promise.resolve({ url });
+            }
+        }
+    };
+    runInNewContext(
+        `${readFileSync(serviceWorkerPath, "utf8")}
+this.__serviceWorkerVersion = VERSION;
+this.__cacheName = CACHE_NAME;
+this.__precacheCacheUrls = PRECACHE_CACHE_URLS;
+this.__createCacheUrl = createCacheUrl;
+this.__remember = remember;`,
+        context
+    );
+    return {
+        addAllCalls,
+        cachePuts,
+        context,
+        deletedCaches,
+        events,
+        get clientsClaimCount() {
+            return clientsClaimCount;
+        },
+        get skipWaitingCount() {
+            return skipWaitingCount;
+        },
+        openedCaches
+    };
+}
+
+function builtServiceWorkerCacheUrl(requestOrUrl, locationVersion = cacheVersion) {
+    return evaluateBuiltServiceWorker(locationVersion).context.__createCacheUrl(requestOrUrl);
+}
+
+async function runBuiltServiceWorkerEvent(type, locationVersion = cacheVersion) {
+    const worker = evaluateBuiltServiceWorker(locationVersion);
+    const registration = worker.events.find((event) => event.type === type);
+    assert.ok(registration, `Built service worker should register a ${type} listener.`);
+
+    let waitUntilPromise = Promise.resolve();
+    registration.listener({
+        waitUntil(promise) {
+            waitUntilPromise = Promise.resolve(promise);
+        }
+    });
+    await waitUntilPromise;
+    return worker;
+}
+
+function okResponseMock() {
+    return {
+        ok: true,
+        clone() {
+            return this;
+        }
+    };
 }
 
 function createLocalStorageMock() {
@@ -267,15 +398,99 @@ function installThrowingLocalStorage() {
 }
 
 test("PWA service worker precaches the built PWA output", () => {
-    assert.ok(existsSync(serviceWorkerPath), "Run npm.cmd run build:pwa before release verification.");
+    assert.ok(existsSync(serviceWorkerPath), "Run npm.cmd run build:pwa:release before release verification.");
     assert.deepEqual(actualPrecacheUrls(), expectedPrecacheUrls());
 });
 
-test("PWA service worker normalizes build-stamp cache-busting parameters", () => {
+test("package scripts stamp release PWA builds exactly once", () => {
+    const scripts = packageScripts();
+
+    assert.equal(scripts["build:pwa"], "npm run build:pwa:release");
+    assert.equal(scripts["build:pwa:release"], "npm run stamp && npm run _build:pwa:release");
+    assert.equal(scripts["_build:pwa:release"], "tsc --project pwa/tsconfig.json && vite build --config pwa/vite.config.ts");
+    assert.equal(scripts["test:pwa-release"], "npm run build:pwa:release && node scripts/verify-pwa-release.mjs");
+    assert.equal(scripts["build:web"], "npm run clean && npm run build:pwa:release && npm run build:about");
+    assert.equal(scripts["build"], "npm run clean && npm run build:pwa:release && npm run build:about && npm run build:desktop && npm run assemble");
+
+    assert.equal(countOccurrences(scripts["build:pwa:release"], "npm run stamp"), 1);
+    assert.equal(countOccurrences(scripts["_build:pwa:release"], "npm run stamp"), 0);
+    assert.equal(countOccurrences(scripts["build:web"], "npm run stamp"), 0);
+    assert.equal(countOccurrences(scripts["build"], "npm run stamp"), 0);
+});
+
+test("PWA service worker embeds its own cache version", async () => {
     const serviceWorker = readFileSync(serviceWorkerPath, "utf8");
-    assert.match(serviceWorker, /const IGNORED_CACHE_SEARCH_PARAMS = new Set\(\["v"\]\);/);
-    assert.match(serviceWorker, /url\.searchParams\.delete\(param\);/);
+    const worker = evaluateBuiltServiceWorker("old-release");
+
+    assert.match(serviceWorker, new RegExp(`const VERSION = ${JSON.stringify(cacheVersion).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")};`));
+    assert.doesNotMatch(serviceWorker, /__SERVICE_WORKER_VERSION__/);
+    assert.doesNotMatch(serviceWorker, /self\.location\.href/);
+    assert.doesNotMatch(serviceWorker, /skipWaiting/);
+    assert.equal(worker.context.__serviceWorkerVersion, cacheVersion);
+    assert.equal(worker.context.__cacheName, `stickvania-pwa-${cacheVersion}`);
+
+    const installedWorker = await runBuiltServiceWorkerEvent("install", "old-release");
+    assert.deepEqual(installedWorker.openedCaches, [`stickvania-pwa-${cacheVersion}`]);
+    assert.deepEqual(installedWorker.addAllCalls, [expectedPrecacheCacheUrls()]);
+    assert.equal(installedWorker.skipWaitingCount, 0);
+});
+
+test("PWA service worker activation removes superseded Stickvania caches", async () => {
+    const worker = await runBuiltServiceWorkerEvent("activate", "old-release");
+
+    assert.deepEqual(new Set(worker.deletedCaches), new Set(["stickvania-pwa-old", "stickvania-old"]));
+    assert.equal(worker.deletedCaches.includes(`stickvania-pwa-${cacheVersion}`), false);
+    assert.equal(worker.deletedCaches.includes("unrelated-cache"), false);
+    assert.equal(worker.clientsClaimCount, 1);
+});
+
+test("PWA service worker preserves versioned cache-busting parameters", () => {
+    const serviceWorker = readFileSync(serviceWorkerPath, "utf8");
+    assert.doesNotMatch(serviceWorker, /IGNORED_CACHE_SEARCH_PARAMS/);
+    assert.doesNotMatch(serviceWorker, /searchParams\.delete/);
+    assert.match(serviceWorker, /!url\.searchParams\.has\("v"\)/);
+    assert.match(serviceWorker, /url\.searchParams\.set\("v", VERSION\)/);
     assert.match(serviceWorker, /caches\.match\(createCacheUrl\(request\)\)/);
+
+    const oldCacheUrl = builtServiceWorkerCacheUrl("./images/icon.png?v=old");
+    const newCacheUrl = builtServiceWorkerCacheUrl("./images/icon.png?v=new");
+    const defaultedCacheUrl = builtServiceWorkerCacheUrl("./images/icon.png");
+    const unrelatedQueryCacheUrl = builtServiceWorkerCacheUrl("./images/icon.png?palette=blue");
+    const externalCacheUrl = builtServiceWorkerCacheUrl("https://cdn.example.test/file.png");
+
+    assert.notEqual(oldCacheUrl, newCacheUrl);
+    assert.equal(new URL(oldCacheUrl).searchParams.get("v"), "old");
+    assert.equal(new URL(newCacheUrl).searchParams.get("v"), "new");
+    assert.equal(new URL(defaultedCacheUrl).searchParams.get("v"), cacheVersion);
+    assert.equal(new URL(unrelatedQueryCacheUrl).searchParams.get("v"), cacheVersion);
+    assert.equal(new URL(unrelatedQueryCacheUrl).searchParams.get("palette"), "blue");
+    assert.notEqual(defaultedCacheUrl, unrelatedQueryCacheUrl);
+    assert.equal(new URL(externalCacheUrl).searchParams.has("v"), false);
+});
+
+test("PWA service worker precache keys include the current cache version", () => {
+    for (const url of actualPrecacheUrls()) {
+        assert.equal(new URL(url, "https://example.test/pwa/").searchParams.get("v"), cacheVersion);
+    }
+});
+
+test("PWA service worker runtime cache writes are limited to current precache keys", async () => {
+    const worker = evaluateBuiltServiceWorker("old-release");
+
+    assert.equal(await worker.context.__remember(`./images/icon.png?v=${encodedCacheVersion}`, okResponseMock()), true);
+    assert.deepEqual(
+        worker.cachePuts.map((put) => put.cacheName),
+        [`stickvania-pwa-${cacheVersion}`]
+    );
+    assert.deepEqual(
+        worker.cachePuts.map((put) => put.url),
+        [new URL(`./images/icon.png?v=${encodedCacheVersion}`, "https://example.test/pwa/").href]
+    );
+
+    assert.equal(await worker.context.__remember("./images/icon.png?v=old-release", okResponseMock()), false);
+    assert.equal(await worker.context.__remember(`./not-precached.txt?v=${encodedCacheVersion}`, okResponseMock()), false);
+    assert.equal(await worker.context.__remember(`https://cdn.example.test/file.png?v=${encodedCacheVersion}`, okResponseMock()), false);
+    assert.equal(worker.cachePuts.length, 1);
 });
 
 test("PWA game-state Thing type IDs are stable through production minification", () => {

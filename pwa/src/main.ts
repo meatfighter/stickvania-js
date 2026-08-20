@@ -400,7 +400,7 @@ async function ensureRuntimePrepared(forceRetry = false): Promise<PreparedRuntim
 
     await waitForInitialServiceWorkerReady();
     ResourceLoader.clearFailures();
-    ResourceLoader.setCacheBust(__BUILD_STAMP__);
+    ResourceLoader.setCacheBust(__CACHE_VERSION__);
     ResourceLoader.setRetryOptions(RESOURCE_CACHE_RETRY_COUNT, RESOURCE_CACHE_RETRY_DELAY_MS);
     preparationPromise = prepareRuntime()
         .then((runtime) => {
@@ -945,7 +945,7 @@ async function registerServiceWorker(): Promise<void> {
     if (!("serviceWorker" in navigator) || import.meta.env.DEV || location.protocol === "file:") {
         return;
     }
-    const version = encodeURIComponent(`${__APP_VERSION__}-${__BUILD_STAMP__}`);
+    const version = encodeURIComponent(__CACHE_VERSION__);
     await navigator.serviceWorker.register(`${BASE_URL}sw.js?v=${version}`, { scope: BASE_URL });
     await navigator.serviceWorker.ready;
     await waitForServiceWorkerController();
