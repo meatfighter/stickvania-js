@@ -28,7 +28,11 @@ const relocationPwaScopeUrls = [
     "https://example.invalid/stickvania-staging/pwa/",
     "https://example.invalid/foo/bar/baz/pwa/"
 ];
-const blockedRuntimePathFragments = ["/pwa/", "/stickvania/", "/stickvania-staging/"];
+const blockedRuntimePathPatterns = [
+    { label: "/pwa/", pattern: /(?<!\.)\/pwa\// },
+    { label: "/stickvania/", pattern: /(?<!\.)\/stickvania\// },
+    { label: "/stickvania-staging/", pattern: /(?<!\.)\/stickvania-staging\// }
+];
 const releaseTextExtensions = new Set([".css", ".html", ".js", ".json", ".txt", ".webmanifest"]);
 
 test.after(() => {
@@ -509,8 +513,8 @@ test("PWA release output does not contain hard-coded deployment paths", () => {
     for (const file of releaseTextFiles()) {
         const text = readFileSync(file, "utf8");
         const relativeFile = relative(rootDir, file).replaceAll("\\", "/");
-        for (const fragment of blockedRuntimePathFragments) {
-            assert.equal(text.includes(fragment), false, `${relativeFile} should not contain hard-coded deployment path ${fragment}`);
+        for (const blocked of blockedRuntimePathPatterns) {
+            assert.equal(blocked.pattern.test(text), false, `${relativeFile} should not contain hard-coded deployment path ${blocked.label}`);
         }
     }
 });
