@@ -9,19 +9,19 @@ const GAME_STATE_STAGELESS_MODES = new Set([0, 10]);
 const GAME_STATE_RESTORABLE_MODES = new Set([0, 1, 2, 4, 5, 6, 7, 8, 10]);
 const GAME_STATE_MODE_INPUT_CONFIG = 10;
 
-export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage): boolean {
+export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage, storageKey: string = GAME_STATE_STORAGE_KEY): boolean {
     try {
-        const text = storage.getItem(GAME_STATE_STORAGE_KEY);
+        const text = storage.getItem(storageKey);
         if (text === null) {
             return false;
         }
         if (!isPotentialStickvaniaGameStateSnapshot(JSON.parse(text) as unknown)) {
-            clearStoredStickvaniaGameState(storage);
+            clearStoredStickvaniaGameState(storage, storageKey);
             return false;
         }
         return true;
     } catch {
-        clearStoredStickvaniaGameState(storage);
+        clearStoredStickvaniaGameState(storage, storageKey);
         return false;
     }
 }
@@ -71,9 +71,9 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
     );
 }
 
-function clearStoredStickvaniaGameState(storage: GameStateStorage): void {
+function clearStoredStickvaniaGameState(storage: GameStateStorage, storageKey: string): void {
     try {
-        storage.removeItem(GAME_STATE_STORAGE_KEY);
+        storage.removeItem(storageKey);
     } catch {
         // Storage can be disabled in hardened/private browser contexts.
     }

@@ -1,4 +1,5 @@
 import { Input } from "slick2d-ts";
+import { getBrowserStorageKey } from "./BrowserStorageKeys.js";
 
 type ButtonMappingSnapshot = {
     version: number;
@@ -17,7 +18,7 @@ type ButtonMappingSnapshot = {
 };
 
 export class ButtonMapping {
-    private static readonly STORAGE_KEY = "stickvania.input-mapping";
+    private static readonly STORAGE_KEY = getBrowserStorageKey("input-mapping");
     private static readonly VERSION = 5;
     public static readonly NO_BINDING = -1;
     private static readonly DEFAULT_KEY_JUMP = Input.KEY_X;

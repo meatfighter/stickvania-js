@@ -2,6 +2,7 @@ import type { AppGameContainer } from "slick2d-ts/slick/AppGameContainer";
 import { SoundStore } from "slick2d-ts/slick/openal/SoundStore";
 import { ResourceLoader } from "slick2d-ts/slick/util/ResourceLoader";
 import { RumbleManager } from "./rumble/RumbleManager.js";
+import { getBrowserStorageKey } from "./stickvania/BrowserStorageKeys.js";
 import type { Main } from "./stickvania/Main.js";
 import { hasPotentialBrowserStoredStickvaniaGameState } from "./stickvania/persistence/GameStatePreflight.js";
 import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
@@ -38,8 +39,9 @@ type PreparedRuntime = {
     StickvaniaGameStateStore: StickvaniaGameStateStoreConstructor;
 };
 
-const DISPLAY_MODE_STORAGE_KEY = "stickvania-display-mode";
-const RUMBLE_STORAGE_KEY = "stickvania-rumble";
+const VOLUME_STORAGE_KEY = getBrowserStorageKey("volume");
+const DISPLAY_MODE_STORAGE_KEY = getBrowserStorageKey("display-mode");
+const RUMBLE_STORAGE_KEY = getBrowserStorageKey("rumble");
 const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
 
 let app: HTMLElement;
@@ -1003,7 +1005,7 @@ async function boot(): Promise<void> {
 
 function safeReadVolume(): number {
     try {
-        const value = Number.parseInt(localStorage.getItem("stickvania-volume") ?? String(Math.round(DEFAULT_VOLUME * 100)), 10);
+        const value = Number.parseInt(localStorage.getItem(VOLUME_STORAGE_KEY) ?? String(Math.round(DEFAULT_VOLUME * 100)), 10);
         if (!Number.isFinite(value)) {
             return DEFAULT_VOLUME;
         }
@@ -1015,7 +1017,7 @@ function safeReadVolume(): number {
 
 function writeVolume(value: number): void {
     try {
-        localStorage.setItem("stickvania-volume", String(Math.round(value * 100)));
+        localStorage.setItem(VOLUME_STORAGE_KEY, String(Math.round(value * 100)));
     } catch {}
 }
 

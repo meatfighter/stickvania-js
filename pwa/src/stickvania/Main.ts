@@ -32,6 +32,7 @@ import { BonePillar } from "./BonePillar.js";
 import { Boomerang } from "./Boomerang.js";
 import { BreakWall } from "./BreakWall.js";
 import { BridgeBat } from "./BridgeBat.js";
+import { getBrowserStorageKey } from "./BrowserStorageKeys.js";
 import { ButtonMapping } from "./ButtonMapping.js";
 import { Candles } from "./Candles.js";
 import { Checkpoint } from "./Checkpoint.js";
@@ -108,7 +109,7 @@ export class Main extends BasicGame {
     public static readonly MODE_INPUT_CONFIG: number = 10;
     public static readonly DIFFICULTY_NORMAL: number = 0;
     public static readonly DIFFICULTY_HARD: number = 1;
-    private static readonly DIFFICULTY_STORAGE_KEY: string = "stickvania.difficulty";
+    private static readonly DIFFICULTY_STORAGE_KEY: string = getBrowserStorageKey("difficulty");
     private static readonly HARD_SPAWN_DELAY_MULTIPLIER: number = 0.66;
     private static readonly HARD_ATTACK_COOLDOWN_MULTIPLIER: number = 0.7;
     private static readonly HARD_BEHAVIOR_DELAY_MULTIPLIER: number = 0.75;
