@@ -2,6 +2,7 @@
     "name": "Stickvania",
     "short_name": "Stickvania",
     "description": "A browser PWA port of Stickvania.",
+    "id": "./",
     "start_url": "./?v=%CACHE_VERSION%",
     "scope": ".",
     "display": "standalone",

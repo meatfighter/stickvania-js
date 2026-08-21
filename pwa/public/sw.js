@@ -1,11 +1,17 @@
 const VERSION = "__SERVICE_WORKER_VERSION__";
-const CACHE_NAME = `stickvania-pwa-${VERSION}`;
-const CACHE_PREFIXES = ["stickvania-", "stickvania-pwa-"];
+const SCOPE_CACHE_ID = encodeURIComponent(new URL(self.registration.scope).pathname).replace(/[^a-zA-Z0-9._-]/g, "_");
+const CACHE_PREFIX = `stickvania-pwa-${SCOPE_CACHE_ID}-`;
+const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
 const PRECACHE_URLS = ["./", "./index.html", "./manifest.webmanifest", "./images/icon.png", "./images/icon-192.png", "./images/icon-512.png"];
 
 function canUseCacheApi(request) {
     const url = new URL(request.url);
-    return request.method === "GET" && (url.protocol === "http:" || url.protocol === "https:");
+    return (
+        request.method === "GET" &&
+        (url.protocol === "http:" || url.protocol === "https:") &&
+        url.origin === self.location.origin &&
+        url.href.startsWith(self.registration.scope)
+    );
 }
 
 function createCacheUrl(requestOrUrl) {
@@ -27,23 +33,6 @@ function createNavigationIndexCacheUrl(request) {
 }
 
 const PRECACHE_CACHE_URLS = PRECACHE_URLS.map((url) => createCacheUrl(url));
-const PRECACHE_URL_SET = new Set(PRECACHE_CACHE_URLS);
-
-function remember(request, response) {
-    if (!response.ok) {
-        return Promise.resolve(false);
-    }
-    const cacheUrl = createCacheUrl(request);
-    if (!PRECACHE_URL_SET.has(cacheUrl)) {
-        return Promise.resolve(false);
-    }
-    const copy = response.clone();
-    return caches
-        .open(CACHE_NAME)
-        .then((cache) => cache.put(cacheUrl, copy))
-        .then(() => true)
-        .catch(() => false);
-}
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
@@ -58,9 +47,7 @@ self.addEventListener("activate", (event) => {
     event.waitUntil(
         (async () => {
             const keys = await caches.keys();
-            await Promise.all(
-                keys.filter((key) => CACHE_PREFIXES.some((prefix) => key.startsWith(prefix)) && key !== CACHE_NAME).map((key) => caches.delete(key))
-            );
+            await Promise.all(keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).map((key) => caches.delete(key)));
             await self.clients.claim();
         })()
     );
@@ -73,24 +60,12 @@ self.addEventListener("fetch", (event) => {
     }
     if (request.mode === "navigate") {
         const indexCacheUrl = createNavigationIndexCacheUrl(request);
-        event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    remember(indexCacheUrl, response);
-                    return response;
-                })
-                .catch(() => caches.match(indexCacheUrl).then((cached) => cached || caches.match(createCacheUrl("./index.html"))))
-        );
+        event.respondWith(fetch(request).catch(() => caches.match(indexCacheUrl).then((cached) => cached || caches.match(createCacheUrl("./index.html")))));
         return;
     }
     event.respondWith(
         caches.match(createCacheUrl(request)).then((cached) => {
-            const networked = fetch(request)
-                .then((response) => {
-                    remember(request, response);
-                    return response;
-                })
-                .catch(() => cached);
+            const networked = fetch(request).catch(() => cached);
             return cached || networked;
         })
     );

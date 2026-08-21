@@ -16,7 +16,6 @@ const DEFAULT_VOLUME = 0.1;
 const DEFAULT_RUMBLE_ENABLED = false;
 const HIGH_DPI_ENABLED = true;
 const MAX_DEVICE_PIXEL_RATIO = 2;
-const BASE_URL = import.meta.env.BASE_URL;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
@@ -946,7 +945,8 @@ async function registerServiceWorker(): Promise<void> {
         return;
     }
     const version = encodeURIComponent(__CACHE_VERSION__);
-    await navigator.serviceWorker.register(`${BASE_URL}sw.js?v=${version}`, { scope: BASE_URL });
+    const serviceWorkerUrl = new URL(`./sw.js?v=${version}`, window.location.href);
+    await navigator.serviceWorker.register(serviceWorkerUrl.href, { scope: "./" });
     await navigator.serviceWorker.ready;
     await waitForServiceWorkerController();
 }

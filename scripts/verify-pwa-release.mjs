@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { extname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
@@ -22,6 +22,14 @@ const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
 const versionInfo = readVersion();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
+const defaultPwaScopeUrl = "https://example.test/pwa/";
+const relocationPwaScopeUrls = [
+    "https://example.invalid/stickvania/pwa/",
+    "https://example.invalid/stickvania-staging/pwa/",
+    "https://example.invalid/foo/bar/baz/pwa/"
+];
+const blockedRuntimePathFragments = ["/pwa/", "/stickvania/", "/stickvania-staging/"];
+const releaseTextExtensions = new Set([".css", ".html", ".js", ".json", ".txt", ".webmanifest"]);
 
 test.after(() => {
     rmSync(tempRoot, { recursive: true, force: true });
@@ -53,8 +61,8 @@ function addCacheVersion(url) {
     return `${url}${url.includes("?") ? "&" : "?"}v=${encodedCacheVersion}`;
 }
 
-function expectedPrecacheCacheUrls() {
-    return expectedPrecacheUrls().map((url) => new URL(url, "https://example.test/pwa/").href);
+function expectedPrecacheCacheUrls(scopeUrl = defaultPwaScopeUrl) {
+    return expectedPrecacheUrls().map((url) => new URL(url, scopeUrl).href);
 }
 
 function actualPrecacheUrls() {
@@ -79,7 +87,56 @@ function builtJavaScript() {
         .join("\n");
 }
 
-function evaluateBuiltServiceWorker(locationVersion = cacheVersion) {
+function builtPwaIndexHtml() {
+    return readFileSync(join(distPwaDir, "index.html"), "utf8");
+}
+
+function builtPwaManifest() {
+    return JSON.parse(readFileSync(join(distPwaDir, "manifest.webmanifest"), "utf8"));
+}
+
+function extractHtmlResourceUrls(html) {
+    const urls = [];
+    const pattern = /\b(?:href|src)="([^"]+)"/g;
+    for (const match of html.matchAll(pattern)) {
+        const url = match[1];
+        if (!url || url.startsWith("#") || url.startsWith("data:") || /^[a-z][a-z0-9+.-]*:/i.test(url)) {
+            continue;
+        }
+        urls.push(url);
+    }
+    return urls;
+}
+
+function releaseTextFiles() {
+    return collectFiles(distDir).filter((file) => releaseTextExtensions.has(extname(file)));
+}
+
+function assertUrlInsideScope(urlText, scopeUrl, label) {
+    const scope = new URL(scopeUrl);
+    const url = new URL(urlText, scope);
+    assert.equal(url.origin, scope.origin, `${label} should stay on the deployment origin.`);
+    assert.ok(url.href.startsWith(scope.href), `${label} should resolve under ${scope.href}, got ${url.href}`);
+    return url;
+}
+
+function expectedScopeCacheId(scopeUrl) {
+    return encodeURIComponent(new URL(scopeUrl).pathname).replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function expectedCachePrefix(scopeUrl) {
+    return `stickvania-pwa-${expectedScopeCacheId(scopeUrl)}-`;
+}
+
+function expectedCacheName(scopeUrl, version = cacheVersion) {
+    return `${expectedCachePrefix(scopeUrl)}${version}`;
+}
+
+function defaultCacheKeys(scopeUrl = defaultPwaScopeUrl) {
+    return [`${expectedCachePrefix(scopeUrl)}old`, expectedCacheName(scopeUrl), "stickvania-pwa-old", "stickvania-old", "unrelated-cache"];
+}
+
+function evaluateBuiltServiceWorker(locationVersion = cacheVersion, scopeUrl = defaultPwaScopeUrl, cacheKeys = defaultCacheKeys(scopeUrl)) {
     const events = [];
     const openedCaches = [];
     const addAllCalls = [];
@@ -87,14 +144,14 @@ function evaluateBuiltServiceWorker(locationVersion = cacheVersion) {
     const deletedCaches = [];
     let clientsClaimCount = 0;
     let skipWaitingCount = 0;
-    const workerUrl = new URL(`https://example.test/pwa/sw.js?v=${encodeURIComponent(locationVersion)}`);
+    const workerUrl = new URL(`./sw.js?v=${encodeURIComponent(locationVersion)}`, scopeUrl);
     const context = {
         URL,
         console,
         self: {
             location: workerUrl,
             registration: {
-                scope: "https://example.test/pwa/"
+                scope: scopeUrl
             },
             clients: {
                 claim() {
@@ -125,7 +182,7 @@ function evaluateBuiltServiceWorker(locationVersion = cacheVersion) {
                 });
             },
             keys() {
-                return Promise.resolve([`stickvania-pwa-old`, `stickvania-old`, `stickvania-pwa-${cacheVersion}`, "unrelated-cache"]);
+                return Promise.resolve(cacheKeys);
             },
             delete(name) {
                 deletedCaches.push(name);
@@ -139,10 +196,13 @@ function evaluateBuiltServiceWorker(locationVersion = cacheVersion) {
     runInNewContext(
         `${readFileSync(serviceWorkerPath, "utf8")}
 this.__serviceWorkerVersion = VERSION;
+this.__scopeCacheId = SCOPE_CACHE_ID;
+this.__cachePrefix = CACHE_PREFIX;
 this.__cacheName = CACHE_NAME;
 this.__precacheCacheUrls = PRECACHE_CACHE_URLS;
+this.__canUseCacheApi = canUseCacheApi;
 this.__createCacheUrl = createCacheUrl;
-this.__remember = remember;`,
+`,
         context
     );
     return {
@@ -161,12 +221,12 @@ this.__remember = remember;`,
     };
 }
 
-function builtServiceWorkerCacheUrl(requestOrUrl, locationVersion = cacheVersion) {
-    return evaluateBuiltServiceWorker(locationVersion).context.__createCacheUrl(requestOrUrl);
+function builtServiceWorkerCacheUrl(requestOrUrl, locationVersion = cacheVersion, scopeUrl = defaultPwaScopeUrl) {
+    return evaluateBuiltServiceWorker(locationVersion, scopeUrl).context.__createCacheUrl(requestOrUrl);
 }
 
-async function runBuiltServiceWorkerEvent(type, locationVersion = cacheVersion) {
-    const worker = evaluateBuiltServiceWorker(locationVersion);
+async function runBuiltServiceWorkerEvent(type, locationVersion = cacheVersion, scopeUrl = defaultPwaScopeUrl, cacheKeys = defaultCacheKeys(scopeUrl)) {
+    const worker = evaluateBuiltServiceWorker(locationVersion, scopeUrl, cacheKeys);
     const registration = worker.events.find((event) => event.type === type);
     assert.ok(registration, `Built service worker should register a ${type} listener.`);
 
@@ -178,15 +238,6 @@ async function runBuiltServiceWorkerEvent(type, locationVersion = cacheVersion) 
     });
     await waitUntilPromise;
     return worker;
-}
-
-function okResponseMock() {
-    return {
-        ok: true,
-        clone() {
-            return this;
-        }
-    };
 }
 
 function createLocalStorageMock() {
@@ -418,6 +469,52 @@ test("package scripts stamp release PWA builds exactly once", () => {
     assert.equal(countOccurrences(scripts["build"], "npm run stamp"), 0);
 });
 
+test("PWA service worker registration is relative to the current PWA page", () => {
+    const mainSource = readFileSync(mainSourcePath, "utf8");
+
+    assert.doesNotMatch(mainSource, /BASE_URL/);
+    assert.match(mainSource, /new URL\(`\.\/sw\.js\?v=\$\{version\}`, window\.location\.href\)/);
+    assert.match(mainSource, /navigator\.serviceWorker\.register\(serviceWorkerUrl\.href, \{ scope: "\.\/" \}\)/);
+});
+
+test("PWA release output uses relocatable relative URLs", () => {
+    const html = builtPwaIndexHtml();
+    const manifest = builtPwaManifest();
+    const htmlResourceUrls = extractHtmlResourceUrls(html);
+    assert.ok(htmlResourceUrls.length > 0, "Built PWA index should contain resource URLs to verify.");
+
+    for (const scopeUrl of relocationPwaScopeUrls) {
+        for (const resourceUrl of htmlResourceUrls) {
+            assertUrlInsideScope(resourceUrl, scopeUrl, `PWA index resource ${resourceUrl}`);
+        }
+
+        assert.equal(new URL(manifest.id, scopeUrl).href, scopeUrl);
+        assert.equal(new URL(manifest.scope, scopeUrl).href, scopeUrl);
+
+        const startUrl = assertUrlInsideScope(manifest.start_url, scopeUrl, "manifest start_url");
+        assert.equal(startUrl.searchParams.get("v"), cacheVersion);
+
+        for (const icon of manifest.icons) {
+            const iconUrl = assertUrlInsideScope(icon.src, scopeUrl, `manifest icon ${icon.src}`);
+            assert.equal(iconUrl.searchParams.get("v"), cacheVersion);
+        }
+
+        for (const precacheUrl of actualPrecacheUrls()) {
+            assertUrlInsideScope(precacheUrl, scopeUrl, `precache URL ${precacheUrl}`);
+        }
+    }
+});
+
+test("PWA release output does not contain hard-coded deployment paths", () => {
+    for (const file of releaseTextFiles()) {
+        const text = readFileSync(file, "utf8");
+        const relativeFile = relative(rootDir, file).replaceAll("\\", "/");
+        for (const fragment of blockedRuntimePathFragments) {
+            assert.equal(text.includes(fragment), false, `${relativeFile} should not contain hard-coded deployment path ${fragment}`);
+        }
+    }
+});
+
 test("PWA service worker embeds its own cache version", async () => {
     const serviceWorker = readFileSync(serviceWorkerPath, "utf8");
     const worker = evaluateBuiltServiceWorker("old-release");
@@ -427,19 +524,39 @@ test("PWA service worker embeds its own cache version", async () => {
     assert.doesNotMatch(serviceWorker, /self\.location\.href/);
     assert.doesNotMatch(serviceWorker, /skipWaiting/);
     assert.equal(worker.context.__serviceWorkerVersion, cacheVersion);
-    assert.equal(worker.context.__cacheName, `stickvania-pwa-${cacheVersion}`);
+    assert.equal(worker.context.__scopeCacheId, expectedScopeCacheId(defaultPwaScopeUrl));
+    assert.equal(worker.context.__cachePrefix, expectedCachePrefix(defaultPwaScopeUrl));
+    assert.equal(worker.context.__cacheName, expectedCacheName(defaultPwaScopeUrl));
 
     const installedWorker = await runBuiltServiceWorkerEvent("install", "old-release");
-    assert.deepEqual(installedWorker.openedCaches, [`stickvania-pwa-${cacheVersion}`]);
+    assert.deepEqual(installedWorker.openedCaches, [expectedCacheName(defaultPwaScopeUrl)]);
     assert.deepEqual(installedWorker.addAllCalls, [expectedPrecacheCacheUrls()]);
     assert.equal(installedWorker.skipWaitingCount, 0);
 });
 
-test("PWA service worker activation removes superseded Stickvania caches", async () => {
-    const worker = await runBuiltServiceWorkerEvent("activate", "old-release");
+test("PWA service worker activation removes only same-scope superseded caches", async () => {
+    const stagingScope = "https://example.test/staging/pwa/";
+    const productionScope = "https://example.test/production/pwa/";
+    const stagingOldCache = `${expectedCachePrefix(stagingScope)}old-release`;
+    const stagingCurrentCache = expectedCacheName(stagingScope);
+    const productionOldCache = `${expectedCachePrefix(productionScope)}old-release`;
+    const productionCurrentCache = expectedCacheName(productionScope);
+    const worker = await runBuiltServiceWorkerEvent("activate", "old-release", stagingScope, [
+        stagingOldCache,
+        stagingCurrentCache,
+        productionOldCache,
+        productionCurrentCache,
+        "stickvania-pwa-old-global",
+        "stickvania-old-global",
+        "unrelated-cache"
+    ]);
 
-    assert.deepEqual(new Set(worker.deletedCaches), new Set(["stickvania-pwa-old", "stickvania-old"]));
-    assert.equal(worker.deletedCaches.includes(`stickvania-pwa-${cacheVersion}`), false);
+    assert.deepEqual(worker.deletedCaches, [stagingOldCache]);
+    assert.equal(worker.deletedCaches.includes(stagingCurrentCache), false);
+    assert.equal(worker.deletedCaches.includes(productionOldCache), false);
+    assert.equal(worker.deletedCaches.includes(productionCurrentCache), false);
+    assert.equal(worker.deletedCaches.includes("stickvania-pwa-old-global"), false);
+    assert.equal(worker.deletedCaches.includes("stickvania-old-global"), false);
     assert.equal(worker.deletedCaches.includes("unrelated-cache"), false);
     assert.equal(worker.clientsClaimCount, 1);
 });
@@ -468,29 +585,30 @@ test("PWA service worker preserves versioned cache-busting parameters", () => {
     assert.equal(new URL(externalCacheUrl).searchParams.has("v"), false);
 });
 
+test("PWA service worker handles only same-origin requests under its own scope", () => {
+    const scopeUrl = "https://example.test/staging/pwa/";
+    const worker = evaluateBuiltServiceWorker(cacheVersion, scopeUrl);
+    const canUseCacheApi = worker.context.__canUseCacheApi;
+
+    assert.equal(canUseCacheApi({ method: "GET", url: new URL("./images/icon.png", scopeUrl).href }), true);
+    assert.equal(canUseCacheApi({ method: "GET", url: "https://example.test/staging/other/icon.png" }), false);
+    assert.equal(canUseCacheApi({ method: "GET", url: "https://example.test/production/pwa/images/icon.png" }), false);
+    assert.equal(canUseCacheApi({ method: "GET", url: "https://cdn.example.test/staging/pwa/images/icon.png" }), false);
+    assert.equal(canUseCacheApi({ method: "POST", url: new URL("./images/icon.png", scopeUrl).href }), false);
+});
+
 test("PWA service worker precache keys include the current cache version", () => {
     for (const url of actualPrecacheUrls()) {
-        assert.equal(new URL(url, "https://example.test/pwa/").searchParams.get("v"), cacheVersion);
+        assert.equal(new URL(url, defaultPwaScopeUrl).searchParams.get("v"), cacheVersion);
     }
 });
 
-test("PWA service worker runtime cache writes are limited to current precache keys", async () => {
-    const worker = evaluateBuiltServiceWorker("old-release");
+test("PWA service worker release cache is install-time immutable", () => {
+    const serviceWorker = readFileSync(serviceWorkerPath, "utf8");
 
-    assert.equal(await worker.context.__remember(`./images/icon.png?v=${encodedCacheVersion}`, okResponseMock()), true);
-    assert.deepEqual(
-        worker.cachePuts.map((put) => put.cacheName),
-        [`stickvania-pwa-${cacheVersion}`]
-    );
-    assert.deepEqual(
-        worker.cachePuts.map((put) => put.url),
-        [new URL(`./images/icon.png?v=${encodedCacheVersion}`, "https://example.test/pwa/").href]
-    );
-
-    assert.equal(await worker.context.__remember("./images/icon.png?v=old-release", okResponseMock()), false);
-    assert.equal(await worker.context.__remember(`./not-precached.txt?v=${encodedCacheVersion}`, okResponseMock()), false);
-    assert.equal(await worker.context.__remember(`https://cdn.example.test/file.png?v=${encodedCacheVersion}`, okResponseMock()), false);
-    assert.equal(worker.cachePuts.length, 1);
+    assert.doesNotMatch(serviceWorker, /function remember/);
+    assert.doesNotMatch(serviceWorker, /cache\.put/);
+    assert.doesNotMatch(serviceWorker, /__remember/);
 });
 
 test("PWA game-state Thing type IDs are stable through production minification", () => {
