@@ -1,7 +1,8 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { distDir, readVersion, rootDir } from "./build-utils.mjs";
+import { readVersion, rootDir } from "./build-utils.mjs";
+import { createStoredZipFromDirectory } from "./zip-store.mjs";
 
 const version = readVersion();
 const desktopDir = join(rootDir, "desktop");
@@ -164,22 +165,28 @@ function createDistribution() {
 
     rmSync(versionedZipPath, { force: true });
     rmSync(stableZipPath, { force: true });
-    run("jar", ["cf", versionedZipPath, distributionName], distributionRoot);
+    createStoredZipFromDirectory(distributionRoot, versionedZipPath, getDistributionZipEntryMode);
     copyFileSync(versionedZipPath, stableZipPath);
 }
 
 function normalizeMavenOutputs() {
-    const mavenVersionedZip = join(targetDir, `${distributionName}-${version.version}.zip`);
     const mavenStableJar = join(targetDir, `${distributionName}.jar`);
     if (!existsSync(mavenStableJar)) {
         throw new Error(`Maven did not create ${mavenStableJar}`);
     }
-    if (!existsSync(mavenVersionedZip)) {
-        throw new Error(`Maven did not create ${mavenVersionedZip}`);
+    if (!existsSync(targetLibDir)) {
+        throw new Error(`Maven did not create ${targetLibDir}`);
+    }
+    if (!existsSync(targetNativeDir)) {
+        throw new Error(`Maven did not create ${targetNativeDir}`);
     }
     copyFileSync(mavenStableJar, stableJarPath);
     copyFileSync(mavenStableJar, versionedJarPath);
-    copyFileSync(mavenVersionedZip, stableZipPath);
+    createDistribution();
+}
+
+function getDistributionZipEntryMode(name) {
+    return name.endsWith("/run-linux.sh") || name.endsWith("/run-macos.sh") ? 0o100755 : 0o100644;
 }
 
 function quoteSh(value) {
@@ -259,6 +266,3 @@ if (!tryNativeMaven() && !tryWslMaven()) {
 
 console.log(`Built ${relative(rootDir, stableJarPath)}`);
 console.log(`Built ${relative(rootDir, stableZipPath)}`);
-if (existsSync(distDir)) {
-    console.log("Run npm run assemble to copy the desktop zip into dist/downloads.");
-}

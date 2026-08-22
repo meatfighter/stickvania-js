@@ -1,6 +1,11 @@
 node_modules/
 dist/
 .release-components/
+.release-secrets/
+.release-candidates/
+.dist-pending-*/
+.dist-previous-*/
+.dist-active-before-*/
 desktop/build/
 desktop/dist/
 desktop/target/

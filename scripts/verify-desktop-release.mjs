@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { distDir, readVersion, rootDir } from "./build-utils.mjs";
+import { readZipCentralDirectory } from "./zip-store.mjs";
 
 const version = readVersion();
 const downloadsDir = join(distDir, "downloads");
@@ -33,25 +34,39 @@ const requiredEntries = [
 
 verifyDesktopZip(stableZipPath);
 verifyDesktopZip(versionedZipPath);
+assert.equal(sha256(stableZipPath), sha256(versionedZipPath), "Stable and versioned desktop ZIPs should be byte-identical.");
 console.log(`Verified desktop release zips in ${relative(rootDir, downloadsDir)}`);
 
 function verifyDesktopZip(zipPath) {
     assert.ok(existsSync(zipPath), `Missing desktop release zip: ${zipPath}`);
-    const entries = listZipEntries(zipPath);
+    const entries = readZipCentralDirectory(zipPath);
 
     for (const entry of requiredEntries) {
         assert.ok(entries.has(entry), `${relative(rootDir, zipPath)} is missing ${entry}`);
     }
+
+    for (const entry of entries.keys()) {
+        assert.equal(entry.startsWith("META-INF/"), false, `${relative(rootDir, zipPath)} should not include root outer manifest entries.`);
+        assert.equal(
+            entry.startsWith(`${distributionName}/META-INF/`),
+            false,
+            `${relative(rootDir, zipPath)} should not include distribution outer manifest entries.`
+        );
+    }
+
+    assert.equal(permissionMode(entries.get(`${distributionName}/run-linux.sh`)), 0o755);
+    assert.equal(permissionMode(entries.get(`${distributionName}/run-macos.sh`)), 0o755);
+
+    for (const entry of requiredEntries.filter((name) => !name.endsWith(".sh"))) {
+        assert.equal(permissionMode(entries.get(entry)), 0o644, `${entry} should use mode 0644.`);
+    }
 }
 
-function listZipEntries(zipPath) {
-    const result = spawnSync("jar", ["tf", zipPath], {
-        cwd: rootDir,
-        encoding: "utf8"
-    });
-    if (result.error) {
-        throw result.error;
-    }
-    assert.equal(result.status, 0, result.stderr);
-    return new Set(result.stdout.split(/\r?\n/).filter((line) => line.length > 0));
+function permissionMode(entry) {
+    assert.ok(entry, "Missing ZIP entry metadata.");
+    return entry.mode & 0o777;
+}
+
+function sha256(path) {
+    return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
