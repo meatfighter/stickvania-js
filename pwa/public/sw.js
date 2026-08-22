@@ -1,6 +1,6 @@
 const VERSION = "__SERVICE_WORKER_VERSION__";
 const SCOPE_CACHE_ID = encodeURIComponent(new URL(self.registration.scope).pathname);
-const CACHE_PREFIX = `stickvania-pwa-${SCOPE_CACHE_ID}-`;
+const CACHE_PREFIX = `stickvania-pwa|${SCOPE_CACHE_ID}|`;
 const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
 const PRECACHE_URLS = ["./", "./index.html", "./manifest.webmanifest", "./images/icon.png", "./images/icon-192.png", "./images/icon-512.png"];
 

@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
 import ts from "typescript";
-import { distDir, readVersion, rootDir } from "./build-utils.mjs";
+import { distDir, readVersion, rootDir, versionPath } from "./build-utils.mjs";
 
 const distPwaDir = join(distDir, "pwa");
 const packageJsonPath = join(rootDir, "package.json");
+const releaseStampScriptPath = join(rootDir, "scripts", "run-stamped-release.mjs");
 const serviceWorkerPath = join(distPwaDir, "sw.js");
 const mainSourcePath = join(rootDir, "pwa", "src", "main.ts");
 const browserStorageKeysSourcePath = join(rootDir, "pwa", "src", "stickvania", "BrowserStorageKeys.ts");
@@ -81,10 +83,6 @@ function packageScripts() {
     return JSON.parse(readFileSync(packageJsonPath, "utf8")).scripts;
 }
 
-function countOccurrences(text, pattern) {
-    return text.split(pattern).length - 1;
-}
-
 function builtJavaScript() {
     return collectFiles(distPwaDir)
         .filter((file) => file.endsWith(".js"))
@@ -145,7 +143,7 @@ function expectedBrowserStorageKey(name, href = "https://stickvania.invalid/") {
 }
 
 function expectedCachePrefix(scopeUrl) {
-    return `stickvania-pwa-${expectedScopeCacheId(scopeUrl)}-`;
+    return `stickvania-pwa|${expectedScopeCacheId(scopeUrl)}|`;
 }
 
 function expectedCacheName(scopeUrl, version = cacheVersion) {
@@ -490,20 +488,44 @@ test("PWA service worker precaches the built PWA output", () => {
     assert.deepEqual(actualPrecacheUrls(), expectedPrecacheUrls());
 });
 
-test("package scripts stamp release PWA builds exactly once", () => {
+test("package scripts use temporary release stamping for public builds", () => {
     const scripts = packageScripts();
 
     assert.equal(scripts["build:pwa"], "npm run build:pwa:release");
-    assert.equal(scripts["build:pwa:release"], "npm run stamp && npm run _build:pwa:release");
+    assert.equal(scripts["build:pwa:release"], "node scripts/run-stamped-release.mjs _build:pwa:release");
     assert.equal(scripts["_build:pwa:release"], "tsc --project pwa/tsconfig.json && vite build --config pwa/vite.config.ts");
-    assert.equal(scripts["test:pwa-release"], "npm run build:pwa:release && node scripts/verify-pwa-release.mjs");
-    assert.equal(scripts["build:web"], "npm run clean && npm run build:pwa:release && npm run build:about");
-    assert.equal(scripts["build"], "npm run clean && npm run build:pwa:release && npm run build:about && npm run build:desktop && npm run assemble");
+    assert.equal(scripts["_verify:pwa-release"], "node scripts/verify-pwa-release.mjs");
+    assert.equal(scripts["test:pwa-release"], "node scripts/run-stamped-release.mjs _build:pwa:release _verify:pwa-release");
+    assert.equal(scripts["build:web"], "npm run clean && node scripts/run-stamped-release.mjs _build:pwa:release build:about");
+    assert.equal(scripts["build"], "npm run clean && node scripts/run-stamped-release.mjs _build:pwa:release build:about build:desktop assemble");
+    assert.equal(
+        scripts["verify"],
+        "npm run format:check && npm run lint && node scripts/run-stamped-release.mjs _build:pwa:release _verify:pwa-release build:about build:desktop"
+    );
 
-    assert.equal(countOccurrences(scripts["build:pwa:release"], "npm run stamp"), 1);
-    assert.equal(countOccurrences(scripts["_build:pwa:release"], "npm run stamp"), 0);
-    assert.equal(countOccurrences(scripts["build:web"], "npm run stamp"), 0);
-    assert.equal(countOccurrences(scripts["build"], "npm run stamp"), 0);
+    for (const [name, script] of Object.entries(scripts)) {
+        if (name === "stamp") {
+            continue;
+        }
+        assert.doesNotMatch(script, /npm run stamp/);
+    }
+});
+
+test("temporary release stamp wrapper restores version.json after success and failure", () => {
+    const before = readFileSync(versionPath);
+    const success = spawnSync(process.execPath, [releaseStampScriptPath, "stamp"], {
+        cwd: rootDir,
+        encoding: "utf8"
+    });
+    assert.equal(success.status, 0, success.stderr);
+    assert.deepEqual(readFileSync(versionPath), before);
+
+    const failure = spawnSync(process.execPath, [releaseStampScriptPath, "__missing_release_script_for_test__"], {
+        cwd: rootDir,
+        encoding: "utf8"
+    });
+    assert.notEqual(failure.status, 0);
+    assert.deepEqual(readFileSync(versionPath), before);
 });
 
 test("PWA service worker registration is relative to the current PWA page", () => {
@@ -557,6 +579,7 @@ test("PWA service worker embeds its own cache version", async () => {
     const worker = evaluateBuiltServiceWorker("old-release");
 
     assert.match(serviceWorker, new RegExp(`const VERSION = ${JSON.stringify(cacheVersion).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")};`));
+    assert.match(serviceWorker, /const CACHE_PREFIX = `stickvania-pwa\|\$\{SCOPE_CACHE_ID\}\|`;/);
     assert.doesNotMatch(serviceWorker, /__SERVICE_WORKER_VERSION__/);
     assert.doesNotMatch(serviceWorker, /self\.location\.href/);
     assert.doesNotMatch(serviceWorker, /skipWaiting/);
@@ -576,6 +599,8 @@ test("PWA service worker cache scope IDs preserve encoded deployment paths", () 
         "https://example.test/a/b/",
         "https://example.test/a_b/",
         "https://example.test/a+b/",
+        "https://example.test/a/pwa/",
+        "https://example.test/a/pwa/-stage/pwa/",
         "https://example.test/%25/",
         "https://example.test/_2525/",
         "https://example.test/%2F/",
@@ -615,6 +640,26 @@ test("PWA service worker activation removes only same-scope superseded caches", 
     assert.equal(worker.deletedCaches.includes("stickvania-old-global"), false);
     assert.equal(worker.deletedCaches.includes("unrelated-cache"), false);
     assert.equal(worker.clientsClaimCount, 1);
+});
+
+test("PWA service worker activation keeps hyphen-neighboring scope caches isolated", async () => {
+    const primaryScope = "https://example.test/a/pwa/";
+    const nestedScope = "https://example.test/a/pwa/-stage/pwa/";
+    const primaryOldCache = `${expectedCachePrefix(primaryScope)}old-release`;
+    const primaryCurrentCache = expectedCacheName(primaryScope);
+    const nestedOldCache = `${expectedCachePrefix(nestedScope)}old-release`;
+    const nestedCurrentCache = expectedCacheName(nestedScope);
+    const cacheKeys = [primaryOldCache, primaryCurrentCache, nestedOldCache, nestedCurrentCache, "unrelated-cache"];
+
+    const primaryWorker = await runBuiltServiceWorkerEvent("activate", "old-release", primaryScope, cacheKeys);
+    assert.deepEqual(primaryWorker.deletedCaches, [primaryOldCache]);
+    assert.equal(primaryWorker.deletedCaches.includes(nestedOldCache), false);
+    assert.equal(primaryWorker.deletedCaches.includes(nestedCurrentCache), false);
+
+    const nestedWorker = await runBuiltServiceWorkerEvent("activate", "old-release", nestedScope, cacheKeys);
+    assert.deepEqual(nestedWorker.deletedCaches, [nestedOldCache]);
+    assert.equal(nestedWorker.deletedCaches.includes(primaryOldCache), false);
+    assert.equal(nestedWorker.deletedCaches.includes(primaryCurrentCache), false);
 });
 
 test("PWA service worker preserves versioned cache-busting parameters", () => {
