@@ -492,22 +492,31 @@ test("package scripts use temporary release stamping for public builds", () => {
     const scripts = packageScripts();
 
     assert.equal(scripts["build:pwa"], "npm run build:pwa:release");
-    assert.equal(scripts["build:pwa:release"], "node scripts/run-stamped-release.mjs _build:pwa:release");
+    assert.equal(scripts["build:pwa:release"], "node scripts/run-stamped-release.mjs --dist .release-components/pwa --clean-dist _build:pwa:release");
     assert.equal(scripts["_build:pwa:release"], "tsc --project pwa/tsconfig.json && vite build --config pwa/vite.config.ts");
+    assert.equal(scripts["build:about"], "node scripts/run-stamped-release.mjs --dist .release-components/about --clean-dist _build:about");
+    assert.equal(scripts["_build:about"], "node scripts/build-about.mjs");
+    assert.equal(scripts["assemble"], "node scripts/run-output-root.mjs --dist .release-components/assemble --clean-dist _assemble");
+    assert.equal(scripts["_assemble"], "node scripts/assemble.mjs");
     assert.equal(scripts["_verify:pwa-release"], "node scripts/verify-pwa-release.mjs");
-    assert.equal(scripts["test:pwa-release"], "node scripts/run-stamped-release.mjs _build:pwa:release _verify:pwa-release");
-    assert.equal(scripts["build:web"], "npm run clean && node scripts/run-stamped-release.mjs _build:pwa:release build:about");
-    assert.equal(scripts["build"], "npm run clean && node scripts/run-stamped-release.mjs _build:pwa:release build:about build:desktop assemble");
     assert.equal(
-        scripts["verify"],
-        "npm run format:check && npm run lint && node scripts/run-stamped-release.mjs _build:pwa:release _verify:pwa-release build:about build:desktop"
+        scripts["test:pwa-release"],
+        "node scripts/run-stamped-release.mjs --dist .release-components/pwa-test --clean-dist _build:pwa:release _verify:pwa-release"
     );
+    assert.equal(scripts["verify:desktop-release"], "node scripts/verify-desktop-release.mjs");
+    assert.equal(scripts["build:web"], "node scripts/run-stamped-release.mjs --dist .release-components/web --clean-dist _build:pwa:release _build:about");
+    assert.equal(scripts["build"], "node scripts/build-production.mjs");
+    assert.equal(scripts["verify"], "npm run format:check && npm run lint && npm run test:pwa-release && npm run build:desktop");
 
     for (const [name, script] of Object.entries(scripts)) {
         if (name === "stamp") {
             continue;
         }
         assert.doesNotMatch(script, /npm run stamp/);
+    }
+
+    for (const name of ["build:pwa:release", "build:about", "assemble", "build:web", "test:pwa-release"]) {
+        assert.match(scripts[name], /\.release-components\//);
     }
 });
 

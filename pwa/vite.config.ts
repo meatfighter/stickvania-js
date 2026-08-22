@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type PluginOption } from "vite";
 
@@ -9,7 +9,12 @@ interface VersionInfo {
 }
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
-const distPwaDir = join(rootDir, "..", "dist", "pwa");
+const projectRootDir = fileURLToPath(new URL("..", import.meta.url));
+const distRootDir =
+    process.env.STICKVANIA_DIST_DIR === undefined || process.env.STICKVANIA_DIST_DIR.trim() === ""
+        ? join(projectRootDir, "dist")
+        : resolve(projectRootDir, process.env.STICKVANIA_DIST_DIR);
+const distPwaDir = join(distRootDir, "pwa");
 const versionInfo = JSON.parse(readFileSync(new URL("../version.json", import.meta.url), "utf8")) as VersionInfo;
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedBuildStamp = encodeURIComponent(versionInfo.buildStamp);
@@ -132,7 +137,7 @@ export default defineConfig(({ command }) => ({
         __CACHE_VERSION__: JSON.stringify(cacheVersion)
     },
     build: {
-        outDir: "../dist/pwa",
+        outDir: distPwaDir,
         emptyOutDir: true,
         target: "es2022",
         sourcemap: false

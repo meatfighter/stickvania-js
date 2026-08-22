@@ -1,17 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
-import { cleanDirectory, readVersion, resolveDistDir, rootDir, versionPath, writeVersion } from "./build-utils.mjs";
+import { cleanDirectory, resolveDistDir, rootDir } from "./build-utils.mjs";
 
 const options = parseOptions(process.argv.slice(2));
-const scriptNames = options.scriptNames;
 
-if (scriptNames.length === 0) {
-    throw new Error("Pass one or more npm script names to run under a temporary release stamp.");
+if (options.scriptNames.length === 0) {
+    throw new Error("Pass one or more npm script names to run with the configured output root.");
 }
 
-const originalVersionBytes = readFileSync(versionPath);
 const childEnv = { ...process.env };
-let exitStatus = 0;
 
 if (options.distDir !== null) {
     childEnv.STICKVANIA_DIST_DIR = options.distDir;
@@ -21,28 +17,20 @@ if (options.cleanDist) {
     cleanDirectory(resolveDistDir(options.distDir ?? undefined));
 }
 
-try {
-    const version = readVersion();
-    version.buildStamp = new Date().toISOString();
-    writeVersion(version);
-    console.log(`Temporarily stamped ${version.version} at ${version.buildStamp}`);
-
-    for (const scriptName of scriptNames) {
-        const result = spawnSync(getNpmCommand(), getNpmArgs(scriptName), {
-            cwd: rootDir,
-            env: childEnv,
-            stdio: "inherit"
-        });
-        if (result.error) {
-            throw result.error;
-        }
-        if (result.status !== 0) {
-            exitStatus = result.status ?? 1;
-            break;
-        }
+let exitStatus = 0;
+for (const scriptName of options.scriptNames) {
+    const result = spawnSync(getNpmCommand(), getNpmArgs(scriptName), {
+        cwd: rootDir,
+        env: childEnv,
+        stdio: "inherit"
+    });
+    if (result.error) {
+        throw result.error;
     }
-} finally {
-    writeFileSync(versionPath, originalVersionBytes);
+    if (result.status !== 0) {
+        exitStatus = result.status ?? 1;
+        break;
+    }
 }
 
 process.exit(exitStatus);

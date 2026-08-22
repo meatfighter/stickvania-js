@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.release-components/
 desktop/build/
 desktop/dist/
 desktop/target/
