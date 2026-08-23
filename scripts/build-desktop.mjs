@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { readVersion, rootDir, runCommandWithReleaseLock, withReleaseOperationLock } from "./build-utils.mjs";
+import { copyFileAtomic, readVersion, rootDir, runCommandWithReleaseLock, withReleaseOperationLock } from "./build-utils.mjs";
 import { createStoredZipFromDirectory } from "./zip-store.mjs";
 
 const version = readVersion();
@@ -233,10 +233,8 @@ function createDistribution() {
     copyFileSync(join(rootDir, "LICENSE"), join(distributionDir, "LICENSE"));
     copyFileSync(join(rootDir, "THIRD_PARTY_NOTICES.md"), join(distributionDir, "THIRD_PARTY_NOTICES.md"));
 
-    rmSync(versionedZipPath, { force: true });
-    rmSync(stableZipPath, { force: true });
     createStoredZipFromDirectory(distributionRoot, versionedZipPath, getDistributionZipEntryMode);
-    copyFileSync(versionedZipPath, stableZipPath);
+    copyFileAtomic(versionedZipPath, stableZipPath, { label: "desktop stable ZIP destination" });
 }
 
 function normalizeMavenOutputs() {
@@ -251,9 +249,9 @@ function normalizeMavenOutputs() {
         throw new Error(`Maven did not create ${targetNativeDir}`);
     }
     if (resolve(mavenStableJar) !== resolve(stableJarPath)) {
-        copyFileSync(mavenStableJar, stableJarPath);
+        copyFileAtomic(mavenStableJar, stableJarPath, { label: "desktop stable JAR destination" });
     }
-    copyFileSync(stableJarPath, versionedJarPath);
+    copyFileAtomic(stableJarPath, versionedJarPath, { label: "desktop versioned JAR destination" });
     createDistribution();
 }
 
@@ -326,8 +324,14 @@ async function buildWithJavacFallback() {
 
     copyResources(sourceDir, classesDir);
     writeManifest();
-    await run("jar", ["cfm", versionedJarPath, manifestPath, "-C", classesDir, "."]);
-    copyFileSync(versionedJarPath, stableJarPath);
+    const tempJarPath = `${versionedJarPath}.tmp-${process.pid}-${Date.now()}`;
+    try {
+        await run("jar", ["cfm", tempJarPath, manifestPath, "-C", classesDir, "."]);
+        copyFileAtomic(tempJarPath, versionedJarPath, { label: "desktop versioned JAR destination" });
+    } finally {
+        rmSync(tempJarPath, { force: true });
+    }
+    copyFileAtomic(versionedJarPath, stableJarPath, { label: "desktop stable JAR destination" });
     createDistribution();
 }
 

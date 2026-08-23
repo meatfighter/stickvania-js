@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { cpSync, existsSync, linkSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import {
     assertSafeGeneratedOutputDirectory,
     canonicalDistDir,
     cleanDirectory,
+    copyFileAtomic,
     releaseCandidatesDir,
     releaseComponentsDir,
     releaseLockDir,
@@ -38,8 +39,11 @@ verifyNoTrackedReleaseState();
 verifyGeneratedDirectoriesIgnoredBySourceTooling();
 verifyGeneratedOutputPathSafety();
 verifyGeneratedOutputRejectsIntermediateLinks();
+verifyGeneratedDesktopReleaseFileMutationsRejectLinkedDestinationFiles();
+verifyAtomicDesktopReleaseCopiesReplaceRegularFilesWithoutTemporaryLeftovers();
 verifyReleaseEnvOverridesAreGated();
 verifyReleaseLockRejectsConcurrentMutation();
+await verifyConcurrentNestedReleaseLocksPreserveAllLiveChildHolders();
 verifyComponentBuildPreservesCanonicalDist();
 verifyProductionRejectsTrackedMutationBeforePromotion();
 console.log("Verified release tooling isolation.");
@@ -182,6 +186,250 @@ function removePathSafetyLink(path) {
     } else {
         rmSync(path, { recursive: true, force: true });
     }
+}
+
+function verifyGeneratedDesktopReleaseFileMutationsRejectLinkedDestinationFiles() {
+    const tempDir = join(releaseComponentsDir, `desktop-file-destination-safety-${process.pid}`);
+    const sourcePath = join(tempDir, "source.zip");
+    const sentinelPath = join(tempDir, "sentinel.zip");
+    const linkedDestinationPath = join(tempDir, "release.zip");
+
+    rmSync(tempDir, { recursive: true, force: true });
+    mkdirSync(tempDir, { recursive: true });
+    writeFileSync(sourcePath, "replacement");
+    writeFileSync(sentinelPath, "keep me");
+
+    try {
+        if (!tryCreateLinkedFile(sentinelPath, linkedDestinationPath)) {
+            return;
+        }
+
+        assert.throws(
+            () => copyFileAtomic(sourcePath, linkedDestinationPath, { label: "test desktop release ZIP destination" }),
+            /symbolic link|junction|hard link/
+        );
+        assert.equal(readFileSync(sentinelPath, "utf8"), "keep me");
+    } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+    }
+}
+
+function verifyAtomicDesktopReleaseCopiesReplaceRegularFilesWithoutTemporaryLeftovers() {
+    const tempDir = join(releaseComponentsDir, `desktop-atomic-copy-${process.pid}`);
+    const sourcePath = join(tempDir, "source.zip");
+    const destinationPath = join(tempDir, "release.zip");
+
+    rmSync(tempDir, { recursive: true, force: true });
+    mkdirSync(tempDir, { recursive: true });
+    writeFileSync(sourcePath, "new release");
+    writeFileSync(destinationPath, "old release");
+
+    try {
+        copyFileAtomic(sourcePath, destinationPath, { label: "test desktop release ZIP destination" });
+        assert.equal(readFileSync(destinationPath, "utf8"), "new release");
+        assert.deepEqual(
+            readdirSync(tempDir).filter((name) => name.startsWith("release.zip.tmp-")),
+            []
+        );
+    } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+    }
+}
+
+async function verifyConcurrentNestedReleaseLocksPreserveAllLiveChildHolders() {
+    const childCount = 20;
+    const iterationCount = 3;
+    const childScript = `
+        import { withReleaseOperationLock } from "./scripts/build-utils.mjs";
+        await withReleaseOperationLock("release-lock-stress-child", async () => {
+            console.log("ready");
+            process.stdin.resume();
+            await new Promise((resolve) => process.stdin.once("end", resolve));
+        });
+    `;
+
+    for (let iteration = 0; iteration < iterationCount; iteration++) {
+        await verifyConcurrentNestedReleaseLockIteration(childCount, childScript, iteration);
+    }
+}
+
+async function verifyConcurrentNestedReleaseLockIteration(childCount, childScript, iteration) {
+    await withReleaseOperationLock(`concurrent nested release lock stress test ${iteration + 1}`, async () => {
+        const initialHolderPids = readReleaseLockHolderPids();
+        const children = [];
+        const stderrByChild = new Map();
+        try {
+            for (let i = 0; i < childCount; i++) {
+                const child = spawn(process.execPath, ["--input-type=module", "-e", childScript], {
+                    cwd: rootDir,
+                    env: { ...process.env },
+                    stdio: ["pipe", "pipe", "pipe"]
+                });
+                stderrByChild.set(child, "");
+                child.stderr.on("data", (chunk) => {
+                    stderrByChild.set(child, `${stderrByChild.get(child) ?? ""}${chunk.toString("utf8")}`);
+                });
+                children.push(child);
+            }
+
+            await Promise.all(children.map((child, index) => waitForStressChildReady(child, index, stderrByChild)));
+
+            const registeredHolderPids = readReleaseLockHolderPids();
+            for (const pid of initialHolderPids) {
+                assert.equal(registeredHolderPids.has(pid), true, `initial release lock holder ${pid} should remain registered.`);
+            }
+            for (const child of children) {
+                assert.equal(registeredHolderPids.has(child.pid), true, `stress child holder ${child.pid} should be registered.`);
+            }
+            assert.equal(registeredHolderPids.size, initialHolderPids.size + childCount);
+        } finally {
+            await Promise.all(children.map((child, index) => closeStressChild(child, index, stderrByChild)));
+        }
+
+        const finalHolderPids = readReleaseLockHolderPids();
+        for (const child of children) {
+            assert.equal(finalHolderPids.has(child.pid), false, `stress child holder ${child.pid} should unregister on exit.`);
+        }
+    });
+}
+
+function tryCreateLinkedFile(targetPath, linkPath) {
+    try {
+        symlinkSync(targetPath, linkPath, "file");
+        return true;
+    } catch (error) {
+        if (!isLinkCreationUnsupported(error)) {
+            throw error;
+        }
+    }
+
+    try {
+        linkSync(targetPath, linkPath);
+        return true;
+    } catch (error) {
+        if (!isLinkCreationUnsupported(error)) {
+            throw error;
+        }
+    }
+
+    console.warn("Skipping linked desktop release destination assertion because this platform refused file link creation.");
+    return false;
+}
+
+function isLinkCreationUnsupported(error) {
+    return error?.code === "EPERM" || error?.code === "EINVAL" || error?.code === "ENOSYS";
+}
+
+function readReleaseLockHolderPids() {
+    const owner = JSON.parse(readFileSync(join(releaseLockDir, "owner.json"), "utf8"));
+    assert.ok(Array.isArray(owner.holders), "release lock owner should contain a holders array.");
+    return new Set(owner.holders.map((holder) => holder.pid));
+}
+
+function waitForStressChildReady(child, index, stderrByChild) {
+    return new Promise((resolve, reject) => {
+        let stdout = "";
+        let settled = false;
+        const timeout = setTimeout(() => {
+            child.kill();
+            fail(new Error(`Timed out waiting for release lock stress child ${index} to register. stderr: ${stderrByChild.get(child) ?? ""}`));
+        }, 10000);
+
+        const cleanup = () => {
+            clearTimeout(timeout);
+            child.stdout.off("data", onStdout);
+            child.off("error", onError);
+            child.off("exit", onExit);
+        };
+        const succeed = () => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            cleanup();
+            resolve();
+        };
+        const fail = (error) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            cleanup();
+            reject(error);
+        };
+        const onStdout = (chunk) => {
+            stdout += chunk.toString("utf8");
+            if (stdout.includes("ready")) {
+                succeed();
+            }
+        };
+        const onError = (error) => {
+            fail(error);
+        };
+        const onExit = (code, signal) => {
+            fail(
+                new Error(
+                    `Release lock stress child ${index} exited before registering: code ${code}, signal ${signal}, stderr: ${stderrByChild.get(child) ?? ""}`
+                )
+            );
+        };
+
+        child.stdout.on("data", onStdout);
+        child.once("error", onError);
+        child.once("exit", onExit);
+    });
+}
+
+function closeStressChild(child, index, stderrByChild) {
+    return new Promise((resolve, reject) => {
+        if (child.exitCode !== null) {
+            if (child.exitCode !== 0) {
+                reject(new Error(`Release lock stress child ${index} exited with code ${child.exitCode}. stderr: ${stderrByChild.get(child) ?? ""}`));
+                return;
+            }
+            resolve();
+            return;
+        }
+
+        let settled = false;
+        const timeout = setTimeout(() => {
+            child.kill();
+            fail(new Error(`Timed out waiting for release lock stress child ${index} to exit. stderr: ${stderrByChild.get(child) ?? ""}`));
+        }, 5000);
+
+        const cleanup = () => {
+            clearTimeout(timeout);
+            child.off("error", fail);
+            child.off("close", onClose);
+        };
+        const succeed = () => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            cleanup();
+            resolve();
+        };
+        const fail = (error) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            cleanup();
+            reject(error);
+        };
+        const onClose = (code, signal) => {
+            if (code !== 0) {
+                fail(new Error(`Release lock stress child ${index} exited with code ${code}, signal ${signal}. stderr: ${stderrByChild.get(child) ?? ""}`));
+                return;
+            }
+            succeed();
+        };
+
+        child.once("error", fail);
+        child.once("close", onClose);
+        child.stdin.end();
+    });
 }
 
 function verifyReleaseEnvOverridesAreGated() {

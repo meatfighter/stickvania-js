@@ -1,5 +1,6 @@
-import { lstatSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { writeAtomicBinaryFile } from "./build-utils.mjs";
 
 const CRC32_TABLE = createCrc32Table();
 
@@ -55,7 +56,7 @@ export function createStoredZipFromDirectory(sourceDirectory, zipPath, getEntryM
     endOfCentralDirectory.writeUInt16LE(0, 20);
     chunks.push(endOfCentralDirectory);
 
-    writeFileSync(zipPath, Buffer.concat(chunks));
+    writeAtomicBinaryFile(zipPath, Buffer.concat(chunks), { label: "ZIP destination file" });
 }
 
 export function readZipCentralDirectory(zipPath) {

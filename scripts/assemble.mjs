@@ -1,6 +1,5 @@
-import { copyFileSync } from "node:fs";
 import { join } from "node:path";
-import { ensureDirectory, readVersion, resolveConfiguredDistDir, rootDir } from "./build-utils.mjs";
+import { copyFileAtomic, ensureDirectory, readVersion, resolveConfiguredDistDir, rootDir } from "./build-utils.mjs";
 
 const version = readVersion();
 const distDir = resolveConfiguredDistDir();
@@ -12,6 +11,6 @@ const stableZip = join(downloadsDir, `${distributionName}.zip`);
 const versionedZip = join(downloadsDir, `${distributionName}-${version.version}.zip`);
 
 ensureDirectory(downloadsDir);
-copyFileSync(sourceZip, stableZip);
-copyFileSync(sourceZip, versionedZip);
+copyFileAtomic(sourceZip, stableZip, { label: "assembled stable desktop ZIP destination" });
+copyFileAtomic(sourceZip, versionedZip, { label: "assembled versioned desktop ZIP destination" });
 console.log(`Copied desktop downloads to ${downloadsDir}`);

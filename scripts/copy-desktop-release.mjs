@@ -1,6 +1,6 @@
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { readVersion, rootDir, withReleaseOperationLock } from "./build-utils.mjs";
+import { copyFileAtomic, readVersion, rootDir, withReleaseOperationLock } from "./build-utils.mjs";
 
 withReleaseOperationLock("copy-desktop-release", () => {
     const version = readVersion();
@@ -14,6 +14,6 @@ withReleaseOperationLock("copy-desktop-release", () => {
     }
 
     mkdirSync(releasesDir, { recursive: true });
-    copyFileSync(sourceZip, releaseZip);
+    copyFileAtomic(sourceZip, releaseZip, { label: "desktop release ZIP destination" });
     console.log(`Copied ${relative(rootDir, releaseZip)}`);
 });

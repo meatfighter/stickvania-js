@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
     closeSync,
+    copyFileSync,
     existsSync,
     fsyncSync,
     lstatSync,
@@ -23,6 +24,7 @@ export const releaseComponentsDir = join(rootDir, ".release-components");
 export const releaseCandidatesDir = join(rootDir, ".release-candidates");
 export const releaseSecretsDir = join(rootDir, ".release-secrets");
 export const releaseLockDir = join(releaseComponentsDir, "release.lock");
+export const releaseLockUpdateDir = join(releaseComponentsDir, "release.lock.update");
 export const versionPath = join(rootDir, "version.json");
 
 export function resolveConfiguredDistDir() {
@@ -111,15 +113,80 @@ export function assertRealDirectoryTree(path, label = "directory tree") {
     }
 }
 
-export function writeAtomicTextFile(path, text) {
+export function assertSafeFileMutationDestination(path, label = "file destination") {
+    const resolvedPath = resolve(path);
+    assertExistingPathChainSafe(dirname(resolvedPath), label);
+
+    if (!existsSync(resolvedPath)) {
+        return;
+    }
+
+    let stat;
+    try {
+        stat = lstatSync(resolvedPath);
+    } catch (error) {
+        if (error?.code === "ENOENT") {
+            return;
+        }
+        throw error;
+    }
+    if (stat.isSymbolicLink()) {
+        throw new Error(`${label} must not be a symbolic link or junction: ${resolvedPath}`);
+    }
+    if (!stat.isFile()) {
+        throw new Error(`${label} must be a regular file: ${resolvedPath}`);
+    }
+    if (stat.nlink > 1) {
+        throw new Error(`${label} must not be a hard link: ${resolvedPath}`);
+    }
+}
+
+export function copyFileAtomic(sourcePath, destinationPath, options = {}) {
+    const label = options.label ?? "atomic copy destination";
+    assertSafeFileMutationDestination(destinationPath, label);
+
+    const tempPath = `${destinationPath}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`;
+    let tempCreated = false;
+    try {
+        copyFileSync(sourcePath, tempPath);
+        tempCreated = true;
+        fsyncFileBestEffort(tempPath);
+        assertSafeFileMutationDestination(destinationPath, label);
+        renameSync(tempPath, destinationPath);
+        fsyncParentDirectoryBestEffort(destinationPath);
+    } catch (error) {
+        if (tempCreated || existsSync(tempPath)) {
+            try {
+                rmSync(tempPath, { force: true });
+            } catch {
+                // Preserve the original copy or rename failure.
+            }
+        }
+        throw error;
+    }
+}
+
+export function writeAtomicTextFile(path, text, options = {}) {
+    writeAtomicFile(path, text, options);
+}
+
+export function writeAtomicBinaryFile(path, data, options = {}) {
+    writeAtomicFile(path, data, options);
+}
+
+function writeAtomicFile(path, data, options = {}) {
+    const label = options.label ?? "atomic file destination";
+    assertSafeFileMutationDestination(path, label);
+
     const tempPath = `${path}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`;
     let fd = null;
     try {
         fd = openSync(tempPath, "w");
-        writeFileSync(fd, text);
+        writeFileSync(fd, data);
         fsyncSync(fd);
         closeSync(fd);
         fd = null;
+        assertSafeFileMutationDestination(path, label);
         renameSync(tempPath, path);
         fsyncParentDirectoryBestEffort(path);
     } catch (error) {
@@ -346,56 +413,174 @@ function acquireReleaseLock(operationName, token) {
     throw new Error(`Unable to acquire release operation lock for ${operationName}.`);
 }
 
-function registerReleaseLockHolder(token, operationName, pid) {
-    const owner = readReleaseLockOwner();
-    if (owner?.token !== token) {
-        throw new Error(`Inherited release operation lock is invalid for ${operationName}.`);
-    }
-
-    owner.holders = normalizedReleaseLockHolders(owner).filter((holder) => holder.pid !== pid);
-    owner.holders.push({
-        operationName,
-        pid,
-        startedAt: new Date().toISOString()
-    });
-    writeReleaseLockOwner(owner);
-}
-
-function unregisterReleaseLockHolder(token, pid) {
-    const owner = readReleaseLockOwner();
-    if (owner?.token !== token) {
-        return;
-    }
-
-    owner.holders = normalizedReleaseLockHolders(owner).filter((holder) => holder.pid !== pid);
-    writeReleaseLockOwner(owner);
-}
-
-function releaseReleaseLock(token) {
-    const owner = readReleaseLockOwner();
-    if (owner?.token === token) {
-        rmSync(releaseLockDir, { recursive: true, force: true });
+function withReleaseLockOwnerUpdate(operationName, callback) {
+    const token = acquireReleaseLockOwnerUpdateGuard(operationName);
+    try {
+        return callback();
+    } finally {
+        releaseReleaseLockOwnerUpdateGuard(token);
     }
 }
 
-function removeStaleReleaseLock() {
-    const owner = readReleaseLockOwner();
-    if (owner === null) {
-        const stat = lstatSync(releaseLockDir);
-        if (Date.now() - stat.mtimeMs < 5 * 60 * 1000) {
-            return false;
+function acquireReleaseLockOwnerUpdateGuard(operationName) {
+    ensureDirectory(releaseComponentsDir);
+
+    const token = `${process.pid}-${Date.now()}-${randomUUID()}`;
+    const deadline = Date.now() + 5000;
+    while (true) {
+        try {
+            mkdirSync(releaseLockUpdateDir);
+        } catch (error) {
+            if (error?.code !== "EEXIST" || !removeStaleReleaseLockOwnerUpdateGuard()) {
+                if (Date.now() >= deadline) {
+                    throw new Error(`Timed out waiting for release lock owner update guard while trying to ${operationName}.`);
+                }
+                sleepReleaseLockUpdateRetry();
+            }
+            continue;
         }
-        console.warn("Recovering stale malformed release operation lock.");
-        rmSync(releaseLockDir, { recursive: true, force: true });
+
+        try {
+            writeAtomicTextFile(
+                releaseLockUpdateOwnerPath(),
+                `${JSON.stringify(
+                    {
+                        operationName,
+                        pid: process.pid,
+                        startedAt: new Date().toISOString(),
+                        token
+                    },
+                    null,
+                    4
+                )}\n`
+            );
+            return token;
+        } catch (error) {
+            rmSync(releaseLockUpdateDir, { recursive: true, force: true });
+            throw error;
+        }
+    }
+}
+
+function releaseReleaseLockOwnerUpdateGuard(token) {
+    const owner = readReleaseLockOwnerUpdateGuardOwner();
+    if (owner?.token === token || (owner === null && existsSync(releaseLockUpdateDir))) {
+        rmSync(releaseLockUpdateDir, { recursive: true, force: true });
+    }
+}
+
+function removeStaleReleaseLockOwnerUpdateGuard() {
+    let stat;
+    try {
+        stat = lstatSync(releaseLockUpdateDir);
+    } catch (error) {
+        if (error?.code === "ENOENT") {
+            return true;
+        }
+        throw error;
+    }
+
+    if (!existsSync(releaseLockUpdateDir)) {
         return true;
     }
 
-    if (normalizedReleaseLockHolders(owner).some((holder) => holder.pid === process.pid || isProcessAlive(holder.pid))) {
+    if (stat.isSymbolicLink()) {
+        throw new Error(`release lock owner update guard must not be a symbolic link or junction: ${releaseLockUpdateDir}`);
+    }
+    if (!stat.isDirectory()) {
+        throw new Error(`release lock owner update guard must be a directory: ${releaseLockUpdateDir}`);
+    }
+
+    const owner = readReleaseLockOwnerUpdateGuardOwner();
+    if (owner === null) {
+        if (!existsSync(releaseLockUpdateDir)) {
+            return true;
+        }
+        if (Date.now() - stat.mtimeMs < 5 * 60 * 1000) {
+            return false;
+        }
+        console.warn("Recovering stale malformed release lock owner update guard.");
+        rmSync(releaseLockUpdateDir, { recursive: true, force: true });
+        return true;
+    }
+
+    if (owner.pid === process.pid || isProcessAlive(owner.pid)) {
         return false;
     }
 
-    rmSync(releaseLockDir, { recursive: true, force: true });
+    rmSync(releaseLockUpdateDir, { recursive: true, force: true });
     return true;
+}
+
+function registerReleaseLockHolder(token, operationName, pid) {
+    withReleaseLockOwnerUpdate(`register ${operationName}`, () => {
+        const owner = readReleaseLockOwner();
+        if (owner?.token !== token) {
+            throw new Error(`Inherited release operation lock is invalid for ${operationName}.`);
+        }
+
+        owner.holders = normalizedReleaseLockHolders(owner).filter((holder) => holder.pid !== pid);
+        owner.holders.push({
+            operationName,
+            pid,
+            startedAt: new Date().toISOString()
+        });
+        writeReleaseLockOwner(owner);
+    });
+}
+
+function unregisterReleaseLockHolder(token, pid) {
+    withReleaseLockOwnerUpdate("unregister release lock holder", () => {
+        const owner = readReleaseLockOwner();
+        if (owner?.token !== token) {
+            return;
+        }
+
+        owner.holders = normalizedReleaseLockHolders(owner).filter((holder) => holder.pid !== pid);
+        writeReleaseLockOwner(owner);
+    });
+}
+
+function releaseReleaseLock(token) {
+    withReleaseLockOwnerUpdate("release operation lock", () => {
+        const owner = readReleaseLockOwner();
+        if (owner?.token === token) {
+            rmSync(releaseLockDir, { recursive: true, force: true });
+        }
+    });
+}
+
+function removeStaleReleaseLock() {
+    return withReleaseLockOwnerUpdate("recover stale release operation lock", () => {
+        const owner = readReleaseLockOwner();
+        if (owner === null) {
+            let stat;
+            try {
+                stat = lstatSync(releaseLockDir);
+            } catch (error) {
+                if (error?.code === "ENOENT") {
+                    return true;
+                }
+                throw error;
+            }
+            if (!existsSync(releaseLockDir)) {
+                return true;
+            }
+            if (Date.now() - stat.mtimeMs < 5 * 60 * 1000) {
+                return false;
+            }
+            console.warn("Recovering stale malformed release operation lock.");
+            rmSync(releaseLockDir, { recursive: true, force: true });
+            return true;
+        }
+
+        if (normalizedReleaseLockHolders(owner).some((holder) => holder.pid === process.pid || isProcessAlive(holder.pid))) {
+            return false;
+        }
+
+        rmSync(releaseLockDir, { recursive: true, force: true });
+        return true;
+    });
 }
 
 function readReleaseLockOwner() {
@@ -405,6 +590,20 @@ function readReleaseLockOwner() {
 
     try {
         const text = readFileSync(releaseLockOwnerPath(), "utf8");
+        const owner = JSON.parse(text);
+        return typeof owner.pid === "number" && typeof owner.token === "string" ? owner : null;
+    } catch {
+        return null;
+    }
+}
+
+function readReleaseLockOwnerUpdateGuardOwner() {
+    if (!existsSync(releaseLockUpdateDir)) {
+        return null;
+    }
+
+    try {
+        const text = readFileSync(releaseLockUpdateOwnerPath(), "utf8");
         const owner = JSON.parse(text);
         return typeof owner.pid === "number" && typeof owner.token === "string" ? owner : null;
     } catch {
@@ -435,12 +634,29 @@ function releaseLockOwnerPath() {
     return join(releaseLockDir, "owner.json");
 }
 
+function releaseLockUpdateOwnerPath() {
+    return join(releaseLockUpdateDir, "owner.json");
+}
+
 function isProcessAlive(pid) {
     try {
         process.kill(pid, 0);
         return true;
     } catch (error) {
         return error?.code === "EPERM";
+    }
+}
+
+function fsyncFileBestEffort(path) {
+    try {
+        const fd = openSync(path, "r+");
+        try {
+            fsyncSync(fd);
+        } finally {
+            closeSync(fd);
+        }
+    } catch {
+        // Best effort only; the final rename still provides atomic replacement.
     }
 }
 
@@ -455,6 +671,10 @@ function fsyncParentDirectoryBestEffort(path) {
     } catch {
         // Some platforms do not allow opening directories. The file fsync and rename still provide the important atomicity.
     }
+}
+
+function sleepReleaseLockUpdateRetry() {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
 }
 
 function isInsidePath(path, possibleAncestor) {
