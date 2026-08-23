@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const CRC32_TABLE = createCrc32Table();
@@ -18,7 +18,7 @@ export function createStoredZipFromDirectory(sourceDirectory, zipPath, getEntryM
         const data = readFileSync(file.filePath);
         const name = Buffer.from(file.name, "utf8");
         const crc = crc32(data);
-        const dosDateTime = getDosDateTime(statSync(file.filePath).mtime);
+        const dosDateTime = getDosDateTime(lstatSync(file.filePath).mtime);
         const localHeader = Buffer.alloc(30);
 
         localHeader.writeUInt32LE(0x04034b50, 0);
@@ -96,10 +96,16 @@ export function readZipCentralDirectory(zipPath) {
 function collectFiles(directory, files = []) {
     for (const entry of readdirSync(directory)) {
         const fullPath = join(directory, entry);
-        if (statSync(fullPath).isDirectory()) {
+        const stat = lstatSync(fullPath);
+        if (stat.isSymbolicLink()) {
+            throw new Error(`ZIP source tree must not contain symbolic links or junctions: ${fullPath}`);
+        }
+        if (stat.isDirectory()) {
             collectFiles(fullPath, files);
-        } else {
+        } else if (stat.isFile()) {
             files.push(fullPath);
+        } else {
+            throw new Error(`ZIP source tree must not contain special filesystem entries: ${fullPath}`);
         }
     }
     return files;

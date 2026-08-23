@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { distDir, readVersion, rootDir } from "./build-utils.mjs";
+import { readVersion, resolveConfiguredDistDir, rootDir } from "./build-utils.mjs";
 import { readZipCentralDirectory } from "./zip-store.mjs";
 
 const version = readVersion();
+const distDir = resolveConfiguredDistDir();
 const downloadsDir = join(distDir, "downloads");
 const distributionName = "stickvania-desktop";
 const stableZipPath = join(downloadsDir, `${distributionName}.zip`);

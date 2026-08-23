@@ -1,9 +1,19 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { assertSafeGeneratedOutputDirectory, canonicalDistDir, releaseComponentsDir, rootDir, versionPath } from "./build-utils.mjs";
+import {
+    assertSafeGeneratedOutputDirectory,
+    canonicalDistDir,
+    releaseCandidatesDir,
+    releaseComponentsDir,
+    releaseLockDir,
+    releaseSecretsDir,
+    rootDir,
+    versionPath,
+    withReleaseOperationLock
+} from "./build-utils.mjs";
 
 const releaseStateIgnorePatterns = [
     ".release-components/",
@@ -19,10 +29,13 @@ const releaseStateIgnorePatterns = [
 const buildProductionScriptPath = join(rootDir, "scripts", "build-production.mjs");
 const productionCandidateDir = join(releaseComponentsDir, "production-candidate");
 const readmePath = join(rootDir, "README.md");
+const stampScriptPath = join(rootDir, "scripts", "stamp.mjs");
 
 verifyReleaseStateIgnores();
 verifyNoTrackedReleaseState();
+verifyGeneratedDirectoriesIgnoredBySourceTooling();
 verifyGeneratedOutputPathSafety();
+verifyReleaseLockRejectsConcurrentMutation();
 verifyComponentBuildPreservesCanonicalDist();
 verifyProductionRejectsTrackedMutationBeforePromotion();
 console.log("Verified release tooling isolation.");
@@ -47,6 +60,34 @@ function verifyNoTrackedReleaseState() {
     const trackedFiles = result.stdout.split(/\r?\n/).filter((line) => line.length > 0);
     const blocked = trackedFiles.filter((file) => isReleaseStatePath(file));
     assert.deepEqual(blocked, [], `Release-state files should not be tracked: ${blocked.join(", ")}`);
+}
+
+function verifyGeneratedDirectoriesIgnoredBySourceTooling() {
+    const prettierIgnore = readFileSync(join(rootDir, ".prettierignore"), "utf8");
+    const eslintConfig = readFileSync(join(rootDir, "eslint.config.js"), "utf8");
+    const generatedDirectoryPatterns = [
+        ".release-components/",
+        ".release-candidates/",
+        ".release-secrets/",
+        ".dist-pending-*/",
+        ".dist-previous-*/",
+        ".dist-active-before-*/"
+    ];
+
+    for (const pattern of generatedDirectoryPatterns) {
+        assert.match(prettierIgnore, new RegExp(`^${escapeRegExp(pattern)}$`, "m"), `.prettierignore should include ${pattern}`);
+    }
+
+    for (const pattern of [
+        ".release-components/**",
+        ".release-candidates/**",
+        ".release-secrets/**",
+        ".dist-pending-*/**",
+        ".dist-previous-*/**",
+        ".dist-active-before-*/**"
+    ]) {
+        assert.match(eslintConfig, new RegExp(escapeRegExp(pattern)), `eslint config should ignore ${pattern}`);
+    }
 }
 
 function verifyComponentBuildPreservesCanonicalDist() {
@@ -79,9 +120,7 @@ function verifyGeneratedOutputPathSafety() {
         join(rootDir, ".git"),
         join(rootDir, ".git", "objects", "unsafe-output"),
         join(rootDir, ".release-candidates"),
-        join(rootDir, ".release-candidates", "unsafe-output"),
         join(rootDir, ".release-secrets"),
-        join(rootDir, ".release-secrets", "unsafe-output"),
         join(rootDir, "about"),
         join(rootDir, "desktop"),
         join(rootDir, "node_modules"),
@@ -94,18 +133,40 @@ function verifyGeneratedOutputPathSafety() {
     for (const blockedPath of blockedPaths) {
         assert.throws(
             () => assertSafeGeneratedOutputDirectory(blockedPath, { label: "test output directory" }),
-            /must not/,
+            /must/,
             `${blockedPath} should be rejected as generated output.`
         );
     }
 
     assert.doesNotThrow(() => assertSafeGeneratedOutputDirectory(join(releaseComponentsDir, "safe-output"), { label: "test output directory" }));
+    assert.doesNotThrow(() => assertSafeGeneratedOutputDirectory(join(releaseCandidatesDir, "safe-output"), { label: "test output directory" }));
+    assert.doesNotThrow(() => assertSafeGeneratedOutputDirectory(join(releaseSecretsDir, "safe-output"), { label: "test output directory" }));
     assert.doesNotThrow(() =>
         assertSafeGeneratedOutputDirectory(canonicalDistDir, {
             allowCanonicalDist: true,
             label: "test output directory"
         })
     );
+}
+
+function verifyReleaseLockRejectsConcurrentMutation() {
+    const beforeVersion = readFileSync(versionPath);
+    withReleaseOperationLock("verify-release-tooling", () => {
+        const childEnv = { ...process.env };
+        delete childEnv.STICKVANIA_RELEASE_LOCK_TOKEN;
+
+        const result = spawnSync(process.execPath, [stampScriptPath], {
+            cwd: rootDir,
+            encoding: "utf8",
+            env: childEnv
+        });
+        const output = `${result.stdout}\n${result.stderr}`;
+
+        assert.notEqual(result.status, 0, "A second mutating release command should not acquire the active lock.");
+        assert.match(output, /Another release operation is already running/);
+    });
+    assert.deepEqual(readFileSync(versionPath), beforeVersion, "version.json should not change when a concurrent stamp is rejected.");
+    assert.equal(existsSync(releaseLockDir), false, "release lock should be removed after the owner exits.");
 }
 
 function verifyProductionRejectsTrackedMutationBeforePromotion() {
@@ -195,10 +256,16 @@ function collectFiles(directory) {
     const files = [];
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
         const fullPath = join(directory, entry.name);
-        if (entry.isDirectory()) {
+        const stat = lstatSync(fullPath);
+        if (stat.isSymbolicLink()) {
+            throw new Error(`Release snapshot must not contain symbolic links or junctions: ${fullPath}`);
+        }
+        if (stat.isDirectory()) {
             files.push(...collectFiles(fullPath));
-        } else if (entry.isFile()) {
+        } else if (stat.isFile()) {
             files.push(fullPath);
+        } else {
+            throw new Error(`Release snapshot must not contain special filesystem entries: ${fullPath}`);
         }
     }
     return files.sort();

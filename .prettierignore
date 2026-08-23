@@ -1,5 +1,11 @@
 node_modules/
 dist/
+.release-components/
+.release-candidates/
+.release-secrets/
+.dist-pending-*/
+.dist-previous-*/
+.dist-active-before-*/
 coverage/
 *.tgz
 

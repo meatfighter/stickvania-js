@@ -1,4 +1,6 @@
-import { cleanDirectory, distDir } from "./build-utils.mjs";
+import { canonicalDistDir, cleanDirectory, withReleaseOperationLock } from "./build-utils.mjs";
 
-cleanDirectory(distDir, { allowCanonicalDist: true, label: "clean output directory" });
-console.log(`Cleaned ${distDir}`);
+withReleaseOperationLock("clean-dist", () => {
+    cleanDirectory(canonicalDistDir, { allowCanonicalDist: true, label: "clean output directory" });
+    console.log(`Cleaned ${canonicalDistDir}`);
+});

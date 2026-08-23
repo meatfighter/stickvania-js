@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
 import ts from "typescript";
-import { distDir, readVersion, rootDir, versionPath } from "./build-utils.mjs";
+import { readVersion, resolveConfiguredDistDir, rootDir, versionPath } from "./build-utils.mjs";
 
+const distDir = resolveConfiguredDistDir();
 const distPwaDir = join(distDir, "pwa");
 const packageJsonPath = join(rootDir, "package.json");
 const releaseStampScriptPath = join(rootDir, "scripts", "run-stamped-release.mjs");
@@ -46,10 +47,16 @@ function collectFiles(directory) {
     const files = [];
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
         const fullPath = join(directory, entry.name);
-        if (entry.isDirectory()) {
+        const stat = lstatSync(fullPath);
+        if (stat.isSymbolicLink()) {
+            throw new Error(`Release output must not contain symbolic links or junctions: ${fullPath}`);
+        }
+        if (stat.isDirectory()) {
             files.push(...collectFiles(fullPath));
-        } else if (entry.isFile()) {
+        } else if (stat.isFile()) {
             files.push(fullPath);
+        } else {
+            throw new Error(`Release output must not contain special filesystem entries: ${fullPath}`);
         }
     }
     return files;

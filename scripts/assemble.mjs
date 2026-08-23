@@ -1,8 +1,9 @@
 import { copyFileSync } from "node:fs";
 import { join } from "node:path";
-import { distDir, ensureDirectory, readVersion, rootDir } from "./build-utils.mjs";
+import { ensureDirectory, readVersion, resolveConfiguredDistDir, rootDir } from "./build-utils.mjs";
 
 const version = readVersion();
+const distDir = resolveConfiguredDistDir();
 const downloadsDir = join(distDir, "downloads");
 const desktopTargetDir = join(rootDir, "desktop", "target");
 const distributionName = "stickvania-desktop";

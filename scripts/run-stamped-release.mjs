@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { cleanDirectory, readVersion, resolveDistDir, rootDir, versionPath, writeVersion } from "./build-utils.mjs";
+import { cleanDirectory, readVersion, resolveDistDir, rootDir, versionPath, withReleaseOperationLock, writeVersion } from "./build-utils.mjs";
 
 const options = parseOptions(process.argv.slice(2));
 const scriptNames = options.scriptNames;
@@ -9,43 +9,48 @@ if (scriptNames.length === 0) {
     throw new Error("Pass one or more npm script names to run under a temporary release stamp.");
 }
 
-const originalVersionBytes = readFileSync(versionPath);
-const childEnv = { ...process.env };
-let exitStatus = 0;
+process.exitCode = withReleaseOperationLock("run-stamped-release", () => {
+    const originalVersionBytes = readFileSync(versionPath);
+    const childEnv = { ...process.env };
+    let exitStatus = 0;
 
-if (options.distDir !== null) {
-    childEnv.STICKVANIA_DIST_DIR = options.distDir;
-}
-
-if (options.cleanDist) {
-    cleanDirectory(resolveDistDir(options.distDir ?? undefined));
-}
-
-try {
-    const version = readVersion();
-    version.buildStamp = new Date().toISOString();
-    writeVersion(version);
-    console.log(`Temporarily stamped ${version.version} at ${version.buildStamp}`);
-
-    for (const scriptName of scriptNames) {
-        const result = spawnSync(getNpmCommand(), getNpmArgs(scriptName), {
-            cwd: rootDir,
-            env: childEnv,
-            stdio: "inherit"
-        });
-        if (result.error) {
-            throw result.error;
-        }
-        if (result.status !== 0) {
-            exitStatus = result.status ?? 1;
-            break;
-        }
+    if (options.distDir !== null) {
+        childEnv.STICKVANIA_DIST_DIR = options.distDir;
     }
-} finally {
-    writeFileSync(versionPath, originalVersionBytes);
-}
 
-process.exit(exitStatus);
+    if (options.cleanDist) {
+        cleanDirectory(resolveDistDir(options.distDir ?? undefined), {
+            allowCanonicalDist: options.distDir === null,
+            label: "release stamp output directory"
+        });
+    }
+
+    try {
+        const version = readVersion();
+        version.buildStamp = new Date().toISOString();
+        writeVersion(version);
+        console.log(`Temporarily stamped ${version.version} at ${version.buildStamp}`);
+
+        for (const scriptName of scriptNames) {
+            const result = spawnSync(getNpmCommand(), getNpmArgs(scriptName), {
+                cwd: rootDir,
+                env: childEnv,
+                stdio: "inherit"
+            });
+            if (result.error) {
+                throw result.error;
+            }
+            if (result.status !== 0) {
+                exitStatus = result.status ?? 1;
+                break;
+            }
+        }
+    } finally {
+        writeFileSync(versionPath, originalVersionBytes);
+    }
+
+    return exitStatus;
+});
 
 function getNpmCommand() {
     return process.platform === "win32" ? "cmd.exe" : "npm";

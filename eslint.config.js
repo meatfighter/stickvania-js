@@ -33,7 +33,19 @@ const serviceWorkerGlobals = {
 
 export default tseslint.config(
     {
-        ignores: ["dist/**", "desktop/build/**", "desktop/dist/**", "desktop/target/**", "node_modules/**"]
+        ignores: [
+            ".dist-active-before-*/**",
+            ".dist-pending-*/**",
+            ".dist-previous-*/**",
+            ".release-candidates/**",
+            ".release-components/**",
+            ".release-secrets/**",
+            "desktop/build/**",
+            "desktop/dist/**",
+            "desktop/target/**",
+            "dist/**",
+            "node_modules/**"
+        ]
     },
     js.configs.recommended,
     ...tseslint.configs.recommended,

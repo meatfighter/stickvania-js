@@ -1,7 +1,7 @@
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { readVersion, rootDir } from "./build-utils.mjs";
+import { readVersion, rootDir, withReleaseOperationLock } from "./build-utils.mjs";
 import { createStoredZipFromDirectory } from "./zip-store.mjs";
 
 const version = readVersion();
@@ -69,9 +69,10 @@ function getJavacFeatureVersion() {
 function collectJavaFiles(dir, files = []) {
     for (const entry of readdirSync(dir)) {
         const full = join(dir, entry);
-        if (statSync(full).isDirectory()) {
+        const stat = assertRealFilesystemEntry(full, "desktop Java source");
+        if (stat.isDirectory()) {
             collectJavaFiles(full, files);
-        } else if (entry.endsWith(".java")) {
+        } else if (stat.isFile() && entry.endsWith(".java")) {
             files.push(full);
         }
     }
@@ -82,11 +83,11 @@ function copyResources(source, target) {
     for (const entry of readdirSync(source)) {
         const sourcePath = join(source, entry);
         const targetPath = join(target, entry);
-        const stat = statSync(sourcePath);
+        const stat = assertRealFilesystemEntry(sourcePath, "desktop resource tree");
         if (stat.isDirectory()) {
             mkdirSync(targetPath, { recursive: true });
             copyResources(sourcePath, targetPath);
-        } else if (!entry.endsWith(".java")) {
+        } else if (stat.isFile() && !entry.endsWith(".java")) {
             mkdirSync(dirname(targetPath), { recursive: true });
             copyFileSync(sourcePath, targetPath);
         }
@@ -97,8 +98,32 @@ function copyDirectoryContents(source, target) {
     rmSync(target, { recursive: true, force: true });
     mkdirSync(target, { recursive: true });
     for (const entry of readdirSync(source)) {
-        cpSync(join(source, entry), join(target, entry), { recursive: true });
+        copyDirectoryEntry(join(source, entry), join(target, entry), "desktop runtime tree");
     }
+}
+
+function copyDirectoryEntry(source, target, label) {
+    const stat = assertRealFilesystemEntry(source, label);
+    if (stat.isDirectory()) {
+        mkdirSync(target, { recursive: true });
+        for (const entry of readdirSync(source)) {
+            copyDirectoryEntry(join(source, entry), join(target, entry), label);
+        }
+    } else if (stat.isFile()) {
+        mkdirSync(dirname(target), { recursive: true });
+        copyFileSync(source, target);
+    }
+}
+
+function assertRealFilesystemEntry(path, label) {
+    const stat = lstatSync(path);
+    if (stat.isSymbolicLink()) {
+        throw new Error(`${label} must not contain symbolic links or junctions: ${path}`);
+    }
+    if (!stat.isDirectory() && !stat.isFile()) {
+        throw new Error(`${label} must not contain special filesystem entries: ${path}`);
+    }
+    return stat;
 }
 
 function formatManifestAttribute(name, value) {
@@ -154,8 +179,8 @@ function createDistribution() {
     rmSync(distributionRoot, { recursive: true, force: true });
     mkdirSync(distributionDir, { recursive: true });
     copyFileSync(stableJarPath, join(distributionDir, `${distributionName}.jar`));
-    cpSync(targetLibDir, join(distributionDir, "lib"), { recursive: true });
-    cpSync(targetNativeDir, join(distributionDir, "natives"), { recursive: true });
+    copyDirectoryContents(targetLibDir, join(distributionDir, "lib"));
+    copyDirectoryContents(targetNativeDir, join(distributionDir, "natives"));
 
     for (const name of ["run-windows.cmd", "run-windows.ps1", "run-linux.sh", "run-macos.sh", "README.md", "RUNTIME_DEPENDENCIES.md"]) {
         copyFileSync(join(desktopDir, name), join(distributionDir, name));
@@ -259,10 +284,12 @@ function buildWithJavacFallback() {
     createDistribution();
 }
 
-verifyRuntimeDependencies();
-if (!tryNativeMaven() && !tryWslMaven()) {
-    buildWithJavacFallback();
-}
+withReleaseOperationLock("build-desktop", () => {
+    verifyRuntimeDependencies();
+    if (!tryNativeMaven() && !tryWslMaven()) {
+        buildWithJavacFallback();
+    }
 
-console.log(`Built ${relative(rootDir, stableJarPath)}`);
-console.log(`Built ${relative(rootDir, stableZipPath)}`);
+    console.log(`Built ${relative(rootDir, stableJarPath)}`);
+    console.log(`Built ${relative(rootDir, stableZipPath)}`);
+});

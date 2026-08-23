@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, parse, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type PluginOption } from "vite";
 
@@ -11,6 +11,9 @@ interface VersionInfo {
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
 const projectRootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const canonicalDistRootDir = join(projectRootDir, "dist");
+const releaseComponentsRootDir = join(projectRootDir, ".release-components");
+const releaseCandidatesRootDir = join(projectRootDir, ".release-candidates");
+const releaseSecretsRootDir = join(projectRootDir, ".release-secrets");
 const distRootDir = resolveSafeDistRootDir();
 const distPwaDir = join(distRootDir, "pwa");
 const versionInfo = JSON.parse(readFileSync(new URL("../version.json", import.meta.url), "utf8")) as VersionInfo;
@@ -48,33 +51,94 @@ function resolveSafeDistRootDir(): string {
 }
 
 function assertSafeGeneratedOutputDirectory(directory: string, allowCanonicalDist: boolean): void {
-    if (isSameOrInside(projectRootDir, directory)) {
-        throw new Error(`STICKVANIA_DIST_DIR must not be the repository root or one of its ancestors: ${directory}`);
+    const physicalDirectory = resolvePhysicalPathForValidation(directory);
+    const allowed = allowedGeneratedOutputRoots(allowCanonicalDist).some((root) => {
+        const physicalRoot = resolvePhysicalPathForValidation(root.path);
+        if (root.allowExact && physicalDirectory === physicalRoot) {
+            return true;
+        }
+        return root.allowDescendant && isSameOrInside(physicalDirectory, physicalRoot) && physicalDirectory !== physicalRoot;
+    });
+
+    if (!allowed) {
+        throw new Error(`STICKVANIA_DIST_DIR must be canonical dist or a child of an allowed release-state directory: ${directory}`);
+    }
+}
+
+function allowedGeneratedOutputRoots(allowCanonicalDist: boolean): Array<{
+    readonly allowDescendant: boolean;
+    readonly allowExact: boolean;
+    readonly path: string;
+}> {
+    return [
+        {
+            allowDescendant: false,
+            allowExact: allowCanonicalDist,
+            path: canonicalDistRootDir
+        },
+        {
+            allowDescendant: true,
+            allowExact: false,
+            path: releaseComponentsRootDir
+        },
+        {
+            allowDescendant: true,
+            allowExact: false,
+            path: releaseCandidatesRootDir
+        },
+        {
+            allowDescendant: true,
+            allowExact: false,
+            path: releaseSecretsRootDir
+        }
+    ];
+}
+
+function resolvePhysicalPathForValidation(path: string): string {
+    const resolvedPath = resolve(path);
+    assertExistingPathChainSafe(resolvedPath);
+
+    if (existsSync(resolvedPath)) {
+        return realpathSync.native(resolvedPath);
     }
 
-    if (!allowCanonicalDist && pathsOverlap(directory, canonicalDistRootDir)) {
-        throw new Error(`STICKVANIA_DIST_DIR must not overlap canonical dist for redirected output: ${directory}`);
+    const parts: string[] = [];
+    let existingPath = resolvedPath;
+    while (!existsSync(existingPath)) {
+        const parent = dirname(existingPath);
+        if (parent === existingPath) {
+            break;
+        }
+        parts.unshift(relative(parent, existingPath));
+        existingPath = parent;
     }
 
-    if (directory === join(projectRootDir, ".release-components")) {
-        throw new Error(`STICKVANIA_DIST_DIR must not be the release components root: ${directory}`);
-    }
+    const physicalExistingPath = existsSync(existingPath) ? realpathSync.native(existingPath) : existingPath;
+    return resolve(physicalExistingPath, ...parts);
+}
 
-    for (const protectedDirectory of protectedOutputOverlapDirectories()) {
-        if (pathsOverlap(directory, protectedDirectory)) {
-            throw new Error(`STICKVANIA_DIST_DIR must not overlap protected repository path ${protectedDirectory}: ${directory}`);
+function assertExistingPathChainSafe(path: string): void {
+    const resolvedPath = resolve(path);
+    const parsed = parse(resolvedPath);
+    const relativeParts = relative(parsed.root, resolvedPath)
+        .split(/[\\/]/)
+        .filter((part) => part.length > 0);
+    let current = parsed.root;
+
+    for (const part of relativeParts) {
+        current = join(current, part);
+        if (!existsSync(current)) {
+            continue;
+        }
+
+        const stat = lstatSync(current);
+        if (stat.isSymbolicLink()) {
+            throw new Error(`STICKVANIA_DIST_DIR must not pass through symbolic links or junctions: ${current}`);
+        }
+        if (!stat.isDirectory()) {
+            throw new Error(`STICKVANIA_DIST_DIR must not pass through non-directory filesystem entries: ${current}`);
         }
     }
-}
-
-function protectedOutputOverlapDirectories(): string[] {
-    return [".git", ".agents", ".codex", ".release-candidates", ".release-secrets", "about", "desktop", "node_modules", "pwa", "releases", "scripts"].map(
-        (entry) => join(projectRootDir, entry)
-    );
-}
-
-function pathsOverlap(first: string, second: string): boolean {
-    return isSameOrInside(first, second) || isSameOrInside(second, first);
 }
 
 function isSameOrInside(path: string, possibleAncestor: string): boolean {
@@ -86,10 +150,16 @@ function collectFiles(directory: string): string[] {
     const files: string[] = [];
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
         const fullPath = join(directory, entry.name);
-        if (entry.isDirectory()) {
+        const stat = lstatSync(fullPath);
+        if (stat.isSymbolicLink()) {
+            throw new Error(`PWA release output must not contain symbolic links or junctions: ${fullPath}`);
+        }
+        if (stat.isDirectory()) {
             files.push(...collectFiles(fullPath));
-        } else if (entry.isFile()) {
+        } else if (stat.isFile()) {
             files.push(fullPath);
+        } else {
+            throw new Error(`PWA release output must not contain special filesystem entries: ${fullPath}`);
         }
     }
     return files;

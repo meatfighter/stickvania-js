@@ -1,8 +1,9 @@
 import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { distDir, ensureDirectory, readVersion, renderTemplate, rootDir } from "./build-utils.mjs";
+import { ensureDirectory, readVersion, renderTemplate, resolveConfiguredDistDir, rootDir } from "./build-utils.mjs";
 
 const version = readVersion();
+const distDir = resolveConfiguredDistDir();
 const cacheVersion = `${version.version}-${version.buildStamp}`;
 const encodedBuildStamp = encodeURIComponent(version.buildStamp);
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
