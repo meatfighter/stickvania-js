@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
     closeSync,
@@ -26,9 +27,14 @@ export const versionPath = join(rootDir, "version.json");
 
 export function resolveConfiguredDistDir() {
     const configuredDistDir = process.env.STICKVANIA_DIST_DIR;
+    const hasConfiguredDistDir = configuredDistDir !== undefined && configuredDistDir.trim() !== "";
+    if (hasConfiguredDistDir && process.env.STICKVANIA_ALLOW_DIST_DIR_OVERRIDE !== "true") {
+        throw new Error("STICKVANIA_DIST_DIR is reserved for release tooling and requires STICKVANIA_ALLOW_DIST_DIR_OVERRIDE=true.");
+    }
+
     const resolvedDistDir = resolveDistDir(configuredDistDir);
     assertSafeGeneratedOutputDirectory(resolvedDistDir, {
-        allowCanonicalDist: configuredDistDir === undefined || configuredDistDir.trim() === "",
+        allowCanonicalDist: !hasConfiguredDistDir,
         label: "STICKVANIA_DIST_DIR"
     });
     return resolvedDistDir;
@@ -39,11 +45,15 @@ export function resolveDistDir(configuredDistDir) {
 }
 
 export function readVersion() {
-    return JSON.parse(readFileSync(versionPath, "utf8").replace(/^\uFEFF/, ""));
+    const version = JSON.parse(readFileSync(versionPath, "utf8").replace(/^\uFEFF/, ""));
+    if (process.env.STICKVANIA_ALLOW_VERSION_OVERRIDE === "true" && process.env.STICKVANIA_BUILD_STAMP !== undefined) {
+        version.buildStamp = process.env.STICKVANIA_BUILD_STAMP;
+    }
+    return version;
 }
 
 export function writeVersion(version) {
-    writeFileSync(versionPath, `${JSON.stringify(version, null, 4)}\n`);
+    writeAtomicTextFile(versionPath, `${JSON.stringify(version, null, 4)}\n`);
 }
 
 export function ensureDirectory(path) {
@@ -103,40 +113,120 @@ export function assertRealDirectoryTree(path, label = "directory tree") {
 
 export function writeAtomicTextFile(path, text) {
     const tempPath = `${path}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`;
-    const fd = openSync(tempPath, "w");
+    let fd = null;
     try {
+        fd = openSync(tempPath, "w");
         writeFileSync(fd, text);
         fsyncSync(fd);
-    } finally {
         closeSync(fd);
+        fd = null;
+        renameSync(tempPath, path);
+        fsyncParentDirectoryBestEffort(path);
+    } catch (error) {
+        if (fd !== null) {
+            try {
+                closeSync(fd);
+            } catch {
+                // Preserve the original write or rename failure.
+            }
+        }
+        try {
+            rmSync(tempPath, { force: true });
+        } catch {
+            // Preserve the original write or rename failure.
+        }
+        throw error;
     }
-
-    renameSync(tempPath, path);
-    fsyncParentDirectoryBestEffort(path);
 }
 
 export function withReleaseOperationLock(operationName, callback) {
     const inheritedToken = process.env.STICKVANIA_RELEASE_LOCK_TOKEN;
-    if (inheritedToken !== undefined && inheritedToken !== "") {
-        assertInheritedReleaseLock(inheritedToken, operationName);
-        return callback(inheritedToken);
-    }
+    let ownsLock = false;
+    let registeredHolder = false;
+    let token = inheritedToken;
 
-    const token = `${process.pid}-${Date.now()}-${randomUUID()}`;
-    acquireReleaseLock(operationName, token);
+    if (inheritedToken !== undefined && inheritedToken !== "") {
+        registerReleaseLockHolder(inheritedToken, operationName, process.pid);
+        registeredHolder = true;
+    } else {
+        token = `${process.pid}-${Date.now()}-${randomUUID()}`;
+        acquireReleaseLock(operationName, token);
+        ownsLock = true;
+    }
 
     const previousToken = process.env.STICKVANIA_RELEASE_LOCK_TOKEN;
     process.env.STICKVANIA_RELEASE_LOCK_TOKEN = token;
-    try {
-        return callback(token);
-    } finally {
+
+    const release = () => {
         if (previousToken === undefined) {
             delete process.env.STICKVANIA_RELEASE_LOCK_TOKEN;
         } else {
             process.env.STICKVANIA_RELEASE_LOCK_TOKEN = previousToken;
         }
-        releaseReleaseLock(token);
+        if (registeredHolder) {
+            unregisterReleaseLockHolder(token, process.pid);
+        }
+        if (ownsLock) {
+            releaseReleaseLock(token);
+        }
+    };
+
+    try {
+        const result = callback(token);
+        if (result !== null && typeof result === "object" && typeof result.then === "function") {
+            return result.finally(release);
+        }
+        release();
+        return result;
+    } catch (error) {
+        release();
+        throw error;
     }
+}
+
+export function runCommandWithReleaseLock(command, args, options = {}) {
+    const token = process.env.STICKVANIA_RELEASE_LOCK_TOKEN;
+    const env = { ...(options.env ?? process.env) };
+    if (token !== undefined && token !== "") {
+        env.STICKVANIA_RELEASE_LOCK_TOKEN = token;
+    }
+    const child = spawn(command, args, {
+        cwd: options.cwd ?? rootDir,
+        env,
+        stdio: options.stdio ?? "inherit"
+    });
+    let registeredHolder = false;
+
+    if (token !== undefined && token !== "" && child.pid !== undefined) {
+        try {
+            registerReleaseLockHolder(token, `${command} ${args.join(" ")}`.trim(), child.pid);
+            registeredHolder = true;
+        } catch (error) {
+            child.kill();
+            throw error;
+        }
+    }
+
+    return new Promise((resolve, reject) => {
+        const cleanup = () => {
+            if (registeredHolder) {
+                unregisterReleaseLockHolder(token, child.pid);
+                registeredHolder = false;
+            }
+        };
+
+        child.once("error", (error) => {
+            cleanup();
+            reject(error);
+        });
+        child.once("close", (code, signal) => {
+            cleanup();
+            resolve({
+                signal,
+                status: code ?? (signal === null ? 0 : 1)
+            });
+        });
+    });
 }
 
 function allowedGeneratedOutputRoots(allowCanonicalDist) {
@@ -231,6 +321,13 @@ function acquireReleaseLock(operationName, token) {
                 `${JSON.stringify(
                     {
                         operationName,
+                        holders: [
+                            {
+                                operationName,
+                                pid: process.pid,
+                                startedAt: new Date().toISOString()
+                            }
+                        ],
                         pid: process.pid,
                         startedAt: new Date().toISOString(),
                         token
@@ -249,11 +346,29 @@ function acquireReleaseLock(operationName, token) {
     throw new Error(`Unable to acquire release operation lock for ${operationName}.`);
 }
 
-function assertInheritedReleaseLock(token, operationName) {
+function registerReleaseLockHolder(token, operationName, pid) {
     const owner = readReleaseLockOwner();
     if (owner?.token !== token) {
         throw new Error(`Inherited release operation lock is invalid for ${operationName}.`);
     }
+
+    owner.holders = normalizedReleaseLockHolders(owner).filter((holder) => holder.pid !== pid);
+    owner.holders.push({
+        operationName,
+        pid,
+        startedAt: new Date().toISOString()
+    });
+    writeReleaseLockOwner(owner);
+}
+
+function unregisterReleaseLockHolder(token, pid) {
+    const owner = readReleaseLockOwner();
+    if (owner?.token !== token) {
+        return;
+    }
+
+    owner.holders = normalizedReleaseLockHolders(owner).filter((holder) => holder.pid !== pid);
+    writeReleaseLockOwner(owner);
 }
 
 function releaseReleaseLock(token) {
@@ -270,11 +385,12 @@ function removeStaleReleaseLock() {
         if (Date.now() - stat.mtimeMs < 5 * 60 * 1000) {
             return false;
         }
+        console.warn("Recovering stale malformed release operation lock.");
         rmSync(releaseLockDir, { recursive: true, force: true });
         return true;
     }
 
-    if (owner.pid === process.pid || isProcessAlive(owner.pid)) {
+    if (normalizedReleaseLockHolders(owner).some((holder) => holder.pid === process.pid || isProcessAlive(holder.pid))) {
         return false;
     }
 
@@ -294,6 +410,25 @@ function readReleaseLockOwner() {
     } catch {
         return null;
     }
+}
+
+function writeReleaseLockOwner(owner) {
+    writeAtomicTextFile(releaseLockOwnerPath(), `${JSON.stringify(owner, null, 4)}\n`);
+}
+
+function normalizedReleaseLockHolders(owner) {
+    if (Array.isArray(owner.holders)) {
+        return owner.holders.filter((holder) => typeof holder?.pid === "number");
+    }
+    return typeof owner.pid === "number"
+        ? [
+              {
+                  operationName: owner.operationName ?? "unknown",
+                  pid: owner.pid,
+                  startedAt: owner.startedAt ?? null
+              }
+          ]
+        : [];
 }
 
 function releaseLockOwnerPath() {

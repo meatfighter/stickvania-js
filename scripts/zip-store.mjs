@@ -94,6 +94,14 @@ export function readZipCentralDirectory(zipPath) {
 }
 
 function collectFiles(directory, files = []) {
+    const rootStat = lstatSync(directory);
+    if (rootStat.isSymbolicLink()) {
+        throw new Error(`ZIP source tree must not contain symbolic links or junctions: ${directory}`);
+    }
+    if (!rootStat.isDirectory()) {
+        throw new Error(`ZIP source tree must be a directory: ${directory}`);
+    }
+
     for (const entry of readdirSync(directory)) {
         const fullPath = join(directory, entry);
         const stat = lstatSync(fullPath);

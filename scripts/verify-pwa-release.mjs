@@ -44,6 +44,14 @@ test.after(() => {
 });
 
 function collectFiles(directory) {
+    const rootStat = lstatSync(directory);
+    if (rootStat.isSymbolicLink()) {
+        throw new Error(`Release output must not contain symbolic links or junctions: ${directory}`);
+    }
+    if (!rootStat.isDirectory()) {
+        throw new Error(`Release output must be a directory: ${directory}`);
+    }
+
     const files = [];
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
         const fullPath = join(directory, entry.name);
@@ -514,6 +522,7 @@ test("package scripts use temporary release stamping for public builds", () => {
     assert.equal(scripts["verify:release-tooling"], "node scripts/verify-release-tooling.mjs");
     assert.equal(scripts["build:web"], "node scripts/run-stamped-release.mjs --dist .release-components/web --clean-dist _build:pwa:release _build:about");
     assert.equal(scripts["build"], "node scripts/build-production.mjs");
+    assert.equal(scripts["release:desktop"], "node scripts/release-desktop.mjs");
     assert.equal(
         scripts["verify"],
         "npm run format:check && npm run lint && npm run verify:release-tooling && npm run test:pwa-release && npm run build:desktop"

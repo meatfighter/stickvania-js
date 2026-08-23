@@ -30,7 +30,7 @@
         "preview": "npm run preview:pwa",
         "preview:pwa": "vite preview --config pwa/vite.config.ts --host 127.0.0.1",
         "preview:dist": "vite preview --host 127.0.0.1 --outDir dist",
-        "release:desktop": "npm run verify && node scripts/copy-desktop-release.mjs",
+        "release:desktop": "node scripts/release-desktop.mjs",
         "run:desktop": "node scripts/run-desktop.mjs"
     },
     "dependencies": {

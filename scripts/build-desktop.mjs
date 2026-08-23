@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { readVersion, rootDir, withReleaseOperationLock } from "./build-utils.mjs";
+import { readVersion, rootDir, runCommandWithReleaseLock, withReleaseOperationLock } from "./build-utils.mjs";
 import { createStoredZipFromDirectory } from "./zip-store.mjs";
 
 const version = readVersion();
@@ -29,13 +29,13 @@ function commandExists(command) {
     return result.status === 0;
 }
 
-function run(command, args, cwd = rootDir) {
-    const result = spawnSync(command, args, {
+async function run(command, args, cwd = rootDir) {
+    const result = await runCommandWithReleaseLock(command, args, {
         cwd,
         stdio: "inherit"
     });
     if (result.status !== 0) {
-        process.exit(result.status ?? 1);
+        throw new Error(`Command failed: ${command} ${args.join(" ")}`);
     }
 }
 
@@ -95,6 +95,11 @@ function copyResources(source, target) {
 }
 
 function copyDirectoryContents(source, target) {
+    const sourceStat = assertRealFilesystemEntry(source, "desktop copy source tree");
+    if (!sourceStat.isDirectory()) {
+        throw new Error(`desktop copy source tree must be a directory: ${source}`);
+    }
+    assertDesktopGeneratedPathSafe(target, "desktop copy target tree");
     rmSync(target, { recursive: true, force: true });
     mkdirSync(target, { recursive: true });
     for (const entry of readdirSync(source)) {
@@ -174,8 +179,48 @@ function copyRuntimeToTarget() {
     copyDirectoryContents(nativeDir, targetNativeDir);
 }
 
+function cleanDesktopTargetDirectory() {
+    assertDesktopGeneratedPathSafe(targetDir, "desktop target directory");
+    rmSync(targetDir, { recursive: true, force: true });
+    mkdirSync(targetDir, { recursive: true });
+}
+
+function assertDesktopGeneratedPathSafe(path, label) {
+    const resolvedPath = resolve(path);
+    const targetRelationship = relative(targetDir, resolvedPath);
+    if (targetRelationship !== "" && (targetRelationship.startsWith("..") || isAbsolute(targetRelationship))) {
+        throw new Error(`${label} must be inside the desktop target directory: ${path}`);
+    }
+
+    const chain = [];
+    let current = resolvedPath;
+    while (true) {
+        chain.unshift(current);
+        const parent = dirname(current);
+        if (parent === current) {
+            break;
+        }
+        current = parent;
+    }
+
+    for (const chainPath of chain) {
+        if (!existsSync(chainPath)) {
+            continue;
+        }
+
+        const stat = lstatSync(chainPath);
+        if (stat.isSymbolicLink()) {
+            throw new Error(`${label} must not pass through symbolic links or junctions: ${chainPath}`);
+        }
+        if (!stat.isDirectory()) {
+            throw new Error(`${label} must not pass through non-directory filesystem entries: ${chainPath}`);
+        }
+    }
+}
+
 function createDistribution() {
     const distributionDir = join(distributionRoot, distributionName);
+    assertDesktopGeneratedPathSafe(distributionRoot, "desktop distribution root");
     rmSync(distributionRoot, { recursive: true, force: true });
     mkdirSync(distributionDir, { recursive: true });
     copyFileSync(stableJarPath, join(distributionDir, `${distributionName}.jar`));
@@ -205,8 +250,10 @@ function normalizeMavenOutputs() {
     if (!existsSync(targetNativeDir)) {
         throw new Error(`Maven did not create ${targetNativeDir}`);
     }
-    copyFileSync(mavenStableJar, stableJarPath);
-    copyFileSync(mavenStableJar, versionedJarPath);
+    if (resolve(mavenStableJar) !== resolve(stableJarPath)) {
+        copyFileSync(mavenStableJar, stableJarPath);
+    }
+    copyFileSync(stableJarPath, versionedJarPath);
     createDistribution();
 }
 
@@ -227,18 +274,18 @@ function windowsPathToWslPath(path) {
     return `/mnt/${match[1].toLowerCase()}/${match[2]}`;
 }
 
-function tryNativeMaven() {
+async function tryNativeMaven() {
     const command = process.platform === "win32" ? "mvn.cmd" : "mvn";
     if (!commandExists(command)) {
         return false;
     }
     console.log("Building desktop archive with Maven.");
-    run(command, ["package", `-Drevision=${version.version}`], desktopDir);
+    await run(command, ["package", `-Drevision=${version.version}`], desktopDir);
     normalizeMavenOutputs();
     return true;
 }
 
-function tryWslMaven() {
+async function tryWslMaven() {
     if (process.platform !== "win32" || !commandExists("wsl.exe")) {
         return false;
     }
@@ -249,12 +296,12 @@ function tryWslMaven() {
         return false;
     }
     console.log("Building desktop archive with WSL2 Maven.");
-    run("wsl.exe", ["sh", "-lc", `cd ${quoteSh(windowsPathToWslPath(desktopDir))} && mvn package -Drevision=${quoteSh(version.version)}`]);
+    await run("wsl.exe", ["sh", "-lc", `cd ${quoteSh(windowsPathToWslPath(desktopDir))} && mvn package -Drevision=${quoteSh(version.version)}`]);
     normalizeMavenOutputs();
     return true;
 }
 
-function buildWithJavacFallback() {
+async function buildWithJavacFallback() {
     if (!commandExists("javac")) {
         throw new Error("The desktop build requires Maven, WSL2 Maven, or javac on PATH.");
     }
@@ -275,19 +322,20 @@ function buildWithJavacFallback() {
     const javacVersion = getJavacFeatureVersion();
     const releaseArgs = javacVersion !== null && javacVersion >= 9 ? ["--release", "8"] : ["-source", "1.8", "-target", "1.8"];
 
-    run("javac", ["-encoding", "UTF-8", "-Xlint:-options", ...releaseArgs, "-cp", classpath, "-d", classesDir, `@${sourcesFile}`]);
+    await run("javac", ["-encoding", "UTF-8", "-Xlint:-options", ...releaseArgs, "-cp", classpath, "-d", classesDir, `@${sourcesFile}`]);
 
     copyResources(sourceDir, classesDir);
     writeManifest();
-    run("jar", ["cfm", versionedJarPath, manifestPath, "-C", classesDir, "."]);
+    await run("jar", ["cfm", versionedJarPath, manifestPath, "-C", classesDir, "."]);
     copyFileSync(versionedJarPath, stableJarPath);
     createDistribution();
 }
 
-withReleaseOperationLock("build-desktop", () => {
+await withReleaseOperationLock("build-desktop", async () => {
     verifyRuntimeDependencies();
-    if (!tryNativeMaven() && !tryWslMaven()) {
-        buildWithJavacFallback();
+    cleanDesktopTargetDirectory();
+    if (!(await tryNativeMaven()) && !(await tryWslMaven())) {
+        await buildWithJavacFallback();
     }
 
     console.log(`Built ${relative(rootDir, stableJarPath)}`);

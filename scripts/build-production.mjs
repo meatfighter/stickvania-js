@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 import {
     assertSafeGeneratedOutputDirectory,
@@ -9,21 +9,20 @@ import {
     releaseComponentsDir,
     readVersion,
     rootDir,
+    runCommandWithReleaseLock,
     versionPath,
     withReleaseOperationLock,
-    writeAtomicTextFile,
-    writeVersion
+    writeAtomicTextFile
 } from "./build-utils.mjs";
 
 const candidateDir = join(releaseComponentsDir, "production-candidate");
 const promotionJournalPath = join(releaseComponentsDir, "production-promotion-journal.json");
 const releaseScripts = ["_build:pwa:release", "_build:about", "build:desktop", "_assemble", "_verify:pwa-release", "verify:desktop-release"];
 
-withReleaseOperationLock("build-production", () => {
+await withReleaseOperationLock("build-production", async () => {
     const backupDir = join(releaseComponentsDir, `dist-backup-${process.pid}`);
     const originalVersionBytes = readFileSync(versionPath);
     const originalTrackedSourceState = readTrackedSourceState();
-    let versionRestored = false;
 
     try {
         recoverInterruptedPromotion();
@@ -31,17 +30,19 @@ withReleaseOperationLock("build-production", () => {
         rmSync(backupDir, { recursive: true, force: true });
 
         const version = readVersion();
-        version.buildStamp = new Date().toISOString();
-        writeVersion(version);
-        console.log(`Temporarily stamped ${version.version} at ${version.buildStamp}`);
+        const buildStamp = new Date().toISOString();
+        console.log(`Building production release ${version.version} at ${buildStamp}`);
 
         const childEnv = {
             ...process.env,
+            STICKVANIA_ALLOW_DIST_DIR_OVERRIDE: "true",
+            STICKVANIA_ALLOW_VERSION_OVERRIDE: "true",
+            STICKVANIA_BUILD_STAMP: buildStamp,
             STICKVANIA_DIST_DIR: candidateDir
         };
 
         for (const scriptName of releaseScripts) {
-            runNpmScript(scriptName, childEnv);
+            await runNpmScript(scriptName, childEnv);
         }
 
         if (process.env.STICKVANIA_FAIL_AFTER_CANDIDATE === "true") {
@@ -52,31 +53,21 @@ withReleaseOperationLock("build-production", () => {
             appendFileSync(join(rootDir, "README.md"), "\n<!-- injected release promotion source mutation -->\n");
         }
 
-        restoreVersionJson();
+        restoreVersionJsonIfChanged(originalVersionBytes);
         assertTrackedSourceStateUnchanged(originalTrackedSourceState);
         promoteCandidate(backupDir);
         console.log(`Promoted verified release candidate to ${relative(rootDir, canonicalDistDir)}`);
     } finally {
-        if (!versionRestored) {
-            restoreVersionJson();
-        }
-    }
-
-    function restoreVersionJson() {
-        writeFileSync(versionPath, originalVersionBytes);
-        versionRestored = true;
+        restoreVersionJsonIfChanged(originalVersionBytes);
     }
 });
 
-function runNpmScript(scriptName, env) {
-    const result = spawnSync(getNpmCommand(), getNpmArgs(scriptName), {
+async function runNpmScript(scriptName, env) {
+    const result = await runCommandWithReleaseLock(getNpmCommand(), getNpmArgs(scriptName), {
         cwd: rootDir,
         env,
         stdio: "inherit"
     });
-    if (result.error) {
-        throw result.error;
-    }
     if (result.status !== 0) {
         throw new Error(`Release script failed: npm run ${scriptName}`);
     }
@@ -92,6 +83,13 @@ function getNpmArgs(scriptName) {
 
 function quoteWindowsCommandArgument(value) {
     return /^[A-Za-z0-9:_-]+$/.test(value) ? value : `"${value.replaceAll('"', '""')}"`;
+}
+
+function restoreVersionJsonIfChanged(originalVersionBytes) {
+    const currentVersionBytes = readFileSync(versionPath);
+    if (!currentVersionBytes.equals(originalVersionBytes)) {
+        writeAtomicTextFile(versionPath, originalVersionBytes);
+    }
 }
 
 function readTrackedSourceState() {

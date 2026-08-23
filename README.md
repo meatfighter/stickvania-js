@@ -100,7 +100,7 @@ The only music borrowed from the original _Castlevania_ is **"Prologue,"** the s
 
 ## Source
 
-_Stickvania_ is a reimplementation of _Castlevania_, not an NES emulator. It does not run or include the original NES ROM.
+_Stickvania_ is a reimplementation of _Castlevania_, not an emulation. It does not run or include the original NES ROM.
 
 The repo is available **[here](REPOSITORY_URL)**.
 

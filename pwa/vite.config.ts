@@ -16,7 +16,7 @@ const releaseCandidatesRootDir = join(projectRootDir, ".release-candidates");
 const releaseSecretsRootDir = join(projectRootDir, ".release-secrets");
 const distRootDir = resolveSafeDistRootDir();
 const distPwaDir = join(distRootDir, "pwa");
-const versionInfo = JSON.parse(readFileSync(new URL("../version.json", import.meta.url), "utf8")) as VersionInfo;
+const versionInfo = readVersionInfo();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedBuildStamp = encodeURIComponent(versionInfo.buildStamp);
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
@@ -42,11 +42,26 @@ function renderVersionPlaceholders(text: string): string {
         .replaceAll("%CACHE_VERSION%", encodedCacheVersion);
 }
 
+function readVersionInfo(): VersionInfo {
+    const version = JSON.parse(readFileSync(new URL("../version.json", import.meta.url), "utf8")) as VersionInfo;
+    if (process.env.STICKVANIA_ALLOW_VERSION_OVERRIDE === "true" && process.env.STICKVANIA_BUILD_STAMP !== undefined) {
+        return {
+            ...version,
+            buildStamp: process.env.STICKVANIA_BUILD_STAMP
+        };
+    }
+    return version;
+}
+
 function resolveSafeDistRootDir(): string {
     const configuredDistDir = process.env.STICKVANIA_DIST_DIR;
-    const resolvedDistDir =
-        configuredDistDir === undefined || configuredDistDir.trim() === "" ? canonicalDistRootDir : resolve(projectRootDir, configuredDistDir);
-    assertSafeGeneratedOutputDirectory(resolvedDistDir, configuredDistDir === undefined || configuredDistDir.trim() === "");
+    const hasConfiguredDistDir = configuredDistDir !== undefined && configuredDistDir.trim() !== "";
+    if (hasConfiguredDistDir && process.env.STICKVANIA_ALLOW_DIST_DIR_OVERRIDE !== "true") {
+        throw new Error("STICKVANIA_DIST_DIR is reserved for release tooling and requires STICKVANIA_ALLOW_DIST_DIR_OVERRIDE=true.");
+    }
+
+    const resolvedDistDir = hasConfiguredDistDir ? resolve(projectRootDir, configuredDistDir) : canonicalDistRootDir;
+    assertSafeGeneratedOutputDirectory(resolvedDistDir, !hasConfiguredDistDir);
     return resolvedDistDir;
 }
 
@@ -147,6 +162,14 @@ function isSameOrInside(path: string, possibleAncestor: string): boolean {
 }
 
 function collectFiles(directory: string): string[] {
+    const rootStat = lstatSync(directory);
+    if (rootStat.isSymbolicLink()) {
+        throw new Error(`PWA release output must not contain symbolic links or junctions: ${directory}`);
+    }
+    if (!rootStat.isDirectory()) {
+        throw new Error(`PWA release output must be a directory: ${directory}`);
+    }
+
     const files: string[] = [];
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
         const fullPath = join(directory, entry.name);

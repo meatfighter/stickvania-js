@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import {
     assertSafeGeneratedOutputDirectory,
     canonicalDistDir,
+    cleanDirectory,
     releaseCandidatesDir,
     releaseComponentsDir,
     releaseLockDir,
@@ -27,6 +28,7 @@ const releaseStateIgnorePatterns = [
     "releases/*.log"
 ];
 const buildProductionScriptPath = join(rootDir, "scripts", "build-production.mjs");
+const buildAboutScriptPath = join(rootDir, "scripts", "build-about.mjs");
 const productionCandidateDir = join(releaseComponentsDir, "production-candidate");
 const readmePath = join(rootDir, "README.md");
 const stampScriptPath = join(rootDir, "scripts", "stamp.mjs");
@@ -35,6 +37,8 @@ verifyReleaseStateIgnores();
 verifyNoTrackedReleaseState();
 verifyGeneratedDirectoriesIgnoredBySourceTooling();
 verifyGeneratedOutputPathSafety();
+verifyGeneratedOutputRejectsIntermediateLinks();
+verifyReleaseEnvOverridesAreGated();
 verifyReleaseLockRejectsConcurrentMutation();
 verifyComponentBuildPreservesCanonicalDist();
 verifyProductionRejectsTrackedMutationBeforePromotion();
@@ -149,8 +153,92 @@ function verifyGeneratedOutputPathSafety() {
     );
 }
 
+function verifyGeneratedOutputRejectsIntermediateLinks() {
+    const realTargetDir = join(releaseComponentsDir, `path-safety-real-target-${process.pid}`);
+    const linkedDir = join(releaseComponentsDir, `path-safety-linked-target-${process.pid}`);
+    const sentinelPath = join(realTargetDir, "sentinel.txt");
+
+    removePathSafetyLink(linkedDir);
+    rmSync(realTargetDir, { recursive: true, force: true });
+    mkdirSync(realTargetDir, { recursive: true });
+    writeFileSync(sentinelPath, "keep me");
+
+    try {
+        symlinkSync(realTargetDir, linkedDir, "junction");
+        assert.throws(() => cleanDirectory(join(linkedDir, "nested"), { label: "test linked output directory" }), /symbolic links|junctions/);
+        assert.equal(readFileSync(sentinelPath, "utf8"), "keep me");
+    } finally {
+        removePathSafetyLink(linkedDir);
+        rmSync(realTargetDir, { recursive: true, force: true });
+    }
+}
+
+function removePathSafetyLink(path) {
+    if (!existsSync(path)) {
+        return;
+    }
+    if (lstatSync(path).isSymbolicLink()) {
+        unlinkSync(path);
+    } else {
+        rmSync(path, { recursive: true, force: true });
+    }
+}
+
+function verifyReleaseEnvOverridesAreGated() {
+    const buildStampOverride = "test-build-stamp-override";
+    const ungatedVersion = spawnSync(
+        process.execPath,
+        ["--input-type=module", "-e", 'import { readVersion } from "./scripts/build-utils.mjs"; console.log(readVersion().buildStamp);'],
+        {
+            cwd: rootDir,
+            encoding: "utf8",
+            env: {
+                ...process.env,
+                STICKVANIA_BUILD_STAMP: buildStampOverride,
+                STICKVANIA_ALLOW_VERSION_OVERRIDE: ""
+            }
+        }
+    );
+    assert.equal(ungatedVersion.status, 0, ungatedVersion.stderr);
+    assert.notEqual(ungatedVersion.stdout.trim(), buildStampOverride);
+
+    const gatedVersion = spawnSync(
+        process.execPath,
+        ["--input-type=module", "-e", 'import { readVersion } from "./scripts/build-utils.mjs"; console.log(readVersion().buildStamp);'],
+        {
+            cwd: rootDir,
+            encoding: "utf8",
+            env: {
+                ...process.env,
+                STICKVANIA_ALLOW_VERSION_OVERRIDE: "true",
+                STICKVANIA_BUILD_STAMP: buildStampOverride
+            }
+        }
+    );
+    assert.equal(gatedVersion.status, 0, gatedVersion.stderr);
+    assert.equal(gatedVersion.stdout.trim(), buildStampOverride);
+
+    const directDistDir = join(releaseComponentsDir, `direct-env-dist-${process.pid}`);
+    const childEnv = {
+        ...process.env,
+        STICKVANIA_DIST_DIR: directDistDir
+    };
+    delete childEnv.STICKVANIA_ALLOW_DIST_DIR_OVERRIDE;
+
+    const directDist = spawnSync(process.execPath, [buildAboutScriptPath], {
+        cwd: rootDir,
+        encoding: "utf8",
+        env: childEnv
+    });
+    const output = `${directDist.stdout}\n${directDist.stderr}`;
+    assert.notEqual(directDist.status, 0, "Direct STICKVANIA_DIST_DIR should be rejected without the release-tooling gate.");
+    assert.match(output, /requires STICKVANIA_ALLOW_DIST_DIR_OVERRIDE=true/);
+    assert.equal(existsSync(directDistDir), false);
+}
+
 function verifyReleaseLockRejectsConcurrentMutation() {
     const beforeVersion = readFileSync(versionPath);
+    const hadInheritedReleaseLock = process.env.STICKVANIA_RELEASE_LOCK_TOKEN !== undefined && process.env.STICKVANIA_RELEASE_LOCK_TOKEN !== "";
     withReleaseOperationLock("verify-release-tooling", () => {
         const childEnv = { ...process.env };
         delete childEnv.STICKVANIA_RELEASE_LOCK_TOKEN;
@@ -166,7 +254,16 @@ function verifyReleaseLockRejectsConcurrentMutation() {
         assert.match(output, /Another release operation is already running/);
     });
     assert.deepEqual(readFileSync(versionPath), beforeVersion, "version.json should not change when a concurrent stamp is rejected.");
-    assert.equal(existsSync(releaseLockDir), false, "release lock should be removed after the owner exits.");
+    if (hadInheritedReleaseLock) {
+        const owner = JSON.parse(readFileSync(join(releaseLockDir, "owner.json"), "utf8"));
+        assert.equal(
+            owner.holders.some((holder) => holder.pid === process.pid),
+            false,
+            "inherited release lock holder should unregister after the nested operation exits."
+        );
+    } else {
+        assert.equal(existsSync(releaseLockDir), false, "release lock should be removed after the owner exits.");
+    }
 }
 
 function verifyProductionRejectsTrackedMutationBeforePromotion() {
@@ -253,6 +350,14 @@ function snapshotDirectory(directory) {
 }
 
 function collectFiles(directory) {
+    const rootStat = lstatSync(directory);
+    if (rootStat.isSymbolicLink()) {
+        throw new Error(`Release snapshot must not contain symbolic links or junctions: ${directory}`);
+    }
+    if (!rootStat.isDirectory()) {
+        throw new Error(`Release snapshot must be a directory: ${directory}`);
+    }
+
     const files = [];
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
         const fullPath = join(directory, entry.name);
