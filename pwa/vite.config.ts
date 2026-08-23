@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type PluginOption } from "vite";
 
@@ -9,11 +9,9 @@ interface VersionInfo {
 }
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
-const projectRootDir = fileURLToPath(new URL("..", import.meta.url));
-const distRootDir =
-    process.env.STICKVANIA_DIST_DIR === undefined || process.env.STICKVANIA_DIST_DIR.trim() === ""
-        ? join(projectRootDir, "dist")
-        : resolve(projectRootDir, process.env.STICKVANIA_DIST_DIR);
+const projectRootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const canonicalDistRootDir = join(projectRootDir, "dist");
+const distRootDir = resolveSafeDistRootDir();
 const distPwaDir = join(distRootDir, "pwa");
 const versionInfo = JSON.parse(readFileSync(new URL("../version.json", import.meta.url), "utf8")) as VersionInfo;
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
@@ -39,6 +37,49 @@ function renderVersionPlaceholders(text: string): string {
         .replaceAll("%APP_VERSION%", versionInfo.version)
         .replaceAll("%BUILD_STAMP%", encodedBuildStamp)
         .replaceAll("%CACHE_VERSION%", encodedCacheVersion);
+}
+
+function resolveSafeDistRootDir(): string {
+    const configuredDistDir = process.env.STICKVANIA_DIST_DIR;
+    const resolvedDistDir =
+        configuredDistDir === undefined || configuredDistDir.trim() === "" ? canonicalDistRootDir : resolve(projectRootDir, configuredDistDir);
+    assertSafeGeneratedOutputDirectory(resolvedDistDir, configuredDistDir === undefined || configuredDistDir.trim() === "");
+    return resolvedDistDir;
+}
+
+function assertSafeGeneratedOutputDirectory(directory: string, allowCanonicalDist: boolean): void {
+    if (isSameOrInside(projectRootDir, directory)) {
+        throw new Error(`STICKVANIA_DIST_DIR must not be the repository root or one of its ancestors: ${directory}`);
+    }
+
+    if (!allowCanonicalDist && pathsOverlap(directory, canonicalDistRootDir)) {
+        throw new Error(`STICKVANIA_DIST_DIR must not overlap canonical dist for redirected output: ${directory}`);
+    }
+
+    if (directory === join(projectRootDir, ".release-components")) {
+        throw new Error(`STICKVANIA_DIST_DIR must not be the release components root: ${directory}`);
+    }
+
+    for (const protectedDirectory of protectedOutputOverlapDirectories()) {
+        if (pathsOverlap(directory, protectedDirectory)) {
+            throw new Error(`STICKVANIA_DIST_DIR must not overlap protected repository path ${protectedDirectory}: ${directory}`);
+        }
+    }
+}
+
+function protectedOutputOverlapDirectories(): string[] {
+    return [".git", ".agents", ".codex", ".release-candidates", ".release-secrets", "about", "desktop", "node_modules", "pwa", "releases", "scripts"].map(
+        (entry) => join(projectRootDir, entry)
+    );
+}
+
+function pathsOverlap(first: string, second: string): boolean {
+    return isSameOrInside(first, second) || isSameOrInside(second, first);
+}
+
+function isSameOrInside(path: string, possibleAncestor: string): boolean {
+    const relationship = relative(possibleAncestor, path);
+    return relationship === "" || (!relationship.startsWith("..") && !isAbsolute(relationship));
 }
 
 function collectFiles(directory: string): string[] {

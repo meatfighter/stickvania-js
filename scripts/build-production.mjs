@@ -1,12 +1,15 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { canonicalDistDir, cleanDirectory, releaseComponentsDir, readVersion, rootDir, versionPath, writeVersion } from "./build-utils.mjs";
 
 const candidateDir = join(releaseComponentsDir, "production-candidate");
 const backupDir = join(releaseComponentsDir, `dist-backup-${process.pid}`);
 const originalVersionBytes = readFileSync(versionPath);
+const originalTrackedSourceState = readTrackedSourceState();
 const releaseScripts = ["_build:pwa:release", "_build:about", "build:desktop", "_assemble", "_verify:pwa-release", "verify:desktop-release"];
+let versionRestored = false;
 
 try {
     cleanDirectory(candidateDir);
@@ -30,10 +33,18 @@ try {
         throw new Error("Injected production build failure after candidate verification.");
     }
 
+    if (process.env.STICKVANIA_TEST_MUTATE_TRACKED_SOURCE_AFTER_CANDIDATE === "true") {
+        appendFileSync(join(rootDir, "README.md"), "\n<!-- injected release promotion source mutation -->\n");
+    }
+
+    restoreVersionJson();
+    assertTrackedSourceStateUnchanged(originalTrackedSourceState);
     promoteCandidate();
     console.log(`Promoted verified release candidate to ${relative(rootDir, canonicalDistDir)}`);
 } finally {
-    writeFileSync(versionPath, originalVersionBytes);
+    if (!versionRestored) {
+        restoreVersionJson();
+    }
 }
 
 function runNpmScript(scriptName, env) {
@@ -60,6 +71,60 @@ function getNpmArgs(scriptName) {
 
 function quoteWindowsCommandArgument(value) {
     return /^[A-Za-z0-9:_-]+$/.test(value) ? value : `"${value.replaceAll('"', '""')}"`;
+}
+
+function restoreVersionJson() {
+    writeFileSync(versionPath, originalVersionBytes);
+    versionRestored = true;
+}
+
+function readTrackedSourceState() {
+    const result = spawnSync("git", ["ls-files", "-z"], {
+        cwd: rootDir,
+        encoding: "buffer"
+    });
+    if (result.error) {
+        throw result.error;
+    }
+    if (result.status !== 0) {
+        throw new Error(result.stderr.toString("utf8"));
+    }
+
+    const files = result.stdout
+        .toString("utf8")
+        .split("\0")
+        .filter((file) => file.length > 0)
+        .sort();
+    return files.map((file) => ({
+        file,
+        hash: hashFile(join(rootDir, file))
+    }));
+}
+
+function assertTrackedSourceStateUnchanged(expectedState) {
+    const actualState = readTrackedSourceState();
+    const actualByFile = new Map(actualState.map((entry) => [entry.file, entry.hash]));
+    const changed = [];
+
+    for (const expected of expectedState) {
+        if (actualByFile.get(expected.file) !== expected.hash) {
+            changed.push(expected.file);
+        }
+        actualByFile.delete(expected.file);
+    }
+
+    changed.push(...actualByFile.keys());
+
+    if (changed.length > 0) {
+        throw new Error(`Tracked source files changed before release promotion: ${changed.join(", ")}`);
+    }
+}
+
+function hashFile(path) {
+    if (!existsSync(path)) {
+        return null;
+    }
+    return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
 function promoteCandidate() {
