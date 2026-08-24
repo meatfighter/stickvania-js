@@ -34,11 +34,13 @@ Build from the repository root:
 npm.cmd run build:desktop
 ```
 
-If Maven is installed on Windows or available in WSL2, the Node build helper will prefer Maven. This should also be buildable directly from this directory:
+If Maven is installed on Windows or available in WSL2, the Node build helper will prefer Maven. You can also build directly from this directory:
 
 ```text
 mvn package
 ```
+
+Direct `mvn package` is a developer build path. Public desktop releases should be produced through the repository-level npm release tooling, which verifies the pinned runtime/source hashes, normalizes the runtime allowlist, and verifies the final ZIP.
 
 Launch after building on Windows:
 

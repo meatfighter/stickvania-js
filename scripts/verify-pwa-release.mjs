@@ -616,6 +616,15 @@ test("PWA release output does not contain hard-coded deployment paths", () => {
     }
 });
 
+test("PWA third-party notice contains no provisional pre-release instructions", () => {
+    const notice = readFileSync(join(distPwaDir, "THIRD_PARTY_NOTICES.txt"), "utf8");
+
+    assert.match(notice, /slick2d-ts/, "The PWA notice should identify its browser runtime dependency.");
+    assert.doesNotMatch(notice, /Before publishing a binary desktop release/i);
+    assert.doesNotMatch(notice, /should be treated .* verified against the source package/i);
+    assert.doesNotMatch(notice, /verify the exact source and license text/i);
+});
+
 test("PWA service worker embeds its own cache version", async () => {
     const serviceWorker = readFileSync(serviceWorkerPath, "utf8");
     const worker = evaluateBuiltServiceWorker("old-release");

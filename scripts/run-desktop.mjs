@@ -23,7 +23,11 @@ function javaSupportsArg(arg) {
     return !result.error && result.status === 0;
 }
 
-const javaCompatibilityArgs = ["--enable-native-access=ALL-UNNAMED", "--sun-misc-unsafe-memory-access=allow"].filter((arg) => javaSupportsArg(arg));
+const javaCompatibilityArgs = [
+    ...(process.platform === "darwin" ? ["-XstartOnFirstThread"] : []),
+    "--enable-native-access=ALL-UNNAMED",
+    "--sun-misc-unsafe-memory-access=allow"
+].filter((arg) => javaSupportsArg(arg));
 
 if (!existsSync(jarPath)) {
     console.error("Missing desktop jar. Run npm run build:desktop first.");

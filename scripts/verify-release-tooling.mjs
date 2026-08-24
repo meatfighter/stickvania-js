@@ -35,12 +35,14 @@ const buildAboutScriptPath = join(rootDir, "scripts", "build-about.mjs");
 const productionCandidateDir = join(releaseComponentsDir, "production-candidate");
 const desktopLicenseReadmePath = join(rootDir, "desktop", "licenses", "README.md");
 const readmePath = join(rootDir, "README.md");
+const runDesktopScriptPath = join(rootDir, "scripts", "run-desktop.mjs");
 const stampScriptPath = join(rootDir, "scripts", "stamp.mjs");
 
 verifyReleaseStateIgnores();
 verifyNoTrackedReleaseState();
 verifyGeneratedDirectoriesIgnoredBySourceTooling();
 verifyDesktopRuntimeManifestDocs();
+verifyLocalDesktopLauncherCompatibility();
 verifyGeneratedOutputPathSafety();
 verifyGeneratedOutputRejectsIntermediateLinks();
 verifyGeneratedDesktopReleaseFileMutationsRejectLinkedDestinationFiles();
@@ -114,6 +116,14 @@ function verifyDesktopRuntimeManifestDocs() {
         assert.match(licenseReadme, new RegExp(`\`${escapeRegExp(artifact.path)}\``), `desktop/licenses/README.md should list ${artifact.path}.`);
         assert.match(licenseReadme, new RegExp(escapeRegExp(artifact.sha256)), `desktop/licenses/README.md should list ${artifact.path} SHA-256.`);
     }
+}
+
+function verifyLocalDesktopLauncherCompatibility() {
+    const source = readFileSync(runDesktopScriptPath, "utf8");
+
+    assert.match(source, /-XstartOnFirstThread/, "run:desktop should preserve the macOS first-thread requirement.");
+    assert.match(source, /--enable-native-access=ALL-UNNAMED/, "run:desktop should enable native access when supported.");
+    assert.match(source, /--sun-misc-unsafe-memory-access=allow/, "run:desktop should allow legacy Unsafe access when supported.");
 }
 
 function verifyComponentBuildPreservesCanonicalDist() {

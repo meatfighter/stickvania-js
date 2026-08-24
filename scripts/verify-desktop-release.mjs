@@ -74,6 +74,8 @@ function verifyDesktopZip(zipPath) {
     for (const artifact of [...runtimeArtifactEntries, ...thirdPartySourceEntries]) {
         assert.equal(sha256ZipEntry(entries.get(artifact.entry)), artifact.sha256, `${artifact.entry} should match the expected artifact hash.`);
     }
+
+    verifyLauncherCompatibility(entries);
 }
 
 function distributionArtifact(artifact) {
@@ -88,8 +90,32 @@ function permissionMode(entry) {
     return entry.mode & 0o777;
 }
 
+function verifyLauncherCompatibility(entries) {
+    const windowsCmd = zipEntryText(entries.get(`${distributionName}/run-windows.cmd`));
+    const windowsPowerShell = zipEntryText(entries.get(`${distributionName}/run-windows.ps1`));
+    const linux = zipEntryText(entries.get(`${distributionName}/run-linux.sh`));
+    const macos = zipEntryText(entries.get(`${distributionName}/run-macos.sh`));
+
+    for (const [label, launcher] of [
+        ["Windows CMD", windowsCmd],
+        ["Windows PowerShell", windowsPowerShell],
+        ["Linux", linux],
+        ["macOS", macos]
+    ]) {
+        assert.match(launcher, /--enable-native-access=ALL-UNNAMED/, `${label} launcher should enable native access when supported.`);
+        assert.match(launcher, /--sun-misc-unsafe-memory-access=allow/, `${label} launcher should allow legacy Unsafe access when supported.`);
+    }
+
+    assert.match(macos, /-XstartOnFirstThread/, "macOS launcher should request the first JVM thread when supported.");
+}
+
 function sha256(path) {
     return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function zipEntryText(entry) {
+    assert.ok(entry?.data, "Missing ZIP entry data.");
+    return entry.data.toString("utf8");
 }
 
 function sha256ZipEntry(entry) {

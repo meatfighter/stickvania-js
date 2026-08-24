@@ -41,7 +41,7 @@ The Windows launcher passes:
 -Dnet.java.games.input.plugins=net.java.games.input.DirectAndRawInputEnvironmentPlugin
 ```
 
-The launchers also add modern-JDK compatibility flags only when the installed JVM supports them. This dependency copy does not modernize Slick2D itself and does not upgrade the game code. It only vendors a better-matched legacy runtime set for desktop build work.
+The launchers also add modern-JDK compatibility flags only when the installed JVM supports them. The macOS launcher additionally requests `-XstartOnFirstThread` when the JVM supports it, which is required by the LWJGL windowing stack on macOS. This dependency copy does not modernize Slick2D itself and does not upgrade the game code. It only vendors a better-matched legacy runtime set for desktop build work.
 
 The desktop ZIP includes `licenses/` and `third-party-sources/`:
 

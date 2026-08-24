@@ -23,7 +23,7 @@ The browser version depends on the public `slick2d-ts` package and is the primar
 
 ### Requirements
 
-- Node.js and npm.
+- Node.js 20.19+ or 22.12+ and npm.
 - Git.
 - Java for desktop builds.
 - Maven is optional. If Maven is available on Windows or in WSL2, `build:desktop` will prefer it; otherwise the Node build helper uses a local `javac` fallback.
@@ -154,7 +154,7 @@ Important release details:
 - Production release promotion requires a clean Git working tree after any interrupted promotion has been recovered.
 - The service worker embeds its own version and precache list during the build.
 - Browser storage keys are scoped by deployed path so multiple deployments do not collide.
-- Desktop ZIPs are verified for expected entries, stable/versioned byte identity, launcher permissions, and accidental outer manifest entries.
+- Desktop ZIPs are verified for expected entries, documented runtime/source SHA-256 hashes, stable/versioned byte identity, launcher permissions, and accidental or undeclared runtime entries.
 - The Unix launcher scripts inside the desktop ZIP are written with executable mode bits.
 
 Do not use internal underscore scripts directly for normal work. Scripts such as `_build:pwa:release`, `_build:about`, `_assemble`, and `_verify:pwa-release` are building blocks used by the public scripts.
@@ -168,6 +168,8 @@ npm.cmd run release:desktop
 ```
 
 This runs the verification suite and copies `desktop/target/stickvania-desktop-<version>.zip` into `releases/`.
+
+The ZIP contains Windows, Linux, and macOS launchers, but the desktop runtime is intentionally legacy. Treat a platform as supported only after smoke-testing the exact final ZIP on that platform.
 
 Launch the built desktop version on Windows:
 
