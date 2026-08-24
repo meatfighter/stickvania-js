@@ -17,6 +17,7 @@ import {
     versionPath,
     withReleaseOperationLock
 } from "./build-utils.mjs";
+import { desktopRuntimeArtifacts, desktopThirdPartySourceArtifacts } from "./desktop-runtime-manifest.mjs";
 
 const releaseStateIgnorePatterns = [
     ".release-components/",
@@ -32,12 +33,14 @@ const releaseStateIgnorePatterns = [
 const buildProductionScriptPath = join(rootDir, "scripts", "build-production.mjs");
 const buildAboutScriptPath = join(rootDir, "scripts", "build-about.mjs");
 const productionCandidateDir = join(releaseComponentsDir, "production-candidate");
+const desktopLicenseReadmePath = join(rootDir, "desktop", "licenses", "README.md");
 const readmePath = join(rootDir, "README.md");
 const stampScriptPath = join(rootDir, "scripts", "stamp.mjs");
 
 verifyReleaseStateIgnores();
 verifyNoTrackedReleaseState();
 verifyGeneratedDirectoriesIgnoredBySourceTooling();
+verifyDesktopRuntimeManifestDocs();
 verifyGeneratedOutputPathSafety();
 verifyGeneratedOutputRejectsIntermediateLinks();
 verifyGeneratedDesktopReleaseFileMutationsRejectLinkedDestinationFiles();
@@ -102,6 +105,14 @@ function verifyGeneratedDirectoriesIgnoredBySourceTooling() {
         ".dist-active-before-*/**"
     ]) {
         assert.match(eslintConfig, new RegExp(escapeRegExp(pattern)), `eslint config should ignore ${pattern}`);
+    }
+}
+
+function verifyDesktopRuntimeManifestDocs() {
+    const licenseReadme = readFileSync(desktopLicenseReadmePath, "utf8");
+    for (const artifact of [...desktopRuntimeArtifacts, ...desktopThirdPartySourceArtifacts]) {
+        assert.match(licenseReadme, new RegExp(`\`${escapeRegExp(artifact.path)}\``), `desktop/licenses/README.md should list ${artifact.path}.`);
+        assert.match(licenseReadme, new RegExp(escapeRegExp(artifact.sha256)), `desktop/licenses/README.md should list ${artifact.path} SHA-256.`);
     }
 }
 

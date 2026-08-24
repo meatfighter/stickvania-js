@@ -3,6 +3,13 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSy
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { copyFileAtomic, readVersion, rootDir, runCommandWithReleaseLock, withReleaseOperationLock } from "./build-utils.mjs";
+import {
+    desktopDistributionName,
+    desktopLicenseFiles,
+    desktopRuntimeArtifacts,
+    desktopRuntimeJars,
+    desktopThirdPartySourceArtifacts
+} from "./desktop-runtime-manifest.mjs";
 import { createStoredZipFromDirectory } from "./zip-store.mjs";
 
 const version = readVersion();
@@ -10,44 +17,20 @@ const desktopDir = join(rootDir, "desktop");
 const sourceDir = join(desktopDir, "src");
 const libDir = join(desktopDir, "lib");
 const licensesDir = join(desktopDir, "licenses");
-const nativeDir = join(desktopDir, "natives");
 const thirdPartySourcesDir = join(desktopDir, "third-party-sources");
 const targetDir = join(desktopDir, "target");
 const classesDir = join(targetDir, "classes");
 const targetLibDir = join(targetDir, "lib");
 const targetNativeDir = join(targetDir, "natives");
 const distributionRoot = join(targetDir, "distribution");
-const distributionName = "stickvania-desktop";
+const distributionName = desktopDistributionName;
 const versionedJarPath = join(targetDir, `${distributionName}-${version.version}.jar`);
 const stableJarPath = join(targetDir, `${distributionName}.jar`);
 const versionedZipPath = join(targetDir, `${distributionName}-${version.version}.zip`);
 const stableZipPath = join(targetDir, `${distributionName}.zip`);
 const sourcesFile = join(targetDir, "sources.txt");
 const manifestPath = join(targetDir, "MANIFEST.MF");
-const runtimeJars = ["slick.jar", "lwjgl.jar", "lwjgl_util.jar", "jinput.jar", "jogg-0.0.7.jar", "jorbis-0.0.17.jar"];
-const licenseFiles = [
-    "GNU-LIBRARY-GPL-2.0.txt",
-    "JINPUT-BSD.txt",
-    "JORBIS-JOGG-LGPL-NOTICE.txt",
-    "LWJGL-2-BSD.txt",
-    "OPENAL-SOFT-LGPL-NOTICE.txt",
-    "README.md",
-    "SLICK2D-BSD-3-CLAUSE.txt"
-];
-const thirdPartySourceArtifacts = [
-    {
-        name: "jogg-0.0.7-jcraft-jorbis-28592f3-source.zip",
-        sha256: "0c814790741d14debc4a88214bdf8d0369a521a652e4d9a375b0cdfdbc21597a"
-    },
-    {
-        name: "jorbis-0.0.17-sources.jar",
-        sha256: "1643dd368b9c160276caf8d1f6a8c0aae43ca5bf49b53348a2a01623641708e5"
-    },
-    {
-        name: "openal-soft-1.14.tar.bz2",
-        sha256: "87bd8d61d5943387898c92b6a2bbbb26118e745dec57550c817526a70fad0914"
-    }
-];
+const runtimeJars = desktopRuntimeJars.map((artifact) => artifact.path.substring("lib/".length));
 
 function commandExists(command) {
     const finder = process.platform === "win32" ? "where.exe" : "which";
@@ -183,21 +166,7 @@ function writeManifest() {
 }
 
 function verifyRuntimeDependencies() {
-    for (const jar of runtimeJars) {
-        const path = join(libDir, jar);
-        if (!existsSync(path)) {
-            throw new Error(`Missing desktop runtime jar: ${path}`);
-        }
-    }
-    if (!existsSync(nativeDir)) {
-        throw new Error(`Missing desktop native directory: ${nativeDir}`);
-    }
-    const windowsNativeDir = join(nativeDir, "windows");
-    for (const dll of ["lwjgl64.dll", "OpenAL64.dll", "jinput-dx8_64.dll", "jinput-raw_64.dll"]) {
-        if (!existsSync(join(windowsNativeDir, dll))) {
-            throw new Error(`Missing Windows 64-bit native library: ${join(windowsNativeDir, dll)}`);
-        }
-    }
+    verifyManifestArtifacts(desktopRuntimeArtifacts, "desktop runtime artifact");
     verifyLicenseBundle();
     verifyThirdPartySources();
 }
@@ -206,10 +175,10 @@ function copyRuntimeToTarget() {
     assertDesktopGeneratedPathSafe(targetLibDir, "desktop runtime lib target");
     rmSync(targetLibDir, { recursive: true, force: true });
     mkdirSync(targetLibDir, { recursive: true });
-    for (const jar of runtimeJars) {
-        copyFileSync(join(libDir, jar), join(targetLibDir, jar));
-    }
-    copyDirectoryContents(nativeDir, targetNativeDir);
+    assertDesktopGeneratedPathSafe(targetNativeDir, "desktop runtime native target");
+    rmSync(targetNativeDir, { recursive: true, force: true });
+    mkdirSync(targetNativeDir, { recursive: true });
+    copyManifestArtifacts(desktopRuntimeArtifacts, desktopDir, targetDir, "desktop runtime artifact");
 }
 
 function verifyLicenseBundle() {
@@ -217,8 +186,8 @@ function verifyLicenseBundle() {
     if (!licenseDirStat.isDirectory()) {
         throw new Error(`desktop license bundle must be a directory: ${licensesDir}`);
     }
-    for (const file of licenseFiles) {
-        const path = join(licensesDir, file);
+    for (const file of desktopLicenseFiles) {
+        const path = join(desktopDir, file);
         if (!existsSync(path)) {
             throw new Error(`Missing desktop license file: ${path}`);
         }
@@ -234,20 +203,48 @@ function verifyThirdPartySources() {
     if (!sourceDirStat.isDirectory()) {
         throw new Error(`desktop third-party source bundle must be a directory: ${thirdPartySourcesDir}`);
     }
-    for (const artifact of thirdPartySourceArtifacts) {
-        const path = join(thirdPartySourcesDir, artifact.name);
+    verifyManifestArtifacts(desktopThirdPartySourceArtifacts, "desktop third-party source artifact");
+}
+
+function verifyManifestArtifacts(artifacts, label) {
+    for (const artifact of artifacts) {
+        const path = join(desktopDir, artifact.path);
         if (!existsSync(path)) {
-            throw new Error(`Missing desktop third-party source artifact: ${path}`);
+            throw new Error(`Missing ${label}: ${path}`);
         }
-        const stat = assertRealFilesystemEntry(path, "desktop third-party source bundle");
+        const stat = assertRealFilesystemEntry(path, label);
         if (!stat.isFile()) {
-            throw new Error(`desktop third-party source entry must be a file: ${path}`);
+            throw new Error(`${label} must be a file: ${path}`);
         }
         const actualHash = sha256(path);
         if (actualHash !== artifact.sha256) {
             throw new Error(`Unexpected SHA-256 for ${path}: expected ${artifact.sha256}, got ${actualHash}`);
         }
     }
+}
+
+function copyManifestArtifacts(artifacts, sourceRoot, targetRoot, label) {
+    for (const artifact of artifacts) {
+        copyManifestFile(artifact.path, sourceRoot, targetRoot, label);
+    }
+}
+
+function copyManifestFiles(files, sourceRoot, targetRoot, label) {
+    for (const file of files) {
+        copyManifestFile(file, sourceRoot, targetRoot, label);
+    }
+}
+
+function copyManifestFile(file, sourceRoot, targetRoot, label) {
+    const sourcePath = join(sourceRoot, file);
+    const targetPath = join(targetRoot, file);
+    const stat = assertRealFilesystemEntry(sourcePath, label);
+    if (!stat.isFile()) {
+        throw new Error(`${label} must be a file: ${sourcePath}`);
+    }
+    assertDesktopGeneratedPathSafe(targetPath, label);
+    mkdirSync(dirname(targetPath), { recursive: true });
+    copyFileSync(sourcePath, targetPath);
 }
 
 function cleanDesktopTargetDirectory() {
@@ -297,8 +294,8 @@ function createDistribution() {
     copyFileSync(stableJarPath, join(distributionDir, `${distributionName}.jar`));
     copyDirectoryContents(targetLibDir, join(distributionDir, "lib"));
     copyDirectoryContents(targetNativeDir, join(distributionDir, "natives"));
-    copyDirectoryContents(licensesDir, join(distributionDir, "licenses"));
-    copyDirectoryContents(thirdPartySourcesDir, join(distributionDir, "third-party-sources"));
+    copyManifestFiles(desktopLicenseFiles, desktopDir, distributionDir, "desktop license bundle");
+    copyManifestArtifacts(desktopThirdPartySourceArtifacts, desktopDir, distributionDir, "desktop third-party source artifact");
 
     for (const name of ["run-windows.cmd", "run-windows.ps1", "run-linux.sh", "run-macos.sh", "README.md", "RUNTIME_DEPENDENCIES.md"]) {
         copyFileSync(join(desktopDir, name), join(distributionDir, name));
@@ -325,6 +322,7 @@ function normalizeMavenOutputs() {
         copyFileAtomic(mavenStableJar, stableJarPath, { label: "desktop stable JAR destination" });
     }
     copyFileAtomic(stableJarPath, versionedJarPath, { label: "desktop versioned JAR destination" });
+    copyRuntimeToTarget();
     createDistribution();
 }
 

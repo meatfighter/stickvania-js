@@ -35,7 +35,6 @@ export class StickvaniaGameStateStore {
             return true;
         } catch (error) {
             console.warn("Unable to restore Stickvania game state.", error);
-            this.clear();
             return false;
         }
     }
@@ -43,8 +42,8 @@ export class StickvaniaGameStateStore {
     public hasValidSave(): boolean {
         try {
             return this.readSnapshot() !== null;
-        } catch {
-            this.clear();
+        } catch (error) {
+            console.warn("Unable to read Stickvania game state.", error);
             return false;
         }
     }

@@ -3,50 +3,25 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { readVersion, resolveConfiguredDistDir, rootDir } from "./build-utils.mjs";
+import { desktopDistributionName, desktopLicenseFiles, desktopRuntimeArtifacts, desktopThirdPartySourceArtifacts } from "./desktop-runtime-manifest.mjs";
 import { readZipCentralDirectory } from "./zip-store.mjs";
 
 const version = readVersion();
 const distDir = resolveConfiguredDistDir();
 const downloadsDir = join(distDir, "downloads");
-const distributionName = "stickvania-desktop";
+const distributionName = desktopDistributionName;
 const stableZipPath = join(downloadsDir, `${distributionName}.zip`);
 const versionedZipPath = join(downloadsDir, `${distributionName}-${version.version}.zip`);
-const runtimeJarEntries = [
-    `${distributionName}/lib/slick.jar`,
-    `${distributionName}/lib/lwjgl.jar`,
-    `${distributionName}/lib/lwjgl_util.jar`,
-    `${distributionName}/lib/jinput.jar`,
-    `${distributionName}/lib/jogg-0.0.7.jar`,
-    `${distributionName}/lib/jorbis-0.0.17.jar`
-];
-const thirdPartySourceEntries = [
-    {
-        entry: `${distributionName}/third-party-sources/jogg-0.0.7-jcraft-jorbis-28592f3-source.zip`,
-        sha256: "0c814790741d14debc4a88214bdf8d0369a521a652e4d9a375b0cdfdbc21597a"
-    },
-    {
-        entry: `${distributionName}/third-party-sources/jorbis-0.0.17-sources.jar`,
-        sha256: "1643dd368b9c160276caf8d1f6a8c0aae43ca5bf49b53348a2a01623641708e5"
-    },
-    {
-        entry: `${distributionName}/third-party-sources/openal-soft-1.14.tar.bz2`,
-        sha256: "87bd8d61d5943387898c92b6a2bbbb26118e745dec57550c817526a70fad0914"
-    }
-];
+const runtimeArtifactEntries = desktopRuntimeArtifacts.map((artifact) => distributionArtifact(artifact));
+const runtimeArtifactEntryNames = new Set(runtimeArtifactEntries.map((artifact) => artifact.entry));
+const thirdPartySourceEntries = desktopThirdPartySourceArtifacts.map((artifact) => distributionArtifact(artifact));
+const thirdPartySourceEntryNames = new Set(thirdPartySourceEntries.map((artifact) => artifact.entry));
+const licenseEntries = desktopLicenseFiles.map((file) => `${distributionName}/${file}`);
+const licenseEntryNames = new Set(licenseEntries);
 const requiredEntries = [
     `${distributionName}/${distributionName}.jar`,
-    ...runtimeJarEntries,
-    `${distributionName}/natives/windows/lwjgl64.dll`,
-    `${distributionName}/natives/windows/OpenAL64.dll`,
-    `${distributionName}/natives/windows/jinput-dx8_64.dll`,
-    `${distributionName}/natives/windows/jinput-raw_64.dll`,
-    `${distributionName}/licenses/GNU-LIBRARY-GPL-2.0.txt`,
-    `${distributionName}/licenses/JINPUT-BSD.txt`,
-    `${distributionName}/licenses/JORBIS-JOGG-LGPL-NOTICE.txt`,
-    `${distributionName}/licenses/LWJGL-2-BSD.txt`,
-    `${distributionName}/licenses/OPENAL-SOFT-LGPL-NOTICE.txt`,
-    `${distributionName}/licenses/README.md`,
-    `${distributionName}/licenses/SLICK2D-BSD-3-CLAUSE.txt`,
+    ...runtimeArtifactEntries.map((artifact) => artifact.entry),
+    ...licenseEntries,
     ...thirdPartySourceEntries.map((artifact) => artifact.entry),
     `${distributionName}/LICENSE`,
     `${distributionName}/THIRD_PARTY_NOTICES.md`,
@@ -78,8 +53,14 @@ function verifyDesktopZip(zipPath) {
             false,
             `${relative(rootDir, zipPath)} should not include distribution outer manifest entries.`
         );
-        if (entry.startsWith(`${distributionName}/lib/`) && entry.endsWith(".jar")) {
-            assert.ok(runtimeJarEntries.includes(entry), `${relative(rootDir, zipPath)} should not include undeclared runtime jar ${entry}.`);
+        if (entry.startsWith(`${distributionName}/lib/`) || entry.startsWith(`${distributionName}/natives/`)) {
+            assert.ok(runtimeArtifactEntryNames.has(entry), `${relative(rootDir, zipPath)} should not include undeclared runtime artifact ${entry}.`);
+        }
+        if (entry.startsWith(`${distributionName}/third-party-sources/`)) {
+            assert.ok(thirdPartySourceEntryNames.has(entry), `${relative(rootDir, zipPath)} should not include undeclared source artifact ${entry}.`);
+        }
+        if (entry.startsWith(`${distributionName}/licenses/`)) {
+            assert.ok(licenseEntryNames.has(entry), `${relative(rootDir, zipPath)} should not include undeclared license file ${entry}.`);
         }
     }
 
@@ -90,9 +71,16 @@ function verifyDesktopZip(zipPath) {
         assert.equal(permissionMode(entries.get(entry)), 0o644, `${entry} should use mode 0644.`);
     }
 
-    for (const artifact of thirdPartySourceEntries) {
-        assert.equal(sha256ZipEntry(entries.get(artifact.entry)), artifact.sha256, `${artifact.entry} should match the expected source artifact hash.`);
+    for (const artifact of [...runtimeArtifactEntries, ...thirdPartySourceEntries]) {
+        assert.equal(sha256ZipEntry(entries.get(artifact.entry)), artifact.sha256, `${artifact.entry} should match the expected artifact hash.`);
     }
+}
+
+function distributionArtifact(artifact) {
+    return {
+        entry: `${distributionName}/${artifact.path}`,
+        sha256: artifact.sha256
+    };
 }
 
 function permissionMode(entry) {

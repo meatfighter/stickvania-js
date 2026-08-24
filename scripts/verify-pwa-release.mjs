@@ -19,6 +19,7 @@ const gameStateSchemaSourcePath = join(rootDir, "pwa", "src", "stickvania", "per
 const gameStatePreflightSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStatePreflight.ts");
 const gameStateSnapshotSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStateSnapshot.ts");
 const gameStateSerializerSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "StickvaniaGameStateSerializer.ts");
+const gameStateStoreSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "StickvaniaGameStateStore.ts");
 const thingTypeRegistrySourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "ThingTypeRegistry.ts");
 const inputMappingStorageKey = expectedBrowserStorageKey("input-mapping");
 const inputMappingVersion = 5;
@@ -864,6 +865,22 @@ test("PWA root-menu preflight preserves future-version saved games", async () =>
 
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), JSON.stringify(futureSnapshot));
+});
+
+test("PWA Continue launch failures preserve saved games", () => {
+    const mainSource = readFileSync(mainSourcePath, "utf8");
+    const storeSource = readFileSync(gameStateStoreSourcePath, "utf8");
+    const mainClearCalls = [...mainSource.matchAll(/\bclearStoredGameState\(\);/g)].map((match) => match.index ?? -1);
+    const newGameClearIndex = mainSource.indexOf("newGameButton.addEventListener");
+
+    assert.equal(mainClearCalls.length, 1, "The PWA shell should only clear saved game state from the New Game action.");
+    assert.ok(newGameClearIndex >= 0 && mainClearCalls[0] > newGameClearIndex, "The remaining shell save clear should stay in the New Game handler.");
+    assert.match(mainSource, /void startGame\(restoreSavedGame\);/, "Load-error Retry should preserve the original New Game or Continue intent.");
+    assert.match(
+        storeSource,
+        /console\.warn\("Unable to restore Stickvania game state\.", error\);\s*return false;\s*}\s*}\s*public hasValidSave/,
+        "Restore-time exceptions should return false without deleting the stored save."
+    );
 });
 
 test("PWA root-menu preflight clears only the selected deployment save", async () => {

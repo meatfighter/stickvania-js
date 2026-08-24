@@ -288,31 +288,23 @@ function showGameShell(): HTMLElement {
 
 async function startGame(restoreSavedGame: boolean): Promise<void> {
     const audioUnlockPromise = unlockAudio();
-    let runtimePrepared = false;
     destroyGame();
     if (preparedRuntime === null) {
         showBoot(preparationProgress);
     }
     try {
         const runtime = await ensureRuntimePrepared(preparationError !== null);
-        runtimePrepared = true;
         await audioUnlockPromise;
         if (restoreSavedGame && !getGameStateStore(runtime).hasValidSave()) {
-            clearStoredGameState();
-            showMenu();
+            showMenu("Unable to restore the saved game. Try Continue again or start a new game.");
             return;
         }
         await launchPreparedGame(runtime, restoreSavedGame);
     } catch (error) {
         console.error(error);
         destroyGame();
-        if (restoreSavedGame && runtimePrepared) {
-            clearStoredGameState();
-            showMenu();
-            return;
-        }
         showLoadError("Unable to start.", "Check your connection and try again.", () => {
-            void startGame(false);
+            void startGame(restoreSavedGame);
         });
     }
 }
@@ -360,9 +352,8 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     await Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false));
     await appContainer.start();
     if (restoreFailed) {
-        clearStoredGameState();
         destroyGame();
-        showMenu();
+        showMenu("Unable to restore the saved game. Try Continue again or start a new game.");
         return;
     }
     appContainer.setErrorHandler((error) => {
