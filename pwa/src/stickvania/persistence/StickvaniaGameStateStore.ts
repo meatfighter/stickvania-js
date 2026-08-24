@@ -61,8 +61,17 @@ export class StickvaniaGameStateStore {
             return null;
         }
 
-        const snapshot = JSON.parse(text) as StickvaniaGameStateSnapshot;
-        if (snapshot.version !== GAME_STATE_VERSION || !this.serializer.isSupportedSnapshot(snapshot)) {
+        const snapshot = JSON.parse(text) as StickvaniaGameStateSnapshot | null;
+        if (
+            snapshot !== null &&
+            typeof snapshot === "object" &&
+            typeof snapshot.version === "number" &&
+            Number.isInteger(snapshot.version) &&
+            snapshot.version > GAME_STATE_VERSION
+        ) {
+            return null;
+        }
+        if (snapshot === null || snapshot.version !== GAME_STATE_VERSION || !this.serializer.isSupportedSnapshot(snapshot)) {
             this.clear();
             return null;
         }

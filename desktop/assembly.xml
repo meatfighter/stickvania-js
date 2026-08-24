@@ -58,5 +58,13 @@
             <directory>${project.build.directory}/natives</directory>
             <outputDirectory>/natives</outputDirectory>
         </fileSet>
+        <fileSet>
+            <directory>${project.basedir}/licenses</directory>
+            <outputDirectory>/licenses</outputDirectory>
+        </fileSet>
+        <fileSet>
+            <directory>${project.basedir}/third-party-sources</directory>
+            <outputDirectory>/third-party-sources</outputDirectory>
+        </fileSet>
     </fileSets>
 </assembly>

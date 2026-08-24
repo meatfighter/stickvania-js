@@ -520,8 +520,10 @@ test("package scripts use temporary release stamping for public builds", () => {
     );
     assert.equal(scripts["verify:desktop-release"], "node scripts/verify-desktop-release.mjs");
     assert.equal(scripts["verify:release-tooling"], "node scripts/verify-release-tooling.mjs");
+    assert.equal(scripts["verify:dependencies"], "npm audit --audit-level=high");
     assert.equal(scripts["build:web"], "node scripts/run-stamped-release.mjs --dist .release-components/web --clean-dist _build:pwa:release _build:about");
     assert.equal(scripts["build"], "node scripts/build-production.mjs");
+    assert.equal(scripts["release"], "npm run verify && npm run verify:dependencies && npm run build");
     assert.equal(scripts["release:desktop"], "node scripts/release-desktop.mjs");
     assert.equal(
         scripts["verify"],
@@ -563,6 +565,16 @@ test("PWA service worker registration is relative to the current PWA page", () =
     assert.doesNotMatch(mainSource, /BASE_URL/);
     assert.match(mainSource, /new URL\(`\.\/sw\.js\?v=\$\{version\}`, window\.location\.href\)/);
     assert.match(mainSource, /navigator\.serviceWorker\.register\(serviceWorkerUrl\.href, \{ scope: "\.\/" \}\)/);
+});
+
+test("PWA runtime error screen tears down the active game before replacing the UI", () => {
+    const mainSource = readFileSync(mainSourcePath, "utf8");
+
+    assert.match(
+        mainSource,
+        /function showError\(message: string\): void \{\s*destroyGame\(\);\s*showLoadError\("Unable to continue\.", message,/,
+        "showError should destroy the active AppGameContainer before showing the retry screen."
+    );
 });
 
 test("PWA release output uses relocatable relative URLs", () => {
@@ -841,6 +853,17 @@ test("PWA root-menu preflight clears obsolete or malformed saved games", async (
     storage.setItem(GAME_STATE_STORAGE_KEY, "{");
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), null);
+});
+
+test("PWA root-menu preflight preserves future-version saved games", async () => {
+    const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, hasPotentialStoredStickvaniaGameState } = await importGameStatePreflight();
+    const storage = createLocalStorageMock();
+    const futureSnapshot = validPotentialGameStateSnapshot(GAME_STATE_VERSION + 1);
+
+    storage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(futureSnapshot));
+
+    assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
+    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), JSON.stringify(futureSnapshot));
 });
 
 test("PWA root-menu preflight clears only the selected deployment save", async () => {

@@ -22,10 +22,11 @@ const releaseScripts = ["_build:pwa:release", "_build:about", "build:desktop", "
 await withReleaseOperationLock("build-production", async () => {
     const backupDir = join(releaseComponentsDir, `dist-backup-${process.pid}`);
     const originalVersionBytes = readFileSync(versionPath);
-    const originalTrackedSourceState = readTrackedSourceState();
 
     try {
         recoverInterruptedPromotion();
+        assertCleanWorkingTree();
+        const originalTrackedSourceState = readTrackedSourceState();
         cleanDirectory(candidateDir);
         rmSync(backupDir, { recursive: true, force: true });
 
@@ -131,6 +132,24 @@ function assertTrackedSourceStateUnchanged(expectedState) {
 
     if (changed.length > 0) {
         throw new Error(`Tracked source files changed before release promotion: ${changed.join(", ")}`);
+    }
+}
+
+function assertCleanWorkingTree() {
+    const result = spawnSync("git", ["status", "--porcelain=v1", "--untracked-files=all"], {
+        cwd: rootDir,
+        encoding: "utf8"
+    });
+    if (result.error) {
+        throw result.error;
+    }
+    if (result.status !== 0) {
+        throw new Error(result.stderr);
+    }
+
+    const status = result.stdout.trim();
+    if (status.length > 0) {
+        throw new Error(`Production releases require a clean Git working tree. Commit, stash, or remove these changes first:\n${status}`);
     }
 }
 

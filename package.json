@@ -2,6 +2,11 @@
     "name": "stickvania-js",
     "version": "1.0.0",
     "private": true,
+    "homepage": "https://meatfighter.com/stickvania/",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/meatfighter/stickvania-js.git"
+    },
     "license": "GPL-3.0-or-later",
     "type": "module",
     "scripts": {
@@ -26,7 +31,9 @@
         "test:pwa-release": "node scripts/run-stamped-release.mjs --dist .release-components/pwa-test --clean-dist _build:pwa:release _verify:pwa-release",
         "verify:desktop-release": "node scripts/verify-desktop-release.mjs",
         "verify:release-tooling": "node scripts/verify-release-tooling.mjs",
+        "verify:dependencies": "npm audit --audit-level=high",
         "verify": "npm run format:check && npm run lint && npm run verify:release-tooling && npm run test:pwa-release && npm run build:desktop",
+        "release": "npm run verify && npm run verify:dependencies && npm run build",
         "preview": "npm run preview:pwa",
         "preview:pwa": "vite preview --config pwa/vite.config.ts --host 127.0.0.1",
         "preview:dist": "vite preview --host 127.0.0.1 --outDir dist",

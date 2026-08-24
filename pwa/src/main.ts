@@ -176,6 +176,7 @@ function showLoadError(title: string, message: string, retryHandler: () => void)
 }
 
 function showError(message: string): void {
+    destroyGame();
     showLoadError("Unable to continue.", message, () => {
         window.location.reload();
     });

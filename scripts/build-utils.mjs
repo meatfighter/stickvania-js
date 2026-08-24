@@ -69,7 +69,12 @@ export function cleanDirectory(path, options = {}) {
 }
 
 export function renderTemplate(text, replacements) {
-    return Object.entries(replacements).reduce((output, [key, value]) => output.replaceAll(key, value), text);
+    const rendered = Object.entries(replacements).reduce((output, [key, value]) => output.replaceAll(key, value), text);
+    const unresolvedPlaceholders = [...new Set([...rendered.matchAll(/__[A-Z0-9_]+__/g)].map((match) => match[0]))];
+    if (unresolvedPlaceholders.length > 0) {
+        throw new Error(`Template contains unresolved placeholders: ${unresolvedPlaceholders.join(", ")}`);
+    }
+    return rendered;
 }
 
 export function assertSafeGeneratedOutputDirectory(path, options = {}) {

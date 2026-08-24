@@ -117,6 +117,14 @@
                             <resources>
                                 <resource>
                                     <directory>${project.basedir}/lib</directory>
+                                    <includes>
+                                        <include>slick.jar</include>
+                                        <include>lwjgl.jar</include>
+                                        <include>lwjgl_util.jar</include>
+                                        <include>jinput.jar</include>
+                                        <include>jogg-0.0.7.jar</include>
+                                        <include>jorbis-0.0.17.jar</include>
+                                    </includes>
                                 </resource>
                             </resources>
                         </configuration>

@@ -15,7 +15,11 @@ export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage,
         if (text === null) {
             return false;
         }
-        if (!isPotentialStickvaniaGameStateSnapshot(JSON.parse(text) as unknown)) {
+        const snapshot = JSON.parse(text) as unknown;
+        if (isFutureVersionStickvaniaGameStateSnapshot(snapshot)) {
+            return false;
+        }
+        if (!isPotentialStickvaniaGameStateSnapshot(snapshot)) {
             clearStoredStickvaniaGameState(storage, storageKey);
             return false;
         }
@@ -24,6 +28,10 @@ export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage,
         clearStoredStickvaniaGameState(storage, storageKey);
         return false;
     }
+}
+
+function isFutureVersionStickvaniaGameStateSnapshot(snapshot: unknown): boolean {
+    return isRecord(snapshot) && typeof snapshot.version === "number" && Number.isInteger(snapshot.version) && snapshot.version > GAME_STATE_VERSION;
 }
 
 export function hasPotentialBrowserStoredStickvaniaGameState(): boolean {

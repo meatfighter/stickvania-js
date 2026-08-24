@@ -2,20 +2,27 @@
 
 This project depends on slick2d-ts for the browser runtime. slick2d-ts is distributed under the BSD 3-Clause License and includes attribution for selected Slick2D API behavior.
 
-Desktop Java runtime dependencies are documented separately in desktop/RUNTIME_DEPENDENCIES.md where present.
+Desktop Java runtime dependencies are documented separately in `desktop/RUNTIME_DEPENDENCIES.md`, `desktop/licenses/`, and `desktop/third-party-sources/`. The downloadable desktop package bundles legacy jars, native libraries, license texts, and corresponding-source artifacts; keep this notice file with that package.
 
 ## Bundled Desktop Runtime Components
 
 The Java desktop distribution bundles a legacy Slick2D/LWJGL runtime stack so the game can run without a separate runtime setup.
 
-| Component              | Bundled Files                                                       | License / Notice                                                                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| LWJGL 2                | `lwjgl.jar`, `lwjgl_util.jar`, LWJGL native libraries               | BSD license. See the LWJGL 2 license at https://legacy.lwjgl.org/license.php.html.                                                                                                                        |
-| JInput                 | `jinput.jar`, JInput native libraries                               | BSD-style license. JInput package metadata commonly identifies the license as BSD.                                                                                                                        |
-| JOrbis / JOGG          | `jorbis-0.0.17.jar`, `jogg-0.0.7.jar`                               | GNU Lesser General Public License. The JOrbis project identifies itself as LGPL-licensed.                                                                                                                 |
-| OpenAL runtime library | `OpenAL32.dll`, `OpenAL64.dll`, Linux/macOS OpenAL native libraries | OpenAL implementations vary by binary. The bundled legacy runtime should be treated as a dynamically linked third-party audio runtime and verified against the source package used for the final release. |
+| Component                   | Included files                                       | SHA-256                                                                                                                                                                       | License / notice                                                                                                                                                                              |
+| --------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slick2D                     | `slick.jar`                                          | `02f7a1f0c48847a32fcc1a3330b12b869e73ad7658c7708174d9f1f2ec75847b`                                                                                                            | BSD 3-Clause License. Full notice reproduced below and included in `desktop/licenses/SLICK2D-BSD-3-CLAUSE.txt`.                                                                               |
+| LWJGL 2.8.5                 | `lwjgl.jar`, `lwjgl_util.jar`, bundled LWJGL natives | `lwjgl.jar`: `a31267bf348e564217d833cb0b334cfe4062aab12b015c126f323882949d1c1d`; `lwjgl_util.jar`: `2432cbacfcec9cd78165f44f45d045bafff9da122276ed288157699eeee688de`         | BSD-style license from the Lightweight Java Game Library project. Full notice reproduced below and included in `desktop/licenses/LWJGL-2-BSD.txt`.                                            |
+| JInput                      | `jinput.jar`, bundled JInput natives                 | `36b6fbede7a2d2f00949a87b9de83007a1c6b4ce5a96978279c0cc612a9adef5`                                                                                                            | BSD-style license from the Java Game Technology Group / JInput project. Full notice included in `desktop/licenses/JINPUT-BSD.txt`.                                                            |
+| OpenAL Soft 1.14            | bundled OpenAL native libraries                      | See `desktop/licenses/README.md` for per-file hashes.                                                                                                                         | GNU Library/Lesser GPL terms. The OpenAL native binaries identify `OpenAL Soft`, `OpenAL Community`, and `1.1 ALSOFT 1.14`; full text included in `desktop/licenses/GNU-LIBRARY-GPL-2.0.txt`. |
+| JOrbis / JCraft Ogg support | `jogg-0.0.7.jar`, `jorbis-0.0.17.jar`                | `jogg-0.0.7.jar`: `2e2744b9bfada5e62ba274d6b3089656676599afacc095647234ae383b991ecc`; `jorbis-0.0.17.jar`: `7096b7eef82228c7aea0260fac4884aec416b332dfaac8182dea8c28ba35b45f` | GNU Lesser/Library General Public License according to JOrbis Maven metadata and source headers. Full text included in `desktop/licenses/GNU-LIBRARY-GPL-2.0.txt`.                            |
 
-These notices are included for release hygiene. Before publishing a binary desktop release, verify the exact source and license text for each vendored legacy binary and include any required full license files alongside the release artifact.
+The desktop package includes corresponding source artifacts:
+
+- `third-party-sources/jogg-0.0.7-jcraft-jorbis-28592f3-source.zip`
+- `third-party-sources/jorbis-0.0.17-sources.jar`
+- `third-party-sources/openal-soft-1.14.tar.bz2`
+
+If any bundled jar or native library is replaced, update these notices, the hashes, and the runtime dependency notes before publishing a new release.
 
 ## slick2d-ts
 

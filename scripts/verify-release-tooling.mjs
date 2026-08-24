@@ -12,6 +12,7 @@ import {
     releaseComponentsDir,
     releaseLockDir,
     releaseSecretsDir,
+    renderTemplate,
     rootDir,
     versionPath,
     withReleaseOperationLock
@@ -41,11 +42,17 @@ verifyGeneratedOutputPathSafety();
 verifyGeneratedOutputRejectsIntermediateLinks();
 verifyGeneratedDesktopReleaseFileMutationsRejectLinkedDestinationFiles();
 verifyAtomicDesktopReleaseCopiesReplaceRegularFilesWithoutTemporaryLeftovers();
+verifyTemplateRenderingRejectsUnresolvedPlaceholders();
 verifyReleaseEnvOverridesAreGated();
 verifyReleaseLockRejectsConcurrentMutation();
 await verifyConcurrentNestedReleaseLocksPreserveAllLiveChildHolders();
 verifyComponentBuildPreservesCanonicalDist();
-verifyProductionRejectsTrackedMutationBeforePromotion();
+verifyProductionRejectsDirtyWorkingTree();
+if (isGitWorkingTreeDirty()) {
+    verifyProductionTrackedMutationGuardSource();
+} else {
+    verifyProductionRejectsTrackedMutationBeforePromotion();
+}
 console.log("Verified release tooling isolation.");
 
 function verifyReleaseStateIgnores() {
@@ -234,6 +241,11 @@ function verifyAtomicDesktopReleaseCopiesReplaceRegularFilesWithoutTemporaryLeft
     } finally {
         rmSync(tempDir, { recursive: true, force: true });
     }
+}
+
+function verifyTemplateRenderingRejectsUnresolvedPlaceholders() {
+    assert.equal(renderTemplate("Version __VERSION__", { __VERSION__: "1.0.0" }), "Version 1.0.0");
+    assert.throws(() => renderTemplate("Version __VERSION__ __MISSING__", { __VERSION__: "1.0.0" }), /unresolved placeholders: __MISSING__/);
 }
 
 async function verifyConcurrentNestedReleaseLocksPreserveAllLiveChildHolders() {
@@ -551,6 +563,51 @@ function verifyProductionRejectsTrackedMutationBeforePromotion() {
         rmSync(productionCandidateDir, { recursive: true, force: true });
         removeReleaseComponentBackups();
     }
+}
+
+function verifyProductionRejectsDirtyWorkingTree() {
+    const wasDirty = isGitWorkingTreeDirty();
+    const beforeReadme = readFileSync(readmePath);
+
+    try {
+        if (!wasDirty) {
+            writeFileSync(readmePath, `${beforeReadme.toString("utf8")}\n<!-- injected dirty tree release test -->\n`);
+        }
+
+        const result = spawnSync(process.execPath, [buildProductionScriptPath], {
+            cwd: rootDir,
+            encoding: "utf8",
+            maxBuffer: 50 * 1024 * 1024
+        });
+        const output = `${result.stdout}\n${result.stderr}`;
+
+        assert.notEqual(result.status, 0, "Production build should fail when the Git working tree is dirty.");
+        assert.match(output, /Production releases require a clean Git working tree/);
+    } finally {
+        if (!wasDirty) {
+            writeFileSync(readmePath, beforeReadme);
+        }
+    }
+}
+
+function verifyProductionTrackedMutationGuardSource() {
+    const source = readFileSync(buildProductionScriptPath, "utf8");
+
+    assert.match(source, /const originalTrackedSourceState = readTrackedSourceState\(\);/);
+    assert.match(source, /STICKVANIA_TEST_MUTATE_TRACKED_SOURCE_AFTER_CANDIDATE/);
+    assert.match(source, /assertTrackedSourceStateUnchanged\(originalTrackedSourceState\);/);
+}
+
+function isGitWorkingTreeDirty() {
+    const result = spawnSync("git", ["status", "--porcelain=v1", "--untracked-files=all"], {
+        cwd: rootDir,
+        encoding: "utf8"
+    });
+    if (result.error) {
+        throw result.error;
+    }
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim().length > 0;
 }
 
 function runNpmScript(scriptName) {

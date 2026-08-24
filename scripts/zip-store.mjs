@@ -78,11 +78,16 @@ export function readZipCentralDirectory(zipPath) {
         const extraLength = data.readUInt16LE(offset + 30);
         const commentLength = data.readUInt16LE(offset + 32);
         const externalAttributes = data.readUInt32LE(offset + 38);
+        const localHeaderOffset = data.readUInt32LE(offset + 42);
         const nameStart = offset + 46;
         const name = data.subarray(nameStart, nameStart + fileNameLength).toString("utf8");
+        const localFileNameLength = data.readUInt16LE(localHeaderOffset + 26);
+        const localExtraLength = data.readUInt16LE(localHeaderOffset + 28);
+        const dataStart = localHeaderOffset + 30 + localFileNameLength + localExtraLength;
 
         entries.set(name, {
             compressedSize,
+            data: data.subarray(dataStart, dataStart + compressedSize),
             externalAttributes,
             mode: (externalAttributes >>> 16) & 0xffff,
             uncompressedSize
