@@ -64,7 +64,7 @@ I had a very different experience when I later tried the original _Castlevania_ 
 
 That experience shaped _Stickvania_.
 
-I originally created _Stickvania_ in 2010 as a Java game using the [Slick2D](https://slick.ninjacave.com/wiki/index.php?title=Getting_Started) and [JInput](https://jinput.github.io/jinput/) libraries. I studied _Castlevania_ in the [Nestopia](https://sourceforge.net/projects/nestopia/) NES emulator and recreated its stages and mechanics through observation. During development, I changed aspects of the game I thought made the original unnecessarily difficult.
+I originally created _Stickvania_ in 2010 as a Java game using the [Slick2D](https://github.com/nguillaumin/slick2d-maven) and [JInput](https://jinput.github.io/jinput/) libraries. I studied _Castlevania_ in the [Nestopia](https://sourceforge.net/projects/nestopia/) NES emulator and recreated its stages and mechanics through observation. During development, I changed aspects of the game I thought made the original unnecessarily difficult.
 
 I released _Stickvania_ as a Java applet that ran in a web page and as a downloadable desktop version. As technology evolved, both options became increasingly impractical. Browsers abandoned Java applets, while the desktop version required players to download and run an executable and install Java—something many people understandably avoided because of the hassle and security concerns. The game also relied on platform-specific native libraries that modern operating systems no longer support.
 
