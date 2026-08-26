@@ -519,6 +519,7 @@ test("package scripts use temporary release stamping for public builds", () => {
         scripts["test:pwa-release"],
         "node scripts/run-stamped-release.mjs --dist .release-components/pwa-test --clean-dist _build:pwa:release _verify:pwa-release"
     );
+    assert.equal(scripts["verify:desktop-source"], "node scripts/verify-desktop-source.mjs");
     assert.equal(scripts["verify:desktop-release"], "node scripts/verify-desktop-release.mjs");
     assert.equal(scripts["verify:release-tooling"], "node scripts/verify-release-tooling.mjs");
     assert.equal(scripts["verify:dependencies"], "npm audit --audit-level=high");
@@ -528,7 +529,7 @@ test("package scripts use temporary release stamping for public builds", () => {
     assert.equal(scripts["release:desktop"], "node scripts/release-desktop.mjs");
     assert.equal(
         scripts["verify"],
-        "npm run format:check && npm run lint && npm run verify:release-tooling && npm run test:pwa-release && npm run build:desktop"
+        "npm run format:check && npm run lint && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop"
     );
 
     for (const [name, script] of Object.entries(scripts)) {

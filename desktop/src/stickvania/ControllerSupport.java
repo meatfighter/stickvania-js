@@ -41,6 +41,7 @@ public final class ControllerSupport {
   private static Field jinputRYAxisField;
   private static boolean globalPollFailureFilterInstalled;
   private static volatile boolean globalPollFailureDetected;
+  private static boolean controllerRefreshEnabled = true;
   private static boolean controllersCreateAttempted;
   private static boolean controllersUnavailable;
   private static long lastControllerPollNanos = Long.MIN_VALUE;
@@ -167,6 +168,10 @@ public final class ControllerSupport {
   }
 
   public static boolean refreshControllersIfNeeded() {
+    if (!controllerRefreshEnabled) {
+      return false;
+    }
+
     boolean createAttemptedBefore =
         controllersCreateAttempted || Controllers.isCreated();
     if (hasUsableGameController()) {
@@ -186,6 +191,20 @@ public final class ControllerSupport {
     lastControllerRefreshNanos = now;
 
     return refreshControllers();
+  }
+
+  public static void setControllerRefreshEnabled(boolean enabled) {
+    if (controllerRefreshEnabled == enabled) {
+      return;
+    }
+    controllerRefreshEnabled = enabled;
+    if (enabled) {
+      lastControllerRefreshNanos = Long.MIN_VALUE;
+    }
+  }
+
+  public static boolean isControllerRefreshEnabled() {
+    return controllerRefreshEnabled;
   }
 
   private static boolean isAnyControllerUp() {
@@ -1188,6 +1207,10 @@ public final class ControllerSupport {
 
     private boolean isSuppressedJInputPollLine(String line) {
       String text = line.trim();
+      if ("Loading: net.java.games.input.DirectAndRawInputEnvironmentPlugin"
+          .equals(text)) {
+        return true;
+      }
       boolean pollFailure = text.startsWith("Failed to poll device:")
           || (text.startsWith("Failed to poll component:")
           && (text.indexOf("Failed to poll device") != -1
