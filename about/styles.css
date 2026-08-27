@@ -16,28 +16,28 @@
 
 :root {
     color-scheme: light;
-    --bg: #f7f7f7;
+    --bg: #fcfcfc;
     --surface: #ffffff;
     --surface-soft: #ececec;
-    --text: #0b0b0b;
+    --text: #0d0d0d;
     --muted: #555555;
     --border: #c8c8c8;
     --border-strong: #222222;
-    --link: #000000;
+    --link: #0d0d0d;
     --link-hover: #666666;
     --code-bg: #eeeeee;
     --inline-code-bg: #e8e8e8;
-    --inline-code-text: #000000;
-    --switch-track: #000000;
+    --inline-code-text: #0d0d0d;
+    --switch-track: #0d0d0d;
     --switch-track-checked: #ffffff;
-    --switch-border: #555555;
+    --switch-border: #0d0d0d;
     --switch-border-checked: #ffffff;
-    --switch-knob: #ffffff;
-    --switch-knob-border: #555555;
+    --switch-knob: #fcfcfc;
+    --switch-knob-border: #0d0d0d;
     --switch-knob-checked: #000000;
     --switch-knob-border-checked: #000000;
-    --play-button-bg: #000000;
-    --play-button-text: #ffffff;
+    --play-button-bg: #0d0d0d;
+    --play-button-text: #fcfcfc;
     --measure: 750px;
     --font-body: "Source Sans 3", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
     --font-ui: var(--font-body);
@@ -52,7 +52,7 @@ html[data-theme="dark"] {
     --bg: #000000;
     --surface: #101010;
     --surface-soft: #181818;
-    --text: #f7f7f7;
+    --text: #ffffff;
     --muted: #bdbdbd;
     --border: #555555;
     --border-strong: #ffffff;

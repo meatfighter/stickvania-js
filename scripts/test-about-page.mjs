@@ -84,16 +84,25 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(indexTemplate, /<a href="https:\/\/meatfighter\.com\/">Home<\/a>/);
     assert.match(indexTemplate, /<script src=".\/theme\.js\?v=__BUILD_STAMP_ENCODED__"><\/script>/);
     assert.match(styles, /--measure: 750px;/);
-    assert.match(styles, /--bg: #f7f7f7;/);
+    assert.match(styles, /--bg: #fcfcfc;/);
     assert.match(styles, /--bg: #000000;/);
-    assert.match(styles, /--play-button-bg: #000000;/);
+    assert.match(styles, /--text: #0d0d0d;/);
+    assert.match(styles, /--text: #ffffff;/);
+    assert.match(styles, /--switch-track: #0d0d0d;/);
+    assert.match(styles, /--switch-track-checked: #ffffff;/);
+    assert.match(styles, /--switch-knob: #fcfcfc;/);
+    assert.match(styles, /--switch-knob-checked: #000000;/);
+    assert.match(styles, /--play-button-bg: #0d0d0d;/);
+    assert.match(styles, /--play-button-text: #fcfcfc;/);
     assert.match(styles, /--play-button-bg: #ffffff;/);
+    assert.match(styles, /--play-button-text: #000000;/);
     assert.match(styles, /\.site-logo \{[\s\S]*filter: invert\(1\);/);
     assert.match(styles, /html\[data-theme="dark"\] \.site-logo \{[\s\S]*filter: none;/);
     assert.match(styles, /\.toc \{\s+margin: 0 0 2rem;/);
     assert.match(styles, /\.toc li:not\(:last-child\)::after \{[\s\S]*content: " \| ";/);
     assert.match(styles, /font-family: "Source Sans 3";/);
     assert.match(themeScript, /stickvania-about-theme/);
+    assert.match(themeScript, /theme === "dark" \? "#000000" : "#fcfcfc"/);
 });
 
 test("about build uses constrained Markdown and SVG title assets", () => {

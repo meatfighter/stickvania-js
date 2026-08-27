@@ -26,7 +26,7 @@ function applyTheme(theme, { persist = false } = {}) {
         themeToggle.checked = theme === "dark";
     }
     if (themeColorMeta !== null) {
-        themeColorMeta.setAttribute("content", theme === "dark" ? "#000000" : "#f7f7f7");
+        themeColorMeta.setAttribute("content", theme === "dark" ? "#000000" : "#fcfcfc");
     }
     if (persist) {
         persistTheme(theme);
