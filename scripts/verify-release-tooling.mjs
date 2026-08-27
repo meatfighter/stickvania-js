@@ -34,6 +34,7 @@ const buildProductionScriptPath = join(rootDir, "scripts", "build-production.mjs
 const buildAboutScriptPath = join(rootDir, "scripts", "build-about.mjs");
 const productionCandidateDir = join(releaseComponentsDir, "production-candidate");
 const desktopLicenseReadmePath = join(rootDir, "desktop", "licenses", "README.md");
+const desktopPomPath = join(rootDir, "desktop", "pom.xml");
 const readmePath = join(rootDir, "README.md");
 const runDesktopScriptPath = join(rootDir, "scripts", "run-desktop.mjs");
 const stampScriptPath = join(rootDir, "scripts", "stamp.mjs");
@@ -42,6 +43,7 @@ verifyReleaseStateIgnores();
 verifyNoTrackedReleaseState();
 verifyGeneratedDirectoriesIgnoredBySourceTooling();
 verifyDesktopRuntimeManifestDocs();
+verifyDesktopMavenUsesVendoredCompileClasspath();
 verifyLocalDesktopLauncherCompatibility();
 verifyGeneratedOutputPathSafety();
 verifyGeneratedOutputRejectsIntermediateLinks();
@@ -116,6 +118,16 @@ function verifyDesktopRuntimeManifestDocs() {
         assert.match(licenseReadme, new RegExp(`\`${escapeRegExp(artifact.path)}\``), `desktop/licenses/README.md should list ${artifact.path}.`);
         assert.match(licenseReadme, new RegExp(escapeRegExp(artifact.sha256)), `desktop/licenses/README.md should list ${artifact.path} SHA-256.`);
     }
+}
+
+function verifyDesktopMavenUsesVendoredCompileClasspath() {
+    const pom = readFileSync(desktopPomPath, "utf8");
+
+    assert.doesNotMatch(pom, /<scope>\s*system\s*<\/scope>/, "desktop/pom.xml should not use Maven system-scoped dependencies.");
+    assert.doesNotMatch(pom, /<systemPath>/, "desktop/pom.xml should not use Maven systemPath dependencies.");
+    assert.doesNotMatch(pom, /<artifactId>maven-install-plugin<\/artifactId>/, "desktop/pom.xml should not depend on install-time local Maven artifacts.");
+    assert.match(pom, /<compile\.classpath>[\s\S]*slick\.jar[\s\S]*lwjgl\.jar[\s\S]*jinput\.jar[\s\S]*jorbis-0\.0\.17\.jar[\s\S]*<\/compile\.classpath>/);
+    assert.match(pom, /<arg>-classpath<\/arg>\s*<arg>\$\{compile\.classpath\}<\/arg>/, "desktop/pom.xml should compile against the vendored runtime jars.");
 }
 
 function verifyLocalDesktopLauncherCompatibility() {

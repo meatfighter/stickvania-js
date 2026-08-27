@@ -18,52 +18,8 @@
         <maven.compiler.release>8</maven.compiler.release>
         <main.class>stickvania.Main</main.class>
         <runtime.classpath>lib/slick.jar lib/lwjgl.jar lib/lwjgl_util.jar lib/jinput.jar lib/jogg-0.0.7.jar lib/jorbis-0.0.17.jar</runtime.classpath>
+        <compile.classpath>${project.basedir}/lib/slick.jar${path.separator}${project.basedir}/lib/lwjgl.jar${path.separator}${project.basedir}/lib/lwjgl_util.jar${path.separator}${project.basedir}/lib/jinput.jar${path.separator}${project.basedir}/lib/jogg-0.0.7.jar${path.separator}${project.basedir}/lib/jorbis-0.0.17.jar</compile.classpath>
     </properties>
-
-    <dependencies>
-        <dependency>
-            <groupId>legacy.slick2d</groupId>
-            <artifactId>slick</artifactId>
-            <version>local</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/slick.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>legacy.lwjgl</groupId>
-            <artifactId>lwjgl</artifactId>
-            <version>2.8.5-local</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/lwjgl.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>legacy.lwjgl</groupId>
-            <artifactId>lwjgl-util</artifactId>
-            <version>2.8.5-local</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/lwjgl_util.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>legacy.jinput</groupId>
-            <artifactId>jinput</artifactId>
-            <version>local</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/jinput.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>legacy.jcraft</groupId>
-            <artifactId>jogg</artifactId>
-            <version>0.0.7-local</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/jogg-0.0.7.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>legacy.jcraft</groupId>
-            <artifactId>jorbis</artifactId>
-            <version>0.0.17-local</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/jorbis-0.0.17.jar</systemPath>
-        </dependency>
-    </dependencies>
 
     <build>
         <finalName>${project.artifactId}</finalName>
@@ -85,6 +41,8 @@
                     <encoding>${project.build.sourceEncoding}</encoding>
                     <compilerArgs>
                         <arg>-Xlint:-options</arg>
+                        <arg>-classpath</arg>
+                        <arg>${compile.classpath}</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>

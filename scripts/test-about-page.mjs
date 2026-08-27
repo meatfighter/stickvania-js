@@ -11,7 +11,7 @@ const indexTemplate = readFileSync(join(aboutDir, "index.html"), "utf8");
 const styles = readFileSync(join(aboutDir, "styles.css"), "utf8");
 const themeScript = readFileSync(join(aboutDir, "theme.js"), "utf8");
 const buildAboutSource = readFileSync(new URL("./build-about.mjs", import.meta.url), "utf8");
-const desktopZipProse = `The Java desktop version is available as a [desktop ZIP](__DESKTOP_ZIP__). Download and extract the ZIP, then run the launcher for your operating system:
+const desktopZipProse = `The Java desktop version is available as a [ZIP file](__DESKTOP_ZIP__). Download and extract the ZIP, then run the launcher for your operating system:
 
 - Windows: \`run-windows.cmd\`
 - Linux: \`run-linux.sh\`
@@ -88,10 +88,10 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /--bg: #000000;/);
     assert.match(styles, /--text: #0d0d0d;/);
     assert.match(styles, /--text: #ffffff;/);
-    assert.match(styles, /--link: #4a4a4a;/);
-    assert.match(styles, /--link-hover: #0d0d0d;/);
-    assert.match(styles, /--link: #d0d0d0;/);
-    assert.match(styles, /--link-hover: #ffffff;/);
+    assert.match(styles, /--link: #666666;/);
+    assert.match(styles, /--link-hover: #262626;/);
+    assert.match(styles, /--link: #999999;/);
+    assert.match(styles, /--link-hover: #d9d9d9;/);
     assert.match(styles, /--switch-track: #0d0d0d;/);
     assert.match(styles, /--switch-track-checked: #ffffff;/);
     assert.match(styles, /--switch-knob: #fcfcfc;/);
@@ -100,8 +100,9 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /--play-button-text: #fcfcfc;/);
     assert.match(styles, /--play-button-bg: #ffffff;/);
     assert.match(styles, /--play-button-text: #000000;/);
-    assert.match(styles, /a \{[\s\S]*font-weight: 650;[\s\S]*text-decoration: none;/);
-    assert.match(styles, /a:hover,[\s\S]*a:focus-visible \{[\s\S]*font-weight: 700;/);
+    assert.match(styles, /a \{\s+color: var\(--link\);\s+text-decoration: none;\s+transition: color 0\.18s ease;\s+\}/);
+    assert.match(styles, /a:hover,[\s\S]*a:focus-visible \{\s+color: var\(--link-hover\);\s+\}/);
+    assert.doesNotMatch(styles, /a \{[\s\S]*font-weight: 650;[\s\S]*\}/);
     assert.match(styles, /\.site-logo \{[\s\S]*filter: invert\(1\);/);
     assert.match(styles, /html\[data-theme="dark"\] \.site-logo \{[\s\S]*filter: none;/);
     assert.match(styles, /\.toc \{\s+margin: 0 0 2rem;/);

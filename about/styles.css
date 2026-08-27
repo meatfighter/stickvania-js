@@ -23,8 +23,8 @@
     --muted: #555555;
     --border: #c8c8c8;
     --border-strong: #222222;
-    --link: #4a4a4a;
-    --link-hover: #0d0d0d;
+    --link: #666666;
+    --link-hover: #262626;
     --code-bg: #eeeeee;
     --inline-code-bg: #e8e8e8;
     --inline-code-text: #0d0d0d;
@@ -56,8 +56,8 @@ html[data-theme="dark"] {
     --muted: #bdbdbd;
     --border: #555555;
     --border-strong: #ffffff;
-    --link: #d0d0d0;
-    --link-hover: #ffffff;
+    --link: #999999;
+    --link-hover: #d9d9d9;
     --code-bg: #171717;
     --inline-code-bg: #222222;
     --inline-code-text: #ffffff;
@@ -95,17 +95,13 @@ body {
 
 a {
     color: var(--link);
-    font-weight: 650;
     text-decoration: none;
-    transition:
-        color 0.18s ease,
-        font-weight 0.18s ease;
+    transition: color 0.18s ease;
 }
 
 a:hover,
 a:focus-visible {
     color: var(--link-hover);
-    font-weight: 700;
 }
 
 img,

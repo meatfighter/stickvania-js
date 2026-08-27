@@ -34,7 +34,7 @@ Build from the repository root:
 npm.cmd run build:desktop
 ```
 
-If Maven is installed on Windows or available in WSL2, the Node build helper will prefer Maven. You can also build directly from this directory:
+If Maven is installed on Windows or available in WSL2, the Node build helper will prefer Maven. The Maven build is intentionally build-only: it compiles against the vendored legacy jars from `lib/` without declaring them as publishable Maven dependencies. You can also build directly from this directory:
 
 ```text
 mvn package
