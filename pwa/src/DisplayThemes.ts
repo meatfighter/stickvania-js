@@ -1,6 +1,7 @@
 import { Color } from "slick2d-ts/slick/Color";
 
-export type DisplayModePreference = "light" | "dark" | "sepia" | "chalkboard" | "moonlight" | "cyanotype" | "blood-moon";
+export type DisplayModePreference =
+    "light" | "dark" | "sepia" | "candlelight" | "chalkboard" | "twilight" | "ditto" | "moonlight" | "phantom" | "cyanotype" | "blood-moon" | "amber-monitor";
 
 export type DisplayMonochromePalette = Readonly<{
     blackReplacement: Color;
@@ -32,8 +33,14 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
     {
         value: "sepia",
         label: "Sepia",
-        blackReplacement: [0x3a, 0x2b, 0x20],
-        whiteReplacement: [0xe7, 0xd5, 0xaf]
+        blackReplacement: [0x4b, 0x36, 0x21],
+        whiteReplacement: [0xd8, 0xc3, 0xa5]
+    },
+    {
+        value: "candlelight",
+        label: "Candlelight",
+        blackReplacement: [0x17, 0x12, 0x0a],
+        whiteReplacement: [0xc3, 0xa4, 0x4f]
     },
     {
         value: "chalkboard",
@@ -42,10 +49,28 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0x1e, 0x48, 0x36]
     },
     {
+        value: "twilight",
+        label: "Twilight",
+        blackReplacement: [0x21, 0x11, 0x17],
+        whiteReplacement: [0xd9, 0x95, 0xa1]
+    },
+    {
+        value: "ditto",
+        label: "Ditto",
+        blackReplacement: [0x71, 0x68, 0x9d],
+        whiteReplacement: [0xe9, 0xe2, 0xd2]
+    },
+    {
         value: "moonlight",
         label: "Moonlight",
         blackReplacement: [0xd2, 0xd9, 0xe1],
         whiteReplacement: [0x10, 0x18, 0x27]
+    },
+    {
+        value: "phantom",
+        label: "Phantom",
+        blackReplacement: [0x06, 0x13, 0x10],
+        whiteReplacement: [0x72, 0xad, 0x9f]
     },
     {
         value: "cyanotype",
@@ -58,6 +83,12 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         label: "Blood Moon",
         blackReplacement: [0xe0, 0x91, 0x6a],
         whiteReplacement: [0x14, 0x09, 0x0a]
+    },
+    {
+        value: "amber-monitor",
+        label: "Amber Monitor",
+        blackReplacement: [0xf2, 0xb8, 0x4b],
+        whiteReplacement: [0x11, 0x0c, 0x04]
     }
 ];
 

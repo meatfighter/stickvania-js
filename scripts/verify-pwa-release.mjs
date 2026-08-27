@@ -568,7 +568,20 @@ test("PWA display themes remain browser-only presentation state", () => {
     const stickvaniaMainSource = readFileSync(stickvaniaMainSourcePath, "utf8");
     const serializerSource = readFileSync(gameStateSerializerSourcePath, "utf8");
 
-    for (const theme of ["light", "dark", "sepia", "chalkboard", "moonlight", "cyanotype", "blood-moon"]) {
+    for (const theme of [
+        "light",
+        "dark",
+        "sepia",
+        "candlelight",
+        "chalkboard",
+        "twilight",
+        "ditto",
+        "moonlight",
+        "phantom",
+        "cyanotype",
+        "blood-moon",
+        "amber-monitor"
+    ]) {
         assert.match(displayThemesSource, new RegExp(`value: "${theme}"`), `DisplayThemes.ts should define ${theme}.`);
     }
     assert.match(mainSource, /id="display-mode-select"/);
