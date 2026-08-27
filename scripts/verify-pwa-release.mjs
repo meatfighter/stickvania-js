@@ -580,7 +580,11 @@ test("PWA display themes remain browser-only presentation state", () => {
         "phantom",
         "cyanotype",
         "blood-moon",
-        "amber-monitor"
+        "amber-monitor",
+        "green-monitor",
+        "plasma",
+        "vfd",
+        "lcd"
     ]) {
         assert.match(displayThemesSource, new RegExp(`value: "${theme}"`), `DisplayThemes.ts should define ${theme}.`);
     }

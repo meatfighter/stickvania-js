@@ -1,7 +1,22 @@
 import { Color } from "slick2d-ts/slick/Color";
 
 export type DisplayModePreference =
-    "light" | "dark" | "sepia" | "candlelight" | "chalkboard" | "twilight" | "ditto" | "moonlight" | "phantom" | "cyanotype" | "blood-moon" | "amber-monitor";
+    | "light"
+    | "dark"
+    | "sepia"
+    | "candlelight"
+    | "chalkboard"
+    | "twilight"
+    | "ditto"
+    | "moonlight"
+    | "phantom"
+    | "cyanotype"
+    | "blood-moon"
+    | "amber-monitor"
+    | "green-monitor"
+    | "plasma"
+    | "vfd"
+    | "lcd";
 
 export type DisplayMonochromePalette = Readonly<{
     blackReplacement: Color;
@@ -86,9 +101,33 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
     },
     {
         value: "amber-monitor",
-        label: "Amber Monitor",
+        label: "Amber",
         blackReplacement: [0xf2, 0xb8, 0x4b],
         whiteReplacement: [0x11, 0x0c, 0x04]
+    },
+    {
+        value: "green-monitor",
+        label: "Green",
+        blackReplacement: [0x18, 0xe7, 0x95],
+        whiteReplacement: [0x0a, 0x0e, 0x05]
+    },
+    {
+        value: "plasma",
+        label: "Plasma",
+        blackReplacement: [0xff, 0x8c, 0x32],
+        whiteReplacement: [0x13, 0x09, 0x00]
+    },
+    {
+        value: "vfd",
+        label: "VFD",
+        blackReplacement: [0x72, 0xe3, 0xe3],
+        whiteReplacement: [0x06, 0x10, 0x15]
+    },
+    {
+        value: "lcd",
+        label: "LCD",
+        blackReplacement: [0x27, 0x31, 0x1e],
+        whiteReplacement: [0xa2, 0xa9, 0x7f]
     }
 ];
 
