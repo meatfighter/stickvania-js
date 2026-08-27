@@ -100,9 +100,8 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /--play-button-text: #fcfcfc;/);
     assert.match(styles, /--play-button-bg: #ffffff;/);
     assert.match(styles, /--play-button-text: #000000;/);
-    assert.match(styles, /a \{\s+color: var\(--link\);\s+text-decoration: none;\s+transition: color 0\.18s ease;\s+\}/);
+    assert.match(styles, /a \{\s+color: var\(--link\);\s+font-weight: 600;\s+text-decoration: none;\s+transition: color 0\.18s ease;\s+\}/);
     assert.match(styles, /a:hover,[\s\S]*a:focus-visible \{\s+color: var\(--link-hover\);\s+\}/);
-    assert.doesNotMatch(styles, /a \{[\s\S]*font-weight: 650;[\s\S]*\}/);
     assert.match(styles, /\.site-logo \{[\s\S]*filter: invert\(1\);/);
     assert.match(styles, /html\[data-theme="dark"\] \.site-logo \{[\s\S]*filter: none;/);
     assert.match(styles, /\.toc \{\s+margin: 0 0 2rem;/);
