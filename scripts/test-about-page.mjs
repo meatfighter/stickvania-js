@@ -88,6 +88,10 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /--bg: #000000;/);
     assert.match(styles, /--text: #0d0d0d;/);
     assert.match(styles, /--text: #ffffff;/);
+    assert.match(styles, /--link: #4a4a4a;/);
+    assert.match(styles, /--link-hover: #0d0d0d;/);
+    assert.match(styles, /--link: #d0d0d0;/);
+    assert.match(styles, /--link-hover: #ffffff;/);
     assert.match(styles, /--switch-track: #0d0d0d;/);
     assert.match(styles, /--switch-track-checked: #ffffff;/);
     assert.match(styles, /--switch-knob: #fcfcfc;/);
@@ -96,6 +100,8 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /--play-button-text: #fcfcfc;/);
     assert.match(styles, /--play-button-bg: #ffffff;/);
     assert.match(styles, /--play-button-text: #000000;/);
+    assert.match(styles, /a \{[\s\S]*font-weight: 650;[\s\S]*text-decoration: none;/);
+    assert.match(styles, /a:hover,[\s\S]*a:focus-visible \{[\s\S]*font-weight: 700;/);
     assert.match(styles, /\.site-logo \{[\s\S]*filter: invert\(1\);/);
     assert.match(styles, /html\[data-theme="dark"\] \.site-logo \{[\s\S]*filter: none;/);
     assert.match(styles, /\.toc \{\s+margin: 0 0 2rem;/);
