@@ -98,7 +98,7 @@ Build only the public-root about page:
 npm.cmd run build:about
 ```
 
-Build the about page and browser version together into a temporary component output:
+Build the about page, browser version, and downloadable desktop ZIPs together into a temporary component output:
 
 ```text
 npm.cmd run build:web

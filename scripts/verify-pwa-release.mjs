@@ -523,7 +523,10 @@ test("package scripts use temporary release stamping for public builds", () => {
     assert.equal(scripts["verify:desktop-release"], "node scripts/verify-desktop-release.mjs");
     assert.equal(scripts["verify:release-tooling"], "node scripts/verify-release-tooling.mjs");
     assert.equal(scripts["verify:dependencies"], "npm audit --audit-level=high");
-    assert.equal(scripts["build:web"], "node scripts/run-stamped-release.mjs --dist .release-components/web --clean-dist _build:pwa:release _build:about");
+    assert.equal(
+        scripts["build:web"],
+        "node scripts/run-stamped-release.mjs --dist .release-components/web --clean-dist _build:pwa:release _build:about build:desktop _assemble verify:desktop-release"
+    );
     assert.equal(scripts["build"], "node scripts/build-production.mjs");
     assert.equal(scripts["test:about-page"], "node scripts/test-about-page.mjs");
     assert.equal(scripts["release"], "npm run verify && npm run verify:dependencies && npm run build");

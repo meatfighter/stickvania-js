@@ -26,7 +26,7 @@
         "_build:about": "node scripts/build-about.mjs",
         "build:desktop": "node scripts/build-desktop.mjs",
         "_assemble": "node scripts/assemble.mjs",
-        "build:web": "node scripts/run-stamped-release.mjs --dist .release-components/web --clean-dist _build:pwa:release _build:about",
+        "build:web": "node scripts/run-stamped-release.mjs --dist .release-components/web --clean-dist _build:pwa:release _build:about build:desktop _assemble verify:desktop-release",
         "build": "node scripts/build-production.mjs",
         "typecheck": "tsc --project pwa/tsconfig.json",
         "lint": "eslint \"pwa/src/**/*.ts\" \"pwa/vite.config.ts\" \"pwa/public/sw.js\"",
