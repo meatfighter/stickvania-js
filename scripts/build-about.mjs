@@ -1,6 +1,5 @@
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { generateAboutImageAssets, titleImageHeight, titleImageSizes, titleImageWidth } from "./about-image-assets.mjs";
 import {
     copyFileAtomic,
     ensureDirectory,
@@ -17,6 +16,9 @@ const packageJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8
 const canonicalUrl = normalizeCanonicalUrl(packageJson.homepage ?? "https://meatfighter.com/stickvania/");
 const repositoryUrl = normalizeRepositoryUrl(packageJson.repository);
 const description = "Play Stickvania in the browser and read about its Java origins, TypeScript rewrite, controls, difficulty modes, and desktop ZIP download.";
+const titleImageWidth = 750;
+const titleImageHeight = 480;
+const titleImageSizes = "min(750px, calc(100vw - 2rem))";
 
 await withReleaseOperationLock("build-about", async () => {
     const version = readVersion();
@@ -47,15 +49,10 @@ await withReleaseOperationLock("build-about", async () => {
         __DESCRIPTION__: description,
         __REPOSITORY_URL__: repositoryUrl,
         __SOCIAL_IMAGE_URL__: `${canonicalUrl}assets/stickvania-screenshot.png?v=${encodedBuildStamp}`,
-        __TITLE_DARK_PNG_SRC__: `assets/title-dark-750.png?v=${encodedBuildStamp}`,
-        __TITLE_DARK_PNG_SRCSET__: `assets/title-dark-750.png?v=${encodedBuildStamp} 750w, assets/title-dark-1448.png?v=${encodedBuildStamp} 1448w`,
-        __TITLE_DARK_WEBP_SRCSET__: `assets/title-dark-750.webp?v=${encodedBuildStamp} 750w, assets/title-dark-1448.webp?v=${encodedBuildStamp} 1448w`,
         __TITLE_IMAGE_HEIGHT__: titleImageHeight,
         __TITLE_IMAGE_SIZES__: titleImageSizes,
         __TITLE_IMAGE_WIDTH__: titleImageWidth,
-        __TITLE_LIGHT_PNG_SRC__: `assets/title-light-750.png?v=${encodedBuildStamp}`,
-        __TITLE_LIGHT_PNG_SRCSET__: `assets/title-light-750.png?v=${encodedBuildStamp} 750w, assets/title-light-1448.png?v=${encodedBuildStamp} 1448w`,
-        __TITLE_LIGHT_WEBP_SRCSET__: `assets/title-light-750.webp?v=${encodedBuildStamp} 750w, assets/title-light-1448.webp?v=${encodedBuildStamp} 1448w`,
+        __TITLE_SVG_SRC__: `assets/title.svg?v=${encodedBuildStamp}`,
         __TOC_HTML__: renderedMarkdown.tocHtml
     };
 
@@ -71,7 +68,6 @@ await withReleaseOperationLock("build-about", async () => {
     );
     writeGeneratedText(join(distDir, "theme.js"), renderCheckedTemplate(readFileSync(join(aboutDir, "theme.js"), "utf8"), pageReplacements, "about script"));
     copyDirectory(sourceAssetsDir, outputAssetsDir);
-    await generateAboutImageAssets(sourceAssetsDir, outputAssetsDir);
     console.log("Built about page");
 });
 

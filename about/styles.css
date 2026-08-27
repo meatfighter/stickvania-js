@@ -166,26 +166,16 @@ button {
     outline-offset: 3px;
 }
 
-.site-logo-picture {
-    display: block;
-}
-
-.site-logo-picture--dark {
-    display: none;
-}
-
-html[data-theme="dark"] .site-logo-picture--light {
-    display: none;
-}
-
-html[data-theme="dark"] .site-logo-picture--dark {
-    display: block;
-}
-
 .site-logo {
     display: block;
     width: 100%;
     height: auto;
+    filter: invert(1);
+    transition: filter 0.2s ease;
+}
+
+html[data-theme="dark"] .site-logo {
+    filter: none;
 }
 
 .theme-switch {

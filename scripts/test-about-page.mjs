@@ -1,13 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import sharp from "sharp";
-import { generateAboutImageAssets, titleImageHeight, titleImageSizes, titleImageWidth } from "./about-image-assets.mjs";
 import { renderAboutMarkdown } from "./about-markdown.mjs";
-import { releaseComponentsDir, rootDir } from "./build-utils.mjs";
-
-sharp.cache(false);
+import { rootDir } from "./build-utils.mjs";
 
 const aboutDir = join(rootDir, "about");
 const contentMarkdown = readFileSync(join(aboutDir, "content.md"), "utf8");
@@ -15,7 +11,6 @@ const indexTemplate = readFileSync(join(aboutDir, "index.html"), "utf8");
 const styles = readFileSync(join(aboutDir, "styles.css"), "utf8");
 const themeScript = readFileSync(join(aboutDir, "theme.js"), "utf8");
 const buildAboutSource = readFileSync(new URL("./build-about.mjs", import.meta.url), "utf8");
-const temporaryOutputDir = join(releaseComponentsDir, `about-image-test-${process.pid}`);
 const desktopZipProse = `The Java desktop version is available as a [desktop ZIP](__DESKTOP_ZIP__). Download and extract the ZIP, then run the launcher for your operating system:
 
 - Windows: \`run-windows.cmd\`
@@ -23,11 +18,6 @@ const desktopZipProse = `The Java desktop version is available as a [desktop ZIP
 - macOS: \`run-macos.sh\`
 
 Java 21 or newer is required.`;
-
-test.after(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    removeTemporaryOutputDir({ throwOnFailure: false });
-});
 
 function renderedAboutFixture() {
     return renderAboutMarkdown(
@@ -80,12 +70,8 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(indexTemplate, /Stickvania/);
     assert.match(indexTemplate, /href=".\/assets\/fonts\/source-sans-3\/SourceSans3VF-Upright\.ttf\.woff2\?v=__BUILD_STAMP_ENCODED__"/);
     assert.match(indexTemplate, /as="font"/);
-    assert.match(indexTemplate, /<picture class="site-logo-picture site-logo-picture--light">/);
-    assert.match(indexTemplate, /<picture class="site-logo-picture site-logo-picture--dark">/);
-    assert.match(indexTemplate, /__TITLE_LIGHT_WEBP_SRCSET__/);
-    assert.match(indexTemplate, /__TITLE_DARK_WEBP_SRCSET__/);
-    assert.match(indexTemplate, /__TITLE_LIGHT_PNG_SRCSET__/);
-    assert.match(indexTemplate, /__TITLE_DARK_PNG_SRCSET__/);
+    assert.match(indexTemplate, /class="site-logo"/);
+    assert.match(indexTemplate, /src=".\/__TITLE_SVG_SRC__"/);
     assert.match(indexTemplate, /sizes="__TITLE_IMAGE_SIZES__"/);
     assert.match(indexTemplate, /width="__TITLE_IMAGE_WIDTH__"/);
     assert.match(indexTemplate, /height="__TITLE_IMAGE_HEIGHT__"/);
@@ -102,18 +88,20 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /--bg: #000000;/);
     assert.match(styles, /--play-button-bg: #000000;/);
     assert.match(styles, /--play-button-bg: #ffffff;/);
+    assert.match(styles, /\.site-logo \{[\s\S]*filter: invert\(1\);/);
+    assert.match(styles, /html\[data-theme="dark"\] \.site-logo \{[\s\S]*filter: none;/);
     assert.match(styles, /\.toc \{\s+margin: 0 0 2rem;/);
     assert.match(styles, /\.toc li:not\(:last-child\)::after \{[\s\S]*content: " \| ";/);
     assert.match(styles, /font-family: "Source Sans 3";/);
     assert.match(themeScript, /stickvania-about-theme/);
 });
 
-test("about build uses constrained Markdown and generated image assets", () => {
+test("about build uses constrained Markdown and SVG title assets", () => {
     assert.match(buildAboutSource, /content\.md/);
     assert.match(buildAboutSource, /renderAboutMarkdown/);
-    assert.match(buildAboutSource, /generateAboutImageAssets/);
-    assert.match(buildAboutSource, /__TITLE_LIGHT_WEBP_SRCSET__/);
-    assert.match(buildAboutSource, /__TITLE_DARK_WEBP_SRCSET__/);
+    assert.match(buildAboutSource, /const titleImageWidth = 750;/);
+    assert.match(buildAboutSource, /const titleImageHeight = 480;/);
+    assert.match(buildAboutSource, /__TITLE_SVG_SRC__/);
     assert.match(buildAboutSource, /stickvania-screenshot\.png/);
     assert.match(buildAboutSource, /normalizeRepositoryUrl/);
     assert.doesNotMatch(buildAboutSource, /jackal/i);
@@ -121,60 +109,27 @@ test("about build uses constrained Markdown and generated image assets", () => {
 
 test("about assets live with the about page source", () => {
     assert.equal(existsSync(join(aboutDir, "content.md")), true);
-    assert.equal(existsSync(join(aboutDir, "assets", "title.png")), true);
+    assert.equal(existsSync(join(aboutDir, "assets", "title.svg")), true);
+    assert.equal(existsSync(join(aboutDir, "assets", "title.png")), false);
     assert.equal(existsSync(join(aboutDir, "assets", "stickvania-screenshot.png")), true);
     assert.equal(existsSync(join(aboutDir, "assets", "icon.png")), true);
     assert.equal(existsSync(join(aboutDir, "assets", "fonts", "source-sans-3", "SourceSans3VF-Upright.ttf.woff2")), true);
     assert.equal(existsSync(join(aboutDir, "assets", "fonts", "source-sans-3", "SourceSans3VF-Italic.ttf.woff2")), true);
     assert.equal(existsSync(join(aboutDir, "assets", "fonts", "source-sans-3", "LICENSE.md")), true);
     assert.equal(existsSync(join(rootDir, "about.md")), false);
+    assert.equal(existsSync(join(rootDir, "title.svg")), false);
     assert.equal(existsSync(join(rootDir, "title.png")), false);
     assert.equal(existsSync(join(rootDir, "stickvania-screenshot.png")), false);
     assert.equal(existsSync(join(rootDir, "nosferatu.png")), false);
 });
 
-test("about transparent title images are generated with expected dimensions", async () => {
-    removeTemporaryOutputDir();
+test("about SVG title source is white artwork on a transparent background", () => {
+    const titleSvg = readFileSync(join(aboutDir, "assets", "title.svg"), "utf8");
 
-    await generateAboutImageAssets(join(aboutDir, "assets"), temporaryOutputDir);
-
-    assert.equal(titleImageWidth, 750);
-    assert.equal(titleImageHeight, 562);
-    assert.equal(titleImageSizes, "min(750px, calc(100vw - 2rem))");
-
-    const expectedDimensions = new Map([
-        ["title-light-750.png", { width: 750, height: 562 }],
-        ["title-light-1448.png", { width: 1448, height: 1086 }],
-        ["title-dark-750.png", { width: 750, height: 562 }],
-        ["title-dark-1448.png", { width: 1448, height: 1086 }],
-        ["title-light-750.webp", { width: 750, height: 562 }],
-        ["title-light-1448.webp", { width: 1448, height: 1086 }],
-        ["title-dark-750.webp", { width: 750, height: 562 }],
-        ["title-dark-1448.webp", { width: 1448, height: 1086 }]
-    ]);
-
-    for (const [fileName, expected] of expectedDimensions) {
-        const outputPath = join(temporaryOutputDir, fileName);
-        assert.equal(existsSync(outputPath), true);
-        const metadata = await sharp(readFileSync(outputPath)).metadata();
-        assert.equal(metadata.width, expected.width);
-        assert.equal(metadata.height, expected.height);
-        assert.equal(metadata.hasAlpha, true);
-    }
+    assert.match(titleSvg, /<svg\b/);
+    assert.match(titleSvg, /viewBox="0 0 155\.31 99\.396"/);
+    assert.match(titleSvg, /fill="#fff"/);
+    assert.doesNotMatch(titleSvg, /fill="#000/i);
+    assert.doesNotMatch(titleSvg, /<script\b/i);
+    assert.doesNotMatch(titleSvg, /\b(?:href|xlink:href)=["']https?:/i);
 });
-
-function removeTemporaryOutputDir({ throwOnFailure = true } = {}) {
-    try {
-        rmSync(temporaryOutputDir, {
-            recursive: true,
-            force: true,
-            maxRetries: 10,
-            retryDelay: 100
-        });
-    } catch (error) {
-        if (throwOnFailure) {
-            throw error;
-        }
-        console.warn(`Unable to remove temporary about image output: ${error.message}`);
-    }
-}
