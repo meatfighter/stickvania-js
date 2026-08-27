@@ -127,8 +127,8 @@ function extractHtmlResourceUrls(html) {
     return urls;
 }
 
-function releaseTextFiles() {
-    return collectFiles(distDir).filter((file) => releaseTextExtensions.has(extname(file)));
+function pwaReleaseTextFiles() {
+    return collectFiles(distPwaDir).filter((file) => releaseTextExtensions.has(extname(file)));
 }
 
 function assertUrlInsideScope(urlText, scopeUrl, label) {
@@ -609,7 +609,7 @@ test("PWA release output uses relocatable relative URLs", () => {
 });
 
 test("PWA release output does not contain hard-coded deployment paths", () => {
-    for (const file of releaseTextFiles()) {
+    for (const file of pwaReleaseTextFiles()) {
         const text = readFileSync(file, "utf8");
         const relativeFile = relative(rootDir, file).replaceAll("\\", "/");
         for (const blocked of blockedRuntimePathPatterns) {
