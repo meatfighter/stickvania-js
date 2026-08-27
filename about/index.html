@@ -1,69 +1,148 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="theme-color" content="#000000" />
-        <meta name="description" content="Stickvania preserved as legacy Java source and ported to a TypeScript browser PWA." />
+        <meta name="description" content="__DESCRIPTION__" />
+        <meta name="application-name" content="Stickvania" />
+        <meta name="stickvania:version" content="__APP_VERSION__" />
+        <meta name="stickvania:build-stamp" content="__BUILD_STAMP__" />
+        <link rel="canonical" href="__CANONICAL_URL__" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="meatfighter.com" />
+        <meta property="og:title" content="Stickvania" />
+        <meta property="og:description" content="__DESCRIPTION__" />
+        <meta property="og:url" content="__CANONICAL_URL__" />
+        <meta property="og:image" content="__SOCIAL_IMAGE_URL__" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Stickvania" />
+        <meta name="twitter:description" content="__DESCRIPTION__" />
+        <meta name="twitter:image" content="__SOCIAL_IMAGE_URL__" />
+        <link
+            rel="preload"
+            href="./assets/fonts/source-sans-3/SourceSans3VF-Upright.ttf.woff2?v=__BUILD_STAMP_ENCODED__"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
         <link rel="stylesheet" href="./styles.css?v=__BUILD_STAMP_ENCODED__" />
-        <link rel="icon" href="./assets/favicon-32.png?v=__BUILD_STAMP_ENCODED__" type="image/png" sizes="32x32" />
-        <link rel="apple-touch-icon" href="./assets/icon-192.png?v=__BUILD_STAMP_ENCODED__" sizes="192x192" />
+        <link rel="icon" href="./assets/icon.png?v=__BUILD_STAMP_ENCODED__" type="image/png" sizes="512x512" />
+        <link rel="apple-touch-icon" href="./assets/icon.png?v=__BUILD_STAMP_ENCODED__" sizes="512x512" />
         <title>Stickvania</title>
+        <script>
+            (() => {
+                try {
+                    const theme = localStorage.getItem("stickvania-about-theme");
+                    if (theme === "dark" || theme === "light") {
+                        document.documentElement.dataset.theme = theme;
+                    }
+                } catch {
+                    // Keep the default theme when storage is unavailable.
+                }
+            })();
+        </script>
     </head>
     <body>
-        <main>
-            <section class="hero" aria-labelledby="title">
-                <div class="hero-art" aria-hidden="true">
-                    <img src="./assets/title-screen.png?v=__BUILD_STAMP_ENCODED__" alt="" />
+        <div class="page">
+            <header class="site-header">
+                <div class="site-header__inner">
+                    <h1 class="site-title">
+                        <a class="site-logo-link" href="./" aria-label="Stickvania">
+                            <span class="sr-only">Stickvania</span>
+                            <picture class="site-logo-picture site-logo-picture--light">
+                                <source type="image/webp" srcset="./__TITLE_LIGHT_WEBP_SRCSET__" sizes="__TITLE_IMAGE_SIZES__" />
+                                <img
+                                    class="site-logo"
+                                    src="./__TITLE_LIGHT_PNG_SRC__"
+                                    srcset="./__TITLE_LIGHT_PNG_SRCSET__"
+                                    sizes="__TITLE_IMAGE_SIZES__"
+                                    alt=""
+                                    width="__TITLE_IMAGE_WIDTH__"
+                                    height="__TITLE_IMAGE_HEIGHT__"
+                                    decoding="async"
+                                />
+                            </picture>
+                            <picture class="site-logo-picture site-logo-picture--dark">
+                                <source type="image/webp" srcset="./__TITLE_DARK_WEBP_SRCSET__" sizes="__TITLE_IMAGE_SIZES__" />
+                                <img
+                                    class="site-logo"
+                                    src="./__TITLE_DARK_PNG_SRC__"
+                                    srcset="./__TITLE_DARK_PNG_SRCSET__"
+                                    sizes="__TITLE_IMAGE_SIZES__"
+                                    alt=""
+                                    width="__TITLE_IMAGE_WIDTH__"
+                                    height="__TITLE_IMAGE_HEIGHT__"
+                                    decoding="async"
+                                />
+                            </picture>
+                        </a>
+                    </h1>
+                    <label class="theme-switch" for="theme-toggle">
+                        <span class="sr-only">Toggle dark mode</span>
+                        <input id="theme-toggle" type="checkbox" role="switch" aria-label="Toggle dark mode" />
+                        <span class="theme-switch__track" aria-hidden="true"></span>
+                    </label>
                 </div>
-                <div class="hero-content">
-                    <p class="eyebrow">Java original, TypeScript PWA port</p>
-                    <h1 id="title">Stickvania</h1>
-                    <p class="summary">
-                        A black-and-white Castlevania demake preserved from the Slick2D Java version and ported to the browser with parity-minded gameplay,
-                        graphics, audio, input, and save-state behavior.
-                    </p>
-                    <div class="actions" aria-label="Project actions">
-                        <a class="primary-action" href="./__PWA_URL__">Play PWA</a>
-                        <a class="secondary-action" href="./__DESKTOP_ZIP__" download>Download Java Desktop</a>
-                        <a class="secondary-action" href="__REPOSITORY_URL__">Source Code</a>
-                    </div>
-                    <p class="version">Version __APP_VERSION__</p>
-                </div>
-            </section>
+            </header>
 
-            <section class="details" aria-label="Project details">
-                <div>
-                    <h2>Browser PWA</h2>
-                    <p>
-                        The playable web app runs under the PWA bundle with gamepad and keyboard input, web audio, saved-state restore, fullscreen support,
-                        offline caching, and optional dark display and rumble modes.
-                    </p>
+            <main id="main" class="site-main">
+                __TOC_HTML__
+                <article class="article" aria-label="About Stickvania">__ARTICLE_HTML__</article>
+            </main>
+
+            <footer class="site-footer">
+                <div class="site-footer__inner">
+                    <div class="site-footer__left">
+                        <p>&copy; 2010, 2026 meatfighter.com</p>
+                        <p>
+                            This content is licensed under
+                            <span class="license-wrap">
+                                <a
+                                    class="license-link"
+                                    href="https://creativecommons.org/licenses/by-sa/4.0/?ref=chooser-v1"
+                                    target="_blank"
+                                    rel="license noopener noreferrer"
+                                    >CC BY-SA 4.0</a
+                                >
+                                <a
+                                    class="license-icons"
+                                    href="https://creativecommons.org/licenses/by-sa/4.0/?ref=chooser-v1"
+                                    target="_blank"
+                                    rel="license noopener noreferrer"
+                                    aria-label="Creative Commons Attribution ShareAlike 4.0"
+                                >
+                                    <img
+                                        src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1"
+                                        alt="Creative Commons icon"
+                                        width="18"
+                                        height="18"
+                                    />
+                                    <img
+                                        src="https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1"
+                                        alt="Attribution icon"
+                                        width="18"
+                                        height="18"
+                                    />
+                                    <img
+                                        src="https://mirrors.creativecommons.org/presskit/icons/sa.svg?ref=chooser-v1"
+                                        alt="ShareAlike icon"
+                                        width="18"
+                                        height="18"
+                                    />
+                                </a>
+                            </span>
+                        </p>
+                    </div>
+                    <div class="site-footer__links">
+                        <a href="__REPOSITORY_URL__" target="_blank" rel="noopener noreferrer">Source</a>
+                        <span class="site-footer__separator" aria-hidden="true">|</span>
+                        <a href="https://meatfighter.com/">Home</a>
+                    </div>
                 </div>
-                <div>
-                    <h2>Legacy Source</h2>
-                    <p>
-                        The desktop directory keeps the Java-era project material available for parity checks and archival review. The downloadable Java bundle
-                        preserves the legacy Slick2D/LWJGL runtime and includes platform launch scripts, licenses, and corresponding-source material.
-                    </p>
-                </div>
-                <div>
-                    <h2>Release Bundle</h2>
-                    <p>
-                        The build stamps version metadata, renders this about page at the public root, builds the playable PWA under dist/pwa, and stages the
-                        downloadable desktop archive.
-                    </p>
-                </div>
-                <div>
-                    <h2>Acknowledgements</h2>
-                    <p>
-                        Stickvania is an unofficial fan-made project. It is not affiliated with, sponsored by, or endorsed by Konami or Nintendo. Castlevania,
-                        Super Castlevania IV, Simon Belmont, and related names, characters, music, and other original material belong to their respective rights
-                        holders. Nintendo Entertainment System and NES are trademarks of Nintendo. The project is free, contains no advertising, and generates
-                        no revenue.
-                    </p>
-                </div>
-            </section>
-        </main>
+            </footer>
+        </div>
+
+        <script src="./theme.js?v=__BUILD_STAMP_ENCODED__"></script>
     </body>
 </html>

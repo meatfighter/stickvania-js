@@ -1,14 +1,12 @@
-# Stickvania
-
-## About
+# About
 
 _Stickvania_ is a stick-figure demake of Konami's original _Castlevania_ for the Nintendo Entertainment System. The game reduces the castle, enemies, objects, and Simon Belmont himself to simple line drawings that look like they were scribbled with a Sharpie.
 
-Press the **Play** button below to launch the desktop browser version of _Stickvania_.
+Press the **Play** button below to launch the browser version of _Stickvania_.
 
-**[Play]**
+[Play](__PWA_URL__)
 
-## Controls
+# Controls
 
 _Stickvania_ supports both keyboard and gamepad input. The default controls are:
 
@@ -30,7 +28,7 @@ _Stickvania_ reserves two keyboard controls that cannot be remapped:
 | Space | Toggle fullscreen |
 | Esc   | Exit fullscreen   |
 
-### Browser Menu
+## Browser Menu
 
 _Stickvania_ opens with a browser menu that provides **New Game** and **Continue** buttons.
 
@@ -46,7 +44,7 @@ The browser menu also provides:
 
 _Stickvania_ automatically pauses when the browser loses focus and resumes when the browser regains focus.
 
-### In-Game Menu
+## In-Game Menu
 
 The in-game main menu provides **Start** and **Options**.
 
@@ -56,7 +54,7 @@ Selecting **Options** opens another menu with:
 - **Difficulty** — Choose between **Normal** and **Hard**.
 - **Done** — Return to the previous menu.
 
-## History
+# History
 
 My first exposure to the _Castlevania_ series was _Super Castlevania IV_ for the Super Nintendo. That game feels responsive, precise, and predictable. You can change direction in midair, and the enemy patterns and level design feel carefully balanced. If I make a mistake during play, I feel responsible for it.
 
@@ -70,7 +68,7 @@ I released _Stickvania_ as a Java applet that ran in a web page and as a downloa
 
 In 2026, I rewrote _Stickvania_ in TypeScript and adapted it to modern web browsers. The new version once again lets visitors launch the game directly from a web page and adds a few modern features, including configurable input, gamepad rumble, and save-state support. The game itself remains fundamentally the _Stickvania_ I created in 2010.
 
-## Differences
+# Differences
 
 _Stickvania_ closely follows the stages, enemy placements, and bosses of the original _Castlevania_. I tightened the controls, rebalanced the weapons, and tweaked enemy behavior to make the game less punishing and, hopefully, more enjoyable.
 
@@ -88,21 +86,25 @@ I changed how some of the hidden items are revealed. The original _Castlevania_ 
 
 I also included an Easter egg from _Super Castlevania IV_ that may help you in the final battle with Dracula. It's out there for you to discover.
 
-## Hard Mode
+# Hard Mode
 
 If you think I made the game too easy, select **Hard** from **Options → Difficulty**. Hard Mode increases the challenge. It was inspired by the more difficult second loop of the original _Castlevania_, but you can select it immediately without completing Normal Mode first.
 
-## Resources
+# Resources
 
 _Stickvania_ is a reimplementation of _Castlevania_, not an emulation. It does not run or include the original NES ROM.
 
-The source code for the project is available **[here]**.
+The source code for the project is available in the [meatfighter/stickvania-js repository](__REPOSITORY_URL__).
 
-The Java desktop version is available as an executable JAR file **[here]**. Run as:
+The Java desktop version is available as a [desktop ZIP](__DESKTOP_ZIP__). Download and extract the ZIP, then run the launcher for your operating system:
 
-java -jar ...TODO...
+- Windows: `run-windows.cmd`
+- Linux: `run-linux.sh`
+- macOS: `run-macos.sh`
 
-## Acknowledgements
+Java 21 or newer is required.
+
+# Acknowledgements
 
 Konami developed and published the original _Castlevania_ and _Super Castlevania IV_. _Stickvania_ would not exist without the work of the designers, programmers, artists, composers, and other people who created those games.
 
