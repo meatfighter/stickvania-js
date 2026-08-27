@@ -28,11 +28,14 @@
     --code-bg: #eeeeee;
     --inline-code-bg: #e8e8e8;
     --inline-code-text: #000000;
-    --switch-track: #d9d9d9;
-    --switch-track-checked: #111111;
-    --switch-border: #777777;
+    --switch-track: #000000;
+    --switch-track-checked: #ffffff;
+    --switch-border: #555555;
+    --switch-border-checked: #ffffff;
     --switch-knob: #ffffff;
-    --switch-knob-border: #777777;
+    --switch-knob-border: #555555;
+    --switch-knob-checked: #000000;
+    --switch-knob-border-checked: #000000;
     --play-button-bg: #000000;
     --play-button-text: #ffffff;
     --measure: 750px;
@@ -58,11 +61,14 @@ html[data-theme="dark"] {
     --code-bg: #171717;
     --inline-code-bg: #222222;
     --inline-code-text: #ffffff;
-    --switch-track: #252525;
+    --switch-track: #000000;
     --switch-track-checked: #ffffff;
-    --switch-border: #8a8a8a;
+    --switch-border: #555555;
+    --switch-border-checked: #ffffff;
     --switch-knob: #ffffff;
-    --switch-knob-border: #8a8a8a;
+    --switch-knob-border: #555555;
+    --switch-knob-checked: #000000;
+    --switch-knob-border-checked: #000000;
     --play-button-bg: #ffffff;
     --play-button-text: #000000;
 }
@@ -227,10 +233,13 @@ html[data-theme="dark"] .site-logo-picture--dark {
 }
 
 .theme-switch input:checked + .theme-switch__track {
+    border-color: var(--switch-border-checked);
     background: var(--switch-track-checked);
 }
 
 .theme-switch input:checked + .theme-switch__track::before {
+    border-color: var(--switch-knob-border-checked);
+    background: var(--switch-knob-checked);
     transform: translate(1.18rem, -50%);
 }
 
