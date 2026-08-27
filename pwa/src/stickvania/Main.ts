@@ -288,6 +288,11 @@ export class Main extends BasicGame {
     private nativeCursor: Cursor = null;
     public mode: number = Main.MODE_TITLE_SCREEN;
     public darkDisplayMode: boolean = false;
+    public displayMonochromePalette: Readonly<{
+        blackReplacement: Color;
+        whiteReplacement: Color;
+    }> | null = null;
+
     private startupAudioQueued: boolean = false;
     public nativeDisplayMode: DisplayMode = null;
     public maxWidth: number = 0;
@@ -4249,8 +4254,12 @@ export class Main extends BasicGame {
 
     public render(gc: GameContainer, g: Graphics): void {
         let skipFadeOverlay: boolean = false;
+        const displayMonochromePalette = this.displayMonochromePalette;
         try {
             g.setColorInverted(this.darkDisplayMode);
+            if (displayMonochromePalette !== null) {
+                g.setMonochromePalette(displayMonochromePalette.blackReplacement, displayMonochromePalette.whiteReplacement);
+            }
 
             switch (this.mode) {
                 case Main.MODE_TITLE_SCREEN:
@@ -4328,6 +4337,9 @@ export class Main extends BasicGame {
                 this.renderCredits(gc, g);
             }
         } finally {
+            if (displayMonochromePalette !== null) {
+                g.clearMonochromePalette();
+            }
             g.setColorInverted(false);
         }
 

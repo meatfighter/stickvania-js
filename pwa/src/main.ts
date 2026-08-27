@@ -1,6 +1,7 @@
 import type { AppGameContainer } from "slick2d-ts/slick/AppGameContainer";
 import { SoundStore } from "slick2d-ts/slick/openal/SoundStore";
 import { ResourceLoader } from "slick2d-ts/slick/util/ResourceLoader";
+import { createDisplayMonochromePalette, DISPLAY_MODE_DEFINITIONS, isDisplayModePreference, type DisplayModePreference } from "./DisplayThemes.js";
 import { RumbleManager } from "./rumble/RumbleManager.js";
 import { getBrowserStorageKey } from "./stickvania/BrowserStorageKeys.js";
 import type { Main } from "./stickvania/Main.js";
@@ -20,7 +21,6 @@ const MAX_DEVICE_PIXEL_RATIO = 2;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
-type DisplayModePreference = "light" | "dark";
 type SlickRuntimeModule = typeof import("slick2d-ts");
 type MainConstructor = typeof import("./stickvania/Main.js").Main;
 type ScalableGame2Constructor = typeof import("./stickvania/ScalableGame2.js").ScalableGame2;
@@ -110,10 +110,19 @@ function setDisplayModePreference(value: DisplayModePreference): void {
     writeDisplayModePreference(value);
 }
 
-function updateDisplayModeUi(displaySwitchButton: HTMLButtonElement): void {
-    const darkEnabled = displayModePreference === "dark";
-    displaySwitchButton.setAttribute("aria-pressed", String(darkEnabled));
-    displaySwitchButton.setAttribute("data-enabled", String(darkEnabled));
+function updateDisplayModeUi(displayModeSelect: HTMLSelectElement): void {
+    displayModeSelect.value = displayModePreference;
+}
+
+function applyDisplayModePreference(target: Main): void {
+    target.darkDisplayMode = displayModePreference === "dark";
+    target.displayMonochromePalette = createDisplayMonochromePalette(displayModePreference);
+}
+
+function displayModeOptionsHtml(): string {
+    return DISPLAY_MODE_DEFINITIONS.map(
+        ({ value, label }) => `<option value="${value}"${value === displayModePreference ? " selected" : ""}>${label}</option>`
+    ).join("");
 }
 
 function getRumbleManager(): RumbleManager {
@@ -200,12 +209,12 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     menu.innerHTML = `
         <section class="menu-panel" aria-label="Stickvania menu">
             <div class="settings-row">
-                <div class="setting-switch-row" role="group" aria-label="Dark mode">
-                    <span>Dark</span>
-                    <button id="display-switch-button" class="menu-switch" type="button" aria-label="Toggle dark mode" aria-pressed="${displayModePreference === "dark"}" data-enabled="${displayModePreference === "dark"}">
-                        <span></span>
-                    </button>
-                </div>
+                <label class="setting-select-row">
+                    <span>Theme</span>
+                    <select id="display-mode-select" class="menu-select" aria-label="Display theme">
+                        ${displayModeOptionsHtml()}
+                    </select>
+                </label>
                 <div class="setting-switch-row" role="group" aria-label="Rumble">
                     <span>Rumble</span>
                     <button id="rumble-switch-button" class="menu-switch" type="button" aria-label="Toggle rumble" aria-pressed="${rumbleEnabled}" data-enabled="${rumbleEnabled}">
@@ -233,19 +242,23 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     const volumeInput = menu.querySelector("#volume-input") as HTMLInputElement;
     const volumeValue = menu.querySelector("#volume-value") as HTMLElement;
     const volumeIcon = menu.querySelector("#volume-icon") as HTMLElement;
-    const displaySwitchButton = menu.querySelector("#display-switch-button") as HTMLButtonElement;
+    const displayModeSelect = menu.querySelector("#display-mode-select") as HTMLSelectElement;
     const rumbleSwitchButton = menu.querySelector("#rumble-switch-button") as HTMLButtonElement;
     const newGameButton = menu.querySelector("#new-game-button") as HTMLButtonElement;
     const continueButton = menu.querySelector("#continue-button") as HTMLButtonElement;
-    const handleDisplayModeChange = (value: DisplayModePreference) => {
+    const handleDisplayModeChange = (value: string) => {
+        if (!isDisplayModePreference(value)) {
+            updateDisplayModeUi(displayModeSelect);
+            return;
+        }
         setDisplayModePreference(value);
         if (game !== null) {
-            game.darkDisplayMode = value === "dark";
+            applyDisplayModePreference(game);
         }
-        updateDisplayModeUi(displaySwitchButton);
+        updateDisplayModeUi(displayModeSelect);
     };
-    displaySwitchButton.addEventListener("click", () => handleDisplayModeChange(displayModePreference === "light" ? "dark" : "light"));
-    updateDisplayModeUi(displaySwitchButton);
+    displayModeSelect.addEventListener("change", () => handleDisplayModeChange(displayModeSelect.value));
+    updateDisplayModeUi(displayModeSelect);
     rumbleSwitchButton.addEventListener("click", () => {
         setRumbleEnabled(!rumbleEnabled);
         updateRumbleUi(rumbleSwitchButton);
@@ -315,7 +328,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     runtime.slick.Display.setParent(host);
     const mainGame = new runtime.Main();
     let restoreFailed = false;
-    mainGame.darkDisplayMode = displayModePreference === "dark";
+    applyDisplayModePreference(mainGame);
     mainGame.rumble = getRumbleManager();
     const scalableGame = new runtime.ScalableGame2(mainGame, GAME_WIDTH, GAME_HEIGHT, true);
     const displayMode = getResponsiveWindowedDisplayMode();
@@ -340,7 +353,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
                 restoreFailed = true;
                 return false;
             }
-            mainGame.darkDisplayMode = displayModePreference === "dark";
+            applyDisplayModePreference(mainGame);
             return true;
         };
     }
@@ -552,7 +565,7 @@ function resumeLiveGameFromMenu(): void {
     removeMenuOverlay();
     liveContainer.getInput().resume();
     liveGame.clearInputPressedRecords();
-    liveGame.darkDisplayMode = displayModePreference === "dark";
+    applyDisplayModePreference(liveGame);
     startGameCursorAutoHide(liveHost);
     setAudioVolume(volume);
     scheduleResponsiveGameResize();
@@ -1015,7 +1028,8 @@ function writeVolume(value: number): void {
 
 function safeReadDisplayModePreference(): DisplayModePreference {
     try {
-        return localStorage.getItem(DISPLAY_MODE_STORAGE_KEY) === "dark" ? "dark" : DEFAULT_DISPLAY_MODE;
+        const value = localStorage.getItem(DISPLAY_MODE_STORAGE_KEY);
+        return isDisplayModePreference(value) ? value : DEFAULT_DISPLAY_MODE;
     } catch {
         return DEFAULT_DISPLAY_MODE;
     }

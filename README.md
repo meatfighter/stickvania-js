@@ -94,20 +94,20 @@ The important distinction is that **component builds and production releases are
 
 ### Source-of-truth quick reference
 
-| Concern | Source of truth | Generated/derived output |
-| --- | --- | --- |
-| Gameplay behavior | `pwa/src/stickvania/`, compared with Java under `desktop/src/` | bundled PWA JavaScript |
-| Browser shell/lifecycle | `pwa/src/main.ts` | bundled PWA JavaScript |
-| Game resource inventory | `pwa/src/resources.ts` | runtime-prepared resources |
-| Browser rumble | `pwa/src/rumble/` | Gamepad vibration calls |
-| Deployment-scoped storage | `pwa/src/stickvania/BrowserStorageKeys.ts` | browser local-storage keys |
-| Save/continue format | `pwa/src/stickvania/persistence/` | browser save state |
-| Static PWA/offline behavior | `pwa/public/`, `pwa/vite.config.ts` | generated PWA release |
-| Public project page | `about/` | root of assembled web/full release |
-| Desktop Java source | `desktop/src/` | `desktop/target/` and desktop ZIP |
-| Desktop runtime contract | `desktop/RUNTIME_DEPENDENCIES.md` plus full-repo runtime files | packaged desktop runtime |
-| Release version/build stamp | `version.json` + release-time stamp override | generated PWA/about/release filenames |
-| Production release logic | `scripts/` | production candidate then `dist/` |
+| Concern                     | Source of truth                                                | Generated/derived output              |
+| --------------------------- | -------------------------------------------------------------- | ------------------------------------- |
+| Gameplay behavior           | `pwa/src/stickvania/`, compared with Java under `desktop/src/` | bundled PWA JavaScript                |
+| Browser shell/lifecycle     | `pwa/src/main.ts`                                              | bundled PWA JavaScript                |
+| Game resource inventory     | `pwa/src/resources.ts`                                         | runtime-prepared resources            |
+| Browser rumble              | `pwa/src/rumble/`                                              | Gamepad vibration calls               |
+| Deployment-scoped storage   | `pwa/src/stickvania/BrowserStorageKeys.ts`                     | browser local-storage keys            |
+| Save/continue format        | `pwa/src/stickvania/persistence/`                              | browser save state                    |
+| Static PWA/offline behavior | `pwa/public/`, `pwa/vite.config.ts`                            | generated PWA release                 |
+| Public project page         | `about/`                                                       | root of assembled web/full release    |
+| Desktop Java source         | `desktop/src/`                                                 | `desktop/target/` and desktop ZIP     |
+| Desktop runtime contract    | `desktop/RUNTIME_DEPENDENCIES.md` plus full-repo runtime files | packaged desktop runtime              |
+| Release version/build stamp | `version.json` + release-time stamp override                   | generated PWA/about/release filenames |
+| Production release logic    | `scripts/`                                                     | production candidate then `dist/`     |
 
 If source and generated output disagree, fix the source and rebuild. Do not edit generated files to make a release look correct.
 
@@ -194,24 +194,24 @@ The production build requires a clean Git source tree and captures tracked-sourc
 
 ### Source and configuration
 
-| Path | Purpose |
-| --- | --- |
-| `about/` | Source template/assets for the deployed public project page. |
-| `about.md` | Project/about prose reference; not the input consumed by `scripts/build-about.mjs`. |
-| `pwa/` | TypeScript browser PWA. |
-| `pwa/src/main.ts` | Browser application shell and lifecycle/UI integration. |
-| `pwa/src/resources.ts` | Application resource inventory/preparation data. |
-| `pwa/src/rumble/` | Browser Gamepad vibration implementation and effect definitions. |
-| `pwa/src/stickvania/` | Main TypeScript gameplay port plus browser storage/input helpers. |
-| `pwa/src/stickvania/persistence/` | Versioned save-state schema, preflight validation, snapshots, serializer, store, and stable `Thing` registry. |
-| `pwa/public/` | Manifest, service-worker source, images/audio/game resources, and other static PWA files. |
-| `desktop/` | Preserved Java project, legacy NetBeans/Maven metadata, launchers, runtime documentation, licenses, and third-party source material. |
-| `scripts/` | Build, verification, stamping, desktop packaging, release locking, path safety, and production-promotion tooling. |
-| `version.json` | Checked-in application version/build stamp. |
-| `package.json` | Root development/build/release command surface. |
-| `package-lock.json` | Reproducible JavaScript dependency resolution. |
-| `THIRD_PARTY_NOTICES.md` | Root third-party notices. |
-| `LICENSE` | Project license. |
+| Path                              | Purpose                                                                                                                              |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `about/`                          | Source template/assets for the deployed public project page.                                                                         |
+| `about.md`                        | Project/about prose reference; not the input consumed by `scripts/build-about.mjs`.                                                  |
+| `pwa/`                            | TypeScript browser PWA.                                                                                                              |
+| `pwa/src/main.ts`                 | Browser application shell and lifecycle/UI integration.                                                                              |
+| `pwa/src/resources.ts`            | Application resource inventory/preparation data.                                                                                     |
+| `pwa/src/rumble/`                 | Browser Gamepad vibration implementation and effect definitions.                                                                     |
+| `pwa/src/stickvania/`             | Main TypeScript gameplay port plus browser storage/input helpers.                                                                    |
+| `pwa/src/stickvania/persistence/` | Versioned save-state schema, preflight validation, snapshots, serializer, store, and stable `Thing` registry.                        |
+| `pwa/public/`                     | Manifest, service-worker source, images/audio/game resources, and other static PWA files.                                            |
+| `desktop/`                        | Preserved Java project, legacy NetBeans/Maven metadata, launchers, runtime documentation, licenses, and third-party source material. |
+| `scripts/`                        | Build, verification, stamping, desktop packaging, release locking, path safety, and production-promotion tooling.                    |
+| `version.json`                    | Checked-in application version/build stamp.                                                                                          |
+| `package.json`                    | Root development/build/release command surface.                                                                                      |
+| `package-lock.json`               | Reproducible JavaScript dependency resolution.                                                                                       |
+| `THIRD_PARTY_NOTICES.md`          | Root third-party notices.                                                                                                            |
+| `LICENSE`                         | Project license.                                                                                                                     |
 
 ### Generated and local state
 
@@ -362,17 +362,17 @@ The desktop runtime remains intentionally conservative. It preserves the Slick2D
 
 The scripts are easier to understand by responsibility.
 
-| Area | Representative scripts | Responsibility |
-| --- | --- | --- |
-| Stamped component builds | `run-stamped-release.mjs`, `stamp.mjs` | Provide release build stamps and run component scripts under managed output rules. |
-| PWA/about build | Vite command surface, `build-about.mjs` | Build browser/about output. |
-| Desktop build | `build-desktop.mjs`, `desktop-runtime-manifest.mjs` | Compile/package Java and enforce runtime dependency expectations. |
-| Desktop verification | `verify-desktop-release.mjs`, `copy-desktop-release.mjs`, `release-desktop.mjs` | Validate ZIP contents/hashes/launchers and stage a verified desktop release. |
-| PWA verification | `verify-pwa-release.mjs` | Validate generated PWA resources, service worker, deployment-relative behavior, storage/cache assumptions, and related invariants. |
-| Release tooling tests | `verify-release-tooling.mjs` | Exercise build/release safety behavior and regressions. |
-| Production release | `build-production.mjs`, `assemble.mjs` | Build a full verified candidate and promote it to `dist/`. |
-| Path/lock/filesystem safety | `build-utils.mjs` | Managed output paths, link/path validation, release-operation locking, atomic/recovery helpers used by the release workflow. |
-| ZIP support | `zip-store.mjs` | Create/inspect release ZIP content used by packaging/verifiers. |
+| Area                        | Representative scripts                                                          | Responsibility                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Stamped component builds    | `run-stamped-release.mjs`, `stamp.mjs`                                          | Provide release build stamps and run component scripts under managed output rules.                                                 |
+| PWA/about build             | Vite command surface, `build-about.mjs`                                         | Build browser/about output.                                                                                                        |
+| Desktop build               | `build-desktop.mjs`, `desktop-runtime-manifest.mjs`                             | Compile/package Java and enforce runtime dependency expectations.                                                                  |
+| Desktop verification        | `verify-desktop-release.mjs`, `copy-desktop-release.mjs`, `release-desktop.mjs` | Validate ZIP contents/hashes/launchers and stage a verified desktop release.                                                       |
+| PWA verification            | `verify-pwa-release.mjs`                                                        | Validate generated PWA resources, service worker, deployment-relative behavior, storage/cache assumptions, and related invariants. |
+| Release tooling tests       | `verify-release-tooling.mjs`                                                    | Exercise build/release safety behavior and regressions.                                                                            |
+| Production release          | `build-production.mjs`, `assemble.mjs`                                          | Build a full verified candidate and promote it to `dist/`.                                                                         |
+| Path/lock/filesystem safety | `build-utils.mjs`                                                               | Managed output paths, link/path validation, release-operation locking, atomic/recovery helpers used by the release workflow.       |
+| ZIP support                 | `zip-store.mjs`                                                                 | Create/inspect release ZIP content used by packaging/verifiers.                                                                    |
 
 Internal underscore-prefixed npm scripts are implementation primitives. Normal developer/release work should use public commands.
 
@@ -702,16 +702,16 @@ Use **`npm run release`** when the intent is “qualify and create the productio
 
 ### Build-command quick reference
 
-| Goal | Command | Output |
-| --- | --- | --- |
-| Develop browser game | `npm run dev` | Vite dev server |
-| Build PWA component | `npm run build:pwa` | `.release-components/pwa/` |
-| Build about component | `npm run build:about` | `.release-components/about/` |
-| Build about + PWA component | `npm run build:web` | `.release-components/web/` |
-| Build desktop JAR/ZIP | `npm run build:desktop` | `desktop/target/` |
-| Stage standalone desktop ZIP | `npm run release:desktop` | `releases/` |
-| Run lower-level production assembly/promotion | `npm run build` | `dist/` after candidate verification |
-| **Run complete public release gate** | **`npm run release`** | **verified `dist/`** |
+| Goal                                          | Command                   | Output                               |
+| --------------------------------------------- | ------------------------- | ------------------------------------ |
+| Develop browser game                          | `npm run dev`             | Vite dev server                      |
+| Build PWA component                           | `npm run build:pwa`       | `.release-components/pwa/`           |
+| Build about component                         | `npm run build:about`     | `.release-components/about/`         |
+| Build about + PWA component                   | `npm run build:web`       | `.release-components/web/`           |
+| Build desktop JAR/ZIP                         | `npm run build:desktop`   | `desktop/target/`                    |
+| Stage standalone desktop ZIP                  | `npm run release:desktop` | `releases/`                          |
+| Run lower-level production assembly/promotion | `npm run build`           | `dist/` after candidate verification |
+| **Run complete public release gate**          | **`npm run release`**     | **verified `dist/`**                 |
 
 ---
 
@@ -977,58 +977,58 @@ Then build and launch the **generated ZIP** on every OS/JVM combination you inte
 
 ## Useful Commands
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the local PWA development server. |
-| `npm run clean` | Remove/recreate managed canonical `dist/` output. |
-| `npm run typecheck` | Run TypeScript checking. |
-| `npm run lint` | Run ESLint over browser source/config/service worker. |
-| `npm run format` | Apply Prettier. |
-| `npm run format:check` | Check formatting. |
-| `npm run verify:release-tooling` | Exercise release-tooling safety tests. |
-| `npm run test:pwa-release` | Build a stamped PWA test artifact and verify it. |
-| `npm run verify` | Run the normal source/release qualification gate. |
-| `npm run verify:dependencies` | Run high-severity npm advisory audit. |
-| `npm run build:pwa` | Build stamped PWA component output. |
-| `npm run build:about` | Build stamped about-page component output. |
-| `npm run build:web` | Build stamped about + PWA component output. |
-| `npm run build:desktop` | Build desktop JAR/ZIP. |
-| `npm run verify:desktop-release` | Verify generated desktop release package. |
-| `npm run release:desktop` | Stage a verified standalone desktop ZIP. |
-| `npm run run:desktop` | Run the built desktop game. |
-| `npm run build` | Run lower-level candidate-first production build/promotion. |
-| **`npm run release`** | **Run verification + dependency audit + production build.** |
-| `npm run preview:pwa` | Preview the PWA with Vite. |
-| `npm run preview:dist` | Preview generated `dist/`. |
-| `npm run stamp` | Intentionally update the tracked `version.json` build stamp. |
+| Command                          | Purpose                                                      |
+| -------------------------------- | ------------------------------------------------------------ |
+| `npm run dev`                    | Start the local PWA development server.                      |
+| `npm run clean`                  | Remove/recreate managed canonical `dist/` output.            |
+| `npm run typecheck`              | Run TypeScript checking.                                     |
+| `npm run lint`                   | Run ESLint over browser source/config/service worker.        |
+| `npm run format`                 | Apply Prettier.                                              |
+| `npm run format:check`           | Check formatting.                                            |
+| `npm run verify:release-tooling` | Exercise release-tooling safety tests.                       |
+| `npm run test:pwa-release`       | Build a stamped PWA test artifact and verify it.             |
+| `npm run verify`                 | Run the normal source/release qualification gate.            |
+| `npm run verify:dependencies`    | Run high-severity npm advisory audit.                        |
+| `npm run build:pwa`              | Build stamped PWA component output.                          |
+| `npm run build:about`            | Build stamped about-page component output.                   |
+| `npm run build:web`              | Build stamped about + PWA component output.                  |
+| `npm run build:desktop`          | Build desktop JAR/ZIP.                                       |
+| `npm run verify:desktop-release` | Verify generated desktop release package.                    |
+| `npm run release:desktop`        | Stage a verified standalone desktop ZIP.                     |
+| `npm run run:desktop`            | Run the built desktop game.                                  |
+| `npm run build`                  | Run lower-level candidate-first production build/promotion.  |
+| **`npm run release`**            | **Run verification + dependency audit + production build.**  |
+| `npm run preview:pwa`            | Preview the PWA with Vite.                                   |
+| `npm run preview:dist`           | Preview generated `dist/`.                                   |
+| `npm run stamp`                  | Intentionally update the tracked `version.json` build stamp. |
 
 ---
 
 ## Where Do I Make This Change?
 
-| Goal | Start here |
-| --- | --- |
-| Player/enemy/boss/game mechanics | `pwa/src/stickvania/`, compare `desktop/src/` |
-| Browser menu/startup/lifecycle/options | `pwa/src/main.ts` |
-| Browser resource inventory | `pwa/src/resources.ts` |
-| Rumble/haptic effects | `pwa/src/rumble/` |
-| Deployment-scoped browser keys | `pwa/src/stickvania/BrowserStorageKeys.ts` |
-| Input mapping/game input | `pwa/src/stickvania/ButtonMapping.ts`, `StickvaniaInput.ts`, browser shell integration |
-| Save-state schema/preflight | `pwa/src/stickvania/persistence/GameStateSchema.ts`, `GameStatePreflight.ts` |
-| Save serialization/store | `pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts`, `StickvaniaGameStateStore.ts` |
-| Stable saved-object IDs | `pwa/src/stickvania/persistence/ThingTypeRegistry.ts` |
-| Offline/cache behavior | `pwa/public/sw.js` |
-| PWA build configuration | `pwa/vite.config.ts` |
-| Public project page | `about/`, `scripts/build-about.mjs` |
-| Java behavior | `desktop/src/` |
-| Desktop build/runtime | `scripts/build-desktop.mjs`, `desktop/RUNTIME_DEPENDENCIES.md` |
-| Desktop runtime allowlist/hashes | `scripts/desktop-runtime-manifest.mjs` |
-| Desktop ZIP verification | `scripts/verify-desktop-release.mjs` |
-| Stamped component builds | `scripts/run-stamped-release.mjs` |
-| Full production orchestration | `scripts/build-production.mjs` |
-| Release path/lock/safety helpers | `scripts/build-utils.mjs` |
-| Release-tooling regression tests | `scripts/verify-release-tooling.mjs` |
-| Third-party notices/source | root notices plus `desktop/licenses/`, `desktop/third-party-sources/` |
+| Goal                                   | Start here                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Player/enemy/boss/game mechanics       | `pwa/src/stickvania/`, compare `desktop/src/`                                                    |
+| Browser menu/startup/lifecycle/options | `pwa/src/main.ts`                                                                                |
+| Browser resource inventory             | `pwa/src/resources.ts`                                                                           |
+| Rumble/haptic effects                  | `pwa/src/rumble/`                                                                                |
+| Deployment-scoped browser keys         | `pwa/src/stickvania/BrowserStorageKeys.ts`                                                       |
+| Input mapping/game input               | `pwa/src/stickvania/ButtonMapping.ts`, `StickvaniaInput.ts`, browser shell integration           |
+| Save-state schema/preflight            | `pwa/src/stickvania/persistence/GameStateSchema.ts`, `GameStatePreflight.ts`                     |
+| Save serialization/store               | `pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts`, `StickvaniaGameStateStore.ts` |
+| Stable saved-object IDs                | `pwa/src/stickvania/persistence/ThingTypeRegistry.ts`                                            |
+| Offline/cache behavior                 | `pwa/public/sw.js`                                                                               |
+| PWA build configuration                | `pwa/vite.config.ts`                                                                             |
+| Public project page                    | `about/`, `scripts/build-about.mjs`                                                              |
+| Java behavior                          | `desktop/src/`                                                                                   |
+| Desktop build/runtime                  | `scripts/build-desktop.mjs`, `desktop/RUNTIME_DEPENDENCIES.md`                                   |
+| Desktop runtime allowlist/hashes       | `scripts/desktop-runtime-manifest.mjs`                                                           |
+| Desktop ZIP verification               | `scripts/verify-desktop-release.mjs`                                                             |
+| Stamped component builds               | `scripts/run-stamped-release.mjs`                                                                |
+| Full production orchestration          | `scripts/build-production.mjs`                                                                   |
+| Release path/lock/safety helpers       | `scripts/build-utils.mjs`                                                                        |
+| Release-tooling regression tests       | `scripts/verify-release-tooling.mjs`                                                             |
+| Third-party notices/source             | root notices plus `desktop/licenses/`, `desktop/third-party-sources/`                            |
 
 ---
 

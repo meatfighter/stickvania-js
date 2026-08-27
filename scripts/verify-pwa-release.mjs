@@ -11,9 +11,12 @@ import { readVersion, resolveConfiguredDistDir, rootDir, versionPath } from "./b
 const distDir = resolveConfiguredDistDir();
 const distPwaDir = join(distDir, "pwa");
 const packageJsonPath = join(rootDir, "package.json");
+const packageLockPath = join(rootDir, "package-lock.json");
 const releaseStampScriptPath = join(rootDir, "scripts", "run-stamped-release.mjs");
 const serviceWorkerPath = join(distPwaDir, "sw.js");
 const mainSourcePath = join(rootDir, "pwa", "src", "main.ts");
+const displayThemesSourcePath = join(rootDir, "pwa", "src", "DisplayThemes.ts");
+const stickvaniaMainSourcePath = join(rootDir, "pwa", "src", "stickvania", "Main.ts");
 const browserStorageKeysSourcePath = join(rootDir, "pwa", "src", "stickvania", "BrowserStorageKeys.ts");
 const gameStateSchemaSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStateSchema.ts");
 const gameStatePreflightSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStatePreflight.ts");
@@ -27,6 +30,7 @@ const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
 const versionInfo = readVersion();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
+const slick2dTsCommit = "f80554f5bad1be46f77f58d5a4516a7788c33542";
 const defaultPwaScopeUrl = "https://example.test/pwa/";
 const relocationPwaScopeUrls = [
     "https://example.invalid/stickvania/pwa/",
@@ -546,6 +550,39 @@ test("package scripts use temporary release stamping for public builds", () => {
     for (const name of ["build:pwa:release", "build:about", "build:web", "test:pwa-release"]) {
         assert.match(scripts[name], /\.release-components\//);
     }
+});
+
+test("PWA pins the palette-capable Slick2D-ts runtime", () => {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    const packageLock = JSON.parse(readFileSync(packageLockPath, "utf8"));
+    const expectedDependency = `git+https://github.com/meatfighter/slick2d-ts.git#${slick2dTsCommit}`;
+
+    assert.equal(packageJson.dependencies["slick2d-ts"], expectedDependency);
+    assert.equal(packageLock.packages[""].dependencies["slick2d-ts"], expectedDependency);
+    assert.match(packageLock.packages["node_modules/slick2d-ts"].resolved, new RegExp(`${slick2dTsCommit}$`));
+});
+
+test("PWA display themes remain browser-only presentation state", () => {
+    const mainSource = readFileSync(mainSourcePath, "utf8");
+    const displayThemesSource = readFileSync(displayThemesSourcePath, "utf8");
+    const stickvaniaMainSource = readFileSync(stickvaniaMainSourcePath, "utf8");
+    const serializerSource = readFileSync(gameStateSerializerSourcePath, "utf8");
+
+    for (const theme of ["light", "dark", "sepia", "chalkboard", "moonlight", "cyanotype", "blood-moon"]) {
+        assert.match(displayThemesSource, new RegExp(`value: "${theme}"`), `DisplayThemes.ts should define ${theme}.`);
+    }
+    assert.match(mainSource, /id="display-mode-select"/);
+    assert.match(mainSource, /createDisplayMonochromePalette\(displayModePreference\)/);
+    assert.match(mainSource, /isDisplayModePreference\(value\)/);
+    assert.match(mainSource, /getBrowserStorageKey\("display-mode"\)/);
+    assert.match(mainSource, /target\.darkDisplayMode = displayModePreference === "dark";/);
+    assert.match(mainSource, /target\.displayMonochromePalette = createDisplayMonochromePalette\(displayModePreference\);/);
+    assert.match(stickvaniaMainSource, /public displayMonochromePalette:/);
+    assert.match(stickvaniaMainSource, /g\.setMonochromePalette\(displayMonochromePalette\.blackReplacement, displayMonochromePalette\.whiteReplacement\);/);
+    assert.match(stickvaniaMainSource, /g\.clearMonochromePalette\(\);/);
+    assert.match(stickvaniaMainSource, /g\.setColorInverted\(false\);/);
+    assert.match(serializerSource, /"darkDisplayMode"/);
+    assert.match(serializerSource, /"displayMonochromePalette"/);
 });
 
 test("temporary release stamp wrapper restores version.json after success and failure", () => {

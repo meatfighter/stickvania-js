@@ -22,7 +22,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
     font: inherit;
 }
 
@@ -198,20 +199,52 @@ input {
 
 .settings-row {
     display: flex;
-    width: min(360px, 100%);
+    width: min(440px, 100%);
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 30px;
+    gap: 20px 30px;
 }
 
+.setting-select-row,
 .setting-switch-row {
     display: grid;
-    grid-template-columns: max-content 66px;
     align-items: center;
     gap: 10px;
     color: #ffffff;
     font-size: 16px;
     font-weight: 700;
+}
+
+.setting-select-row {
+    grid-template-columns: max-content 156px;
+}
+
+.setting-switch-row {
+    grid-template-columns: max-content 66px;
+}
+
+.menu-select {
+    width: 156px;
+    height: 34px;
+    padding: 0 32px 0 10px;
+    border: 2px solid #555555;
+    border-radius: 8px;
+    background: #000000;
+    color: #ffffff;
+    color-scheme: dark;
+    cursor: pointer;
+}
+
+.menu-select:hover,
+.menu-select:focus-visible {
+    border-color: #ffffff;
+    outline: none;
+}
+
+.menu-select option {
+    background: #000000;
+    color: #ffffff;
 }
 
 .menu-switch {

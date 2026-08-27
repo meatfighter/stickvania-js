@@ -39,7 +39,7 @@ While playing outside fullscreen mode, a hamburger button appears in the upper-l
 The browser menu also provides:
 
 - **Volume** — Adjusts the game volume.
-- **Dark** — Switches between black lines on a white background and white lines on a black background.
+- **Theme** — Selects Light, Dark, Sepia, Chalkboard, Moonlight, Cyanotype, or Blood Moon.
 - **Rumble** — Enables or disables gamepad vibration on compatible controllers.
 
 _Stickvania_ automatically pauses when the browser loses focus and resumes when the browser regains focus.

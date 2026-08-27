@@ -233,6 +233,7 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "windowedDisplayModeProvider",
     "browserFullscreenController",
     "darkDisplayMode",
+    "displayMonochromePalette",
     "browserSuspended",
     "browserSuspendedMusicOn",
     "browserSuspendedSoundOn",
