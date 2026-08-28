@@ -1,22 +1,25 @@
 import { Color } from "slick2d-ts/slick/Color";
 
 export type DisplayModePreference =
-    | "light"
-    | "dark"
-    | "sepia"
-    | "candlelight"
-    | "chalkboard"
-    | "twilight"
-    | "ditto"
-    | "moonlight"
-    | "phantom"
-    | "cyanotype"
-    | "blood-moon"
     | "amber-monitor"
+    | "ballpoint"
+    | "candlelight"
+    | "charcoal"
+    | "chalkboard"
+    | "cyanotype"
+    | "dark"
+    | "ditto"
+    | "lcd"
+    | "led"
+    | "light"
     | "green-monitor"
     | "plasma"
+    | "twilight"
+    | "sepia"
+    | "negative"
+    | "moonlight"
     | "vfd"
-    | "lcd";
+    | "phantom";
 
 export type DisplayMonochromePalette = Readonly<{
     blackReplacement: Color;
@@ -34,22 +37,16 @@ type DisplayModeDefinition = Readonly<{
 
 export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
     {
-        value: "light",
-        label: "Light",
-        blackReplacement: null,
-        whiteReplacement: null
+        value: "amber-monitor",
+        label: "Amber",
+        blackReplacement: [0xf2, 0xb8, 0x4b],
+        whiteReplacement: [0x11, 0x0c, 0x04]
     },
     {
-        value: "dark",
-        label: "Dark",
-        blackReplacement: null,
-        whiteReplacement: null
-    },
-    {
-        value: "sepia",
-        label: "Sepia",
-        blackReplacement: [0x4b, 0x36, 0x21],
-        whiteReplacement: [0xd8, 0xc3, 0xa5]
+        value: "ballpoint",
+        label: "Ballpoint",
+        blackReplacement: [0x2d, 0x11, 0x74],
+        whiteReplacement: [0xed, 0xf0, 0xf2]
     },
     {
         value: "candlelight",
@@ -58,34 +55,16 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0xc3, 0xa4, 0x4f]
     },
     {
+        value: "charcoal",
+        label: "Charcoal",
+        blackReplacement: [0x29, 0x2a, 0x28],
+        whiteReplacement: [0xd8, 0xd2, 0xc6]
+    },
+    {
         value: "chalkboard",
         label: "Chalkboard",
         blackReplacement: [0xf0, 0xeb, 0xd8],
         whiteReplacement: [0x1e, 0x48, 0x36]
-    },
-    {
-        value: "twilight",
-        label: "Twilight",
-        blackReplacement: [0x21, 0x11, 0x17],
-        whiteReplacement: [0xd9, 0x95, 0xa1]
-    },
-    {
-        value: "ditto",
-        label: "Ditto",
-        blackReplacement: [0x71, 0x68, 0x9d],
-        whiteReplacement: [0xe9, 0xe2, 0xd2]
-    },
-    {
-        value: "moonlight",
-        label: "Moonlight",
-        blackReplacement: [0xd2, 0xd9, 0xe1],
-        whiteReplacement: [0x10, 0x18, 0x27]
-    },
-    {
-        value: "phantom",
-        label: "Phantom",
-        blackReplacement: [0x06, 0x13, 0x10],
-        whiteReplacement: [0x72, 0xad, 0x9f]
     },
     {
         value: "cyanotype",
@@ -94,22 +73,40 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0x17, 0x4e, 0x78]
     },
     {
-        value: "blood-moon",
-        label: "Blood Moon",
-        blackReplacement: [0xe0, 0x91, 0x6a],
-        whiteReplacement: [0x14, 0x09, 0x0a]
+        value: "dark",
+        label: "Dark",
+        blackReplacement: null,
+        whiteReplacement: null
     },
     {
-        value: "amber-monitor",
-        label: "Amber",
-        blackReplacement: [0xf2, 0xb8, 0x4b],
-        whiteReplacement: [0x11, 0x0c, 0x04]
+        value: "ditto",
+        label: "Ditto",
+        blackReplacement: [0x71, 0x68, 0x9d],
+        whiteReplacement: [0xe9, 0xe2, 0xd2]
+    },
+    {
+        value: "lcd",
+        label: "LCD",
+        blackReplacement: [0x27, 0x31, 0x1e],
+        whiteReplacement: [0xa2, 0xa9, 0x7f]
+    },
+    {
+        value: "led",
+        label: "LED",
+        blackReplacement: [0xf0, 0x4b, 0x32],
+        whiteReplacement: [0x12, 0x04, 0x04]
+    },
+    {
+        value: "light",
+        label: "Light",
+        blackReplacement: null,
+        whiteReplacement: null
     },
     {
         value: "green-monitor",
-        label: "Green",
-        blackReplacement: [0x18, 0xe7, 0x95],
-        whiteReplacement: [0x0a, 0x0e, 0x05]
+        label: "Oscilloscope",
+        blackReplacement: [0x66, 0xe6, 0xb8],
+        whiteReplacement: [0x08, 0x16, 0x15]
     },
     {
         value: "plasma",
@@ -118,16 +115,40 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0x13, 0x09, 0x00]
     },
     {
+        value: "twilight",
+        label: "Rose",
+        blackReplacement: [0x21, 0x11, 0x17],
+        whiteReplacement: [0xd9, 0x95, 0xa1]
+    },
+    {
+        value: "sepia",
+        label: "Sepia",
+        blackReplacement: [0x4b, 0x36, 0x21],
+        whiteReplacement: [0xd8, 0xc3, 0xa5]
+    },
+    {
+        value: "negative",
+        label: "Silver",
+        blackReplacement: [0xc9, 0xd0, 0xcc],
+        whiteReplacement: [0x15, 0x19, 0x1b]
+    },
+    {
+        value: "moonlight",
+        label: "Slate",
+        blackReplacement: [0xd2, 0xd9, 0xe1],
+        whiteReplacement: [0x10, 0x18, 0x27]
+    },
+    {
         value: "vfd",
         label: "VFD",
         blackReplacement: [0x72, 0xe3, 0xe3],
         whiteReplacement: [0x06, 0x10, 0x15]
     },
     {
-        value: "lcd",
-        label: "LCD",
-        blackReplacement: [0x27, 0x31, 0x1e],
-        whiteReplacement: [0xa2, 0xa9, 0x7f]
+        value: "phantom",
+        label: "Viridian",
+        blackReplacement: [0x06, 0x13, 0x10],
+        whiteReplacement: [0x72, 0xad, 0x9f]
     }
 ];
 

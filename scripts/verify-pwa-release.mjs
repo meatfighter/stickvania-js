@@ -569,26 +569,30 @@ test("PWA display themes remain browser-only presentation state", () => {
     const serializerSource = readFileSync(gameStateSerializerSourcePath, "utf8");
 
     for (const theme of [
-        "light",
-        "dark",
-        "sepia",
-        "candlelight",
-        "chalkboard",
-        "twilight",
-        "ditto",
-        "moonlight",
-        "phantom",
-        "cyanotype",
-        "blood-moon",
         "amber-monitor",
+        "ballpoint",
+        "candlelight",
+        "charcoal",
+        "chalkboard",
+        "cyanotype",
+        "dark",
+        "ditto",
+        "lcd",
+        "led",
+        "light",
         "green-monitor",
         "plasma",
+        "twilight",
+        "sepia",
+        "negative",
+        "moonlight",
         "vfd",
-        "lcd"
+        "phantom"
     ]) {
         assert.match(displayThemesSource, new RegExp(`value: "${theme}"`), `DisplayThemes.ts should define ${theme}.`);
     }
     assert.match(mainSource, /id="display-mode-select"/);
+    assert.match(mainSource, /const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";/);
     assert.match(mainSource, /createDisplayMonochromePalette\(displayModePreference\)/);
     assert.match(mainSource, /isDisplayModePreference\(value\)/);
     assert.match(mainSource, /getBrowserStorageKey\("display-mode"\)/);
