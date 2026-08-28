@@ -21,6 +21,7 @@ const MAX_DEVICE_PIXEL_RATIO = 2;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
+const THEME_PICKER_BREATHING_ROOM_PX = 10;
 type SlickRuntimeModule = typeof import("slick2d-ts");
 type MainConstructor = typeof import("./stickvania/Main.js").Main;
 type ScalableGame2Constructor = typeof import("./stickvania/ScalableGame2.js").ScalableGame2;
@@ -263,6 +264,7 @@ function renderRootMenu(errorText = ""): HTMLElement {
 function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string, overlay: boolean): HTMLElement {
     const menu = document.createElement("main");
     menu.className = overlay ? "menu-screen menu-overlay" : "menu-screen";
+    menu.style.visibility = "hidden";
     if (overlay) {
         menu.dataset.liveMenu = "true";
     }
@@ -307,6 +309,8 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     const rumbleSwitchButton = menu.querySelector("#rumble-switch-button") as HTMLButtonElement;
     const newGameButton = menu.querySelector("#new-game-button") as HTMLButtonElement;
     const continueButton = menu.querySelector("#continue-button") as HTMLButtonElement;
+    measureDisplayModePickerWidth(displayModePicker, displayModeButton, displayModeList);
+    menu.style.visibility = "";
     const handleDisplayModeChange = (value: string) => {
         if (!isDisplayModePreference(value)) {
             updateDisplayModeUi(displayModePicker);
@@ -398,6 +402,72 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
         void startGame(true);
     });
     return menu;
+}
+
+function measureDisplayModePickerWidth(displayModePicker: HTMLElement, displayModeButton: HTMLButtonElement, displayModeList: HTMLElement): void {
+    const wasListHidden = displayModeList.hidden;
+    displayModeList.hidden = false;
+    const buttonStyle = window.getComputedStyle(displayModeButton);
+    const option = displayModeList.querySelector<HTMLElement>(".theme-picker-option");
+    const optionStyle = option === null ? null : window.getComputedStyle(option);
+    const listStyle = window.getComputedStyle(displayModeList);
+    const swatchWidth = getElementOuterWidth(displayModeButton.querySelector<HTMLElement>(".theme-swatch"));
+    const maxLabelWidth = measureWidestDisplayModeLabel(displayModePicker, optionStyle ?? buttonStyle);
+    const scrollbarWidth = getElementVerticalScrollbarWidth(displayModeList, listStyle);
+    const buttonWidth = maxLabelWidth + parseCssPixels(buttonStyle.columnGap) + swatchWidth + horizontalSpacing(buttonStyle, true) + 4;
+    const optionWidth =
+        optionStyle === null
+            ? 0
+            : maxLabelWidth +
+              parseCssPixels(optionStyle.columnGap) +
+              swatchWidth +
+              horizontalSpacing(optionStyle, false) +
+              horizontalSpacing(listStyle, true) +
+              scrollbarWidth +
+              4;
+    displayModePicker.style.setProperty("--theme-picker-width", `${Math.ceil(Math.max(buttonWidth, optionWidth) + THEME_PICKER_BREATHING_ROOM_PX)}px`);
+    displayModeList.hidden = wasListHidden;
+}
+
+function measureWidestDisplayModeLabel(parent: HTMLElement, style: CSSStyleDeclaration): number {
+    const probe = document.createElement("span");
+    probe.style.position = "absolute";
+    probe.style.left = "-10000px";
+    probe.style.top = "0";
+    probe.style.visibility = "hidden";
+    probe.style.whiteSpace = "nowrap";
+    probe.style.fontFamily = style.fontFamily;
+    probe.style.fontSize = style.fontSize;
+    probe.style.fontWeight = style.fontWeight;
+    probe.style.fontStyle = style.fontStyle;
+    probe.style.letterSpacing = style.letterSpacing;
+    parent.appendChild(probe);
+    let maxLabelWidth = 0;
+    for (const definition of DISPLAY_MODE_DEFINITIONS) {
+        probe.textContent = definition.label;
+        maxLabelWidth = Math.max(maxLabelWidth, probe.getBoundingClientRect().width);
+    }
+    probe.remove();
+    return maxLabelWidth;
+}
+
+function getElementOuterWidth(element: HTMLElement | null): number {
+    return element?.getBoundingClientRect().width ?? 0;
+}
+
+function getElementVerticalScrollbarWidth(element: HTMLElement, style: CSSStyleDeclaration): number {
+    const borderWidth = parseCssPixels(style.borderLeftWidth) + parseCssPixels(style.borderRightWidth);
+    return Math.max(0, element.offsetWidth - element.clientWidth - borderWidth);
+}
+
+function horizontalSpacing(style: CSSStyleDeclaration, includeBorder: boolean): number {
+    const borderWidth = includeBorder ? parseCssPixels(style.borderLeftWidth) + parseCssPixels(style.borderRightWidth) : 0;
+    return parseCssPixels(style.paddingLeft) + parseCssPixels(style.paddingRight) + borderWidth;
+}
+
+function parseCssPixels(value: string): number {
+    const pixels = Number.parseFloat(value);
+    return Number.isFinite(pixels) ? pixels : 0;
 }
 
 function isDisplayModePickerOpen(displayModePicker: HTMLElement): boolean {
