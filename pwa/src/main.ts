@@ -140,8 +140,10 @@ function displayModePickerHtml(): string {
                 <span class="theme-picker-label">${escapeHtml(selectedDefinition.label)}</span>
                 ${displayModeSwatchHtml(selectedDefinition)}
             </button>
-            <div id="display-mode-list" class="theme-picker-list" role="listbox" aria-label="Display theme" hidden>
-                ${DISPLAY_MODE_DEFINITIONS.map((definition) => displayModeOptionHtml(definition)).join("")}
+            <div id="display-mode-popup" class="theme-picker-popup" hidden>
+                <div id="display-mode-list" class="theme-picker-list" role="listbox" aria-label="Display theme">
+                    ${DISPLAY_MODE_DEFINITIONS.map((definition) => displayModeOptionHtml(definition)).join("")}
+                </div>
             </div>
         </div>`;
 }
@@ -304,12 +306,13 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     const volumeIcon = menu.querySelector("#volume-icon") as HTMLElement;
     const displayModePicker = menu.querySelector("#display-mode-picker") as HTMLElement;
     const displayModeButton = menu.querySelector("#display-mode-button") as HTMLButtonElement;
+    const displayModePopup = menu.querySelector("#display-mode-popup") as HTMLElement;
     const displayModeList = menu.querySelector("#display-mode-list") as HTMLElement;
     const displayModeOptions = Array.from(menu.querySelectorAll<HTMLButtonElement>("[data-display-mode]"));
     const rumbleSwitchButton = menu.querySelector("#rumble-switch-button") as HTMLButtonElement;
     const newGameButton = menu.querySelector("#new-game-button") as HTMLButtonElement;
     const continueButton = menu.querySelector("#continue-button") as HTMLButtonElement;
-    measureDisplayModePickerWidth(displayModePicker, displayModeButton, displayModeList);
+    measureDisplayModePickerWidth(displayModePicker, displayModeButton, displayModePopup, displayModeList);
     menu.style.visibility = "";
     const handleDisplayModeChange = (value: string) => {
         if (!isDisplayModePreference(value)) {
@@ -321,16 +324,16 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
             applyDisplayModePreference(game);
         }
         updateDisplayModeUi(displayModePicker);
-        setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, false);
+        setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, false);
         displayModeButton.focus();
     };
     displayModeButton.addEventListener("click", () => {
-        setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, !isDisplayModePickerOpen(displayModePicker), true);
+        setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, !isDisplayModePickerOpen(displayModePicker), true);
     });
     displayModeButton.addEventListener("keydown", (event) => {
         if (event.key === " " || event.key === "Enter" || event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
-            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, true, true);
+            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, true, true);
         }
     });
     displayModeList.addEventListener("keydown", (event) => {
@@ -340,7 +343,7 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
         );
         if (event.key === "Escape") {
             event.preventDefault();
-            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, false);
+            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, false);
             displayModeButton.focus();
         } else if (event.key === "ArrowDown") {
             event.preventDefault();
@@ -367,13 +370,13 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     }
     menu.addEventListener("click", (event) => {
         if (event.target instanceof Node && !displayModePicker.contains(event.target)) {
-            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, false);
+            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, false);
         }
     });
     displayModePicker.addEventListener("focusout", () => {
         window.setTimeout(() => {
             if (!displayModePicker.contains(document.activeElement)) {
-                setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, false);
+                setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, false);
             }
         }, 0);
     });
@@ -404,12 +407,18 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     return menu;
 }
 
-function measureDisplayModePickerWidth(displayModePicker: HTMLElement, displayModeButton: HTMLButtonElement, displayModeList: HTMLElement): void {
-    const wasListHidden = displayModeList.hidden;
-    displayModeList.hidden = false;
+function measureDisplayModePickerWidth(
+    displayModePicker: HTMLElement,
+    displayModeButton: HTMLButtonElement,
+    displayModePopup: HTMLElement,
+    displayModeList: HTMLElement
+): void {
+    const wasPopupHidden = displayModePopup.hidden;
+    displayModePopup.hidden = false;
     const buttonStyle = window.getComputedStyle(displayModeButton);
     const option = displayModeList.querySelector<HTMLElement>(".theme-picker-option");
     const optionStyle = option === null ? null : window.getComputedStyle(option);
+    const popupStyle = window.getComputedStyle(displayModePopup);
     const listStyle = window.getComputedStyle(displayModeList);
     const swatchWidth = getElementOuterWidth(displayModeButton.querySelector<HTMLElement>(".theme-swatch"));
     const maxLabelWidth = measureWidestDisplayModeLabel(displayModePicker, optionStyle ?? buttonStyle);
@@ -422,11 +431,12 @@ function measureDisplayModePickerWidth(displayModePicker: HTMLElement, displayMo
               parseCssPixels(optionStyle.columnGap) +
               swatchWidth +
               horizontalSpacing(optionStyle, false) +
+              horizontalSpacing(popupStyle, true) +
               horizontalSpacing(listStyle, true) +
               scrollbarWidth +
               4;
     displayModePicker.style.setProperty("--theme-picker-width", `${Math.ceil(Math.max(buttonWidth, optionWidth) + THEME_PICKER_BREATHING_ROOM_PX)}px`);
-    displayModeList.hidden = wasListHidden;
+    displayModePopup.hidden = wasPopupHidden;
 }
 
 function measureWidestDisplayModeLabel(parent: HTMLElement, style: CSSStyleDeclaration): number {
@@ -477,17 +487,18 @@ function isDisplayModePickerOpen(displayModePicker: HTMLElement): boolean {
 function setDisplayModePickerOpen(
     displayModePicker: HTMLElement,
     displayModeButton: HTMLButtonElement,
-    displayModeList: HTMLElement,
+    displayModePopup: HTMLElement,
     open: boolean,
     focusSelected = false
 ): void {
     displayModePicker.dataset.open = String(open);
     displayModeButton.setAttribute("aria-expanded", String(open));
-    displayModeList.hidden = !open;
+    displayModePopup.hidden = !open;
     if (!open || !focusSelected) {
         return;
     }
 
+    const displayModeList = displayModePopup.querySelector<HTMLElement>("#display-mode-list") as HTMLElement;
     const selectedOption =
         Array.from(displayModeList.querySelectorAll<HTMLElement>("[data-display-mode]")).find(
             (option) => option.dataset.displayMode === displayModePreference

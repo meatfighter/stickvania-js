@@ -19,6 +19,8 @@ _Stickvania_ supports both keyboard and gamepad input. The default controls are:
 | Jump   | X           | A           |
 | Attack | Z           | X           |
 
+Press **Attack** to use the whip. Hold **Up** and press **Attack** to use your current sub-weapon.
+
 You can change the button mapping by selecting **Options → Input** from the in-game menu.
 
 _Stickvania_ reserves two keyboard controls that cannot be remapped:
@@ -39,8 +41,8 @@ While playing outside fullscreen mode, a hamburger button appears in the upper-l
 The browser menu also provides:
 
 - **Volume** — Adjusts the game volume.
-- **Theme** — Selects Amber, Ballpoint, Candlelight, Charcoal, Chalkboard, Cyanotype, Dark, Ditto, LCD, LED, Light, Oscilloscope, Plasma, Rose, Sepia, Silver, Slate, VFD, or Viridian.
-- **Rumble** — Enables or disables gamepad vibration on compatible controllers.
+- **Theme** — Selects the game's color scheme.
+- **Rumble** — Switches vibration on or off for compatible gamepads.
 
 _Stickvania_ automatically pauses when the browser loses focus and resumes when the browser regains focus.
 

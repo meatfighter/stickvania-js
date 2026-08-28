@@ -262,24 +262,30 @@ select {
     white-space: nowrap;
 }
 
-.theme-picker-list {
+.theme-picker-popup {
     position: absolute;
     z-index: 30;
     top: calc(100% + 6px);
     left: 0;
     right: 0;
-    display: grid;
-    max-height: min(330px, calc(100vh - 180px));
     box-sizing: border-box;
-    overflow-y: auto;
     border: 2px solid #ffffff;
     border-radius: 8px;
     background: #000000;
     padding: 4px;
+    overflow: hidden;
 }
 
-.theme-picker-list[hidden] {
+.theme-picker-popup[hidden] {
     display: none;
+}
+
+.theme-picker-list {
+    display: grid;
+    max-height: min(322px, calc(100vh - 188px));
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-color: #888888 #222222;
 }
 
 .theme-picker-option {
