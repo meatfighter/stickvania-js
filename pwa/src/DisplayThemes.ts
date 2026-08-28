@@ -1,7 +1,7 @@
 import { Color } from "slick2d-ts/slick/Color";
 
 export type DisplayModePreference =
-    | "amber-monitor"
+    | "amber"
     | "ballpoint"
     | "candlelight"
     | "charcoal"
@@ -12,14 +12,14 @@ export type DisplayModePreference =
     | "lcd"
     | "led"
     | "light"
-    | "green-monitor"
+    | "oscilloscope"
     | "plasma"
-    | "twilight"
+    | "rose"
     | "sepia"
-    | "negative"
-    | "moonlight"
+    | "silver"
+    | "slate"
     | "vfd"
-    | "phantom";
+    | "viridian";
 
 export type DisplayMonochromePalette = Readonly<{
     blackReplacement: Color;
@@ -37,7 +37,7 @@ type DisplayModeDefinition = Readonly<{
 
 export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
     {
-        value: "amber-monitor",
+        value: "amber",
         label: "Amber",
         blackReplacement: [0xf2, 0xb8, 0x4b],
         whiteReplacement: [0x11, 0x0c, 0x04]
@@ -103,7 +103,7 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: null
     },
     {
-        value: "green-monitor",
+        value: "oscilloscope",
         label: "Oscilloscope",
         blackReplacement: [0x66, 0xe6, 0xb8],
         whiteReplacement: [0x08, 0x16, 0x15]
@@ -115,7 +115,7 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0x13, 0x09, 0x00]
     },
     {
-        value: "twilight",
+        value: "rose",
         label: "Rose",
         blackReplacement: [0x21, 0x11, 0x17],
         whiteReplacement: [0xd9, 0x95, 0xa1]
@@ -127,13 +127,13 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0xd8, 0xc3, 0xa5]
     },
     {
-        value: "negative",
+        value: "silver",
         label: "Silver",
         blackReplacement: [0xc9, 0xd0, 0xcc],
         whiteReplacement: [0x15, 0x19, 0x1b]
     },
     {
-        value: "moonlight",
+        value: "slate",
         label: "Slate",
         blackReplacement: [0xd2, 0xd9, 0xe1],
         whiteReplacement: [0x10, 0x18, 0x27]
@@ -145,7 +145,7 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0x06, 0x10, 0x15]
     },
     {
-        value: "phantom",
+        value: "viridian",
         label: "Viridian",
         blackReplacement: [0x06, 0x13, 0x10],
         whiteReplacement: [0x72, 0xad, 0x9f]

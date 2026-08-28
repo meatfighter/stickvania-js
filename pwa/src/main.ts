@@ -43,6 +43,7 @@ const VOLUME_STORAGE_KEY = getBrowserStorageKey("volume");
 const DISPLAY_MODE_STORAGE_KEY = getBrowserStorageKey("display-mode");
 const RUMBLE_STORAGE_KEY = getBrowserStorageKey("rumble");
 const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
+type DisplayModeDefinition = (typeof DISPLAY_MODE_DEFINITIONS)[number];
 
 let app: HTMLElement;
 let container: AppGameContainer | null = null;
@@ -110,19 +111,78 @@ function setDisplayModePreference(value: DisplayModePreference): void {
     writeDisplayModePreference(value);
 }
 
-function updateDisplayModeUi(displayModeSelect: HTMLSelectElement): void {
-    displayModeSelect.value = displayModePreference;
-}
-
 function applyDisplayModePreference(target: Main): void {
     target.darkDisplayMode = displayModePreference === "dark";
     target.displayMonochromePalette = createDisplayMonochromePalette(displayModePreference);
 }
 
-function displayModeOptionsHtml(): string {
-    return DISPLAY_MODE_DEFINITIONS.map(
-        ({ value, label }) => `<option value="${value}"${value === displayModePreference ? " selected" : ""}>${label}</option>`
-    ).join("");
+function updateDisplayModeUi(displayModePicker: HTMLElement): void {
+    const selectedDefinition = getDisplayModeDefinition(displayModePreference);
+    const selectedLabel = displayModePicker.querySelector<HTMLElement>(".theme-picker-label");
+    const selectedSwatch = displayModePicker.querySelector<HTMLElement>(".theme-picker-button .theme-swatch");
+    if (selectedLabel !== null) {
+        selectedLabel.textContent = selectedDefinition.label;
+    }
+    if (selectedSwatch !== null) {
+        applyDisplayModeSwatchStyle(selectedSwatch, selectedDefinition);
+    }
+    for (const option of displayModePicker.querySelectorAll<HTMLElement>("[data-display-mode]")) {
+        option.setAttribute("aria-selected", String(option.dataset.displayMode === displayModePreference));
+    }
+}
+
+function displayModePickerHtml(): string {
+    const selectedDefinition = getDisplayModeDefinition(displayModePreference);
+    return `
+        <div id="display-mode-picker" class="theme-picker" data-open="false">
+            <button id="display-mode-button" class="theme-picker-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="display-mode-list">
+                <span class="theme-picker-label">${escapeHtml(selectedDefinition.label)}</span>
+                ${displayModeSwatchHtml(selectedDefinition)}
+            </button>
+            <div id="display-mode-list" class="theme-picker-list" role="listbox" aria-label="Display theme" hidden>
+                ${DISPLAY_MODE_DEFINITIONS.map((definition) => displayModeOptionHtml(definition)).join("")}
+            </div>
+        </div>`;
+}
+
+function displayModeOptionHtml(definition: DisplayModeDefinition): string {
+    return `
+        <button class="theme-picker-option" type="button" role="option" aria-selected="${definition.value === displayModePreference}" data-display-mode="${definition.value}">
+            <span>${escapeHtml(definition.label)}</span>
+            ${displayModeSwatchHtml(definition)}
+        </button>`;
+}
+
+function displayModeSwatchHtml(definition: DisplayModeDefinition): string {
+    const colors = getDisplayModeSwatchColors(definition);
+    return `<span class="theme-swatch" aria-hidden="true" style="--theme-bg: ${colors.background}; --theme-fg: ${colors.drawing};"></span>`;
+}
+
+function applyDisplayModeSwatchStyle(swatch: HTMLElement, definition: DisplayModeDefinition): void {
+    const colors = getDisplayModeSwatchColors(definition);
+    swatch.style.setProperty("--theme-bg", colors.background);
+    swatch.style.setProperty("--theme-fg", colors.drawing);
+}
+
+function getDisplayModeDefinition(value: DisplayModePreference): DisplayModeDefinition {
+    return DISPLAY_MODE_DEFINITIONS.find((definition) => definition.value === value) ?? DISPLAY_MODE_DEFINITIONS[0];
+}
+
+function getDisplayModeSwatchColors(definition: DisplayModeDefinition): { background: string; drawing: string } {
+    if (definition.value === "dark") {
+        return { background: "#000000", drawing: "#ffffff" };
+    }
+    if (definition.blackReplacement !== null && definition.whiteReplacement !== null) {
+        return {
+            background: rgbToCssHex(definition.whiteReplacement),
+            drawing: rgbToCssHex(definition.blackReplacement)
+        };
+    }
+    return { background: "#ffffff", drawing: "#000000" };
+}
+
+function rgbToCssHex(rgb: readonly [number, number, number]): string {
+    return `#${rgb.map((component) => component.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function getRumbleManager(): RumbleManager {
@@ -209,12 +269,10 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     menu.innerHTML = `
         <section class="menu-panel" aria-label="Stickvania menu">
             <div class="settings-row">
-                <label class="setting-select-row">
+                <div class="setting-theme-row" role="group" aria-label="Theme">
                     <span>Theme</span>
-                    <select id="display-mode-select" class="menu-select" aria-label="Display theme">
-                        ${displayModeOptionsHtml()}
-                    </select>
-                </label>
+                    ${displayModePickerHtml()}
+                </div>
                 <div class="setting-switch-row" role="group" aria-label="Rumble">
                     <span>Rumble</span>
                     <button id="rumble-switch-button" class="menu-switch" type="button" aria-label="Toggle rumble" aria-pressed="${rumbleEnabled}" data-enabled="${rumbleEnabled}">
@@ -242,23 +300,80 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     const volumeInput = menu.querySelector("#volume-input") as HTMLInputElement;
     const volumeValue = menu.querySelector("#volume-value") as HTMLElement;
     const volumeIcon = menu.querySelector("#volume-icon") as HTMLElement;
-    const displayModeSelect = menu.querySelector("#display-mode-select") as HTMLSelectElement;
+    const displayModePicker = menu.querySelector("#display-mode-picker") as HTMLElement;
+    const displayModeButton = menu.querySelector("#display-mode-button") as HTMLButtonElement;
+    const displayModeList = menu.querySelector("#display-mode-list") as HTMLElement;
+    const displayModeOptions = Array.from(menu.querySelectorAll<HTMLButtonElement>("[data-display-mode]"));
     const rumbleSwitchButton = menu.querySelector("#rumble-switch-button") as HTMLButtonElement;
     const newGameButton = menu.querySelector("#new-game-button") as HTMLButtonElement;
     const continueButton = menu.querySelector("#continue-button") as HTMLButtonElement;
     const handleDisplayModeChange = (value: string) => {
         if (!isDisplayModePreference(value)) {
-            updateDisplayModeUi(displayModeSelect);
+            updateDisplayModeUi(displayModePicker);
             return;
         }
         setDisplayModePreference(value);
         if (game !== null) {
             applyDisplayModePreference(game);
         }
-        updateDisplayModeUi(displayModeSelect);
+        updateDisplayModeUi(displayModePicker);
+        setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, false);
+        displayModeButton.focus();
     };
-    displayModeSelect.addEventListener("change", () => handleDisplayModeChange(displayModeSelect.value));
-    updateDisplayModeUi(displayModeSelect);
+    displayModeButton.addEventListener("click", () => {
+        setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, !isDisplayModePickerOpen(displayModePicker), true);
+    });
+    displayModeButton.addEventListener("keydown", (event) => {
+        if (event.key === " " || event.key === "Enter" || event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, true, true);
+        }
+    });
+    displayModeList.addEventListener("keydown", (event) => {
+        const currentIndex = Math.max(
+            0,
+            displayModeOptions.findIndex((option) => option === document.activeElement)
+        );
+        if (event.key === "Escape") {
+            event.preventDefault();
+            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, false);
+            displayModeButton.focus();
+        } else if (event.key === "ArrowDown") {
+            event.preventDefault();
+            displayModeOptions[(currentIndex + 1) % displayModeOptions.length]?.focus();
+        } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            displayModeOptions[(currentIndex + displayModeOptions.length - 1) % displayModeOptions.length]?.focus();
+        } else if (event.key === "Home") {
+            event.preventDefault();
+            displayModeOptions[0]?.focus();
+        } else if (event.key === "End") {
+            event.preventDefault();
+            displayModeOptions[displayModeOptions.length - 1]?.focus();
+        } else if (event.key === " " || event.key === "Enter") {
+            event.preventDefault();
+            const target = document.activeElement;
+            if (target instanceof HTMLElement) {
+                handleDisplayModeChange(target.dataset.displayMode ?? "");
+            }
+        }
+    });
+    for (const option of displayModeOptions) {
+        option.addEventListener("click", () => handleDisplayModeChange(option.dataset.displayMode ?? ""));
+    }
+    menu.addEventListener("click", (event) => {
+        if (event.target instanceof Node && !displayModePicker.contains(event.target)) {
+            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, false);
+        }
+    });
+    displayModePicker.addEventListener("focusout", () => {
+        window.setTimeout(() => {
+            if (!displayModePicker.contains(document.activeElement)) {
+                setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModeList, false);
+            }
+        }, 0);
+    });
+    updateDisplayModeUi(displayModePicker);
     rumbleSwitchButton.addEventListener("click", () => {
         setRumbleEnabled(!rumbleEnabled);
         updateRumbleUi(rumbleSwitchButton);
@@ -283,6 +398,31 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
         void startGame(true);
     });
     return menu;
+}
+
+function isDisplayModePickerOpen(displayModePicker: HTMLElement): boolean {
+    return displayModePicker.dataset.open === "true";
+}
+
+function setDisplayModePickerOpen(
+    displayModePicker: HTMLElement,
+    displayModeButton: HTMLButtonElement,
+    displayModeList: HTMLElement,
+    open: boolean,
+    focusSelected = false
+): void {
+    displayModePicker.dataset.open = String(open);
+    displayModeButton.setAttribute("aria-expanded", String(open));
+    displayModeList.hidden = !open;
+    if (!open || !focusSelected) {
+        return;
+    }
+
+    const selectedOption =
+        Array.from(displayModeList.querySelectorAll<HTMLElement>("[data-display-mode]")).find(
+            (option) => option.dataset.displayMode === displayModePreference
+        ) ?? displayModeList.querySelector<HTMLElement>("[data-display-mode]");
+    selectedOption?.focus();
 }
 
 function showGameShell(): HTMLElement {
@@ -1029,7 +1169,13 @@ function writeVolume(value: number): void {
 function safeReadDisplayModePreference(): DisplayModePreference {
     try {
         const value = localStorage.getItem(DISPLAY_MODE_STORAGE_KEY);
-        return isDisplayModePreference(value) ? value : DEFAULT_DISPLAY_MODE;
+        if (isDisplayModePreference(value)) {
+            return value;
+        }
+        if (value !== null) {
+            writeDisplayModePreference(DEFAULT_DISPLAY_MODE);
+        }
+        return DEFAULT_DISPLAY_MODE;
     } catch {
         return DEFAULT_DISPLAY_MODE;
     }

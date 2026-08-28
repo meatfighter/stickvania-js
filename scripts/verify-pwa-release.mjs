@@ -569,7 +569,7 @@ test("PWA display themes remain browser-only presentation state", () => {
     const serializerSource = readFileSync(gameStateSerializerSourcePath, "utf8");
 
     for (const theme of [
-        "amber-monitor",
+        "amber",
         "ballpoint",
         "candlelight",
         "charcoal",
@@ -580,19 +580,25 @@ test("PWA display themes remain browser-only presentation state", () => {
         "lcd",
         "led",
         "light",
-        "green-monitor",
+        "oscilloscope",
         "plasma",
-        "twilight",
+        "rose",
         "sepia",
-        "negative",
-        "moonlight",
+        "silver",
+        "slate",
         "vfd",
-        "phantom"
+        "viridian"
     ]) {
         assert.match(displayThemesSource, new RegExp(`value: "${theme}"`), `DisplayThemes.ts should define ${theme}.`);
     }
-    assert.match(mainSource, /id="display-mode-select"/);
+    for (const retiredTheme of ["amber-monitor", "green-monitor", "twilight", "negative", "moonlight", "phantom"]) {
+        assert.doesNotMatch(displayThemesSource, new RegExp(`value: "${retiredTheme}"`), `DisplayThemes.ts should not define ${retiredTheme}.`);
+    }
+    assert.match(mainSource, /id="display-mode-picker"/);
+    assert.match(mainSource, /id="display-mode-button"/);
+    assert.match(mainSource, /id="display-mode-list"/);
     assert.match(mainSource, /const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";/);
+    assert.match(mainSource, /writeDisplayModePreference\(DEFAULT_DISPLAY_MODE\);/);
     assert.match(mainSource, /createDisplayMonochromePalette\(displayModePreference\)/);
     assert.match(mainSource, /isDisplayModePreference\(value\)/);
     assert.match(mainSource, /getBrowserStorageKey\("display-mode"\)/);
