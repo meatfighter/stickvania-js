@@ -12,15 +12,18 @@ export type DisplayModePreference =
     | "lcd"
     | "led"
     | "light"
+    | "newsprint"
     | "oscilloscope"
     | "plasma"
+    | "redline"
     | "rose"
     | "sepia"
     | "silver"
     | "slate"
     | "tattoo"
     | "vfd"
-    | "viridian";
+    | "viridian"
+    | "wash";
 
 export type DisplayMonochromePalette = Readonly<{
     blackReplacement: Color;
@@ -104,6 +107,12 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: null
     },
     {
+        value: "newsprint",
+        label: "Newsprint",
+        blackReplacement: [0x22, 0x20, 0x1b],
+        whiteReplacement: [0xdd, 0xd2, 0xb7]
+    },
+    {
         value: "oscilloscope",
         label: "Oscilloscope",
         blackReplacement: [0x66, 0xe6, 0xb8],
@@ -114,6 +123,12 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         label: "Plasma",
         blackReplacement: [0xff, 0x8c, 0x32],
         whiteReplacement: [0x13, 0x09, 0x00]
+    },
+    {
+        value: "redline",
+        label: "Redline",
+        blackReplacement: [0xa4, 0x38, 0x30],
+        whiteReplacement: [0xf4, 0xf0, 0xe6]
     },
     {
         value: "rose",
@@ -156,6 +171,12 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         label: "Viridian",
         blackReplacement: [0x06, 0x13, 0x10],
         whiteReplacement: [0x72, 0xad, 0x9f]
+    },
+    {
+        value: "wash",
+        label: "Wash",
+        blackReplacement: [0x18, 0x23, 0x27],
+        whiteReplacement: [0x8c, 0xa0, 0xa8]
     }
 ];
 
