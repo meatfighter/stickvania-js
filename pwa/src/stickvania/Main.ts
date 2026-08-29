@@ -1730,6 +1730,10 @@ export class Main extends BasicGame {
     }
 
     public throwWeapon(): void {
+        if (!this.canUseSubWeapon()) {
+            return;
+        }
+
         let x: number = this.simon.x + 16;
         let y: number = this.simon.kneeling ? this.simon.y + 16 : this.simon.y;
 

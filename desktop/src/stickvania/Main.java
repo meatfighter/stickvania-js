@@ -1842,6 +1842,10 @@ public final class Main extends BasicGame {
 
   public void throwWeapon() {
 
+    if (!canUseSubWeapon()) {
+      return;
+    }
+
     float x = simon.x + 16;
     float y = simon.kneeling ? simon.y + 16 : simon.y;
 
