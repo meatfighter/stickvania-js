@@ -586,6 +586,7 @@ test("PWA display themes remain browser-only presentation state", () => {
         "sepia",
         "silver",
         "slate",
+        "tattoo",
         "vfd",
         "viridian"
     ]) {

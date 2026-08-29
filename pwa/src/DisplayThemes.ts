@@ -18,6 +18,7 @@ export type DisplayModePreference =
     | "sepia"
     | "silver"
     | "slate"
+    | "tattoo"
     | "vfd"
     | "viridian";
 
@@ -137,6 +138,12 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         label: "Slate",
         blackReplacement: [0xd2, 0xd9, 0xe1],
         whiteReplacement: [0x10, 0x18, 0x27]
+    },
+    {
+        value: "tattoo",
+        label: "Tattoo",
+        blackReplacement: [0x12, 0x15, 0x17],
+        whiteReplacement: [0xea, 0xc1, 0xac]
     },
     {
         value: "vfd",
