@@ -7,6 +7,7 @@ import { getBrowserStorageKey } from "./stickvania/BrowserStorageKeys.js";
 import type { Main } from "./stickvania/Main.js";
 import { hasPotentialBrowserStoredStickvaniaGameState } from "./stickvania/persistence/GameStatePreflight.js";
 import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
+import type { StickvaniaBufferedGame, StickvaniaScalingPreference } from "./stickvania/StickvaniaBufferedGame.js";
 import type { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
 import "./styles.css";
 
@@ -24,7 +25,7 @@ const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
 const THEME_PICKER_BREATHING_ROOM_PX = 10;
 type SlickRuntimeModule = typeof import("slick2d-ts");
 type MainConstructor = typeof import("./stickvania/Main.js").Main;
-type ScalableGame2Constructor = typeof import("./stickvania/ScalableGame2.js").ScalableGame2;
+type StickvaniaBufferedGameConstructor = typeof import("./stickvania/StickvaniaBufferedGame.js").StickvaniaBufferedGame;
 type StickvaniaGameStateStoreConstructor = typeof import("./stickvania/persistence/StickvaniaGameStateStore.js").StickvaniaGameStateStore;
 
 declare global {
@@ -36,19 +37,27 @@ declare global {
 type PreparedRuntime = {
     slick: SlickRuntimeModule;
     Main: MainConstructor;
-    ScalableGame2: ScalableGame2Constructor;
+    StickvaniaBufferedGame: StickvaniaBufferedGameConstructor;
     StickvaniaGameStateStore: StickvaniaGameStateStoreConstructor;
 };
 
 const VOLUME_STORAGE_KEY = getBrowserStorageKey("volume");
 const DISPLAY_MODE_STORAGE_KEY = getBrowserStorageKey("display-mode");
+const SCALING_STORAGE_KEY = getBrowserStorageKey("scaling");
 const RUMBLE_STORAGE_KEY = getBrowserStorageKey("rumble");
 const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
+const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "smooth";
 type DisplayModeDefinition = (typeof DISPLAY_MODE_DEFINITIONS)[number];
+const SCALING_MODE_DEFINITIONS: readonly { value: StickvaniaScalingPreference; label: string }[] = [
+    { value: "smooth", label: "Smooth" },
+    { value: "crisp", label: "Crisp" },
+    { value: "pixel-perfect", label: "Pixel Perfect" }
+];
 
 let app: HTMLElement;
 let container: AppGameContainer | null = null;
 let game: Main | null = null;
+let activeBufferedGame: StickvaniaBufferedGame | null = null;
 let activeGameShell: HTMLElement | null = null;
 let activeGameHost: HTMLElement | null = null;
 let resizeObserver: ResizeObserver | null = null;
@@ -61,6 +70,7 @@ let cursorHideTimer = 0;
 let pointerOverGameHost = false;
 let volume = safeReadVolume();
 let displayModePreference = safeReadDisplayModePreference();
+let scalingPreference = safeReadScalingPreference();
 let rumbleEnabled = safeReadRumbleEnabled();
 let rumbleManager: RumbleManager | null = null;
 let preparedRuntime: PreparedRuntime | null = null;
@@ -188,6 +198,34 @@ function rgbToCssHex(rgb: readonly [number, number, number]): string {
     return `#${rgb.map((component) => component.toString(16).padStart(2, "0")).join("")}`;
 }
 
+function setScalingPreference(value: StickvaniaScalingPreference): void {
+    scalingPreference = value;
+    writeScalingPreference(value);
+    activeBufferedGame?.setScalingPreference(value);
+}
+
+function updateScalingUi(scalingSelect: HTMLSelectElement): void {
+    scalingSelect.value = scalingPreference;
+}
+
+function scalingSelectHtml(): string {
+    return `
+        <label class="setting-select-row" aria-label="Scaling">
+            <span>Scaling</span>
+            <select id="scaling-select" class="menu-select">
+                ${SCALING_MODE_DEFINITIONS.map((definition) => scalingOptionHtml(definition)).join("")}
+            </select>
+        </label>`;
+}
+
+function scalingOptionHtml(definition: { value: StickvaniaScalingPreference; label: string }): string {
+    return `<option value="${definition.value}"${definition.value === scalingPreference ? " selected" : ""}>${escapeHtml(definition.label)}</option>`;
+}
+
+function isScalingPreference(value: unknown): value is StickvaniaScalingPreference {
+    return typeof value === "string" && SCALING_MODE_DEFINITIONS.some((definition) => definition.value === value);
+}
+
 function getRumbleManager(): RumbleManager {
     if (rumbleManager === null) {
         rumbleManager = new RumbleManager(rumbleEnabled);
@@ -284,6 +322,7 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
                     </button>
                 </div>
             </div>
+            ${scalingSelectHtml()}
             <label class="volume-row">
                 <span id="volume-icon" class="volume-icon" aria-hidden="true">${volumeIconSvg(volume)}</span>
                 <input id="volume-input" type="range" min="0" max="100" step="1" value="${Math.round(volume * 100)}" aria-label="Volume">
@@ -309,6 +348,7 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     const displayModePopup = menu.querySelector("#display-mode-popup") as HTMLElement;
     const displayModeList = menu.querySelector("#display-mode-list") as HTMLElement;
     const displayModeOptions = Array.from(menu.querySelectorAll<HTMLButtonElement>("[data-display-mode]"));
+    const scalingSelect = menu.querySelector("#scaling-select") as HTMLSelectElement;
     const rumbleSwitchButton = menu.querySelector("#rumble-switch-button") as HTMLButtonElement;
     const newGameButton = menu.querySelector("#new-game-button") as HTMLButtonElement;
     const continueButton = menu.querySelector("#continue-button") as HTMLButtonElement;
@@ -381,6 +421,14 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
         }, 0);
     });
     updateDisplayModeUi(displayModePicker);
+    scalingSelect.addEventListener("change", () => {
+        const value = scalingSelect.value;
+        if (isScalingPreference(value)) {
+            setScalingPreference(value);
+        }
+        updateScalingUi(scalingSelect);
+    });
+    updateScalingUi(scalingSelect);
     rumbleSwitchButton.addEventListener("click", () => {
         setRumbleEnabled(!rumbleEnabled);
         updateRumbleUi(rumbleSwitchButton);
@@ -551,17 +599,17 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     let restoreFailed = false;
     applyDisplayModePreference(mainGame);
     mainGame.rumble = getRumbleManager();
-    const scalableGame = new runtime.ScalableGame2(mainGame, GAME_WIDTH, GAME_HEIGHT, true);
+    const bufferedGame = new runtime.StickvaniaBufferedGame(mainGame, scalingPreference);
     const displayMode = getResponsiveWindowedDisplayMode();
-    const appContainer = new runtime.slick.AppGameContainer(scalableGame, displayMode.width, displayMode.height, false);
+    const appContainer = new runtime.slick.AppGameContainer(bufferedGame, displayMode.width, displayMode.height, false);
     appContainer.setPreserveAudioCacheOnDestroy(true);
     appContainer.setLoopSuspended(true);
     appContainer.setHighDpiEnabled(HIGH_DPI_ENABLED);
     appContainer.setMaxDevicePixelRatio(MAX_DEVICE_PIXEL_RATIO);
     container = appContainer;
     game = mainGame;
+    activeBufferedGame = bufferedGame;
     mainGame.appGameContainer = appContainer;
-    mainGame.scalableGame = scalableGame;
     mainGame.windowedDisplayModeProvider = getResponsiveWindowedDisplayMode;
     mainGame.browserFullscreenController = {
         isFullscreen: isGameShellFullscreen,
@@ -648,10 +696,10 @@ async function ensureRuntimePrepared(forceRetry = false): Promise<PreparedRuntim
 }
 
 async function prepareRuntime(): Promise<PreparedRuntime> {
-    const [slick, mainModule, scalableGameModule, gameStateStoreModule, resourceModule] = await Promise.all([
+    const [slick, mainModule, bufferedGameModule, gameStateStoreModule, resourceModule] = await Promise.all([
         import("slick2d-ts"),
         import("./stickvania/Main.js"),
-        import("./stickvania/ScalableGame2.js"),
+        import("./stickvania/StickvaniaBufferedGame.js"),
         import("./stickvania/persistence/StickvaniaGameStateStore.js"),
         import("./resources.js")
     ]);
@@ -660,7 +708,7 @@ async function prepareRuntime(): Promise<PreparedRuntime> {
     return {
         slick,
         Main: mainModule.Main,
-        ScalableGame2: scalableGameModule.ScalableGame2,
+        StickvaniaBufferedGame: bufferedGameModule.StickvaniaBufferedGame,
         StickvaniaGameStateStore: gameStateStoreModule.StickvaniaGameStateStore
     };
 }
@@ -928,6 +976,7 @@ function destroyGame(): void {
         SoundStore.get().stopAllPlayback();
     }
     game = null;
+    activeBufferedGame = null;
     activeGameShell = null;
     activeGameHost = null;
     preparedRuntime?.slick.Display.setParent(null);
@@ -1265,6 +1314,27 @@ function safeReadDisplayModePreference(): DisplayModePreference {
 function writeDisplayModePreference(value: DisplayModePreference): void {
     try {
         localStorage.setItem(DISPLAY_MODE_STORAGE_KEY, value);
+    } catch {}
+}
+
+function safeReadScalingPreference(): StickvaniaScalingPreference {
+    try {
+        const value = localStorage.getItem(SCALING_STORAGE_KEY);
+        if (isScalingPreference(value)) {
+            return value;
+        }
+        if (value !== null) {
+            writeScalingPreference(DEFAULT_SCALING_PREFERENCE);
+        }
+        return DEFAULT_SCALING_PREFERENCE;
+    } catch {
+        return DEFAULT_SCALING_PREFERENCE;
+    }
+}
+
+function writeScalingPreference(value: StickvaniaScalingPreference): void {
+    try {
+        localStorage.setItem(SCALING_STORAGE_KEY, value);
     } catch {}
 }
 

@@ -30,7 +30,8 @@ const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
 const versionInfo = readVersion();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
-const slick2dTsCommit = "f80554f5bad1be46f77f58d5a4516a7788c33542";
+const expectedSlick2dTsDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.0";
+const expectedSlick2dTsVersion = "1.3.0";
 const defaultPwaScopeUrl = "https://example.test/pwa/";
 const relocationPwaScopeUrls = [
     "https://example.invalid/stickvania/pwa/",
@@ -532,12 +533,13 @@ test("package scripts use temporary release stamping for public builds", () => {
         "node scripts/run-stamped-release.mjs --dist .release-components/web --clean-dist _build:pwa:release _build:about build:desktop _assemble verify:desktop-release"
     );
     assert.equal(scripts["build"], "node scripts/build-production.mjs");
+    assert.equal(scripts["test:buffered-scaling-wiring"], "node scripts/test-buffered-scaling-wiring.mjs");
     assert.equal(scripts["test:about-page"], "node scripts/test-about-page.mjs");
     assert.equal(scripts["release"], "npm run verify && npm run verify:dependencies && npm run build");
     assert.equal(scripts["release:desktop"], "node scripts/release-desktop.mjs");
     assert.equal(
         scripts["verify"],
-        "npm run format:check && npm run lint && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop"
+        "npm run format:check && npm run lint && npm run test:buffered-scaling-wiring && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop"
     );
 
     for (const [name, script] of Object.entries(scripts)) {
@@ -552,14 +554,16 @@ test("package scripts use temporary release stamping for public builds", () => {
     }
 });
 
-test("PWA pins the palette-capable Slick2D-ts runtime", () => {
+test("PWA resolves the buffered-scaling Slick2D-ts runtime", () => {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
     const packageLock = JSON.parse(readFileSync(packageLockPath, "utf8"));
-    const expectedDependency = `git+https://github.com/meatfighter/slick2d-ts.git#${slick2dTsCommit}`;
+    const lockedSlick2dTsPackage = packageLock.packages["node_modules/slick2d-ts"];
 
-    assert.equal(packageJson.dependencies["slick2d-ts"], expectedDependency);
-    assert.equal(packageLock.packages[""].dependencies["slick2d-ts"], expectedDependency);
-    assert.match(packageLock.packages["node_modules/slick2d-ts"].resolved, new RegExp(`${slick2dTsCommit}$`));
+    assert.equal(packageJson.dependencies["slick2d-ts"], expectedSlick2dTsDependency);
+    assert.equal(packageLock.packages[""].dependencies["slick2d-ts"], expectedSlick2dTsDependency);
+    assert.ok(lockedSlick2dTsPackage, "package-lock.json should include the installed slick2d-ts package.");
+    assert.equal(lockedSlick2dTsPackage.version, expectedSlick2dTsVersion);
+    assert.match(lockedSlick2dTsPackage.resolved, /^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
 });
 
 test("PWA display themes remain browser-only presentation state", () => {
@@ -842,7 +846,7 @@ test("PWA browser storage keys are scoped to the deployed path", async () => {
     const productionCacheBustUrl = "https://example.test/stickvania/?v=two";
     const stagingUrl = "https://example.test/stickvania-staging/?v=one";
     const productionIndexUrl = "https://example.test/stickvania/index.html?v=one";
-    const names = ["game-state", "volume", "display-mode", "rumble", "difficulty", "input-mapping"];
+    const names = ["game-state", "volume", "display-mode", "scaling", "rumble", "difficulty", "input-mapping"];
 
     assert.equal(getBrowserStorageScopePath(productionUrl), "/stickvania/");
     assert.equal(getBrowserStorageScopePath(productionIndexUrl), "/stickvania/");
@@ -866,6 +870,8 @@ test("PWA browser storage source uses scoped keys for saves and preferences", ()
     const legacyKeys = [
         "stickvania-volume",
         "stickvania-display-mode",
+        "stickvania-scaling",
+        "stickvania-scaling-mode",
         "stickvania-rumble",
         "stickvania.input-mapping",
         "stickvania.difficulty",
@@ -878,6 +884,7 @@ test("PWA browser storage source uses scoped keys for saves and preferences", ()
 
     assert.match(sourceText, /getBrowserStorageKey\("volume"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("display-mode"\)/);
+    assert.match(sourceText, /getBrowserStorageKey\("scaling"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("rumble"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("input-mapping"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("difficulty"\)/);

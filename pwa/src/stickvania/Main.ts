@@ -60,7 +60,7 @@ import { MummyBoss } from "./MummyBoss.js";
 import { Raven } from "./Raven.js";
 import { RedSkeleton } from "./RedSkeleton.js";
 import { Region } from "./Region.js";
-import { ScalableGame2 } from "./ScalableGame2.js";
+import type { ScalableGame2 } from "./ScalableGame2.js";
 import { Secret } from "./Secret.js";
 import { ShootingSpark } from "./ShootingSpark.js";
 import { Simon } from "./Simon.js";
