@@ -324,9 +324,13 @@ select {
     white-space: nowrap;
 }
 
-.theme-picker-option:hover,
-.theme-picker-option:focus-visible,
 .theme-picker-option[aria-selected="true"] {
+    background: #1f1f1f;
+    color: #ffffff;
+}
+
+.theme-picker-option:hover,
+.theme-picker-option:focus-visible {
     background: #ffffff;
     color: #000000;
     outline: none;
