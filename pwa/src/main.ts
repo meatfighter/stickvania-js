@@ -16,7 +16,7 @@ const GAME_HEIGHT = 480;
 const GAME_VIEWPORT_WIDTH = 512;
 const GAME_VIEWPORT_HEIGHT = 416;
 const DEFAULT_VOLUME = 0.1;
-const DEFAULT_RUMBLE_ENABLED = false;
+const DEFAULT_RUMBLE_ENABLED = true;
 const HIGH_DPI_ENABLED = true;
 const MAX_DEVICE_PIXEL_RATIO = 2;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
@@ -1496,7 +1496,14 @@ function writeScalingPreference(value: StickvaniaScalingPreference): void {
 
 function safeReadRumbleEnabled(): boolean {
     try {
-        return localStorage.getItem(RUMBLE_STORAGE_KEY) === "true" ? true : DEFAULT_RUMBLE_ENABLED;
+        const value = localStorage.getItem(RUMBLE_STORAGE_KEY);
+        if (value === "true") {
+            return true;
+        }
+        if (value === "false") {
+            return false;
+        }
+        return DEFAULT_RUMBLE_ENABLED;
     } catch {
         return DEFAULT_RUMBLE_ENABLED;
     }

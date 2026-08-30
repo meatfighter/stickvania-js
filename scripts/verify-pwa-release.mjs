@@ -610,6 +610,9 @@ test("PWA display themes remain browser-only presentation state", () => {
     assert.match(mainSource, /id="scaling-button"/);
     assert.match(mainSource, /id="scaling-list"/);
     assert.match(mainSource, /const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";/);
+    assert.match(mainSource, /const DEFAULT_VOLUME = 0\.1;/);
+    assert.match(mainSource, /const DEFAULT_RUMBLE_ENABLED = true;/);
+    assert.match(mainSource, /if \(value === "false"\) {\s*return false;\s*}/);
     assert.match(mainSource, /writeDisplayModePreference\(DEFAULT_DISPLAY_MODE\);/);
     assert.match(mainSource, /createDisplayMonochromePalette\(displayModePreference\)/);
     assert.match(mainSource, /isDisplayModePreference\(value\)/);

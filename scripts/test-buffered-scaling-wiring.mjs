@@ -49,6 +49,9 @@ test("the browser compositor is not asked to pixelate the already-smoothed canva
 });
 
 test("the PWA menu persists the requested scaling preference", () => {
+    assert.match(mainSource, /const DEFAULT_VOLUME = 0\.1;/);
+    assert.match(mainSource, /const DEFAULT_RUMBLE_ENABLED = true;/);
+    assert.match(mainSource, /const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";/);
     assert.match(mainSource, /const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";/);
     assert.match(mainSource, /getBrowserStorageKey\("scaling"\)/);
     assert.match(mainSource, /id="scaling-picker"/);
@@ -63,6 +66,7 @@ test("the PWA menu persists the requested scaling preference", () => {
     assert.match(mainSource, /value: "crisp", label: "Crisp"/);
     assert.match(mainSource, /value: "pixel-perfect", label: "Pixel Perfect"/);
     assert.match(mainSource, /activeBufferedGame\?\.setScalingPreference\(value\)/);
+    assert.match(mainSource, /if \(value === "false"\) {\s*return false;\s*}/);
     assert.match(wrapperSource, /constructor\(held: Game, scalingPreference: StickvaniaScalingPreference = "crisp"\)/);
 });
 
