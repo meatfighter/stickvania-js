@@ -70,6 +70,29 @@ test("the PWA menu persists the requested scaling preference", () => {
     assert.match(wrapperSource, /constructor\(held: Game, scalingPreference: StickvaniaScalingPreference = "crisp"\)/);
 });
 
+test("the PWA menu has a full local reset escape hatch", () => {
+    assert.match(mainSource, /const PWA_RESET_STORAGE_KEYS = \[/);
+    assert.match(mainSource, /GAME_STATE_STORAGE_KEY/);
+    assert.match(mainSource, /VOLUME_STORAGE_KEY/);
+    assert.match(mainSource, /DISPLAY_MODE_STORAGE_KEY/);
+    assert.match(mainSource, /SCALING_STORAGE_KEY/);
+    assert.match(mainSource, /RUMBLE_STORAGE_KEY/);
+    assert.match(mainSource, /DIFFICULTY_STORAGE_KEY/);
+    assert.match(mainSource, /INPUT_MAPPING_STORAGE_KEY/);
+    assert.match(mainSource, /id="reset-button" class="reset-button"/);
+    assert.match(mainSource, /resetButton\.addEventListener\("click", resetPwaState\)/);
+    assert.match(mainSource, /function resetPwaState\(\): void/);
+    assert.match(mainSource, /destroyGame\(\);\s*clearPwaStorage\(\);/);
+    assert.match(mainSource, /volume = DEFAULT_VOLUME;/);
+    assert.match(mainSource, /displayModePreference = DEFAULT_DISPLAY_MODE;/);
+    assert.match(mainSource, /scalingPreference = DEFAULT_SCALING_PREFERENCE;/);
+    assert.match(mainSource, /rumbleEnabled = DEFAULT_RUMBLE_ENABLED;/);
+    assert.match(mainSource, /function clearPwaStorage\(\): void/);
+    assert.match(mainSource, /localStorage\.removeItem\(key\)/);
+    assert.match(stylesSource, /\.settings-row/);
+    assert.match(stylesSource, /\.reset-button/);
+});
+
 test("Stickvania requests the buffered-scaling slick2d-ts API", () => {
     assert.equal(packageJson.dependencies["slick2d-ts"], "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.1");
 });

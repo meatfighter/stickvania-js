@@ -459,6 +459,25 @@ select {
     cursor: default;
 }
 
+.reset-button {
+    min-height: 28px;
+    margin-top: -8px;
+    padding: 4px 12px;
+    border: 0;
+    background: transparent;
+    color: #888888;
+    cursor: pointer;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.reset-button:hover,
+.reset-button:focus-visible {
+    color: #ffffff;
+    outline: none;
+}
+
 .error-text {
     margin: 0;
     color: #ffffff;

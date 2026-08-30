@@ -45,8 +45,19 @@ const VOLUME_STORAGE_KEY = getBrowserStorageKey("volume");
 const DISPLAY_MODE_STORAGE_KEY = getBrowserStorageKey("display-mode");
 const SCALING_STORAGE_KEY = getBrowserStorageKey("scaling");
 const RUMBLE_STORAGE_KEY = getBrowserStorageKey("rumble");
+const DIFFICULTY_STORAGE_KEY = getBrowserStorageKey("difficulty");
+const INPUT_MAPPING_STORAGE_KEY = getBrowserStorageKey("input-mapping");
 const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
 const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";
+const PWA_RESET_STORAGE_KEYS = [
+    GAME_STATE_STORAGE_KEY,
+    VOLUME_STORAGE_KEY,
+    DISPLAY_MODE_STORAGE_KEY,
+    SCALING_STORAGE_KEY,
+    RUMBLE_STORAGE_KEY,
+    DIFFICULTY_STORAGE_KEY,
+    INPUT_MAPPING_STORAGE_KEY
+] as const;
 type DisplayModeDefinition = (typeof DISPLAY_MODE_DEFINITIONS)[number];
 const SCALING_MODE_DEFINITIONS: readonly { value: StickvaniaScalingPreference; label: string }[] = [
     { value: "smooth", label: "Smooth" },
@@ -85,13 +96,22 @@ let suspendedByVisibilityLoss = false;
 let gameStateStore: StickvaniaGameStateStore | null = null;
 
 function setAudioVolume(value: number): void {
-    volume = Math.max(0, Math.min(1, value));
+    volume = clampVolume(value);
     writeVolume(volume);
+    applyAudioVolume(volume);
+}
+
+function applyAudioVolume(value: number): void {
+    const clampedValue = clampVolume(value);
     // Slick applies sound volume twice on Sound.play(); compensate so this is a master volume.
-    SoundStore.get().setSoundVolume(Math.sqrt(volume));
-    SoundStore.get().setMusicVolume(volume);
-    container?.setSoundVolume(Math.sqrt(volume));
-    container?.setMusicVolume(volume);
+    SoundStore.get().setSoundVolume(Math.sqrt(clampedValue));
+    SoundStore.get().setMusicVolume(clampedValue);
+    container?.setSoundVolume(Math.sqrt(clampedValue));
+    container?.setMusicVolume(clampedValue);
+}
+
+function clampVolume(value: number): number {
+    return Math.max(0, Math.min(1, value));
 }
 
 function updateVolumeUi(volumeInput: HTMLInputElement, volumeValue: HTMLElement, volumeIcon: HTMLElement): void {
@@ -358,6 +378,7 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
                 <button id="new-game-button" class="start-button" type="button">New Game</button>
                 <button id="continue-button" class="start-button" type="button"${canContinue ? "" : " disabled"}>Continue</button>
             </div>
+            <button id="reset-button" class="reset-button" type="button">Reset</button>
             ${errorText ? `<p class="error-text">${escapeHtml(errorText)}</p>` : ""}
         </section>`;
     if (overlay) {
@@ -382,6 +403,7 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     const rumbleSwitchButton = menu.querySelector("#rumble-switch-button") as HTMLButtonElement;
     const newGameButton = menu.querySelector("#new-game-button") as HTMLButtonElement;
     const continueButton = menu.querySelector("#continue-button") as HTMLButtonElement;
+    const resetButton = menu.querySelector("#reset-button") as HTMLButtonElement;
     measureDisplayModePickerWidth(displayModePicker, displayModeButton, displayModePopup, displayModeList);
     measureScalingPickerWidth(scalingPicker, scalingButton, scalingPopup, scalingList);
     menu.style.visibility = "";
@@ -541,7 +563,30 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
         }
         void startGame(true);
     });
+    resetButton.addEventListener("click", resetPwaState);
     return menu;
+}
+
+function resetPwaState(): void {
+    destroyGame();
+    clearPwaStorage();
+    volume = DEFAULT_VOLUME;
+    displayModePreference = DEFAULT_DISPLAY_MODE;
+    scalingPreference = DEFAULT_SCALING_PREFERENCE;
+    rumbleEnabled = DEFAULT_RUMBLE_ENABLED;
+    applyAudioVolume(volume);
+    const manager = getRumbleManager();
+    manager.setEnabled(rumbleEnabled);
+    manager.setSuspended(false);
+    renderRootMenu();
+}
+
+function clearPwaStorage(): void {
+    for (const key of PWA_RESET_STORAGE_KEYS) {
+        try {
+            localStorage.removeItem(key);
+        } catch {}
+    }
 }
 
 function measureDisplayModePickerWidth(
@@ -1407,7 +1452,7 @@ async function waitForServiceWorkerController(): Promise<void> {
 }
 
 function startPwaMenu(): void {
-    setAudioVolume(volume);
+    applyAudioVolume(volume);
     showMenu();
     window.__stickvaniaBooted = true;
     initialServiceWorkerReadyPromise = registerServiceWorker().catch((error) => {
