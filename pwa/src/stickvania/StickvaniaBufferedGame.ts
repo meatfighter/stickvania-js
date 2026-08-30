@@ -66,7 +66,7 @@ class StickvaniaViewportGame implements Game {
 }
 
 export class StickvaniaBufferedGame extends BufferedScalableGame {
-    public constructor(held: Game, scalingPreference: StickvaniaScalingPreference = "smooth") {
+    public constructor(held: Game, scalingPreference: StickvaniaScalingPreference = "crisp") {
         super(new StickvaniaViewportGame(held), STICKVANIA_VIEWPORT_WIDTH, STICKVANIA_VIEWPORT_HEIGHT, {
             maintainAspect: true,
             scalingMode: getBufferedScalingMode(scalingPreference)

@@ -49,16 +49,23 @@ test("the browser compositor is not asked to pixelate the already-smoothed canva
 });
 
 test("the PWA menu persists the requested scaling preference", () => {
-    assert.match(mainSource, /const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "smooth";/);
+    assert.match(mainSource, /const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";/);
     assert.match(mainSource, /getBrowserStorageKey\("scaling"\)/);
-    assert.match(mainSource, /id="scaling-select"/);
+    assert.match(mainSource, /id="scaling-picker"/);
+    assert.match(mainSource, /id="scaling-button"/);
+    assert.match(mainSource, /id="scaling-list"/);
+    assert.match(mainSource, /id="display-mode-button" class="theme-picker-button display-mode-button"/);
+    assert.match(mainSource, /<span class="picker-caret" aria-hidden="true"><\/span>/);
+    assert.doesNotMatch(mainSource, /id="scaling-select"/);
+    assert.doesNotMatch(stylesSource, /rotate\(180deg\)/);
     assert.match(mainSource, /<span>Scaling<\/span>/);
     assert.match(mainSource, /value: "smooth", label: "Smooth"/);
     assert.match(mainSource, /value: "crisp", label: "Crisp"/);
     assert.match(mainSource, /value: "pixel-perfect", label: "Pixel Perfect"/);
     assert.match(mainSource, /activeBufferedGame\?\.setScalingPreference\(value\)/);
+    assert.match(wrapperSource, /constructor\(held: Game, scalingPreference: StickvaniaScalingPreference = "crisp"\)/);
 });
 
 test("Stickvania requests the buffered-scaling slick2d-ts API", () => {
-    assert.equal(packageJson.dependencies["slick2d-ts"], "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.0");
+    assert.equal(packageJson.dependencies["slick2d-ts"], "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.1");
 });

@@ -46,13 +46,14 @@ const DISPLAY_MODE_STORAGE_KEY = getBrowserStorageKey("display-mode");
 const SCALING_STORAGE_KEY = getBrowserStorageKey("scaling");
 const RUMBLE_STORAGE_KEY = getBrowserStorageKey("rumble");
 const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
-const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "smooth";
+const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";
 type DisplayModeDefinition = (typeof DISPLAY_MODE_DEFINITIONS)[number];
 const SCALING_MODE_DEFINITIONS: readonly { value: StickvaniaScalingPreference; label: string }[] = [
     { value: "smooth", label: "Smooth" },
     { value: "crisp", label: "Crisp" },
     { value: "pixel-perfect", label: "Pixel Perfect" }
 ];
+type ScalingModeDefinition = (typeof SCALING_MODE_DEFINITIONS)[number];
 
 let app: HTMLElement;
 let container: AppGameContainer | null = null;
@@ -146,9 +147,10 @@ function displayModePickerHtml(): string {
     const selectedDefinition = getDisplayModeDefinition(displayModePreference);
     return `
         <div id="display-mode-picker" class="theme-picker" data-open="false">
-            <button id="display-mode-button" class="theme-picker-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="display-mode-list">
+            <button id="display-mode-button" class="theme-picker-button display-mode-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="display-mode-list">
                 <span class="theme-picker-label">${escapeHtml(selectedDefinition.label)}</span>
                 ${displayModeSwatchHtml(selectedDefinition)}
+                <span class="picker-caret" aria-hidden="true"></span>
             </button>
             <div id="display-mode-popup" class="theme-picker-popup" hidden>
                 <div id="display-mode-list" class="theme-picker-list" role="listbox" aria-label="Display theme">
@@ -204,22 +206,43 @@ function setScalingPreference(value: StickvaniaScalingPreference): void {
     activeBufferedGame?.setScalingPreference(value);
 }
 
-function updateScalingUi(scalingSelect: HTMLSelectElement): void {
-    scalingSelect.value = scalingPreference;
+function updateScalingUi(scalingPicker: HTMLElement): void {
+    const selectedDefinition = getScalingDefinition(scalingPreference);
+    const selectedLabel = scalingPicker.querySelector<HTMLElement>(".scaling-picker-label");
+    if (selectedLabel !== null) {
+        selectedLabel.textContent = selectedDefinition.label;
+    }
+    for (const option of scalingPicker.querySelectorAll<HTMLElement>("[data-scaling-mode]")) {
+        option.setAttribute("aria-selected", String(option.dataset.scalingMode === scalingPreference));
+    }
 }
 
-function scalingSelectHtml(): string {
+function scalingPickerHtml(): string {
+    const selectedDefinition = getScalingDefinition(scalingPreference);
     return `
-        <label class="setting-select-row" aria-label="Scaling">
-            <span>Scaling</span>
-            <select id="scaling-select" class="menu-select">
-                ${SCALING_MODE_DEFINITIONS.map((definition) => scalingOptionHtml(definition)).join("")}
-            </select>
-        </label>`;
+        <div id="scaling-picker" class="theme-picker scaling-picker" data-open="false">
+            <button id="scaling-button" class="theme-picker-button scaling-picker-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="scaling-list">
+                <span class="theme-picker-label scaling-picker-label">${escapeHtml(selectedDefinition.label)}</span>
+                <span class="picker-caret" aria-hidden="true"></span>
+            </button>
+            <div id="scaling-popup" class="theme-picker-popup scaling-picker-popup" hidden>
+                <div id="scaling-list" class="theme-picker-list scaling-picker-list" role="listbox" aria-label="Scaling">
+                    ${SCALING_MODE_DEFINITIONS.map((definition) => scalingOptionHtml(definition)).join("")}
+                </div>
+            </div>
+        </div>`;
 }
 
-function scalingOptionHtml(definition: { value: StickvaniaScalingPreference; label: string }): string {
-    return `<option value="${definition.value}"${definition.value === scalingPreference ? " selected" : ""}>${escapeHtml(definition.label)}</option>`;
+function scalingOptionHtml(definition: ScalingModeDefinition): string {
+    return `
+        <button class="theme-picker-option scaling-picker-option" type="button" role="option" aria-selected="${definition.value === scalingPreference}" data-scaling-mode="${definition.value}">
+            <span>${escapeHtml(definition.label)}</span>
+            <span class="picker-caret-placeholder" aria-hidden="true"></span>
+        </button>`;
+}
+
+function getScalingDefinition(value: StickvaniaScalingPreference): ScalingModeDefinition {
+    return SCALING_MODE_DEFINITIONS.find((definition) => definition.value === value) ?? SCALING_MODE_DEFINITIONS[0];
 }
 
 function isScalingPreference(value: unknown): value is StickvaniaScalingPreference {
@@ -322,7 +345,10 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
                     </button>
                 </div>
             </div>
-            ${scalingSelectHtml()}
+            <div class="setting-scaling-row" role="group" aria-label="Scaling">
+                <span>Scaling</span>
+                ${scalingPickerHtml()}
+            </div>
             <label class="volume-row">
                 <span id="volume-icon" class="volume-icon" aria-hidden="true">${volumeIconSvg(volume)}</span>
                 <input id="volume-input" type="range" min="0" max="100" step="1" value="${Math.round(volume * 100)}" aria-label="Volume">
@@ -348,11 +374,16 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     const displayModePopup = menu.querySelector("#display-mode-popup") as HTMLElement;
     const displayModeList = menu.querySelector("#display-mode-list") as HTMLElement;
     const displayModeOptions = Array.from(menu.querySelectorAll<HTMLButtonElement>("[data-display-mode]"));
-    const scalingSelect = menu.querySelector("#scaling-select") as HTMLSelectElement;
+    const scalingPicker = menu.querySelector("#scaling-picker") as HTMLElement;
+    const scalingButton = menu.querySelector("#scaling-button") as HTMLButtonElement;
+    const scalingPopup = menu.querySelector("#scaling-popup") as HTMLElement;
+    const scalingList = menu.querySelector("#scaling-list") as HTMLElement;
+    const scalingOptions = Array.from(menu.querySelectorAll<HTMLButtonElement>("[data-scaling-mode]"));
     const rumbleSwitchButton = menu.querySelector("#rumble-switch-button") as HTMLButtonElement;
     const newGameButton = menu.querySelector("#new-game-button") as HTMLButtonElement;
     const continueButton = menu.querySelector("#continue-button") as HTMLButtonElement;
     measureDisplayModePickerWidth(displayModePicker, displayModeButton, displayModePopup, displayModeList);
+    measureScalingPickerWidth(scalingPicker, scalingButton, scalingPopup, scalingList);
     menu.style.visibility = "";
     const handleDisplayModeChange = (value: string) => {
         if (!isDisplayModePreference(value)) {
@@ -368,11 +399,13 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
         displayModeButton.focus();
     };
     displayModeButton.addEventListener("click", () => {
+        setScalingPickerOpen(scalingPicker, scalingButton, scalingPopup, false);
         setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, !isDisplayModePickerOpen(displayModePicker), true);
     });
     displayModeButton.addEventListener("keydown", (event) => {
         if (event.key === " " || event.key === "Enter" || event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
+            setScalingPickerOpen(scalingPicker, scalingButton, scalingPopup, false);
             setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, true, true);
         }
     });
@@ -408,9 +441,65 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     for (const option of displayModeOptions) {
         option.addEventListener("click", () => handleDisplayModeChange(option.dataset.displayMode ?? ""));
     }
+    const handleScalingChange = (value: string) => {
+        if (!isScalingPreference(value)) {
+            updateScalingUi(scalingPicker);
+            return;
+        }
+        setScalingPreference(value);
+        updateScalingUi(scalingPicker);
+        setScalingPickerOpen(scalingPicker, scalingButton, scalingPopup, false);
+        scalingButton.focus();
+    };
+    scalingButton.addEventListener("click", () => {
+        setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, false);
+        setScalingPickerOpen(scalingPicker, scalingButton, scalingPopup, !isScalingPickerOpen(scalingPicker), true);
+    });
+    scalingButton.addEventListener("keydown", (event) => {
+        if (event.key === " " || event.key === "Enter" || event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, false);
+            setScalingPickerOpen(scalingPicker, scalingButton, scalingPopup, true, true);
+        }
+    });
+    scalingList.addEventListener("keydown", (event) => {
+        const currentIndex = Math.max(
+            0,
+            scalingOptions.findIndex((option) => option === document.activeElement)
+        );
+        if (event.key === "Escape") {
+            event.preventDefault();
+            setScalingPickerOpen(scalingPicker, scalingButton, scalingPopup, false);
+            scalingButton.focus();
+        } else if (event.key === "ArrowDown") {
+            event.preventDefault();
+            scalingOptions[(currentIndex + 1) % scalingOptions.length]?.focus();
+        } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            scalingOptions[(currentIndex + scalingOptions.length - 1) % scalingOptions.length]?.focus();
+        } else if (event.key === "Home") {
+            event.preventDefault();
+            scalingOptions[0]?.focus();
+        } else if (event.key === "End") {
+            event.preventDefault();
+            scalingOptions[scalingOptions.length - 1]?.focus();
+        } else if (event.key === " " || event.key === "Enter") {
+            event.preventDefault();
+            const target = document.activeElement;
+            if (target instanceof HTMLElement) {
+                handleScalingChange(target.dataset.scalingMode ?? "");
+            }
+        }
+    });
+    for (const option of scalingOptions) {
+        option.addEventListener("click", () => handleScalingChange(option.dataset.scalingMode ?? ""));
+    }
     menu.addEventListener("click", (event) => {
         if (event.target instanceof Node && !displayModePicker.contains(event.target)) {
             setDisplayModePickerOpen(displayModePicker, displayModeButton, displayModePopup, false);
+        }
+        if (event.target instanceof Node && !scalingPicker.contains(event.target)) {
+            setScalingPickerOpen(scalingPicker, scalingButton, scalingPopup, false);
         }
     });
     displayModePicker.addEventListener("focusout", () => {
@@ -420,15 +509,15 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
             }
         }, 0);
     });
-    updateDisplayModeUi(displayModePicker);
-    scalingSelect.addEventListener("change", () => {
-        const value = scalingSelect.value;
-        if (isScalingPreference(value)) {
-            setScalingPreference(value);
-        }
-        updateScalingUi(scalingSelect);
+    scalingPicker.addEventListener("focusout", () => {
+        window.setTimeout(() => {
+            if (!scalingPicker.contains(document.activeElement)) {
+                setScalingPickerOpen(scalingPicker, scalingButton, scalingPopup, false);
+            }
+        }, 0);
     });
-    updateScalingUi(scalingSelect);
+    updateDisplayModeUi(displayModePicker);
+    updateScalingUi(scalingPicker);
     rumbleSwitchButton.addEventListener("click", () => {
         setRumbleEnabled(!rumbleEnabled);
         updateRumbleUi(rumbleSwitchButton);
@@ -461,33 +550,71 @@ function measureDisplayModePickerWidth(
     displayModePopup: HTMLElement,
     displayModeList: HTMLElement
 ): void {
-    const wasPopupHidden = displayModePopup.hidden;
-    displayModePopup.hidden = false;
-    const buttonStyle = window.getComputedStyle(displayModeButton);
-    const option = displayModeList.querySelector<HTMLElement>(".theme-picker-option");
+    measurePickerWidth(
+        displayModePicker,
+        displayModeButton,
+        displayModePopup,
+        displayModeList,
+        DISPLAY_MODE_DEFINITIONS.map((definition) => definition.label),
+        [".theme-swatch", ".picker-caret"],
+        [".theme-swatch"]
+    );
+}
+
+function measureScalingPickerWidth(scalingPicker: HTMLElement, scalingButton: HTMLButtonElement, scalingPopup: HTMLElement, scalingList: HTMLElement): void {
+    measurePickerWidth(
+        scalingPicker,
+        scalingButton,
+        scalingPopup,
+        scalingList,
+        SCALING_MODE_DEFINITIONS.map((definition) => definition.label),
+        [".picker-caret"],
+        [".picker-caret-placeholder"]
+    );
+}
+
+function measurePickerWidth(
+    picker: HTMLElement,
+    button: HTMLButtonElement,
+    popup: HTMLElement,
+    list: HTMLElement,
+    labels: readonly string[],
+    buttonAccessorySelectors: readonly string[],
+    optionAccessorySelectors: readonly string[]
+): void {
+    const wasPopupHidden = popup.hidden;
+    popup.hidden = false;
+    const buttonStyle = window.getComputedStyle(button);
+    const option = list.querySelector<HTMLElement>(".theme-picker-option");
     const optionStyle = option === null ? null : window.getComputedStyle(option);
-    const popupStyle = window.getComputedStyle(displayModePopup);
-    const listStyle = window.getComputedStyle(displayModeList);
-    const swatchWidth = getElementOuterWidth(displayModeButton.querySelector<HTMLElement>(".theme-swatch"));
-    const maxLabelWidth = measureWidestDisplayModeLabel(displayModePicker, optionStyle ?? buttonStyle);
-    const scrollbarWidth = getElementVerticalScrollbarWidth(displayModeList, listStyle);
-    const buttonWidth = maxLabelWidth + parseCssPixels(buttonStyle.columnGap) + swatchWidth + horizontalSpacing(buttonStyle, true) + 4;
+    const popupStyle = window.getComputedStyle(popup);
+    const listStyle = window.getComputedStyle(list);
+    const buttonAccessoryWidth = getElementsOuterWidth(button, buttonAccessorySelectors);
+    const optionAccessoryWidth = option === null ? 0 : getElementsOuterWidth(option, optionAccessorySelectors);
+    const maxLabelWidth = measureWidestPickerLabel(picker, optionStyle ?? buttonStyle, labels);
+    const scrollbarWidth = getElementVerticalScrollbarWidth(list, listStyle);
+    const buttonWidth =
+        maxLabelWidth +
+        parseCssPixels(buttonStyle.columnGap) * buttonAccessorySelectors.length +
+        buttonAccessoryWidth +
+        horizontalSpacing(buttonStyle, true) +
+        4;
     const optionWidth =
         optionStyle === null
             ? 0
             : maxLabelWidth +
-              parseCssPixels(optionStyle.columnGap) +
-              swatchWidth +
+              parseCssPixels(optionStyle.columnGap) * optionAccessorySelectors.length +
+              optionAccessoryWidth +
               horizontalSpacing(optionStyle, false) +
               horizontalSpacing(popupStyle, true) +
               horizontalSpacing(listStyle, true) +
               scrollbarWidth +
               4;
-    displayModePicker.style.setProperty("--theme-picker-width", `${Math.ceil(Math.max(buttonWidth, optionWidth) + THEME_PICKER_BREATHING_ROOM_PX)}px`);
-    displayModePopup.hidden = wasPopupHidden;
+    picker.style.setProperty("--theme-picker-width", `${Math.ceil(Math.max(buttonWidth, optionWidth) + THEME_PICKER_BREATHING_ROOM_PX)}px`);
+    popup.hidden = wasPopupHidden;
 }
 
-function measureWidestDisplayModeLabel(parent: HTMLElement, style: CSSStyleDeclaration): number {
+function measureWidestPickerLabel(parent: HTMLElement, style: CSSStyleDeclaration, labels: readonly string[]): number {
     const probe = document.createElement("span");
     probe.style.position = "absolute";
     probe.style.left = "-10000px";
@@ -501,8 +628,8 @@ function measureWidestDisplayModeLabel(parent: HTMLElement, style: CSSStyleDecla
     probe.style.letterSpacing = style.letterSpacing;
     parent.appendChild(probe);
     let maxLabelWidth = 0;
-    for (const definition of DISPLAY_MODE_DEFINITIONS) {
-        probe.textContent = definition.label;
+    for (const label of labels) {
+        probe.textContent = label;
         maxLabelWidth = Math.max(maxLabelWidth, probe.getBoundingClientRect().width);
     }
     probe.remove();
@@ -511,6 +638,10 @@ function measureWidestDisplayModeLabel(parent: HTMLElement, style: CSSStyleDecla
 
 function getElementOuterWidth(element: HTMLElement | null): number {
     return element?.getBoundingClientRect().width ?? 0;
+}
+
+function getElementsOuterWidth(parent: HTMLElement, selectors: readonly string[]): number {
+    return selectors.reduce((width, selector) => width + getElementOuterWidth(parent.querySelector<HTMLElement>(selector)), 0);
 }
 
 function getElementVerticalScrollbarWidth(element: HTMLElement, style: CSSStyleDeclaration): number {
@@ -551,6 +682,31 @@ function setDisplayModePickerOpen(
         Array.from(displayModeList.querySelectorAll<HTMLElement>("[data-display-mode]")).find(
             (option) => option.dataset.displayMode === displayModePreference
         ) ?? displayModeList.querySelector<HTMLElement>("[data-display-mode]");
+    selectedOption?.focus();
+}
+
+function isScalingPickerOpen(scalingPicker: HTMLElement): boolean {
+    return scalingPicker.dataset.open === "true";
+}
+
+function setScalingPickerOpen(
+    scalingPicker: HTMLElement,
+    scalingButton: HTMLButtonElement,
+    scalingPopup: HTMLElement,
+    open: boolean,
+    focusSelected = false
+): void {
+    scalingPicker.dataset.open = String(open);
+    scalingButton.setAttribute("aria-expanded", String(open));
+    scalingPopup.hidden = !open;
+    if (!open || !focusSelected) {
+        return;
+    }
+
+    const scalingList = scalingPopup.querySelector<HTMLElement>("#scaling-list") as HTMLElement;
+    const selectedOption =
+        Array.from(scalingList.querySelectorAll<HTMLElement>("[data-scaling-mode]")).find((option) => option.dataset.scalingMode === scalingPreference) ??
+        scalingList.querySelector<HTMLElement>("[data-scaling-mode]");
     selectedOption?.focus();
 }
 

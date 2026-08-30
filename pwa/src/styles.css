@@ -207,7 +207,7 @@ select {
 }
 
 .setting-theme-row,
-.setting-select-row,
+.setting-scaling-row,
 .setting-switch-row {
     display: grid;
     align-items: center;
@@ -217,43 +217,14 @@ select {
     font-weight: 700;
 }
 
-.setting-theme-row {
+.setting-theme-row,
+.setting-scaling-row {
     position: relative;
     grid-template-columns: max-content auto;
 }
 
 .setting-switch-row {
     grid-template-columns: max-content 66px;
-}
-
-.setting-select-row {
-    grid-template-columns: max-content 170px;
-}
-
-.menu-select {
-    width: 170px;
-    height: 34px;
-    box-sizing: border-box;
-    padding: 0 8px 0 12px;
-    border: 2px solid #555555;
-    border-radius: 8px;
-    background: #000000;
-    color: #ffffff;
-    cursor: pointer;
-    font: inherit;
-    font-weight: 700;
-}
-
-.menu-select:hover,
-.menu-select:focus-visible {
-    border-color: #ffffff;
-    outline: none;
-}
-
-.menu-select option {
-    background: #000000;
-    color: #ffffff;
-    font-weight: 700;
 }
 
 .theme-picker {
@@ -278,6 +249,15 @@ select {
     font: inherit;
     font-weight: 700;
     text-align: left;
+}
+
+.display-mode-button {
+    grid-template-columns: minmax(0, 1fr) 24px 10px;
+}
+
+.scaling-picker-button,
+.scaling-picker-option {
+    grid-template-columns: minmax(0, 1fr) 10px;
 }
 
 .theme-picker-button:hover,
@@ -366,6 +346,26 @@ select {
     height: 8px;
     border-radius: 50%;
     background: var(--theme-fg);
+    content: "";
+}
+
+.picker-caret,
+.picker-caret-placeholder {
+    width: 10px;
+    height: 6px;
+    justify-self: center;
+}
+
+.picker-caret {
+    position: relative;
+}
+
+.picker-caret::before {
+    position: absolute;
+    inset: 0;
+    border-top: 6px solid currentColor;
+    border-right: 5px solid transparent;
+    border-left: 5px solid transparent;
     content: "";
 }
 

@@ -47,7 +47,7 @@
         "test:buffered-scaling-wiring": "node scripts/test-buffered-scaling-wiring.mjs"
     },
     "dependencies": {
-        "slick2d-ts": "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.0"
+        "slick2d-ts": "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.1"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",

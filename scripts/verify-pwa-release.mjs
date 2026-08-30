@@ -30,8 +30,8 @@ const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
 const versionInfo = readVersion();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
-const expectedSlick2dTsDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.0";
-const expectedSlick2dTsVersion = "1.3.0";
+const expectedSlick2dTsDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.1";
+const expectedSlick2dTsVersion = "1.3.1";
 const defaultPwaScopeUrl = "https://example.test/pwa/";
 const relocationPwaScopeUrls = [
     "https://example.invalid/stickvania/pwa/",
@@ -606,6 +606,10 @@ test("PWA display themes remain browser-only presentation state", () => {
     assert.match(mainSource, /id="display-mode-button"/);
     assert.match(mainSource, /id="display-mode-list"/);
     assert.match(mainSource, /const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";/);
+    assert.match(mainSource, /id="scaling-picker"/);
+    assert.match(mainSource, /id="scaling-button"/);
+    assert.match(mainSource, /id="scaling-list"/);
+    assert.match(mainSource, /const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";/);
     assert.match(mainSource, /writeDisplayModePreference\(DEFAULT_DISPLAY_MODE\);/);
     assert.match(mainSource, /createDisplayMonochromePalette\(displayModePreference\)/);
     assert.match(mainSource, /isDisplayModePreference\(value\)/);
