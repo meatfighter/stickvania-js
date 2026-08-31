@@ -2,6 +2,7 @@ import { GameContainer, Graphics } from "slick2d-ts";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
 import { Zombie } from "./Zombie.js";
+import { javaFloat } from "./JavaMath.js";
 
 export class ZombieSpawner extends Thing {
     private static readonly BASE_ACTIVE_CAP: number = 3;
@@ -12,7 +13,7 @@ export class ZombieSpawner extends Thing {
     private x2: number = 0;
     public constructor(main: Main, x1: number, x2: number, y: number) {
         super(main);
-        this.y = y;
+        this.y = javaFloat(y);
         this.x1 = x1;
         this.x2 = x2;
     }
@@ -24,14 +25,14 @@ export class ZombieSpawner extends Thing {
         }
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         this.syncActiveCap();
 
         if (this.main.timeFrozen > 0) {
             return true;
         }
 
-        if (this.main.simon.x < this.x1 || this.main.simon.x > this.x2) {
+        if (this.main.simon!.x < this.x1 || this.main.simon!.x > this.x2) {
             return true;
         }
 
@@ -60,14 +61,8 @@ export class ZombieSpawner extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {}
+    public override render(gc: GameContainer, g: Graphics): void {}
     private syncActiveCap(): void {
-        if (!Number.isFinite(this.activeCap)) {
-            this.activeCap = ZombieSpawner.BASE_ACTIVE_CAP;
-        }
-        if (!Number.isFinite(this.count)) {
-            this.count = this.activeCap;
-        }
         let activeCap: number = this.main.adjustEnemyActiveCap(ZombieSpawner.BASE_ACTIVE_CAP);
         if (activeCap == this.activeCap) {
             return;

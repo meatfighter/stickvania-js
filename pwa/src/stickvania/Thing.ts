@@ -1,5 +1,5 @@
 import { GameContainer, Graphics } from "slick2d-ts";
-import { trunc } from "./JavaMath.js";
+import { javaFloat, trunc } from "./JavaMath.js";
 import type { Main } from "./Main.js";
 
 const DEFAULT_GRAVITY = 0.21;
@@ -7,11 +7,11 @@ const WALL_EMPTY = 0;
 const WALL_PLATFORM = 1;
 
 export abstract class Thing {
-    public main: Main = null;
-    public x: number = 0;
-    public y: number = 0;
-    public vx: number = 0;
-    public vy: number = 0;
+    public main: Main = null!;
+    public x: number = javaFloat(0);
+    public y: number = javaFloat(0);
+    public vx: number = javaFloat(0);
+    public vy: number = javaFloat(0);
     public rx1: number = 0;
     public ry1: number = 0;
     public rx2: number = 0;
@@ -19,7 +19,10 @@ export abstract class Thing {
     public supported: boolean = false;
     public intersected: boolean = false;
     public kill: boolean = false;
-    public G: number = DEFAULT_GRAVITY;
+    public G: number = javaFloat(DEFAULT_GRAVITY);
+    public constructor(main: Main);
+    public constructor(main: Main, width: number, height: number);
+    public constructor(main: Main, rx1: number, ry1: number, width: number, height: number);
     public constructor(main: Main, a?: number, b?: number, c?: number, d?: number) {
         this.main = main;
         if (a !== undefined && b !== undefined && c !== undefined && d !== undefined) {
@@ -36,27 +39,28 @@ export abstract class Thing {
     public abstract render(gc: GameContainer, g: Graphics): void;
     public abstract update(gc: GameContainer): boolean;
     public moveY(dy: number): boolean {
+        dy = javaFloat(dy);
         this.supported = false;
 
-        let targetY: number = this.y + dy;
+        let targetY: number = javaFloat(this.y + dy);
 
-        let y1: number = trunc(this.y + this.ry2);
-        let y2: number = trunc(targetY + this.ry2);
+        let y1: number = trunc(javaFloat(this.y + this.ry2));
+        let y2: number = trunc(javaFloat(targetY + this.ry2));
 
-        let x1: number = trunc(this.x + this.rx1);
-        let x2: number = trunc(this.x + this.rx2);
+        let x1: number = trunc(javaFloat(this.x + this.rx1));
+        let x2: number = trunc(javaFloat(this.x + this.rx2));
 
         if (this.vy >= 0) {
             for (let i: number = y1; i <= y2; i++) {
                 for (let j: number = x1; j <= x2; j += 32) {
                     if (this.main.isEmpty(j, i) && this.main.isSupportive(j, i + 1)) {
-                        this.y = i - this.ry2;
+                        this.y = javaFloat(i - this.ry2);
                         this.supported = true;
                         return false;
                     }
                 }
                 if (this.main.isEmpty(x2, i) && this.main.isSupportive(x2, i + 1)) {
-                    this.y = i - this.ry2;
+                    this.y = javaFloat(i - this.ry2);
                     this.supported = true;
                     return false;
                 }
@@ -66,78 +70,79 @@ export abstract class Thing {
                 for (let j: number = x1; j <= x2; j += 32) {
                     let Y: number = i - this.ry2;
                     if (this.main.isEmpty(j, Y) && this.main.isSolid(j, Y - 1)) {
-                        this.y = Y;
+                        this.y = javaFloat(Y);
                         return false;
                     }
                 }
                 let Y: number = i - this.ry2;
                 if (this.main.isEmpty(x2, Y) && this.main.isSolid(x2, Y - 1)) {
-                    this.y = Y;
+                    this.y = javaFloat(Y);
                     return false;
                 }
             }
         }
 
-        this.y = targetY;
+        this.y = javaFloat(targetY);
         return true;
     }
 
     public moveX(dx: number): boolean {
-        let y1: number = trunc(this.y + this.ry1);
-        let y2: number = trunc(this.y + this.ry2);
+        dx = javaFloat(dx);
+        let y1: number = trunc(javaFloat(this.y + this.ry1));
+        let y2: number = trunc(javaFloat(this.y + this.ry2));
 
         if (dx < 0) {
-            let x1: number = trunc(this.x + this.rx1);
-            let x2: number = trunc(this.x + this.rx1 + dx);
+            let x1: number = trunc(javaFloat(this.x + this.rx1));
+            let x2: number = trunc(javaFloat(javaFloat(this.x + this.rx1) + dx));
 
             for (let j: number = x1; j >= x2; j--) {
                 for (let i: number = y1; i <= y2; i += 32) {
                     let a: number = this.main.getWall(j, i);
                     let b: number = this.main.getWall(j - 1, i);
                     if (!((a == WALL_EMPTY && b == WALL_EMPTY) || (a == WALL_PLATFORM && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
-                        this.x = j - this.rx1;
+                        this.x = javaFloat(j - this.rx1);
                         return false;
                     }
                 }
                 let a: number = this.main.getWall(j, y2);
                 let b: number = this.main.getWall(j - 1, y2);
                 if (!((a == WALL_EMPTY && b == WALL_EMPTY) || (a == WALL_PLATFORM && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
-                    this.x = j - this.rx1;
+                    this.x = javaFloat(j - this.rx1);
                     return false;
                 }
             }
 
-            this.x += dx;
+            this.x = javaFloat(this.x + dx);
 
-            if (this.x + this.rx1 <= this.main.simon.xMin) {
-                this.x = this.main.simon.xMin - this.rx1;
+            if (javaFloat(this.x + this.rx1) <= this.main.simon!.xMin) {
+                this.x = javaFloat(this.main.simon!.xMin - this.rx1);
                 return false;
             }
         } else {
-            let x1: number = trunc(this.x + this.rx2);
-            let x2: number = trunc(this.x + this.rx2 + dx);
+            let x1: number = trunc(javaFloat(this.x + this.rx2));
+            let x2: number = trunc(javaFloat(javaFloat(this.x + this.rx2) + dx));
 
             for (let j: number = x1; j <= x2; j++) {
                 for (let i: number = y1; i <= y2; i += 32) {
                     let a: number = this.main.getWall(j, i);
                     let b: number = this.main.getWall(j + 1, i);
                     if (!((a == WALL_EMPTY && b == WALL_EMPTY) || (a == WALL_PLATFORM && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
-                        this.x = j - this.rx2;
+                        this.x = javaFloat(j - this.rx2);
                         return false;
                     }
                 }
                 let a: number = this.main.getWall(j, y2);
                 let b: number = this.main.getWall(j + 1, y2);
                 if (!((a == WALL_EMPTY && b == WALL_EMPTY) || (a == WALL_PLATFORM && (b == WALL_EMPTY || b == WALL_PLATFORM)))) {
-                    this.x = j - this.rx2;
+                    this.x = javaFloat(j - this.rx2);
                     return false;
                 }
             }
 
-            this.x += dx;
+            this.x = javaFloat(this.x + dx);
 
-            if (this.x + this.rx2 >= this.main.simon.xMax) {
-                this.x = this.main.simon.xMax - this.rx2;
+            if (javaFloat(this.x + this.rx2) >= this.main.simon!.xMax) {
+                this.x = javaFloat(this.main.simon!.xMax - this.rx2);
                 return false;
             }
         }
@@ -148,48 +153,48 @@ export abstract class Thing {
     public applyGravityWithPlatforms(): void {
         this.supported = false;
 
-        let targetY: number = this.y + this.vy;
+        let targetY: number = javaFloat(this.y + this.vy);
 
-        let y1: number = trunc(this.y + this.ry2);
-        let y2: number = trunc(targetY + this.ry2);
+        let y1: number = trunc(javaFloat(this.y + this.ry2));
+        let y2: number = trunc(javaFloat(targetY + this.ry2));
 
-        let x1: number = trunc(this.x + this.rx1);
-        let x2: number = trunc(this.x + this.rx2);
+        let x1: number = trunc(javaFloat(this.x + this.rx1));
+        let x2: number = trunc(javaFloat(this.x + this.rx2));
 
-        this.vy += this.G;
+        this.vy = javaFloat(this.vy + this.G);
         if (this.vy >= 0) {
             for (let i: number = y1; i <= y2; i++) {
                 for (let j: number = x1; j <= x2; j += 32) {
                     if (this.main.isEmpty(j, i) && this.main.isSupportive(j, i + 1)) {
-                        this.y = i - this.ry2;
-                        this.vy = 0;
+                        this.y = javaFloat(i - this.ry2);
+                        this.vy = javaFloat(0);
                         this.supported = true;
                         return;
                     }
                 }
                 if (this.main.isEmpty(x2, i) && this.main.isSupportive(x2, i + 1)) {
-                    this.y = i - this.ry2;
-                    this.vy = 0;
+                    this.y = javaFloat(i - this.ry2);
+                    this.vy = javaFloat(0);
                     this.supported = true;
                     return;
                 }
 
                 for (let j: number = x1; j <= x2; j += 32) {
-                    let platform: Thing = this.main.findPlatform(j, i + 1);
+                    const platform = this.main.findPlatform(j, i + 1);
                     if (platform != null && this.main.isEmpty(j, i)) {
                         this.moveX(platform.vx);
-                        this.y = i - this.ry2;
-                        this.vy = 0;
+                        this.y = javaFloat(i - this.ry2);
+                        this.vy = javaFloat(0);
                         this.supported = true;
                         return;
                     }
                 }
 
-                let platform: Thing = this.main.findPlatform(x2, i + 1);
+                const platform = this.main.findPlatform(x2, i + 1);
                 if (platform != null && this.main.isEmpty(x2, i)) {
                     this.moveX(platform.vx);
-                    this.y = i - this.ry2;
-                    this.vy = 0;
+                    this.y = javaFloat(i - this.ry2);
+                    this.vy = javaFloat(0);
                     this.supported = true;
                     return;
                 }
@@ -199,48 +204,48 @@ export abstract class Thing {
                 for (let j: number = x1; j <= x2; j += 32) {
                     let Y: number = i - this.ry2;
                     if (this.main.isEmpty(j, Y) && this.main.isSolid(j, Y - 1)) {
-                        this.y = Y;
-                        this.vy = 0;
+                        this.y = javaFloat(Y);
+                        this.vy = javaFloat(0);
                         return;
                     }
                 }
                 let Y: number = i - this.ry2;
                 if (this.main.isEmpty(x2, Y) && this.main.isSolid(x2, Y - 1)) {
-                    this.y = Y;
-                    this.vy = 0;
+                    this.y = javaFloat(Y);
+                    this.vy = javaFloat(0);
                     return;
                 }
             }
         }
 
-        this.y = targetY;
+        this.y = javaFloat(targetY);
     }
 
     public applyGravity(): void {
         this.supported = false;
 
-        let targetY: number = this.y + this.vy;
+        let targetY: number = javaFloat(this.y + this.vy);
 
-        let y1: number = trunc(this.y + this.ry2);
-        let y2: number = trunc(targetY + this.ry2);
+        let y1: number = trunc(javaFloat(this.y + this.ry2));
+        let y2: number = trunc(javaFloat(targetY + this.ry2));
 
-        let x1: number = trunc(this.x + this.rx1);
-        let x2: number = trunc(this.x + this.rx2);
+        let x1: number = trunc(javaFloat(this.x + this.rx1));
+        let x2: number = trunc(javaFloat(this.x + this.rx2));
 
-        this.vy += this.G;
+        this.vy = javaFloat(this.vy + this.G);
         if (this.vy >= 0) {
             for (let i: number = y1; i <= y2; i++) {
                 for (let j: number = x1; j <= x2; j += 32) {
                     if (this.main.isEmpty(j, i) && this.main.isSupportive(j, i + 1)) {
-                        this.y = i - this.ry2;
-                        this.vy = 0;
+                        this.y = javaFloat(i - this.ry2);
+                        this.vy = javaFloat(0);
                         this.supported = true;
                         return;
                     }
                 }
                 if (this.main.isEmpty(x2, i) && this.main.isSupportive(x2, i + 1)) {
-                    this.y = i - this.ry2;
-                    this.vy = 0;
+                    this.y = javaFloat(i - this.ry2);
+                    this.vy = javaFloat(0);
                     this.supported = true;
                     return;
                 }
@@ -250,20 +255,20 @@ export abstract class Thing {
                 for (let j: number = x1; j <= x2; j += 32) {
                     let Y: number = i - this.ry2;
                     if (this.main.isEmpty(j, Y) && this.main.isSolid(j, Y - 1)) {
-                        this.y = Y;
-                        this.vy = 0;
+                        this.y = javaFloat(Y);
+                        this.vy = javaFloat(0);
                         return;
                     }
                 }
                 let Y: number = i - this.ry2;
                 if (this.main.isEmpty(x2, Y) && this.main.isSolid(x2, Y - 1)) {
-                    this.y = Y;
-                    this.vy = 0;
+                    this.y = javaFloat(Y);
+                    this.vy = javaFloat(0);
                     return;
                 }
             }
         }
 
-        this.y = targetY;
+        this.y = javaFloat(targetY);
     }
 }

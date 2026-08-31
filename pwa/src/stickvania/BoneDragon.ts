@@ -2,32 +2,32 @@ import { FastTrig, GameContainer, Graphics } from "slick2d-ts";
 import { BoneDragonVertebra } from "./BoneDragonVertebra.js";
 import { Fireball } from "./Fireball.js";
 import { Flame } from "./Flame.js";
-import { makeArray, trunc } from "./JavaMath.js";
+import { javaFloat, makeArray, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
 
 export class BoneDragon extends Thing {
-    private readonly A0: number = 0;
-    private readonly A1: number = 0;
-    private readonly A2: number = 0;
-    private static readonly A3: number = 1 / (Math.PI / 3);
-    private static readonly A4: number = 360 / (2 * Math.PI);
-    private static readonly dAngle2: number = 0.01;
-    private static readonly dAngle3: number = 0.03;
-    private static readonly dAngle4: number = 0.04;
-    private vertebrae: BoneDragonVertebra[] = makeArray<BoneDragonVertebra>(6, () => null);
+    private readonly A0: number = javaFloat(0);
+    private readonly A1: number = javaFloat(0);
+    private readonly A2: number = javaFloat(0);
+    private static readonly A3: number = javaFloat(1 / javaFloat(Math.PI / 3));
+    private static readonly A4: number = javaFloat(360 / javaFloat(2 * Math.PI));
+    private static readonly dAngle2: number = javaFloat(0.01);
+    private static readonly dAngle3: number = javaFloat(0.03);
+    private static readonly dAngle4: number = javaFloat(0.04);
+    private vertebrae: BoneDragonVertebra[] = makeArray<BoneDragonVertebra>(6, () => null!);
     private active: boolean = false;
-    private radius: number = 32;
+    private radius: number = javaFloat(32);
     private item: number = 0;
-    private angle: number = 0;
-    private angle2: number = Math.PI;
-    private angle3: number = Math.PI;
-    private angle4: number = 0;
-    private X: number = 0;
-    private Y: number = 0;
-    private tx: number = 0;
-    private ty: number = 0;
+    private angle: number = javaFloat(0);
+    private angle2: number = javaFloat(Math.PI);
+    private angle3: number = javaFloat(Math.PI);
+    private angle4: number = javaFloat(0);
+    private X: number = javaFloat(0);
+    private Y: number = javaFloat(0);
+    private tx: number = javaFloat(0);
+    private ty: number = javaFloat(0);
     private shootDelay: number = 0;
     private mouthOpen: number = 0;
     public hits: number = 5;
@@ -36,37 +36,39 @@ export class BoneDragon extends Thing {
     private minIndex: number = 0;
     private deadDelay: number = 23;
     public constructor(main: Main, x: number, y: number, item: number, avoidFloor: boolean) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 32, 32);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
         this.item = item;
         this.hits = main.adjustEnemyHits(this.hits);
 
-        this.X = x + 32;
-        this.Y = y;
+        this.X = javaFloat(x + 32);
+        this.Y = javaFloat(y);
 
         for (let i: number = 0; i < this.vertebrae.length; i++) {
-            this.vertebrae[i] = new BoneDragonVertebra(main, x + 16, y);
+            this.vertebrae[i] = new BoneDragonVertebra(main, javaFloat(x + 16), y);
         }
 
         if (avoidFloor) {
-            this.A0 = Math.PI / 12;
-            this.A1 = Math.PI + Math.PI / 8;
-            this.A2 = Math.PI / 14;
+            this.A0 = javaFloat(Math.PI / 12);
+            this.A1 = javaFloat(Math.PI + Math.PI / 8);
+            this.A2 = javaFloat(Math.PI / 14);
         } else {
-            this.A0 = Math.PI / 6;
-            this.A1 = Math.PI;
-            this.A2 = Math.PI / 7;
+            this.A0 = javaFloat(Math.PI / 6);
+            this.A1 = javaFloat(Math.PI);
+            this.A2 = javaFloat(Math.PI / 7);
         }
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.dead) {
             if (--this.deadDelay == 0) {
                 let vertebra: BoneDragonVertebra = this.vertebrae[this.minIndex];
                 this.deadDelay = 23;
-                this.main.pushThing(this.main.createCandleItem(trunc(vertebra.x - 8), trunc(vertebra.y), this.item));
-                this.main.pushThing(new Flame(this.main, vertebra.x - 8, vertebra.y, 0, 0, -0.05, 0, 10));
+                this.main.pushThing(this.main.createCandleItem(trunc(javaFloat(vertebra.x - 8)), trunc(vertebra.y), this.item)!);
+                this.main.pushThing(new Flame(this.main, javaFloat(vertebra.x - 8), vertebra.y, 0, 0, -0.05, 0, 10));
                 this.main.playSound(this.main.snuffed);
                 if (++this.minIndex == 6) {
                     return false;
@@ -86,7 +88,7 @@ export class BoneDragon extends Thing {
             this.main.pushThing(new Spark(this.main, this));
             if (--this.hits <= 0) {
                 this.dead = true;
-                this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item));
+                this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item)!);
                 this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
                 this.main.addPoints(1000);
                 this.main.playSound(this.main.crumble_sfx);
@@ -108,62 +110,64 @@ export class BoneDragon extends Thing {
                 }
 
                 if (this.radius < 128) {
-                    this.radius += 1;
+                    this.radius = javaFloat(this.radius + 1);
                 } else if (this.shootDelay == 0) {
                     this.shootDelay = this.main.adjustEnemyCooldown(91 + this.main.random.nextInt(273));
                     this.mouthOpen = 46;
-                    this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 8, -1.5, 0));
+                    this.main.pushThing(new Fireball(this.main, javaFloat(this.x + 8), javaFloat(this.y + 8), -1.5, 0));
                     this.main.playRumble("fireProjectile");
                     this.main.playSound(this.main.fire_ball_shot);
                 } else {
                     this.shootDelay--;
                 }
 
-                this.angle = this.A1 + this.A0 * FastTrig.sin(this.angle2) + this.A2 * FastTrig.sin(this.angle3);
-                this.angle2 += BoneDragon.dAngle2;
-                this.angle3 += BoneDragon.dAngle3;
+                const angle2Sin = javaFloat(FastTrig.sin(this.angle2));
+                const angle3Sin = javaFloat(FastTrig.sin(this.angle3));
+                this.angle = javaFloat(javaFloat(this.A1 + javaFloat(this.A0 * angle2Sin)) + javaFloat(this.A2 * angle3Sin));
+                this.angle2 = javaFloat(this.angle2 + BoneDragon.dAngle2);
+                this.angle3 = javaFloat(this.angle3 + BoneDragon.dAngle3);
 
-                let angle5: number = this.angle + this.angle4;
-                this.angle4 += BoneDragon.dAngle4;
+                let angle5: number = javaFloat(this.angle + this.angle4);
+                this.angle4 = javaFloat(this.angle4 + BoneDragon.dAngle4);
 
-                let cos: number = FastTrig.cos(this.angle);
-                let sin: number = FastTrig.sin(this.angle);
-                let rInc: number = this.radius * 0.125;
-                let r: number = rInc;
-                this.tx = this.X + this.radius * cos;
-                this.ty = this.Y + this.radius * sin;
+                let cos: number = javaFloat(FastTrig.cos(this.angle));
+                let sin: number = javaFloat(FastTrig.sin(this.angle));
+                let rInc: number = javaFloat(this.radius * 0.125);
+                let r: number = javaFloat(rInc);
+                this.tx = javaFloat(this.X + javaFloat(this.radius * cos));
+                this.ty = javaFloat(this.Y + javaFloat(this.radius * sin));
 
-                this.moveX(this.tx - this.x);
-                this.moveY(this.ty - this.y);
+                this.moveX(javaFloat(this.tx - this.x));
+                this.moveY(javaFloat(this.ty - this.y));
 
-                let ux: number = cos;
-                let uy: number = sin;
-                let vx: number = -uy;
-                let vy: number = ux;
-                let offset: number = 12 * FastTrig.sin(angle5);
+                let ux: number = javaFloat(cos);
+                let uy: number = javaFloat(sin);
+                let vx: number = javaFloat(-uy);
+                let vy: number = javaFloat(ux);
+                let offset: number = javaFloat(12 * javaFloat(FastTrig.sin(angle5)));
 
-                let ang: number = BoneDragon.A4 * this.angle;
+                let ang: number = javaFloat(BoneDragon.A4 * this.angle);
 
-                for (let i: number = 5; i >= 0; i--, r += rInc) {
+                for (let i: number = 5; i >= 0; i--, r = javaFloat(r + rInc)) {
                     let vertebra: BoneDragonVertebra = this.vertebrae[i];
 
                     if (this.main.intersectsSimon(vertebra)) {
                         this.main.hurtSimon(2);
                     }
 
-                    vertebra.angle = ang;
+                    vertebra.angle = javaFloat(ang);
 
-                    let u: number = r;
-                    let v: number = 12 * FastTrig.sin(angle5) - offset;
-                    angle5 += BoneDragon.A3;
+                    let u: number = javaFloat(r);
+                    let v: number = javaFloat(javaFloat(12 * javaFloat(FastTrig.sin(angle5))) - offset);
+                    angle5 = javaFloat(angle5 + BoneDragon.A3);
 
-                    vertebra.tx = this.X + u * ux + v * vx;
-                    vertebra.ty = this.Y + u * uy + v * vy;
+                    vertebra.tx = javaFloat(javaFloat(this.X + javaFloat(u * ux)) + javaFloat(v * vx));
+                    vertebra.ty = javaFloat(javaFloat(this.Y + javaFloat(u * uy)) + javaFloat(v * vy));
 
-                    vertebra.moveX(vertebra.tx - vertebra.x);
-                    vertebra.moveY(vertebra.ty - vertebra.y);
+                    vertebra.moveX(javaFloat(vertebra.tx - vertebra.x));
+                    vertebra.moveY(javaFloat(vertebra.ty - vertebra.y));
                 }
-            } else if (Math.abs(this.main.simon.x - this.x) < 256) {
+            } else if (Math.abs(javaFloat(this.main.simon!.x - this.x)) < 256) {
                 this.active = true;
             }
         }
@@ -171,7 +175,7 @@ export class BoneDragon extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (!this.dead) {
             this.main.draw(this.mouthOpen > 0 ? this.main.boneDragons[1] : this.main.boneDragons[0], this.x, this.y);
         }

@@ -50,7 +50,7 @@ import { GrimReaper } from "./GrimReaper.js";
 import { HolyWater } from "./HolyWater.js";
 import { Igor } from "./Igor.js";
 import { InputConfigMode, type InputConfigModeSnapshot } from "./InputConfigMode.js";
-import { cc, chr, idiv, make2D, make3D, makeArray, readBinaryResource, readResourceLines, trunc } from "./JavaMath.js";
+import { cc, chr, idiv, javaFloat, make2D, make3D, makeArray, readBinaryResource, readResourceLines, trunc } from "./JavaMath.js";
 import { LanceKnight } from "./LanceKnight.js";
 import { MedusaBoss } from "./MedusaBoss.js";
 import { MedusaHeadSpawner } from "./MedusaHeadSpawner.js";
@@ -87,14 +87,14 @@ type BrowserFullscreenController = {
 };
 
 export class Main extends BasicGame {
-    public static readonly GRAVITY: number = 0.21;
-    public static readonly SIMON_JUMP_VELOCITY: number = -5.25;
-    public static readonly PLAYER_CONTROLLED_GRAVITY: number = 0.130027228;
-    public static readonly PLAYER_CONTROLLED_JUMP_VELOCITY: number = -4.262100987;
-    public static readonly INVINCIBLE_FRACTION: number = 0.032608695652173913043478260869565;
-    public static readonly TITLE_BAT_ANGLE_INC: number = (3 * Math.PI) / 2 / 273;
-    public static readonly TITLE_BAT_SCALE_INC: number = 54 / 273;
-    public static readonly TITLE_BAT_X_RADIUS_INC: number = 67 / 273;
+    public static readonly GRAVITY: number = javaFloat(0.21);
+    public static readonly SIMON_JUMP_VELOCITY: number = javaFloat(-5.25);
+    public static readonly PLAYER_CONTROLLED_GRAVITY: number = javaFloat(0.130027228);
+    public static readonly PLAYER_CONTROLLED_JUMP_VELOCITY: number = javaFloat(-4.262100987);
+    public static readonly INVINCIBLE_FRACTION: number = javaFloat(0.032608695652173913043478260869565);
+    public static readonly TITLE_BAT_ANGLE_INC: number = javaFloat((3 * Math.PI) / 2 / 273);
+    public static readonly TITLE_BAT_SCALE_INC: number = javaFloat(54 / 273);
+    public static readonly TITLE_BAT_X_RADIUS_INC: number = javaFloat(67 / 273);
     public static readonly LEFT: number = 0;
     public static readonly RIGHT: number = 1;
     public static readonly MODE_TITLE_SCREEN: number = 0;
@@ -110,9 +110,9 @@ export class Main extends BasicGame {
     public static readonly DIFFICULTY_NORMAL: number = 0;
     public static readonly DIFFICULTY_HARD: number = 1;
     private static readonly DIFFICULTY_STORAGE_KEY: string = getBrowserStorageKey("difficulty");
-    private static readonly HARD_SPAWN_DELAY_MULTIPLIER: number = 0.66;
-    private static readonly HARD_ATTACK_COOLDOWN_MULTIPLIER: number = 0.7;
-    private static readonly HARD_BEHAVIOR_DELAY_MULTIPLIER: number = 0.75;
+    private static readonly HARD_SPAWN_DELAY_MULTIPLIER: number = javaFloat(0.66);
+    private static readonly HARD_ATTACK_COOLDOWN_MULTIPLIER: number = javaFloat(0.7);
+    private static readonly HARD_BEHAVIOR_DELAY_MULTIPLIER: number = javaFloat(0.75);
     private static readonly HARD_ACTIVE_CAP_BONUS: number = 1;
     public static readonly TITLE_MENU_MAIN: number = 0;
     public static readonly TITLE_MENU_OPTIONS: number = 1;
@@ -284,8 +284,8 @@ export class Main extends BasicGame {
         [346, 30]
     ];
 
-    public fades: Color[] = makeArray<Color>(23, () => null);
-    private nativeCursor: Cursor = null;
+    public fades: Color[] = makeArray<Color>(23, () => null!);
+    private nativeCursor: Cursor | null = null;
     public mode: number = Main.MODE_TITLE_SCREEN;
     public darkDisplayMode: boolean = false;
     public displayMonochromePalette: Readonly<{
@@ -294,31 +294,31 @@ export class Main extends BasicGame {
     }> | null = null;
 
     private startupAudioQueued: boolean = false;
-    public nativeDisplayMode: DisplayMode = null;
+    public nativeDisplayMode: DisplayMode | null = null;
     public maxWidth: number = 0;
     public maxHeight: number = 0;
     public maxColorDepth: number = 0;
-    public appGameContainer: AppGameContainer = null;
-    public appletGameContainer: AppletGameContainer2 = null;
-    public scalableGame: ScalableGame2 = null;
-    public rumble: RumbleManager = null;
+    public appGameContainer: AppGameContainer | null = null;
+    public appletGameContainer: AppletGameContainer2 | null = null;
+    public scalableGame: ScalableGame2 | null = null;
+    public rumble: RumbleManager | null = null;
     private nextFrameTime: number = 0;
-    private loadedSegments: StageSegment[][] = null;
-    private stageSegments: StageSegment[] = null;
-    private stageSegment: StageSegment = null;
-    private checkpoint: Checkpoint = null;
-    public map: number[][] = null;
-    public walls: number[][] = null;
+    private loadedSegments: StageSegment[][] | null = null;
+    private stageSegments: StageSegment[] | null = null;
+    private stageSegment: StageSegment | null = null;
+    private checkpoint: Checkpoint | null = null;
+    public map: number[][] | null = null;
+    public walls: number[][] | null = null;
     public regionThingStack: ThingStack = new ThingStack();
     public regionStackSwap: ThingStack = new ThingStack();
     public weaponsStack: ThingStack = new ThingStack();
     public weaponsStackSwap: ThingStack = new ThingStack();
-    public platforms: Thing[] = null;
+    public platforms: Array<Thing | null> | null = null;
     public mapWidth: number = 0;
     public fadeState: number = Main.FADE_IN;
     public fade: number = 22;
     public fadeReason: number = 0;
-    public simon: Simon = null;
+    public simon: Simon | null = null;
     public score: number = 0;
     public time: number = 999;
     public timeIncrementor: number = 0;
@@ -344,11 +344,11 @@ export class Main extends BasicGame {
     private demoKeyRecordings: number[][] = make2D<number>(3, 2730, () => 0);
     private endingKeyRecordings: number[][] = make2D<number>(12, 728, () => 0);
     private titleTimeout: number = 0;
-    private titleBatAngle: number = 0;
-    private titleBatX: number = 0;
-    private titleBatY: number = 0;
-    private titleBatScale: number = 10;
-    private titleBatXRadius: number = 0;
+    private titleBatAngle: number = javaFloat(0);
+    private titleBatX: number = javaFloat(0);
+    private titleBatY: number = javaFloat(0);
+    private titleBatScale: number = javaFloat(10);
+    private titleBatXRadius: number = javaFloat(0);
     private titleBatSpriteIndex: number = 0;
     private titleBatSpriteIndexIncrementor: number = 0;
     private titleBatSteps: number = 0;
@@ -365,16 +365,16 @@ export class Main extends BasicGame {
     public introWalkSpriteIndexIncrementor: number = 0;
     public introWalkSpriteIndex: number = 0;
     public introSimonX: number = 512;
-    public introCloudsX: number = 500;
+    public introCloudsX: number = javaFloat(500);
     public introTime: number = 728;
-    public gateBatX1: number = 0;
-    public gateBatY1: number = 0;
-    public gateBatX2: number = 0;
-    public gateBatY2: number = 0;
+    public gateBatX1: number = javaFloat(0);
+    public gateBatY1: number = javaFloat(0);
+    public gateBatX2: number = javaFloat(0);
+    public gateBatY2: number = javaFloat(0);
     public gateBatSpriteIndex: number = 0;
     public gateBatSpriteIndexIncrementor: number = 0;
-    private castleFallX: number = 0;
-    private castleFallY: number = 0;
+    private castleFallX: number = javaFloat(0);
+    private castleFallY: number = javaFloat(0);
     private castleFallSparkCount: number = 0;
     private castleFallSparkVisible: boolean = false;
     private castleFallSparkX: number = 0;
@@ -383,163 +383,163 @@ export class Main extends BasicGame {
     private castleFallDelay: number = 0;
     private castleCrumbleRumbleTicks: number = 0;
     public continueSelected: boolean = true;
-    public door: Door = null;
+    public door: Door | null = null;
     public oldThingStack: ThingStack = new ThingStack();
-    public blocks: Image[] = makeArray<Image>(20, () => null);
-    public symbols: Image[] = makeArray<Image>(256, () => null);
-    public power: Image[] = makeArray<Image>(2, () => null);
-    public simonWalking: Image[][] = make2D<Image>(2, 3, () => null);
-    public simonOnStairsUp: Image[] = makeArray<Image>(2, () => null);
-    public simonOnStairsDown: Image[] = makeArray<Image>(2, () => null);
-    public simonKneeling: Image[] = makeArray<Image>(2, () => null);
-    public simonWhipping: Image[][] = make2D<Image>(2, 3, () => null);
-    public simonKneelWhipping: Image[][] = make2D<Image>(2, 3, () => null);
-    public simonUpWhipping: Image[][] = make2D<Image>(2, 3, () => null);
-    public simonDownWhipping: Image[][] = make2D<Image>(2, 3, () => null);
-    public simonHurt: Image[] = makeArray<Image>(2, () => null);
-    public simonDead: Image[] = makeArray<Image>(2, () => null);
-    public whips: Image[][][] = make3D<Image>(2, 3, 3, () => null);
-    public dropItems: Image[] = makeArray<Image>(17, () => null);
-    public candles: Image[] = makeArray<Image>(2, () => null);
-    public itemPoints: Image[] = makeArray<Image>(5, () => null);
-    public fires: Image[] = makeArray<Image>(5, () => null);
-    public doors: Image[][] = make2D<Image>(2, 3, () => null);
-    public daggers: Image[] = makeArray<Image>(2, () => null);
-    public holyWaters: Image[] = makeArray<Image>(2, () => null);
-    public zombies: Image[][] = make2D<Image>(2, 2, () => null);
-    public bats: Image[][] = make2D<Image>(2, 4, () => null);
-    public dogs: Image[][] = make2D<Image>(2, 4, () => null);
-    public mermen: Image[][] = make2D<Image>(2, 3, () => null);
-    public fireballs: Image[] = makeArray<Image>(2, () => null);
-    public batBoss: Image[] = makeArray<Image>(3, () => null);
-    public lanceKnight: Image[][] = make2D<Image>(2, 3, () => null);
-    public medusaHeads: Image[][] = make2D<Image>(2, 2, () => null);
-    public bonePillars: Image[] = makeArray<Image>(2, () => null);
-    public ghosts: Image[][] = make2D<Image>(2, 2, () => null);
-    public medusaBoss: Image[] = makeArray<Image>(2, () => null);
-    public snakes: Image[][] = make2D<Image>(2, 2, () => null);
-    public igors: Image[][] = make2D<Image>(2, 2, () => null);
-    public skeletons: Image[][] = make2D<Image>(2, 2, () => null);
-    public crumble: Image[] = makeArray<Image>(2, () => null);
-    public ravens: Image[][] = make2D<Image>(2, 4, () => null);
-    public mummyBoss: Image[][] = make2D<Image>(2, 3, () => null);
-    public wrappings: Image[][] = make2D<Image>(2, 2, () => null);
-    public birds: Image[][] = make2D<Image>(2, 2, () => null);
-    public boneDragons: Image[] = makeArray<Image>(3, () => null);
-    public axeKnights: Image[][] = make2D<Image>(2, 2, () => null);
-    public grimReaperBoss: Image[] = makeArray<Image>(2, () => null);
-    public draculaBoss: Image[][] = make2D<Image>(2, 7, () => null);
-    public frankensteinBoss: Image[][] = make2D<Image>(2, 3, () => null);
-    public titleImage: Image = null;
-    public titleBats: Image[] = makeArray<Image>(3, () => null);
-    public gateBats: Image[] = makeArray<Image>(2, () => null);
-    public gates: Image = null;
-    public clouds: Image = null;
-    public castleMaps: Image[] = makeArray<Image>(2, () => null);
-    public castleBottom: Image = null;
-    public castleTop: Image = null;
-    public castleTrees: Image = null;
-    public axe: Image = null;
-    public boomerang: Image = null;
-    public weaponBorder: Image = null;
-    public smallHeart: Image = null;
-    public spark: Image = null;
-    public brickFragment: Image = null;
-    public torch: Image = null;
-    public droplets: Image = null;
-    public orb: Image = null;
-    public platform: Image = null;
-    public spikes: Image = null;
-    public bone: Image = null;
-    public sickle: Image = null;
-    public simonBack: Image = null;
-    public blank_32: Image = null;
-    public boss_1: Song = null;
-    public boss_2: Song = null;
-    public ending: Song = null;
-    public game_over: Music = null;
-    public map_1: Music = null;
-    public map_2: Music = null;
-    public map_3: Music = null;
-    public map_4: Music = null;
-    public prologue: Music = null;
-    public simon_killed: Music = null;
-    public stage_1_1: Song = null;
-    public stage_1_2: Song = null;
-    public stage_2_1: Song = null;
-    public stage_3_1: Song = null;
-    public stage_4_1: Song = null;
-    public stage_4_2: Song = null;
-    public stage_5_1: Song = null;
-    public stage_6_1: Song = null;
-    public stage_6_2: Song = null;
-    public stage_cleared: Music = null;
-    public dracula_dead: Music = null;
-    public advance_whip: Sound = null;
-    public bat_killed: Sound = null;
-    public bleep: Sound = null;
-    public boss_hurt: Sound = null;
-    public boss_killed_1: Sound = null;
-    public boss_killed_2: Sound = null;
-    public boss_killed_3: Sound = null;
-    public breaks_wall: Sound = null;
-    public crumble_sfx: Sound = null;
-    public dog_killed: Sound = null;
-    public door_opens_1: Sound = null;
-    public door_opens_2: Sound = null;
-    public gain_potion: Sound = null;
-    public got_money: Sound = null;
-    public heartbeat: Sound = null;
-    public hit_candle: Sound = null;
-    public killed_1: Sound = null;
-    public killed_2: Sound = null;
-    public killed_3: Sound = null;
-    public killed_4: Sound = null;
-    public killed_5: Sound = null;
-    public lose_potion: Sound = null;
-    public merman_spit: Sound = null;
-    public one_up: Sound = null;
-    public pressed_enter: Sound = null;
-    public simon_hurt: Sound = null;
-    public splash: Sound = null;
-    public torch_breaks: Sound = null;
-    public whip_1: Sound = null;
-    public whip_2: Sound = null;
-    public wing_flaps: Sound = null;
-    public zombie_killed: Sound = null;
-    public got_double: Sound = null;
-    public kill_all_sfx: Sound = null;
-    public simon_in_pit: Sound = null;
-    public threw_dagger: Sound = null;
-    public got_weapon: Sound = null;
-    public used_holy_water: Sound = null;
-    public spinning: Sound = null;
-    public raven_killed: Sound = null;
-    public ching: Sound = null;
-    public snuffed: Sound = null;
-    public medusa_head_killed: Sound = null;
-    public stunned: Sound = null;
-    public watch_tick: Sound = null;
-    public twang: Sound = null;
-    public large_bat_killed: Sound = null;
-    public thunder: Sound = null;
-    public fire_ball_shot: Sound = null;
-    public dracula_to_bats: Sound = null;
-    public lands: Sound = null;
-    public currentSong: Song = null;
-    public requestedSong: Song = null;
-    public currentMusic: Music = null;
-    public loadingCompleteHandler: (gc: GameContainer) => boolean = null;
-    public windowedDisplayModeProvider: () => { width: number; height: number } = null;
-    public browserFullscreenController: BrowserFullscreenController = null;
+    public blocks: Image[] = makeArray<Image>(20, () => null!);
+    public symbols: Image[] = makeArray<Image>(256, () => null!);
+    public power: Image[] = makeArray<Image>(2, () => null!);
+    public simonWalking: Image[][] = make2D<Image>(2, 3, () => null!);
+    public simonOnStairsUp: Image[] = makeArray<Image>(2, () => null!);
+    public simonOnStairsDown: Image[] = makeArray<Image>(2, () => null!);
+    public simonKneeling: Image[] = makeArray<Image>(2, () => null!);
+    public simonWhipping: Image[][] = make2D<Image>(2, 3, () => null!);
+    public simonKneelWhipping: Image[][] = make2D<Image>(2, 3, () => null!);
+    public simonUpWhipping: Image[][] = make2D<Image>(2, 3, () => null!);
+    public simonDownWhipping: Image[][] = make2D<Image>(2, 3, () => null!);
+    public simonHurt: Image[] = makeArray<Image>(2, () => null!);
+    public simonDead: Image[] = makeArray<Image>(2, () => null!);
+    public whips: Image[][][] = make3D<Image>(2, 3, 3, () => null!);
+    public dropItems: Image[] = makeArray<Image>(17, () => null!);
+    public candles: Image[] = makeArray<Image>(2, () => null!);
+    public itemPoints: Image[] = makeArray<Image>(5, () => null!);
+    public fires: Image[] = makeArray<Image>(5, () => null!);
+    public doors: Image[][] = make2D<Image>(2, 3, () => null!);
+    public daggers: Image[] = makeArray<Image>(2, () => null!);
+    public holyWaters: Image[] = makeArray<Image>(2, () => null!);
+    public zombies: Image[][] = make2D<Image>(2, 2, () => null!);
+    public bats: Image[][] = make2D<Image>(2, 4, () => null!);
+    public dogs: Image[][] = make2D<Image>(2, 4, () => null!);
+    public mermen: Image[][] = make2D<Image>(2, 3, () => null!);
+    public fireballs: Image[] = makeArray<Image>(2, () => null!);
+    public batBoss: Image[] = makeArray<Image>(3, () => null!);
+    public lanceKnight: Image[][] = make2D<Image>(2, 3, () => null!);
+    public medusaHeads: Image[][] = make2D<Image>(2, 2, () => null!);
+    public bonePillars: Image[] = makeArray<Image>(2, () => null!);
+    public ghosts: Image[][] = make2D<Image>(2, 2, () => null!);
+    public medusaBoss: Image[] = makeArray<Image>(2, () => null!);
+    public snakes: Image[][] = make2D<Image>(2, 2, () => null!);
+    public igors: Image[][] = make2D<Image>(2, 2, () => null!);
+    public skeletons: Image[][] = make2D<Image>(2, 2, () => null!);
+    public crumble: Image[] = makeArray<Image>(2, () => null!);
+    public ravens: Image[][] = make2D<Image>(2, 4, () => null!);
+    public mummyBoss: Image[][] = make2D<Image>(2, 3, () => null!);
+    public wrappings: Image[][] = make2D<Image>(2, 2, () => null!);
+    public birds: Image[][] = make2D<Image>(2, 2, () => null!);
+    public boneDragons: Image[] = makeArray<Image>(3, () => null!);
+    public axeKnights: Image[][] = make2D<Image>(2, 2, () => null!);
+    public grimReaperBoss: Image[] = makeArray<Image>(2, () => null!);
+    public draculaBoss: Image[][] = make2D<Image>(2, 7, () => null!);
+    public frankensteinBoss: Image[][] = make2D<Image>(2, 3, () => null!);
+    public titleImage: Image = null!;
+    public titleBats: Image[] = makeArray<Image>(3, () => null!);
+    public gateBats: Image[] = makeArray<Image>(2, () => null!);
+    public gates: Image = null!;
+    public clouds: Image = null!;
+    public castleMaps: Image[] = makeArray<Image>(2, () => null!);
+    public castleBottom: Image = null!;
+    public castleTop: Image = null!;
+    public castleTrees: Image = null!;
+    public axe: Image = null!;
+    public boomerang: Image = null!;
+    public weaponBorder: Image = null!;
+    public smallHeart: Image = null!;
+    public spark: Image = null!;
+    public brickFragment: Image = null!;
+    public torch: Image = null!;
+    public droplets: Image = null!;
+    public orb: Image = null!;
+    public platform: Image = null!;
+    public spikes: Image = null!;
+    public bone: Image = null!;
+    public sickle: Image = null!;
+    public simonBack: Image = null!;
+    public blank_32: Image = null!;
+    public boss_1: Song = null!;
+    public boss_2: Song = null!;
+    public ending: Song = null!;
+    public game_over: Music = null!;
+    public map_1: Music = null!;
+    public map_2: Music = null!;
+    public map_3: Music = null!;
+    public map_4: Music = null!;
+    public prologue: Music = null!;
+    public simon_killed: Music = null!;
+    public stage_1_1: Song = null!;
+    public stage_1_2: Song = null!;
+    public stage_2_1: Song = null!;
+    public stage_3_1: Song = null!;
+    public stage_4_1: Song = null!;
+    public stage_4_2: Song = null!;
+    public stage_5_1: Song = null!;
+    public stage_6_1: Song = null!;
+    public stage_6_2: Song = null!;
+    public stage_cleared: Music = null!;
+    public dracula_dead: Music = null!;
+    public advance_whip: Sound = null!;
+    public bat_killed: Sound = null!;
+    public bleep: Sound = null!;
+    public boss_hurt: Sound = null!;
+    public boss_killed_1: Sound = null!;
+    public boss_killed_2: Sound = null!;
+    public boss_killed_3: Sound = null!;
+    public breaks_wall: Sound = null!;
+    public crumble_sfx: Sound = null!;
+    public dog_killed: Sound = null!;
+    public door_opens_1: Sound = null!;
+    public door_opens_2: Sound = null!;
+    public gain_potion: Sound = null!;
+    public got_money: Sound = null!;
+    public heartbeat: Sound = null!;
+    public hit_candle: Sound = null!;
+    public killed_1: Sound = null!;
+    public killed_2: Sound = null!;
+    public killed_3: Sound = null!;
+    public killed_4: Sound = null!;
+    public killed_5: Sound = null!;
+    public lose_potion: Sound = null!;
+    public merman_spit: Sound = null!;
+    public one_up: Sound = null!;
+    public pressed_enter: Sound = null!;
+    public simon_hurt: Sound = null!;
+    public splash: Sound = null!;
+    public torch_breaks: Sound = null!;
+    public whip_1: Sound = null!;
+    public whip_2: Sound = null!;
+    public wing_flaps: Sound = null!;
+    public zombie_killed: Sound = null!;
+    public got_double: Sound = null!;
+    public kill_all_sfx: Sound = null!;
+    public simon_in_pit: Sound = null!;
+    public threw_dagger: Sound = null!;
+    public got_weapon: Sound = null!;
+    public used_holy_water: Sound = null!;
+    public spinning: Sound = null!;
+    public raven_killed: Sound = null!;
+    public ching: Sound = null!;
+    public snuffed: Sound = null!;
+    public medusa_head_killed: Sound = null!;
+    public stunned: Sound = null!;
+    public watch_tick: Sound = null!;
+    public twang: Sound = null!;
+    public large_bat_killed: Sound = null!;
+    public thunder: Sound = null!;
+    public fire_ball_shot: Sound = null!;
+    public dracula_to_bats: Sound = null!;
+    public lands: Sound = null!;
+    public currentSong: Song | null = null;
+    public requestedSong: Song | null = null;
+    public currentMusic: Music | null = null;
+    public loadingCompleteHandler: ((gc: GameContainer) => boolean) | null = null;
+    public windowedDisplayModeProvider: (() => { width: number; height: number }) | null = null;
+    public browserFullscreenController: BrowserFullscreenController | null = null;
     private browserSuspended: boolean = false;
     private browserSuspendedMusicOn: boolean = true;
     private browserSuspendedSoundOn: boolean = true;
-    private input: Input = null;
+    private input: Input | null = null;
     public buttonMapping: ButtonMapping = ButtonMapping.load();
     public difficulty: number = Main.loadDifficulty();
-    public controlInput: StickvaniaInput = null;
-    private inputConfigMode: InputConfigMode = null;
+    public controlInput: StickvaniaInput | null = null;
+    private inputConfigMode: InputConfigMode | null = null;
     private recordingIndex: number = 0;
     public constructor() {
         super("Stickvania");
@@ -568,7 +568,7 @@ export class Main extends BasicGame {
         } catch {}
     }
 
-    public init(gc: GameContainer): void {
+    public override init(gc: GameContainer): void {
         try {
             for (const displayMode of Display.getAvailableDisplayModes()) {
                 if (
@@ -926,32 +926,32 @@ export class Main extends BasicGame {
 
         this.loadedSegments = makeArray<StageSegment[]>(6, () => []);
 
-        this.loadedSegments[0] = makeArray<StageSegment>(2, () => null);
+        this.loadedSegments[0] = makeArray<StageSegment>(2, () => null!);
         this.loadStageSegment(0, 0);
         this.loadStageSegment(0, 1);
 
-        this.loadedSegments[1] = makeArray<StageSegment>(4, () => null);
+        this.loadedSegments[1] = makeArray<StageSegment>(4, () => null!);
         this.loadStageSegment(1, 0);
         this.loadStageSegment(1, 1);
         this.loadStageSegment(1, 2);
         this.loadStageSegment(1, 3);
 
-        this.loadedSegments[2] = makeArray<StageSegment>(3, () => null);
+        this.loadedSegments[2] = makeArray<StageSegment>(3, () => null!);
         this.loadStageSegment(2, 0);
         this.loadStageSegment(2, 1);
         this.loadStageSegment(2, 2);
 
-        this.loadedSegments[3] = makeArray<StageSegment>(2, () => null);
+        this.loadedSegments[3] = makeArray<StageSegment>(2, () => null!);
         this.loadStageSegment(3, 0);
         this.loadStageSegment(3, 1);
 
-        this.loadedSegments[4] = makeArray<StageSegment>(4, () => null);
+        this.loadedSegments[4] = makeArray<StageSegment>(4, () => null!);
         this.loadStageSegment(4, 0);
         this.loadStageSegment(4, 1);
         this.loadStageSegment(4, 2);
         this.loadStageSegment(4, 3);
 
-        this.loadedSegments[5] = makeArray<StageSegment>(3, () => null);
+        this.loadedSegments[5] = makeArray<StageSegment>(3, () => null!);
         this.loadStageSegment(5, 0);
         this.loadStageSegment(5, 1);
         this.loadStageSegment(5, 2);
@@ -1051,7 +1051,7 @@ export class Main extends BasicGame {
         };
     }
 
-    public update(gc: GameContainer, delta: number): void {
+    public override update(gc: GameContainer, delta: number): void {
         if (this.browserSuspended) {
             this.nextFrameTime = Sys.getTime();
             return;
@@ -1075,52 +1075,52 @@ export class Main extends BasicGame {
             }
             this.currentSong = this.requestedSong;
             this.currentMusic = null;
-            this.currentSong.play();
+            this.currentSong!.play();
         }
         if (this.currentSong != null) {
             this.currentSong.update();
         }
 
         const browserFullscreen = this.browserFullscreenController != null && this.browserFullscreenController.isFullscreen();
-        if (this.input.isKeyPressed(Input.KEY_SPACE)) {
+        if (this.input!.isKeyPressed(Input.KEY_SPACE)) {
             if (browserFullscreen) {
                 this.showMouseCursor();
-                this.browserFullscreenController.exitFullscreen();
+                this.browserFullscreenController!.exitFullscreen();
             } else if (gc.isFullscreen()) {
                 this.showMouseCursor();
                 if (this.appGameContainer == null) {
-                    this.appletGameContainer.getContainer().setFullscreen(false);
+                    this.appletGameContainer!.getContainer().setFullscreen(false);
                 } else {
                     const displayMode = this.getWindowedDisplayMode();
                     this.appGameContainer.setDisplayMode(displayMode.width, displayMode.height, false);
-                    this.scalableGame.containerSizeChanged(gc);
+                    this.scalableGame!.containerSizeChanged(gc);
                 }
             } else {
                 this.hideMouseCursor();
                 if (this.browserFullscreenController != null) {
                     this.browserFullscreenController.enterFullscreen();
                 } else if (this.appGameContainer == null) {
-                    this.appletGameContainer.getContainer().setFullscreen(true);
+                    this.appletGameContainer!.getContainer().setFullscreen(true);
                 } else {
                     this.appGameContainer.setDisplayMode(this.maxWidth, this.maxHeight, true);
-                    this.scalableGame.containerSizeChanged(gc);
+                    this.scalableGame!.containerSizeChanged(gc);
                 }
             }
             this.nextFrameTime = Sys.getTime();
-        } else if ((browserFullscreen || gc.isFullscreen()) && this.input.isKeyPressed(Input.KEY_ESCAPE)) {
+        } else if ((browserFullscreen || gc.isFullscreen()) && this.input!.isKeyPressed(Input.KEY_ESCAPE)) {
             this.showMouseCursor();
             if (browserFullscreen) {
-                this.browserFullscreenController.exitFullscreen();
+                this.browserFullscreenController!.exitFullscreen();
             } else if (this.appGameContainer == null) {
-                this.appletGameContainer.getContainer().setFullscreen(false);
+                this.appletGameContainer!.getContainer().setFullscreen(false);
             } else {
                 const displayMode = this.getWindowedDisplayMode();
                 this.appGameContainer.setDisplayMode(displayMode.width, displayMode.height, false);
-                this.scalableGame.containerSizeChanged(gc);
+                this.scalableGame!.containerSizeChanged(gc);
             }
             this.nextFrameTime = Sys.getTime();
         }
-        this.controlInput.update();
+        this.controlInput!.update();
 
         if (this.fadeState == Main.FADE_IN) {
             if (this.fade == 0) {
@@ -1240,7 +1240,7 @@ export class Main extends BasicGame {
             return;
         }
 
-        if (this.simon.dead > 473) {
+        if (this.simon!.dead > 473) {
             this.fadeState = Main.FADE_OUT;
             if (this.players == 0) {
                 this.fadeReason = Main.FADE_REASON_SHOW_CONTINUE_SCREEN;
@@ -1250,8 +1250,8 @@ export class Main extends BasicGame {
             return;
         }
 
-        if (this.simon.flashing > 0) {
-            this.simon.flashing--;
+        if (this.simon!.flashing > 0) {
+            this.simon!.flashing--;
             this.flashSimon();
             return;
         }
@@ -1283,13 +1283,13 @@ export class Main extends BasicGame {
 
         if (this.killAllFlag) {
             this.killAllFlag = false;
-            let things: Thing[] = this.regionThingStack.things;
+            const things = this.regionThingStack.things;
             for (let i: number = this.regionThingStack.top; i >= 0; i--) {
-                things[i].kill = true;
+                things[i]!.kill = true;
             }
         }
 
-        let thing: Thing = null;
+        let thing: Thing | null = null;
         while ((thing = this.regionThingStack.pop()) != null) {
             if (thing.update(gc)) {
                 this.regionStackSwap.push(thing);
@@ -1308,37 +1308,40 @@ export class Main extends BasicGame {
         this.weaponsStack = this.weaponsStackSwap;
         this.weaponsStackSwap = tempThingStack;
 
-        for (let i: number = this.platforms.length - 1; i >= 0; i--) {
-            this.platforms[i].update(gc);
+        for (let i: number = this.platforms!.length - 1; i >= 0; i--) {
+            this.platforms![i]!.update(gc);
         }
 
-        if (this.door != null) {
+        // updateSimon() can enter a door after the earlier null check. A local
+        // explicitly widens the property again after that side-effecting call.
+        const enteredDoor = this.door as Door | null;
+        if (enteredDoor != null) {
             this.oldThingStack.clear();
             this.oldThingStack.addAll(this.regionThingStack);
 
-            this.door.state = Door.STATE_SCROLL_1;
-            if (this.door.direction == Main.RIGHT) {
-                this.door.doorScroll1 = trunc(this.door.x) - 264;
-                this.door.doorScroll2 = trunc(this.door.x) + 24;
+            enteredDoor.state = Door.STATE_SCROLL_1;
+            if (enteredDoor.direction == Main.RIGHT) {
+                enteredDoor.doorScroll1 = trunc(enteredDoor.x) - 264;
+                enteredDoor.doorScroll2 = trunc(enteredDoor.x) + 24;
             } else {
-                this.door.doorScroll1 = trunc(this.door.x) - 256;
-                this.door.doorScroll2 = trunc(this.door.x) - 521;
+                enteredDoor.doorScroll1 = trunc(enteredDoor.x) - 256;
+                enteredDoor.doorScroll2 = trunc(enteredDoor.x) - 521;
             }
 
-            let thingStack: ThingStack = this.stageSegment.regions[this.stageSegment.regionIndex].thingStack;
+            let thingStack: ThingStack = this.stageSegment!.regions[this.stageSegment!.regionIndex].thingStack;
             thingStack.clear();
             thingStack.addAll(this.regionThingStack);
 
-            if (this.door.direction == Main.RIGHT) {
-                this.stageSegment.regionIndex++;
+            if (enteredDoor.direction == Main.RIGHT) {
+                this.stageSegment!.regionIndex++;
             } else {
-                this.stageSegment.regionIndex--;
+                this.stageSegment!.regionIndex--;
             }
-            let region: Region = this.stageSegment.regions[this.stageSegment.regionIndex];
+            let region: Region = this.stageSegment!.regions[this.stageSegment!.regionIndex];
             this.requestedSong = region.checkpoint.song;
             this.stage = region.stageNumber;
-            this.simon.xMin = region.min;
-            this.simon.xMax = region.max;
+            this.simon!.xMin = region.min;
+            this.simon!.xMax = region.max;
             this.regionThingStack.clear();
             this.regionThingStack.addAll(region.thingStack);
             this.weaponsStack.clear();
@@ -1348,18 +1351,18 @@ export class Main extends BasicGame {
     }
 
     private updateSimon(gc: GameContainer): void {
-        if (this.simon.invincible > 0) {
-            if (this.simon.invincible > 705) {
-                this.setSimonAlpha(0.25 + (this.simon.invincible - 705) * Main.INVINCIBLE_FRACTION);
-            } else if (this.simon.drankPotion && this.simon.invincible == 23) {
-                this.simon.drankPotion = false;
+        if (this.simon!.invincible > 0) {
+            if (this.simon!.invincible > 705) {
+                this.setSimonAlpha(javaFloat(0.25 + javaFloat((this.simon!.invincible - 705) * Main.INVINCIBLE_FRACTION)));
+            } else if (this.simon!.drankPotion && this.simon!.invincible == 23) {
+                this.simon!.drankPotion = false;
                 this.playSound(this.lose_potion);
-            } else if (this.simon.invincible < 23) {
-                this.setSimonAlpha(0.25 + (23 - this.simon.invincible) * Main.INVINCIBLE_FRACTION);
+            } else if (this.simon!.invincible < 23) {
+                this.setSimonAlpha(javaFloat(0.25 + javaFloat((23 - this.simon!.invincible) * Main.INVINCIBLE_FRACTION)));
             }
 
-            this.simon.invincible--;
-            if (this.simon.invincible == 0) {
+            this.simon!.invincible--;
+            if (this.simon!.invincible == 0) {
                 this.setSimonAlpha(1);
             }
         }
@@ -1367,39 +1370,39 @@ export class Main extends BasicGame {
         let handledUp: boolean = false;
         let handledDown: boolean = false;
 
-        this.simon.lastX = this.simon.x;
-        this.simon.lastY = this.simon.y;
+        this.simon!.lastX = javaFloat(this.simon!.x);
+        this.simon!.lastY = javaFloat(this.simon!.y);
 
-        if (this.simon.y > 416) {
+        if (this.simon!.y > 416) {
             if (!this.floorBreaking) {
                 if (this.playerPower > 0) {
                     this.playSound(this.simon_in_pit);
                     this.requestMusic(this.simon_killed);
                 }
                 this.playerPower = 0;
-                this.simon.dead++;
+                this.simon!.dead++;
             }
             return;
         }
 
-        if (this.simon.hurt) {
-            this.simon.update(gc);
+        if (this.simon!.hurt) {
+            this.simon!.update(gc);
             return;
         }
 
-        let keyDownUp: boolean = this.controlInput.isUp();
-        let keyDownDown: boolean = this.controlInput.isDown();
-        let keyDownLeft: boolean = this.controlInput.isLeft();
-        let keyDownRight: boolean = this.controlInput.isRight();
-        let keyDownJump: boolean = this.controlInput.isJump();
-        const keyDownAttack: boolean = this.controlInput.isAttack();
+        let keyDownUp: boolean = this.controlInput!.isUp();
+        let keyDownDown: boolean = this.controlInput!.isDown();
+        let keyDownLeft: boolean = this.controlInput!.isLeft();
+        let keyDownRight: boolean = this.controlInput!.isRight();
+        let keyDownJump: boolean = this.controlInput!.isJump();
+        const keyDownAttack: boolean = this.controlInput!.isAttack();
         const wantsSubWeapon: boolean = keyDownAttack && keyDownUp;
         let keyDownSubWeapon: boolean = wantsSubWeapon && this.canUseSubWeapon();
         let keyDownWhip: boolean = keyDownAttack && (!wantsSubWeapon || !keyDownSubWeapon);
 
         if (this.mode == Main.MODE_DEMO || this.mode == Main.MODE_CREDITS) {
             if (this.mode == Main.MODE_DEMO) {
-                if (this.recordingIndex == 2730 || this.controlInput.isAnyNonDirectionalPressed()) {
+                if (this.recordingIndex == 2730 || this.controlInput!.isAnyNonDirectionalPressed()) {
                     this.fadeState = Main.FADE_OUT;
                     this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
                     return;
@@ -1429,236 +1432,236 @@ export class Main extends BasicGame {
         }
 
         if (!keyDownWhip && !keyDownSubWeapon) {
-            this.simon.releasedWhip = true;
+            this.simon!.releasedWhip = true;
         }
-        if (this.simon.whipping) {
-            this.simon.whipIncrementor++;
-            if (this.simon.whipIncrementor == 10) {
-                this.simon.whipIndex = 1;
-            } else if (this.simon.whipIncrementor == 20) {
-                this.simon.whipIndex = 2;
-                if (this.simon.throwing) {
+        if (this.simon!.whipping) {
+            this.simon!.whipIncrementor++;
+            if (this.simon!.whipIncrementor == 10) {
+                this.simon!.whipIndex = 1;
+            } else if (this.simon!.whipIncrementor == 20) {
+                this.simon!.whipIndex = 2;
+                if (this.simon!.throwing) {
                     this.throwWeapon();
                 }
-            } else if (this.simon.whipIncrementor == 45) {
-                this.simon.whipping = false;
-                this.simon.throwing = false;
+            } else if (this.simon!.whipIncrementor == 45) {
+                this.simon!.whipping = false;
+                this.simon!.throwing = false;
             }
-        } else if (this.simon.releasedWhip) {
+        } else if (this.simon!.releasedWhip) {
             if (keyDownWhip) {
-                if (this.simon.whipType == 0) {
+                if (this.simon!.whipType == 0) {
                     this.playSound(this.whip_1);
                 } else {
                     this.playSound(this.whip_2);
                 }
-                this.simon.whipping = true;
-                this.simon.whipIncrementor = 0;
-                this.simon.whipIndex = 0;
-                this.simon.releasedWhip = false;
+                this.simon!.whipping = true;
+                this.simon!.whipIncrementor = 0;
+                this.simon!.whipIndex = 0;
+                this.simon!.releasedWhip = false;
             } else if (keyDownSubWeapon && this.canUseSubWeapon()) {
-                this.simon.throwing = true;
-                this.simon.whipping = true;
-                this.simon.whipIncrementor = 0;
-                this.simon.whipIndex = 0;
-                this.simon.releasedWhip = false;
+                this.simon!.throwing = true;
+                this.simon!.whipping = true;
+                this.simon!.whipIncrementor = 0;
+                this.simon!.whipIndex = 0;
+                this.simon!.releasedWhip = false;
             }
         }
 
-        if (this.simon.onStairs) {
-            if (this.simon.y <= -62 || this.simon.y >= 285) {
+        if (this.simon!.onStairs) {
+            if (this.simon!.y <= -62 || this.simon!.y >= 285) {
                 this.fadeState = Main.FADE_OUT;
                 this.fadeReason = Main.FADE_REASON_STAIRS;
                 return;
             }
 
-            this.simon.releasedJump = false;
-            this.simon.releasedKneel = false;
-            if (!this.simon.whipping) {
-                if (keyDownUp || (this.simon.rightStairs && keyDownRight) || (!this.simon.rightStairs && keyDownLeft)) {
+            this.simon!.releasedJump = false;
+            this.simon!.releasedKneel = false;
+            if (!this.simon!.whipping) {
+                if (keyDownUp || (this.simon!.rightStairs && keyDownRight) || (!this.simon!.rightStairs && keyDownLeft)) {
                     handledUp = true;
-                    let tile: number = this.getTile(trunc(this.simon.x) + 31, trunc(this.simon.y) + 63);
+                    let tile: number = this.getTile(trunc(this.simon!.x) + 31, trunc(this.simon!.y) + 63);
                     if (tile == Main.BLOCK_STAIRS_RIGHT || tile == Main.BLOCK_STAIRS_RIGHT_CAPPED) {
-                        this.simon.y--;
-                        this.simon.x++;
-                        this.simon.up = true;
-                        this.simon.direction = Main.RIGHT;
+                        this.simon!.y = javaFloat(this.simon!.y - 1);
+                        this.simon!.x = javaFloat(this.simon!.x + 1);
+                        this.simon!.up = true;
+                        this.simon!.direction = Main.RIGHT;
                     } else if (tile == Main.BLOCK_STAIRS_LEFT || tile == Main.BLOCK_STAIRS_LEFT_CAPPED) {
-                        this.simon.y--;
-                        this.simon.x--;
-                        this.simon.up = true;
-                        this.simon.direction = Main.LEFT;
+                        this.simon!.y = javaFloat(this.simon!.y - 1);
+                        this.simon!.x = javaFloat(this.simon!.x - 1);
+                        this.simon!.up = true;
+                        this.simon!.direction = Main.LEFT;
                     } else {
-                        this.simon.onStairs = false;
-                        this.simon.walkSpriteIndex = 0;
+                        this.simon!.onStairs = false;
+                        this.simon!.walkSpriteIndex = 0;
                     }
-                } else if (keyDownDown || (!this.simon.rightStairs && keyDownRight) || (this.simon.rightStairs && keyDownLeft)) {
+                } else if (keyDownDown || (!this.simon!.rightStairs && keyDownRight) || (this.simon!.rightStairs && keyDownLeft)) {
                     handledDown = true;
-                    let tile: number = this.getTile(trunc(this.simon.x) + 31, trunc(this.simon.y) + 63);
+                    let tile: number = this.getTile(trunc(this.simon!.x) + 31, trunc(this.simon!.y) + 63);
                     if (tile == Main.BLOCK_STAIRS_RIGHT || tile == Main.BLOCK_STAIRS_RIGHT_CAPPED) {
-                        tile = this.getTile(trunc(this.simon.x) + 30, trunc(this.simon.y) + 64);
+                        tile = this.getTile(trunc(this.simon!.x) + 30, trunc(this.simon!.y) + 64);
                         if (tile != Main.BLOCK_STAIRS_RIGHT && tile != Main.BLOCK_STAIRS_RIGHT_CAPPED) {
-                            this.simon.onStairs = false;
-                            this.simon.walkSpriteIndex = 0;
+                            this.simon!.onStairs = false;
+                            this.simon!.walkSpriteIndex = 0;
                         } else {
-                            this.simon.y++;
-                            this.simon.x--;
-                            this.simon.up = false;
-                            this.simon.direction = Main.LEFT;
+                            this.simon!.y = javaFloat(this.simon!.y + 1);
+                            this.simon!.x = javaFloat(this.simon!.x - 1);
+                            this.simon!.up = false;
+                            this.simon!.direction = Main.LEFT;
                         }
                     } else if (tile == Main.BLOCK_STAIRS_LEFT || tile == Main.BLOCK_STAIRS_LEFT_CAPPED) {
-                        tile = this.getTile(trunc(this.simon.x) + 32, trunc(this.simon.y) + 64);
+                        tile = this.getTile(trunc(this.simon!.x) + 32, trunc(this.simon!.y) + 64);
                         if (tile != Main.BLOCK_STAIRS_LEFT && tile != Main.BLOCK_STAIRS_LEFT_CAPPED) {
-                            this.simon.onStairs = false;
-                            this.simon.walkSpriteIndex = 0;
+                            this.simon!.onStairs = false;
+                            this.simon!.walkSpriteIndex = 0;
                         } else {
-                            this.simon.y++;
-                            this.simon.x++;
-                            this.simon.up = false;
-                            this.simon.direction = Main.RIGHT;
+                            this.simon!.y = javaFloat(this.simon!.y + 1);
+                            this.simon!.x = javaFloat(this.simon!.x + 1);
+                            this.simon!.up = false;
+                            this.simon!.direction = Main.RIGHT;
                         }
                     } else {
-                        this.simon.onStairs = false;
-                        this.simon.walkSpriteIndex = 0;
+                        this.simon!.onStairs = false;
+                        this.simon!.walkSpriteIndex = 0;
                     }
                 }
             }
         }
 
-        if (this.simon.supported && !this.simon.onStairs && keyDownUp && !this.simon.whipping) {
-            let tile: number = this.getTile(trunc(this.simon.x) + 31, trunc(this.simon.y) + 63);
+        if (this.simon!.supported && !this.simon!.onStairs && keyDownUp && !this.simon!.whipping) {
+            let tile: number = this.getTile(trunc(this.simon!.x) + 31, trunc(this.simon!.y) + 63);
 
             if (tile == Main.BLOCK_STAIRS_RIGHT) {
-                this.simon.walkLeft();
+                this.simon!.walkLeft();
                 handledUp = true;
             }
-            tile = this.getTile(trunc(this.simon.x) + 63, trunc(this.simon.y) + 63);
+            tile = this.getTile(trunc(this.simon!.x) + 63, trunc(this.simon!.y) + 63);
             if (tile == Main.BLOCK_STAIRS_RIGHT) {
-                this.simon.walkRight();
+                this.simon!.walkRight();
                 handledUp = true;
-                if (Math.abs((((trunc(this.simon.x) + 31) >> 5) << 5) - (this.simon.x + 31)) <= 2) {
-                    this.simon.onStairs = true;
-                    this.simon.kneeling = false;
-                    this.simon.rightStairs = true;
-                    this.simon.y--;
-                    this.simon.up = true;
-                    this.simon.x = (((trunc(this.simon.x) + 31) >> 5) << 5) - 30;
+                if (Math.abs(javaFloat((((trunc(this.simon!.x) + 31) >> 5) << 5) - javaFloat(this.simon!.x + 31))) <= 2) {
+                    this.simon!.onStairs = true;
+                    this.simon!.kneeling = false;
+                    this.simon!.rightStairs = true;
+                    this.simon!.y = javaFloat(this.simon!.y - 1);
+                    this.simon!.up = true;
+                    this.simon!.x = javaFloat((((trunc(this.simon!.x) + 31) >> 5) << 5) - 30);
                 }
             }
 
-            tile = this.getTile(trunc(this.simon.x) + 31, trunc(this.simon.y) + 63);
+            tile = this.getTile(trunc(this.simon!.x) + 31, trunc(this.simon!.y) + 63);
             if (tile == Main.BLOCK_STAIRS_LEFT) {
-                this.simon.walkRight();
+                this.simon!.walkRight();
                 handledUp = true;
             }
-            tile = this.getTile(trunc(this.simon.x) + 1, trunc(this.simon.y) + 63);
+            tile = this.getTile(trunc(this.simon!.x) + 1, trunc(this.simon!.y) + 63);
             if (tile == Main.BLOCK_STAIRS_LEFT) {
-                if (Math.abs((((trunc(this.simon.x) + 1) >> 5) << 5) - this.simon.x) <= 2) {
-                    this.simon.onStairs = true;
-                    this.simon.kneeling = false;
-                    this.simon.rightStairs = false;
-                    this.simon.y--;
-                    this.simon.up = true;
-                    this.simon.x = (((trunc(this.simon.x) + 1) >> 5) << 5) - 1;
+                if (Math.abs(javaFloat((((trunc(this.simon!.x) + 1) >> 5) << 5) - this.simon!.x)) <= 2) {
+                    this.simon!.onStairs = true;
+                    this.simon!.kneeling = false;
+                    this.simon!.rightStairs = false;
+                    this.simon!.y = javaFloat(this.simon!.y - 1);
+                    this.simon!.up = true;
+                    this.simon!.x = javaFloat((((trunc(this.simon!.x) + 1) >> 5) << 5) - 1);
                 } else {
-                    this.simon.walkLeft();
+                    this.simon!.walkLeft();
                 }
                 handledUp = true;
             }
         }
 
-        if (this.simon.supported && !this.simon.onStairs && keyDownDown && !this.simon.whipping) {
-            let tile: number = this.getTile(trunc(this.simon.x) + 33, trunc(this.simon.y) + 64);
+        if (this.simon!.supported && !this.simon!.onStairs && keyDownDown && !this.simon!.whipping) {
+            let tile: number = this.getTile(trunc(this.simon!.x) + 33, trunc(this.simon!.y) + 64);
             if (tile == Main.BLOCK_STAIRS_RIGHT || tile == Main.BLOCK_STAIRS_RIGHT_CAPPED) {
-                this.simon.walkRight();
+                this.simon!.walkRight();
                 handledDown = true;
             }
-            tile = this.getTile(trunc(this.simon.x) + 1, trunc(this.simon.y) + 64);
+            tile = this.getTile(trunc(this.simon!.x) + 1, trunc(this.simon!.y) + 64);
             if (tile == Main.BLOCK_STAIRS_RIGHT || tile == Main.BLOCK_STAIRS_RIGHT_CAPPED) {
-                if (Math.abs((((trunc(this.simon.x) + 33) >> 5) << 5) - (this.simon.x + 31)) <= 2) {
-                    this.simon.onStairs = true;
-                    this.simon.kneeling = false;
-                    this.simon.rightStairs = true;
+                if (Math.abs(javaFloat((((trunc(this.simon!.x) + 33) >> 5) << 5) - javaFloat(this.simon!.x + 31))) <= 2) {
+                    this.simon!.onStairs = true;
+                    this.simon!.kneeling = false;
+                    this.simon!.rightStairs = true;
                     handledDown = true;
-                    this.simon.y++;
-                    this.simon.up = false;
-                    this.simon.x = (((trunc(this.simon.x) + 33) >> 5) << 5) - 32;
+                    this.simon!.y = javaFloat(this.simon!.y + 1);
+                    this.simon!.up = false;
+                    this.simon!.x = javaFloat((((trunc(this.simon!.x) + 33) >> 5) << 5) - 32);
                 } else {
-                    this.simon.walkLeft();
+                    this.simon!.walkLeft();
                 }
                 handledDown = true;
             }
 
-            tile = this.getTile(trunc(this.simon.x) + 63, trunc(this.simon.y) + 64);
+            tile = this.getTile(trunc(this.simon!.x) + 63, trunc(this.simon!.y) + 64);
             if (tile == Main.BLOCK_STAIRS_LEFT || tile == Main.BLOCK_STAIRS_LEFT_CAPPED) {
-                this.simon.walkRight();
+                this.simon!.walkRight();
                 handledDown = true;
             }
 
-            tile = this.getTile(trunc(this.simon.x) + 31, trunc(this.simon.y) + 64);
+            tile = this.getTile(trunc(this.simon!.x) + 31, trunc(this.simon!.y) + 64);
             if (tile == Main.BLOCK_STAIRS_LEFT || tile == Main.BLOCK_STAIRS_LEFT_CAPPED) {
-                if (Math.abs(((((trunc(this.simon.x) + 31) >> 5) - 1) << 5) - this.simon.x) <= 2) {
-                    this.simon.onStairs = true;
-                    this.simon.kneeling = false;
-                    this.simon.rightStairs = false;
+                if (Math.abs(javaFloat(((((trunc(this.simon!.x) + 31) >> 5) - 1) << 5) - this.simon!.x)) <= 2) {
+                    this.simon!.onStairs = true;
+                    this.simon!.kneeling = false;
+                    this.simon!.rightStairs = false;
                     handledDown = true;
-                    this.simon.y++;
-                    this.simon.up = false;
-                    this.simon.x = ((((trunc(this.simon.x) + 31) >> 5) - 1) << 5) + 1;
+                    this.simon!.y = javaFloat(this.simon!.y + 1);
+                    this.simon!.up = false;
+                    this.simon!.x = javaFloat(((((trunc(this.simon!.x) + 31) >> 5) - 1) << 5) + 1);
                 } else {
-                    this.simon.walkLeft();
+                    this.simon!.walkLeft();
                 }
                 handledDown = true;
             }
         }
 
-        if (!this.simon.onStairs) {
-            if (!handledUp && !handledDown && !(this.simon.whipping && this.simon.supported)) {
+        if (!this.simon!.onStairs) {
+            if (!handledUp && !handledDown && !(this.simon!.whipping && this.simon!.supported)) {
                 if (keyDownDown) {
-                    if (this.simon.releasedKneel) {
-                        this.simon.kneel();
-                        this.simon.releasedKneel = false;
+                    if (this.simon!.releasedKneel) {
+                        this.simon!.kneel();
+                        this.simon!.releasedKneel = false;
                         if (keyDownLeft) {
-                            this.simon.direction = Main.LEFT;
+                            this.simon!.direction = Main.LEFT;
                         }
                         if (keyDownRight) {
-                            this.simon.direction = Main.RIGHT;
+                            this.simon!.direction = Main.RIGHT;
                         }
                     }
                 } else {
-                    this.simon.releasedKneel = true;
+                    this.simon!.releasedKneel = true;
                     let walking: boolean = false;
                     if (keyDownLeft) {
-                        this.simon.walkLeft();
+                        this.simon!.walkLeft();
                         walking = true;
                     }
                     if (keyDownRight) {
-                        this.simon.walkRight();
+                        this.simon!.walkRight();
                         walking = true;
                     }
                     if (!walking) {
-                        this.simon.stand();
+                        this.simon!.stand();
                     }
                     if (keyDownJump) {
-                        if (this.simon.releasedJump && this.simon.supported) {
-                            this.simon.vy = this.simon.jumpVelocity;
+                        if (this.simon!.releasedJump && this.simon!.supported) {
+                            this.simon!.vy = javaFloat(this.simon!.jumpVelocity);
                         }
-                        this.simon.releasedJump = false;
+                        this.simon!.releasedJump = false;
                     } else {
-                        this.simon.releasedJump = true;
+                        this.simon!.releasedJump = true;
                     }
                 }
             }
 
-            this.simon.update(gc);
+            this.simon!.update(gc);
         }
     }
 
     public moveCamera(): void {
-        this.camera = trunc(this.simon.x - 224);
-        if (this.camera > this.simon.xMax - 512) {
-            this.camera = this.simon.xMax - 512;
-        } else if (this.camera < this.simon.xMin) {
-            this.camera = this.simon.xMin;
+        this.camera = trunc(javaFloat(this.simon!.x - 224));
+        if (this.camera > this.simon!.xMax - 512) {
+            this.camera = this.simon!.xMax - 512;
+        } else if (this.camera < this.simon!.xMin) {
+            this.camera = this.simon!.xMin;
         }
         if (this.camera < 0) {
             this.camera = 0;
@@ -1668,22 +1671,22 @@ export class Main extends BasicGame {
     public followStairsToNextSegment(): void {
         this.visibleWhipCount = 0;
 
-        let thingStack: ThingStack = this.stageSegment.regions[this.stageSegment.regionIndex].thingStack;
+        let thingStack: ThingStack = this.stageSegment!.regions[this.stageSegment!.regionIndex].thingStack;
         thingStack.clear();
         thingStack.addAll(this.regionThingStack);
 
         let distance: number = Number.MAX_SAFE_INTEGER;
-        let entry: StairsEntry = null;
-        for (let i: number = 0; i < this.stageSegment.stairsEntries.length; i++) {
-            let stairsEntry: StairsEntry = this.stageSegment.stairsEntries[i];
-            let dist: number = trunc(Math.abs(this.simon.x - stairsEntry.x));
+        let entry: StairsEntry | null = null;
+        for (let i: number = 0; i < this.stageSegment!.stairsEntries.length; i++) {
+            let stairsEntry: StairsEntry = this.stageSegment!.stairsEntries[i];
+            let dist: number = trunc(Math.abs(javaFloat(this.simon!.x - stairsEntry.x)));
             if (dist < distance) {
                 distance = dist;
                 entry = stairsEntry;
             }
         }
 
-        let connection: StairsEntry = entry.connection;
+        const connection = entry!.connection!;
         this.stageSegment = connection.segment;
         this.map = connection.segment.map;
         this.walls = connection.segment.walls;
@@ -1697,32 +1700,32 @@ export class Main extends BasicGame {
         this.platforms = region.platforms;
         this.regionThingStack.clear();
         this.regionThingStack.addAll(region.thingStack);
-        this.simon.xMin = region.min;
-        this.simon.xMax = region.max;
+        this.simon!.xMin = region.min;
+        this.simon!.xMax = region.max;
 
-        this.simon.onStairs = true;
-        this.simon.direction = connection.direction;
-        this.simon.x = connection.x;
-        this.simon.y = connection.y;
-        this.simon.up = connection.up;
+        this.simon!.onStairs = true;
+        this.simon!.direction = connection.direction;
+        this.simon!.x = javaFloat(connection.x);
+        this.simon!.y = javaFloat(connection.y);
+        this.simon!.up = connection.up;
 
-        this.simon.kneeling = false;
-        this.simon.whipping = false;
-        this.simon.whipIncrementor = 0;
-        this.simon.whipIndex = 0;
-        this.simon.walkSpriteIndex = 0;
-        this.simon.walkSpriteIndexIncrementor = 0;
-        this.simon.invincible = 0;
-        this.simon.flashing = 0;
-        this.simon.intersected = false;
-        this.simon.lastX = this.simon.x;
-        this.simon.lastY = this.simon.y;
-        this.simon.releasedJump = true;
-        this.simon.releasedKneel = true;
-        this.simon.releasedWhip = true;
-        this.simon.throwing = false;
-        this.simon.vx = 0;
-        this.simon.vy = 0;
+        this.simon!.kneeling = false;
+        this.simon!.whipping = false;
+        this.simon!.whipIncrementor = 0;
+        this.simon!.whipIndex = 0;
+        this.simon!.walkSpriteIndex = 0;
+        this.simon!.walkSpriteIndexIncrementor = 0;
+        this.simon!.invincible = 0;
+        this.simon!.flashing = 0;
+        this.simon!.intersected = false;
+        this.simon!.lastX = javaFloat(this.simon!.x);
+        this.simon!.lastY = javaFloat(this.simon!.y);
+        this.simon!.releasedJump = true;
+        this.simon!.releasedKneel = true;
+        this.simon!.releasedWhip = true;
+        this.simon!.throwing = false;
+        this.simon!.vx = javaFloat(0);
+        this.simon!.vy = javaFloat(0);
 
         this.setSimonAlpha(1);
 
@@ -1734,27 +1737,27 @@ export class Main extends BasicGame {
             return;
         }
 
-        let x: number = this.simon.x + 16;
-        let y: number = this.simon.kneeling ? this.simon.y + 16 : this.simon.y;
+        let x: number = javaFloat(this.simon!.x + 16);
+        let y: number = javaFloat(this.simon!.kneeling ? javaFloat(this.simon!.y + 16) : this.simon!.y);
 
         switch (this.weaponType) {
             case Main.WEAPON_TYPE_AXE:
-                this.pushWeapon(new Axe(this, x, y, this.simon.direction));
+                this.pushWeapon(new Axe(this, x, y, this.simon!.direction));
                 this.removeHearts(1);
                 this.playRumble("weaponThrow");
                 break;
             case Main.WEAPON_TYPE_BOOMERANG:
-                this.pushWeapon(new Boomerang(this, x + 1, y + 1, this.simon.direction));
+                this.pushWeapon(new Boomerang(this, javaFloat(x + 1), javaFloat(y + 1), this.simon!.direction));
                 this.removeHearts(1);
                 this.playRumble("weaponThrow");
                 break;
             case Main.WEAPON_TYPE_DAGGER:
-                this.pushWeapon(new Dagger(this, x, y, this.simon.direction));
+                this.pushWeapon(new Dagger(this, x, y, this.simon!.direction));
                 this.removeHearts(1);
                 this.playRumble("weaponThrow");
                 break;
             case Main.WEAPON_TYPE_HOLY_WATER:
-                this.pushWeapon(new HolyWater(this, x, y, this.simon.direction));
+                this.pushWeapon(new HolyWater(this, x, y, this.simon!.direction));
                 this.removeHearts(1);
                 this.playRumble("weaponThrow");
                 break;
@@ -1783,7 +1786,7 @@ export class Main extends BasicGame {
     private createStage(stageIndex: number, setCheckpoint: boolean): void {
         this.stageIndex = stageIndex;
 
-        this.stageSegments = this.loadedSegments[stageIndex];
+        this.stageSegments = this.loadedSegments![stageIndex];
         for (let i: number = 0; i < this.stageSegments.length; i++) {
             this.convertStage(stageIndex, this.stageSegments[i]);
         }
@@ -1841,7 +1844,7 @@ export class Main extends BasicGame {
                 this.time = 400;
 
                 this.linkStageSegments(0, 0, 1, 0);
-                this.stageSegments[0].regions[0].checkpoint.y = -96;
+                this.stageSegments[0].regions[0].checkpoint.y = javaFloat(-96);
 
                 this.stageSegments[0].regions[0].checkpoint.song = this.stage_4_1;
                 this.stageSegments[1].regions[0].checkpoint.song = this.stage_4_2;
@@ -1952,7 +1955,7 @@ export class Main extends BasicGame {
                                 region.thingStack.push(new Door(this, x + 8, y, Main.RIGHT, true));
                             }
 
-                            region.platforms = makeArray<Thing>(platformList.length, () => null);
+                            region.platforms = makeArray<Thing>(platformList.length, () => null!);
                             region.platforms = platformList.slice();
 
                             region = new Region();
@@ -1970,7 +1973,7 @@ export class Main extends BasicGame {
                                 segment.map[i + 2][j] = Main.BLOCK_EMPTY;
                             } else {
                                 region.max = x - 1;
-                                region.platforms = makeArray<Thing>(platformList.length, () => null);
+                                region.platforms = makeArray<Thing>(platformList.length, () => null!);
                                 region.platforms = platformList.slice();
 
                                 region = new Region();
@@ -2278,14 +2281,14 @@ export class Main extends BasicGame {
                 }
             }
 
-            region.platforms = makeArray<Thing>(platformList.length, () => null);
+            region.platforms = makeArray<Thing>(platformList.length, () => null!);
             region.platforms = platformList.slice();
         }
 
-        segment.regions = makeArray<Region>(regions.length, () => null);
+        segment.regions = makeArray<Region>(regions.length, () => null!);
         segment.regions = regions.slice();
 
-        segment.stairsEntries = makeArray<StairsEntry>(stairsEntries.length, () => null);
+        segment.stairsEntries = makeArray<StairsEntry>(stairsEntries.length, () => null!);
         segment.stairsEntries = stairsEntries.slice();
 
         if (segment.direction == Main.RIGHT) {
@@ -2295,7 +2298,7 @@ export class Main extends BasicGame {
         }
     }
 
-    public createCandleItem(x: number, y: number, item: number): Thing {
+    public createCandleItem(x: number, y: number, item: number): Thing | null {
         switch (this.weaponType) {
             case Main.WEAPON_TYPE_AXE:
                 if (item == Main.CANDLE_ITEM_AXE) {
@@ -2359,7 +2362,7 @@ export class Main extends BasicGame {
             case Main.CANDLE_ITEM_POTION:
                 return new DropItem(this, x, y, DropItem.TYPE_POTION);
             case Main.CANDLE_ITEM_SMALL_HEART:
-                if (this.simon.whipType + this.visibleWhipCount < 2 && this.random.nextBoolean()) {
+                if (this.simon!.whipType + this.visibleWhipCount < 2 && this.random.nextBoolean()) {
                     this.whipCreated();
                     return new DropItem(this, x, y, DropItem.TYPE_WHIP);
                 } else {
@@ -2410,8 +2413,8 @@ export class Main extends BasicGame {
     }
 
     public removeBlock(x: number, y: number): void {
-        this.map[y][x] = Main.BLOCK_EMPTY;
-        this.walls[y][x] = Main.BLOCK_EMPTY;
+        this.map![y][x] = Main.BLOCK_EMPTY;
+        this.walls![y][x] = Main.BLOCK_EMPTY;
         this.repairBlock(x - 1, y);
         this.repairBlock(x + 1, y);
         this.repairBlock(x, y - 1);
@@ -2419,26 +2422,26 @@ export class Main extends BasicGame {
     }
 
     private repairBlock(x: number, y: number): void {
-        if (y >= 0 && y < 11 && x >= 0 && x < this.mapWidth && (this.walls[y][x] == Main.WALL_PLATFORM || this.walls[y][x] == Main.WALL_FULL)) {
+        if (y >= 0 && y < 11 && x >= 0 && x < this.mapWidth && (this.walls![y][x] == Main.WALL_PLATFORM || this.walls![y][x] == Main.WALL_FULL)) {
             let up: number = 0;
             let down: number = 0;
             let left: number = 0;
             let right: number = 0;
 
-            if (y > 0 && this.walls[y - 1][x] == Main.WALL_EMPTY) {
+            if (y > 0 && this.walls![y - 1][x] == Main.WALL_EMPTY) {
                 up = 1;
             }
-            if (y < 10 && this.walls[y + 1][x] == Main.WALL_EMPTY) {
+            if (y < 10 && this.walls![y + 1][x] == Main.WALL_EMPTY) {
                 down = 1;
             }
-            if (x > 0 && this.walls[y][x - 1] == Main.WALL_EMPTY) {
+            if (x > 0 && this.walls![y][x - 1] == Main.WALL_EMPTY) {
                 left = 1;
             }
-            if (x < this.mapWidth - 1 && this.walls[y][x + 1] == Main.WALL_EMPTY) {
+            if (x < this.mapWidth - 1 && this.walls![y][x + 1] == Main.WALL_EMPTY) {
                 right = 1;
             }
 
-            this.map[y][x] = (up << 3) | (down << 2) | (left << 1) | right;
+            this.map![y][x] = (up << 3) | (down << 2) | (left << 1) | right;
         }
     }
 
@@ -2479,15 +2482,15 @@ export class Main extends BasicGame {
     }
 
     private loadStageSegment(a: number, b: number): void {
-        this.loadedSegments[a][b] = new StageSegment();
-        this.loadedSegments[a][b].stageSegmentIndex = b;
+        this.loadedSegments![a][b] = new StageSegment();
+        this.loadedSegments![a][b].stageSegmentIndex = b;
 
         const fileName = "stages/stage_" + a + "_" + b + ".txt";
         const lines = readResourceLines(fileName);
         let index = 0;
-        this.loadedSegments[a][b].direction = lines[index].trim().charCodeAt(0) === cc("l") ? Main.LEFT : Main.RIGHT;
+        this.loadedSegments![a][b].direction = lines[index].trim().charCodeAt(0) === cc("l") ? Main.LEFT : Main.RIGHT;
         index++;
-        this.loadedSegments[a][b].candleItems = lines[index].trim();
+        this.loadedSegments![a][b].candleItems = lines[index].trim();
         index += 2;
 
         const level: string[] = [];
@@ -2499,14 +2502,14 @@ export class Main extends BasicGame {
             level.push(line);
         }
 
-        this.loadedSegments[a][b].stage = make2D<number>(11, idiv(level.length, 11) << 4, () => 0);
+        this.loadedSegments![a][b].stage = make2D<number>(11, idiv(level.length, 11) << 4, () => 0);
 
         let x = 0;
         let y = 0;
         for (let i = 0; i < level.length; i++) {
             const line = level[i];
             for (let j = 0; j < 16; j++) {
-                this.loadedSegments[a][b].stage[y][j + x] = line.charCodeAt(j);
+                this.loadedSegments![a][b].stage[y][j + x] = line.charCodeAt(j);
             }
             if (++y === 11) {
                 y = 0;
@@ -2532,6 +2535,8 @@ export class Main extends BasicGame {
         }
     }
 
+    public drawString(string: string, x: number, y: number): void;
+    public drawString(string: string, x: number, y: number, length: number): void;
     public drawString(string: string, x: number, y: number, length: number = string.length): void {
         for (let i: number = 0; i < string.length && i < length; i++, x += 16) {
             this.symbols[string.charCodeAt(i)].draw(x, y);
@@ -2544,7 +2549,7 @@ export class Main extends BasicGame {
         if (Y < 0 || Y >= 11 || X >= this.mapWidth || X < 0) {
             return Main.WALL_EMPTY;
         }
-        return this.walls[Y][X];
+        return this.walls![Y][X];
     }
 
     public getTile(x: number, y: number): number {
@@ -2553,7 +2558,7 @@ export class Main extends BasicGame {
         if (Y < 0 || Y >= 11 || X >= this.mapWidth || X < 0) {
             return Main.BLOCK_EMPTY;
         }
-        return this.map[Y][X];
+        return this.map![Y][X];
     }
 
     public isPlatform(x: number, y: number): boolean {
@@ -2562,13 +2567,13 @@ export class Main extends BasicGame {
         if (Y < 0 || Y >= 11 || X >= this.mapWidth || X < 0) {
             return false;
         }
-        return this.walls[Y][X] == Main.WALL_PLATFORM;
+        return this.walls![Y][X] == Main.WALL_PLATFORM;
     }
 
-    public findPlatform(x: number, y: number): Thing {
-        for (let i: number = this.platforms.length - 1; i >= 0; i--) {
-            let p: Thing = this.platforms[i];
-            if (y == p.y && x >= p.x && x <= p.x + 63) {
+    public findPlatform(x: number, y: number): Thing | null {
+        for (let i: number = this.platforms!.length - 1; i >= 0; i--) {
+            const p = this.platforms![i]!;
+            if (y == p.y && x >= p.x && x <= javaFloat(p.x + 63)) {
                 return p;
             }
         }
@@ -2581,7 +2586,7 @@ export class Main extends BasicGame {
         if (Y < 0 || Y >= 11 || X >= this.mapWidth || X < 0) {
             return false;
         }
-        let tile: number = this.walls[Y][X];
+        let tile: number = this.walls![Y][X];
         return tile == Main.WALL_FULL || tile == Main.WALL_PLATFORM;
     }
 
@@ -2591,7 +2596,7 @@ export class Main extends BasicGame {
         if (Y < 0 || Y >= 11 || X >= this.mapWidth || X < 0) {
             return false;
         }
-        return this.walls[Y][X] == Main.WALL_FULL;
+        return this.walls![Y][X] == Main.WALL_FULL;
     }
 
     public isEmpty(x: number, y: number): boolean {
@@ -2600,20 +2605,21 @@ export class Main extends BasicGame {
         if (Y < 0 || Y >= 11 || X >= this.mapWidth || X < 0) {
             return false;
         }
-        return this.walls[Y][X] == Main.WALL_EMPTY;
+        return this.walls![Y][X] == Main.WALL_EMPTY;
     }
 
     public flashSimon(): void {
-        let alpha: number = 1;
+        let alpha: number = javaFloat(1);
 
-        if (this.simon.flashing > 0) {
-            alpha = FastTrig.cos(2 * this.simon.flashing);
+        if (this.simon!.flashing > 0) {
+            alpha = javaFloat(FastTrig.cos(2 * this.simon!.flashing));
         }
 
         this.setSimonAlpha(alpha);
     }
 
     public setSimonAlpha(alpha: number): void {
+        alpha = javaFloat(alpha);
         for (let i: number = 0; i < 2; i++) {
             this.simonOnStairsUp[i].setAlpha(alpha);
             this.simonOnStairsDown[i].setAlpha(alpha);
@@ -2647,11 +2653,11 @@ export class Main extends BasicGame {
 
     public advanceWhip(): void {
         this.whipDestroyed();
-        if (this.simon.whipType < 2) {
+        if (this.simon!.whipType < 2) {
             this.playSound(this.advance_whip);
             this.playRumble("whipUpgrade");
-            this.simon.whipType++;
-            this.simon.flashing = 60;
+            this.simon!.whipType++;
+            this.simon!.flashing = 60;
         }
     }
 
@@ -2740,7 +2746,7 @@ export class Main extends BasicGame {
         const fields: Record<string, unknown> = this as unknown as Record<string, unknown>;
         for (const value of Object.values(fields)) {
             if (value instanceof Sound) {
-                value.stop();
+                (value as Sound).stop();
             }
         }
     }
@@ -2749,9 +2755,9 @@ export class Main extends BasicGame {
         const fields: Record<string, unknown> = this as unknown as Record<string, unknown>;
         for (const value of Object.values(fields)) {
             if (value instanceof Sound) {
-                value.stop();
+                (value as Sound).stop();
             } else if (value instanceof Music) {
-                value.stop();
+                (value as Music).stop();
             } else if (value instanceof Song) {
                 value.stop();
             }
@@ -2859,13 +2865,14 @@ export class Main extends BasicGame {
     }
 
     private adjustHardDelay(baseDelay: number, multiplier: number): number {
+        multiplier = javaFloat(multiplier);
         if (!this.isHardDifficultyEnabledForStageState()) {
             return baseDelay;
         }
         if (baseDelay <= 0) {
             return baseDelay;
         }
-        return Math.max(1, trunc(baseDelay * multiplier));
+        return Math.max(1, trunc(javaFloat(baseDelay * multiplier)));
     }
 
     public syncSimonPhysicsProfile(): void {
@@ -2873,11 +2880,11 @@ export class Main extends BasicGame {
             return;
         }
         if (this.isUserControlledSimonPhysics()) {
-            this.simon.G = Main.PLAYER_CONTROLLED_GRAVITY;
-            this.simon.jumpVelocity = Main.PLAYER_CONTROLLED_JUMP_VELOCITY;
+            this.simon.G = javaFloat(Main.PLAYER_CONTROLLED_GRAVITY);
+            this.simon.jumpVelocity = javaFloat(Main.PLAYER_CONTROLLED_JUMP_VELOCITY);
         } else {
-            this.simon.G = Main.GRAVITY;
-            this.simon.jumpVelocity = Main.SIMON_JUMP_VELOCITY;
+            this.simon.G = javaFloat(Main.GRAVITY);
+            this.simon.jumpVelocity = javaFloat(Main.SIMON_JUMP_VELOCITY);
         }
     }
 
@@ -2953,6 +2960,8 @@ export class Main extends BasicGame {
         }
     }
 
+    public addPoints(dropItem: DropItem): void;
+    public addPoints(points: number): void;
     public addPoints(dropItemOrPoints: DropItem | number): void {
         if (dropItemOrPoints instanceof DropItem) {
             const dropItem = dropItemOrPoints;
@@ -2997,7 +3006,7 @@ export class Main extends BasicGame {
     public hurtSimon(power: number): void {
         this.syncSimonPhysicsProfile();
 
-        if (this.simon.hurt || this.simon.invincible > 0 || this.playerPower == 0) {
+        if (this.simon!.hurt || this.simon!.invincible > 0 || this.playerPower == 0) {
             return;
         }
 
@@ -3010,27 +3019,27 @@ export class Main extends BasicGame {
         this.playRumble(this.playerPower == 0 ? "playerDeath" : "playerHurt");
 
         if (this.playerPower == 0) {
-            this.simon.onStairs = false;
+            this.simon!.onStairs = false;
         }
 
-        if (this.simon.onStairs) {
+        if (this.simon!.onStairs) {
             this.setSimonAlpha(0.25);
-            this.simon.invincible = 182;
-        } else if (this.simon.supported) {
-            this.simon.vy = this.simon.jumpVelocity;
-            this.simon.vx = this.simon.direction == Main.LEFT ? 2 : -2;
-            this.simon.hurt = true;
-        } else if (!this.simon.onStairs) {
-            this.simon.vy = -1;
-            this.simon.vx = this.simon.direction == Main.LEFT ? 2 : -2;
-            this.simon.hurt = true;
+            this.simon!.invincible = 182;
+        } else if (this.simon!.supported) {
+            this.simon!.vy = javaFloat(this.simon!.jumpVelocity);
+            this.simon!.vx = javaFloat(this.simon!.direction == Main.LEFT ? 2 : -2);
+            this.simon!.hurt = true;
+        } else if (!this.simon!.onStairs) {
+            this.simon!.vy = javaFloat(-1);
+            this.simon!.vx = javaFloat(this.simon!.direction == Main.LEFT ? 2 : -2);
+            this.simon!.hurt = true;
         }
     }
 
     public enterNextRegion(door: Door): void {
-        this.simon.whipIndex = 0;
-        this.simon.whipIncrementor = 0;
-        this.simon.whipping = false;
+        this.simon!.whipIndex = 0;
+        this.simon!.whipIncrementor = 0;
+        this.simon!.whipping = false;
         this.door = door;
         this.visibleWhipCount = 0;
     }
@@ -3040,9 +3049,11 @@ export class Main extends BasicGame {
     }
 
     public fireSparks(x: number, y: number): void {
-        let angle: number = 0;
-        for (let i: number = 0; i < 8; i++, angle += 0.78539816339744830961566084581988) {
-            this.pushThing(new ShootingSpark(this, x, y, 8 * FastTrig.cos(angle), 8 * FastTrig.sin(angle)));
+        x = javaFloat(x);
+        y = javaFloat(y);
+        let angle: number = javaFloat(0);
+        for (let i: number = 0; i < 8; i++, angle = javaFloat(angle + 0.78539816339744830961566084581988)) {
+            this.pushThing(new ShootingSpark(this, x, y, javaFloat(8 * javaFloat(FastTrig.cos(angle))), javaFloat(8 * javaFloat(FastTrig.sin(angle)))));
         }
     }
 
@@ -3051,30 +3062,30 @@ export class Main extends BasicGame {
     }
 
     public linkStageSegments(segment1: number, stairs1: number, segment2: number, stairs2: number): void {
-        this.stageSegments[segment1].stairsEntries[stairs1].connection = this.stageSegments[segment2].stairsEntries[stairs2];
-        this.stageSegments[segment2].stairsEntries[stairs2].connection = this.stageSegments[segment1].stairsEntries[stairs1];
+        this.stageSegments![segment1].stairsEntries[stairs1].connection = this.stageSegments![segment2].stairsEntries[stairs2];
+        this.stageSegments![segment2].stairsEntries[stairs2].connection = this.stageSegments![segment1].stairsEntries[stairs1];
     }
 
     public restoreCheckpoint(): void {
-        let segment: StageSegment = this.stageSegments[this.checkpoint.stageSegmentIndex];
-        let region: Region = segment.regions[this.checkpoint.regionIndex];
+        let segment: StageSegment = this.stageSegments![this.checkpoint!.stageSegmentIndex];
+        let region: Region = segment.regions[this.checkpoint!.regionIndex];
         this.stage = region.stageNumber;
 
         this.platforms = region.platforms;
 
-        this.simon.reset();
+        this.simon!.reset();
 
-        this.simon.xMin = region.min;
-        this.simon.xMax = region.max;
-        this.simon.x = this.checkpoint.x;
-        this.simon.y = this.checkpoint.y;
-        this.simon.direction = segment.direction;
+        this.simon!.xMin = region.min;
+        this.simon!.xMax = region.max;
+        this.simon!.x = javaFloat(this.checkpoint!.x);
+        this.simon!.y = javaFloat(this.checkpoint!.y);
+        this.simon!.direction = segment.direction;
 
-        if (this.stageIndex == 1 && this.checkpoint.stageSegmentIndex == 0) {
-            this.simon.direction = Main.RIGHT;
+        if (this.stageIndex == 1 && this.checkpoint!.stageSegmentIndex == 0) {
+            this.simon!.direction = Main.RIGHT;
         }
 
-        segment.regionIndex = this.checkpoint.regionIndex;
+        segment.regionIndex = this.checkpoint!.regionIndex;
         this.stageSegment = segment;
 
         this.map = segment.map;
@@ -3089,7 +3100,7 @@ export class Main extends BasicGame {
 
         this.moveCamera();
 
-        this.requestedSong = this.checkpoint.song;
+        this.requestedSong = this.checkpoint!.song;
         this.syncSimonPhysicsProfile();
     }
 
@@ -3116,6 +3127,8 @@ export class Main extends BasicGame {
         }
     }
 
+    public intersectsWeapon(thing: Thing): boolean;
+    public intersectsWeapon(x1: number, y1: number, x2: number, y2: number): boolean;
     public intersectsWeapon(thingOrX1: Thing | number, y1?: number, x2?: number, y2?: number): boolean {
         if (thingOrX1 instanceof Thing) {
             const thing = thingOrX1;
@@ -3135,9 +3148,9 @@ export class Main extends BasicGame {
         if (this.playerPower === 0) {
             return false;
         }
-        const weapons: Thing[] = this.weaponsStack.things;
+        const weapons = this.weaponsStack.things;
         for (let j: number = this.weaponsStack.top; j >= 0; j--) {
-            const weapon: Thing = weapons[j];
+            const weapon = weapons[j]!;
             if (
                 this.intersects(
                     weapon.rx1 + trunc(weapon.x),
@@ -3160,6 +3173,8 @@ export class Main extends BasicGame {
         return false;
     }
 
+    public intersectsWhip(thing: Thing): boolean;
+    public intersectsWhip(x1: number, y1: number, x2: number, y2: number): boolean;
     public intersectsWhip(thingOrX1: Thing | number, y1?: number, x2?: number, y2?: number): boolean {
         if (thingOrX1 instanceof Thing) {
             const thing = thingOrX1;
@@ -3176,29 +3191,29 @@ export class Main extends BasicGame {
     }
 
     private intersectsWhipRect(x1: number, y1: number, x2: number, y2: number, rumbleImpact: boolean): boolean {
-        if (!this.simon.whipping || this.simon.whipIndex !== 2 || this.simon.throwing || this.playerPower === 0) {
+        if (!this.simon!.whipping || this.simon!.whipIndex !== 2 || this.simon!.throwing || this.playerPower === 0) {
             return false;
         }
 
-        const whipSize: number[] = Main.whipSizes[this.simon.whipType];
-        const whipOffset: number[] = Main.whipOffsets[this.simon.whipType][this.simon.direction];
-        let p: number[] = null;
-        if (this.simon.onStairs) {
-            if (this.simon.up) {
-                p = Simon.upWhipTable[this.simon.whipType][2][this.simon.direction];
+        const whipSize: number[] = Main.whipSizes[this.simon!.whipType];
+        const whipOffset: number[] = Main.whipOffsets[this.simon!.whipType][this.simon!.direction];
+        let p: number[] | null = null;
+        if (this.simon!.onStairs) {
+            if (this.simon!.up) {
+                p = Simon.upWhipTable[this.simon!.whipType][2][this.simon!.direction];
             } else {
-                p = Simon.downWhipTable[this.simon.whipType][2][this.simon.direction];
+                p = Simon.downWhipTable[this.simon!.whipType][2][this.simon!.direction];
             }
-        } else if (this.simon.kneeling) {
-            p = Simon.kneelingWhipTable[this.simon.whipType][2][this.simon.direction];
+        } else if (this.simon!.kneeling) {
+            p = Simon.kneelingWhipTable[this.simon!.whipType][2][this.simon!.direction];
         } else {
-            p = Simon.standingWhipTable[this.simon.whipType][2][this.simon.direction];
+            p = Simon.standingWhipTable[this.simon!.whipType][2][this.simon!.direction];
         }
 
-        const lastX: number = trunc(this.simon.lastX);
-        const lastY: number = trunc(this.simon.lastY);
-        const x: number = trunc(this.simon.x);
-        const y: number = trunc(this.simon.y);
+        const lastX: number = trunc(this.simon!.lastX);
+        const lastY: number = trunc(this.simon!.lastY);
+        const x: number = trunc(this.simon!.x);
+        const y: number = trunc(this.simon!.y);
 
         const wx1: number = whipOffset[0] + p[0];
         const wy1: number = whipOffset[1] + p[1];
@@ -3218,7 +3233,7 @@ export class Main extends BasicGame {
         let rx2: number = Math.max(ax2, bx2);
         const ry2: number = Math.max(ay2, by2);
 
-        if (this.simon.direction === Main.LEFT) {
+        if (this.simon!.direction === Main.LEFT) {
             rx2 += 16;
         } else {
             rx1 -= 16;
@@ -3231,6 +3246,8 @@ export class Main extends BasicGame {
         return hit;
     }
 
+    public intersectsSimon(thing: Thing): boolean;
+    public intersectsSimon(x1: number, y1: number, x2: number, y2: number): boolean;
     public intersectsSimon(thingOrX1: Thing | number, y1?: number, x2?: number, y2?: number): boolean {
         if (thingOrX1 instanceof Thing) {
             const thing = thingOrX1;
@@ -3244,10 +3261,10 @@ export class Main extends BasicGame {
             return false;
         }
         return this.intersects(
-            trunc(this.simon.x) + this.simon.rx1,
-            trunc(this.simon.y) + this.simon.ry1,
-            trunc(this.simon.x) + this.simon.rx2,
-            trunc(this.simon.y) + this.simon.ry2,
+            trunc(this.simon!.x) + this.simon!.rx1,
+            trunc(this.simon!.y) + this.simon!.ry1,
+            trunc(this.simon!.x) + this.simon!.rx2,
+            trunc(this.simon!.y) + this.simon!.ry2,
             x1,
             y1 as number,
             x2 as number,
@@ -3361,53 +3378,53 @@ export class Main extends BasicGame {
         switch (index) {
             case 0:
                 this.createStage(0, true);
-                this.checkpoint = this.stageSegments[0].regions[1].checkpoint;
-                this.checkpoint.x += 16 * 32 - 64;
+                this.checkpoint = this.stageSegments![0].regions[1].checkpoint;
+                this.checkpoint.x = javaFloat(javaFloat(this.checkpoint.x + 16 * 32) - 64);
                 this.restoreCheckpoint();
                 break;
 
             case 1:
                 this.createStage(0, true);
-                this.checkpoint = this.stageSegments[0].regions[3].checkpoint;
-                this.checkpoint.x += 16 * 32 * 2 + 64;
-                this.checkpoint.y += 32 * 6;
+                this.checkpoint = this.stageSegments![0].regions[3].checkpoint;
+                this.checkpoint.x = javaFloat(javaFloat(this.checkpoint.x + 16 * 32 * 2) + 64);
+                this.checkpoint.y = javaFloat(this.checkpoint.y + 32 * 6);
                 this.restoreCheckpoint();
                 break;
 
             case 2:
                 this.createStage(1, true);
-                this.checkpoint = this.stageSegments[2].regions[0].checkpoint;
-                this.checkpoint.x -= 16 * 32 * 2 - 128;
-                this.checkpoint.y += 32 * 1;
+                this.checkpoint = this.stageSegments![2].regions[0].checkpoint;
+                this.checkpoint.x = javaFloat(javaFloat(this.checkpoint.x - 16 * 32 * 2) - 128);
+                this.checkpoint.y = javaFloat(this.checkpoint.y + 32 * 1);
                 this.restoreCheckpoint();
                 break;
 
             case 3:
                 this.createStage(1, true);
-                this.checkpoint = this.stageSegments[2].regions[0].checkpoint;
+                this.checkpoint = this.stageSegments![2].regions[0].checkpoint;
                 this.checkpoint.stageSegmentIndex = 3;
-                this.checkpoint.x -= 16 * 32 * 2 - 128;
-                this.checkpoint.y += 32 * 1;
+                this.checkpoint.x = javaFloat(javaFloat(this.checkpoint.x - 16 * 32 * 2) - 128);
+                this.checkpoint.y = javaFloat(this.checkpoint.y + 32 * 1);
                 this.restoreCheckpoint();
                 break;
 
             case 4:
                 this.createStage(2, true);
-                this.checkpoint = this.stageSegments[0].regions[0].checkpoint;
+                this.checkpoint = this.stageSegments![0].regions[0].checkpoint;
                 this.restoreCheckpoint();
                 break;
 
             case 5:
                 this.createStage(2, true);
-                this.checkpoint = this.stageSegments[2].regions[1].checkpoint;
-                this.checkpoint.x += 16 * 32 * 2 + 32 * 11;
+                this.checkpoint = this.stageSegments![2].regions[1].checkpoint;
+                this.checkpoint.x = javaFloat(javaFloat(this.checkpoint.x + 16 * 32 * 2) + 32 * 11);
                 this.restoreCheckpoint();
                 break;
 
             case 6:
                 this.createStage(2, true);
-                this.checkpoint = this.stageSegments[2].regions[1].checkpoint;
-                this.checkpoint.x += 16 * 32 * 5 - 128;
+                this.checkpoint = this.stageSegments![2].regions[1].checkpoint;
+                this.checkpoint.x = javaFloat(javaFloat(this.checkpoint.x + 16 * 32 * 5) - 128);
                 this.restoreCheckpoint();
                 break;
 
@@ -3417,36 +3434,36 @@ export class Main extends BasicGame {
 
             case 8:
                 this.createStage(3, true);
-                this.checkpoint = this.stageSegments[1].regions[0].checkpoint;
-                this.checkpoint.x += 16 * 32 * 5;
+                this.checkpoint = this.stageSegments![1].regions[0].checkpoint;
+                this.checkpoint.x = javaFloat(this.checkpoint.x + 16 * 32 * 5);
                 this.restoreCheckpoint();
                 break;
 
             case 9:
                 this.createStage(3, true);
-                this.checkpoint = this.stageSegments[1].regions[1].checkpoint;
-                this.checkpoint.x += 16 * 32 * 3 + 128;
-                this.checkpoint.y += 32;
+                this.checkpoint = this.stageSegments![1].regions[1].checkpoint;
+                this.checkpoint.x = javaFloat(javaFloat(this.checkpoint.x + 16 * 32 * 3) + 128);
+                this.checkpoint.y = javaFloat(this.checkpoint.y + 32);
                 this.restoreCheckpoint();
                 break;
 
             case 10:
                 this.createStage(4, true);
-                this.checkpoint = this.stageSegments[1].regions[1].checkpoint;
+                this.checkpoint = this.stageSegments![1].regions[1].checkpoint;
                 this.restoreCheckpoint();
                 break;
 
             case 11:
                 this.createStage(4, true);
-                this.checkpoint = this.stageSegments[2].regions[0].checkpoint;
+                this.checkpoint = this.stageSegments![2].regions[0].checkpoint;
                 this.checkpoint.stageSegmentIndex = 3;
-                this.checkpoint.x -= 16 * 32;
-                this.checkpoint.y += 32;
+                this.checkpoint.x = javaFloat(this.checkpoint.x - 16 * 32);
+                this.checkpoint.y = javaFloat(this.checkpoint.y + 32);
                 this.restoreCheckpoint();
                 break;
         }
 
-        this.simon.whipType = 2;
+        this.simon!.whipType = 2;
         this.weaponType = Main.WEAPON_TYPE_BOOMERANG;
         this.weaponRepeats = Main.WEAPON_REPEATS_TRIPLE;
         this.hearts = 99;
@@ -3480,7 +3497,7 @@ export class Main extends BasicGame {
                 }
             } else {
                 this.creditsDelay--;
-                if (this.creditsPresents && this.controlInput.isAnyNonDirectionalPressed()) {
+                if (this.creditsPresents && this.controlInput!.isAnyNonDirectionalPressed()) {
                     this.creditsDelay = 0;
                 }
             }
@@ -3513,8 +3530,8 @@ export class Main extends BasicGame {
         this.playRumble("castleCrumble");
 
         this.castleFallDelay = 91;
-        this.castleFallX = 410;
-        this.castleFallY = 111;
+        this.castleFallX = javaFloat(410);
+        this.castleFallY = javaFloat(111);
         this.castleFallSparkDelay = 45;
         this.castleFallSparkCount = 8;
         this.castleFallSparkVisible = false;
@@ -3544,7 +3561,7 @@ export class Main extends BasicGame {
             }
         } else {
             if (this.castleFallY < 220) {
-                this.castleFallY += 0.2;
+                this.castleFallY = javaFloat(this.castleFallY + 0.2);
             } else if (this.castleFallDelay == 0) {
                 this.stopRumble("castleCrumble");
                 this.fadeState = Main.FADE_OUT;
@@ -3552,7 +3569,7 @@ export class Main extends BasicGame {
             } else {
                 this.castleFallDelay--;
             }
-            this.castleFallX = 410 + this.random.nextInt(5) - 2;
+            this.castleFallX = javaFloat(410 + this.random.nextInt(5) - 2);
         }
     }
 
@@ -3583,7 +3600,7 @@ export class Main extends BasicGame {
         switch (this.demoIndex) {
             case 0:
                 this.createStage(3, true);
-                this.checkpoint = this.stageSegments[1].regions[1].checkpoint;
+                this.checkpoint = this.stageSegments![1].regions[1].checkpoint;
                 this.restoreCheckpoint();
                 break;
             case 1:
@@ -3591,7 +3608,7 @@ export class Main extends BasicGame {
                 break;
             case 2:
                 this.createStage(2, true);
-                this.checkpoint = this.stageSegments[1].regions[1].checkpoint;
+                this.checkpoint = this.stageSegments![1].regions[1].checkpoint;
                 this.restoreCheckpoint();
                 break;
         }
@@ -3606,12 +3623,12 @@ export class Main extends BasicGame {
         this.introWalkSpriteIndexIncrementor = 0;
         this.introWalkSpriteIndex = 0;
         this.introSimonX = 512;
-        this.introCloudsX = 500;
+        this.introCloudsX = javaFloat(500);
         this.introTime = 637;
-        this.gateBatX1 = 0;
-        this.gateBatY1 = 0;
-        this.gateBatX2 = 0;
-        this.gateBatY2 = 0;
+        this.gateBatX1 = javaFloat(0);
+        this.gateBatY1 = javaFloat(0);
+        this.gateBatX2 = javaFloat(0);
+        this.gateBatY2 = javaFloat(0);
         this.gateBatSpriteIndex = 0;
         this.gateBatSpriteIndexIncrementor = 0;
 
@@ -3624,14 +3641,14 @@ export class Main extends BasicGame {
 
         this.clearInputPressedRecords();
 
-        let percent: number = 1 - this.introTime * 0.0013755158184319119669876203576341;
-        let angle: number = percent * 1.5707963267948966192313216916398;
-        this.gateBatX1 = 158 + 161 * percent;
-        this.gateBatY1 = 224 - 90 * FastTrig.sin(angle);
+        let percent: number = javaFloat(1 - this.introTime * 0.0013755158184319119669876203576341);
+        let angle: number = javaFloat(percent * 1.5707963267948966192313216916398);
+        this.gateBatX1 = javaFloat(158 + javaFloat(161 * percent));
+        this.gateBatY1 = javaFloat(224 - javaFloat(90 * javaFloat(FastTrig.sin(angle))));
 
-        angle *= 2;
-        this.gateBatX2 = 336 + 48 * FastTrig.cos(angle);
-        this.gateBatY2 = 140 - 48 * FastTrig.sin(angle);
+        angle = javaFloat(angle * 2);
+        this.gateBatX2 = javaFloat(336 + javaFloat(48 * javaFloat(FastTrig.cos(angle))));
+        this.gateBatY2 = javaFloat(140 - javaFloat(48 * javaFloat(FastTrig.sin(angle))));
 
         this.requestMusic(this.prologue);
 
@@ -3646,14 +3663,14 @@ export class Main extends BasicGame {
             }
         }
 
-        let percent: number = 1 - this.introTime * 0.0013755158184319119669876203576341;
-        let angle: number = percent * 1.5707963267948966192313216916398;
-        this.gateBatX1 = 158 + 161 * percent;
-        this.gateBatY1 = 224 - 90 * FastTrig.sin(angle);
+        let percent: number = javaFloat(1 - this.introTime * 0.0013755158184319119669876203576341);
+        let angle: number = javaFloat(percent * 1.5707963267948966192313216916398);
+        this.gateBatX1 = javaFloat(158 + javaFloat(161 * percent));
+        this.gateBatY1 = javaFloat(224 - javaFloat(90 * javaFloat(FastTrig.sin(angle))));
 
-        angle *= 2;
-        this.gateBatX2 = 336 + 48 * FastTrig.cos(angle);
-        this.gateBatY2 = 140 - 48 * FastTrig.sin(angle);
+        angle = javaFloat(angle * 2);
+        this.gateBatX2 = javaFloat(336 + javaFloat(48 * javaFloat(FastTrig.cos(angle))));
+        this.gateBatY2 = javaFloat(140 - javaFloat(48 * javaFloat(FastTrig.sin(angle))));
 
         if (--this.introTime == 0) {
             this.fadeState = Main.FADE_OUT;
@@ -3671,7 +3688,7 @@ export class Main extends BasicGame {
             }
         }
 
-        this.introCloudsX -= 0.125;
+        this.introCloudsX = javaFloat(this.introCloudsX - 0.125);
     }
 
     public renderIntro(gc: GameContainer, g: Graphics): void {
@@ -3707,11 +3724,11 @@ export class Main extends BasicGame {
     }
 
     public updateContinueScreen(gc: GameContainer): void {
-        if (this.controlInput.isMenuUpPressed()) {
+        if (this.controlInput!.isMenuUpPressed()) {
             this.continueSelected = true;
-        } else if (this.controlInput.isMenuDownPressed()) {
+        } else if (this.controlInput!.isMenuDownPressed()) {
             this.continueSelected = false;
-        } else if (this.controlInput.isMenuSelectPressed()) {
+        } else if (this.controlInput!.isMenuSelectPressed()) {
             this.fadeState = Main.FADE_OUT;
             if (this.continueSelected) {
                 this.fadeReason = Main.FADE_REASON_RESTORE_CHECKPOINT;
@@ -3917,10 +3934,10 @@ export class Main extends BasicGame {
         this.mode = Main.MODE_TITLE_SCREEN;
 
         this.titleTimeout = 1365;
-        this.titleBatX = 0;
-        this.titleBatY = 0;
-        this.titleBatScale = 10;
-        this.titleBatXRadius = 0;
+        this.titleBatX = javaFloat(0);
+        this.titleBatY = javaFloat(0);
+        this.titleBatScale = javaFloat(10);
+        this.titleBatXRadius = javaFloat(0);
         this.titleBatSpriteIndex = 0;
         this.titleBatSpriteIndexIncrementor = 0;
         this.titleBatSteps = 0;
@@ -3930,7 +3947,7 @@ export class Main extends BasicGame {
         this.enterPressed = false;
         this.titleMenu = Main.TITLE_MENU_MAIN;
         this.titleSelectedIndex = 0;
-        this.titleBatAngle = 0;
+        this.titleBatAngle = javaFloat(0);
 
         this.clearInputPressedRecords();
 
@@ -3941,12 +3958,12 @@ export class Main extends BasicGame {
         if (this.fade == Main.FADE_DONE) {
             if (this.titleBatSteps < 273) {
                 this.titleBatSteps++;
-                this.titleBatX = 499 + this.titleBatXRadius * FastTrig.sin(this.titleBatAngle);
-                this.titleBatY = 220 + 12 * FastTrig.sin(this.titleBatAngle);
+                this.titleBatX = javaFloat(499 + javaFloat(this.titleBatXRadius * javaFloat(FastTrig.sin(this.titleBatAngle))));
+                this.titleBatY = javaFloat(220 + javaFloat(12 * javaFloat(FastTrig.sin(this.titleBatAngle))));
 
-                this.titleBatAngle += Main.TITLE_BAT_ANGLE_INC;
-                this.titleBatScale += Main.TITLE_BAT_SCALE_INC;
-                this.titleBatXRadius += Main.TITLE_BAT_X_RADIUS_INC;
+                this.titleBatAngle = javaFloat(this.titleBatAngle + Main.TITLE_BAT_ANGLE_INC);
+                this.titleBatScale = javaFloat(this.titleBatScale + Main.TITLE_BAT_SCALE_INC);
+                this.titleBatXRadius = javaFloat(this.titleBatXRadius + Main.TITLE_BAT_X_RADIUS_INC);
             }
 
             if (++this.titleBatSpriteIndexIncrementor == 9) {
@@ -3956,20 +3973,20 @@ export class Main extends BasicGame {
                 }
             }
 
-            if (this.controlInput.isMenuUpPressed()) {
+            if (this.controlInput!.isMenuUpPressed()) {
                 this.titleSelectedIndex--;
                 if (this.titleSelectedIndex < 0) {
                     this.titleSelectedIndex = 0;
                 }
                 this.titleTimeout = 1365;
-            } else if (this.controlInput.isMenuDownPressed()) {
+            } else if (this.controlInput!.isMenuDownPressed()) {
                 this.titleSelectedIndex++;
                 const optionCount = this.getTitleOptionCount();
                 if (this.titleSelectedIndex >= optionCount) {
                     this.titleSelectedIndex = optionCount - 1;
                 }
                 this.titleTimeout = 1365;
-            } else if (this.controlInput.isMenuSelectPressed()) {
+            } else if (this.controlInput!.isMenuSelectPressed()) {
                 this.playSound(this.pressed_enter);
                 this.selectTitleMenuOption();
             } else if (this.titleMenu == Main.TITLE_MENU_MAIN && --this.titleTimeout <= 0) {
@@ -4078,6 +4095,8 @@ export class Main extends BasicGame {
         }
     }
 
+    private setTitleMenu(menu: number): void;
+    private setTitleMenu(menu: number, selectedIndex: number): void;
     private setTitleMenu(menu: number, selectedIndex: number = 0): void {
         this.titleMenu = menu;
         this.titleSelectedIndex = selectedIndex;
@@ -4146,7 +4165,7 @@ export class Main extends BasicGame {
             this.titleInputMappingLines[i] = line;
             maxLength = Math.max(maxLength, line.length);
         }
-        this.titleInputMappingX = Math.max(64, trunc((640 - maxLength * 16) / 2));
+        this.titleInputMappingX = Math.max(64, this.centerTextX(maxLength));
         this.titleInputMappingCacheDirty = false;
     }
 
@@ -4158,8 +4177,11 @@ export class Main extends BasicGame {
         this.drawString(text, this.centerTextX(text), y);
     }
 
-    private centerTextX(text: string): number {
-        return trunc((640 - text.length * 16) / 2);
+    private centerTextX(text: string): number;
+    private centerTextX(length: number): number;
+    private centerTextX(textOrLength: string | number): number {
+        const length = typeof textOrLength === "string" ? textOrLength.length : textOrLength;
+        return (640 - (length << 4)) >> 1;
     }
 
     private centerLongestMenuOptionX(options: string[]): number {
@@ -4167,7 +4189,7 @@ export class Main extends BasicGame {
         for (let i: number = 0; i < options.length; i++) {
             maxLength = Math.max(maxLength, options[i].length);
         }
-        return trunc((640 - maxLength * 16) / 2);
+        return this.centerTextX(maxLength);
     }
 
     private drawStatusBar(g: Graphics): void {
@@ -4233,13 +4255,21 @@ export class Main extends BasicGame {
     }
 
     public drawFaded(image: Image, x: number, y: number, alpha: number): void {
+        x = javaFloat(x);
+        y = javaFloat(y);
+        alpha = javaFloat(alpha);
         image.setAlpha(alpha);
         image.draw(64 + trunc(x) - this.camera, 96 + trunc(y));
         image.setAlpha(1);
     }
 
+    public draw(image: Image, x: number, y: number): void;
+    public draw(image: Image, x: number, y: number, angle: number): void;
     public draw(image: Image, x: number, y: number, angle?: number): void {
+        x = javaFloat(x);
+        y = javaFloat(y);
         if (angle !== undefined) {
+            angle = javaFloat(angle);
             image.setRotation(trunc(angle));
             image.draw(64 + trunc(x) - this.camera, 96 + trunc(y));
             image.setRotation(0);
@@ -4250,13 +4280,17 @@ export class Main extends BasicGame {
     }
 
     public drawLine(g: Graphics, x1: number, y1: number, x2: number, y2: number): void {
+        x1 = javaFloat(x1);
+        y1 = javaFloat(y1);
+        x2 = javaFloat(x2);
+        y2 = javaFloat(y2);
         let color: Color = g.getColor();
         g.setColor(Color.red);
-        g.drawLine(x1 - this.camera + 64, y1 + 96, x2 - this.camera + 64, y2 + 96);
+        g.drawLine(javaFloat(javaFloat(x1 - this.camera) + 64), javaFloat(y1 + 96), javaFloat(javaFloat(x2 - this.camera) + 64), javaFloat(y2 + 96));
         g.setColor(color);
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         let skipFadeOverlay: boolean = false;
         const displayMonochromePalette = this.displayMonochromePalette;
         try {
@@ -4300,33 +4334,33 @@ export class Main extends BasicGame {
 
                     for (let i: number = 0; i < 11; i++) {
                         for (let j: number = 0; j < 17; j++) {
-                            let block: number = this.map[i][j + x];
+                            let block: number = this.map![i][j + x];
                             if (block > 0) {
                                 this.blocks[block].draw((j << 5) + offset, 96 + (i << 5));
                             }
                         }
                     }
 
-                    let things: Thing[] = this.regionThingStack.things;
+                    let things = this.regionThingStack.things;
                     for (let j: number = this.regionThingStack.top; j >= 0; j--) {
-                        things[j].render(gc, g);
+                        things[j]!.render(gc, g);
                     }
 
                     things = this.oldThingStack.things;
                     for (let j: number = this.oldThingStack.top; j >= 0; j--) {
-                        things[j].render(gc, g);
+                        things[j]!.render(gc, g);
                     }
 
-                    let weapons: Thing[] = this.weaponsStack.things;
+                    const weapons = this.weaponsStack.things;
                     for (let j: number = this.weaponsStack.top; j >= 0; j--) {
-                        weapons[j].render(gc, g);
+                        weapons[j]!.render(gc, g);
                     }
 
-                    for (let i: number = this.platforms.length - 1; i >= 0; i--) {
-                        this.platforms[i].render(gc, g);
+                    for (let i: number = this.platforms!.length - 1; i >= 0; i--) {
+                        this.platforms![i]!.render(gc, g);
                     }
 
-                    this.simon.render(gc, g);
+                    this.simon!.render(gc, g);
 
                     g.setColor(Color.black);
                     g.fillRect(0, 96, 64, 352);

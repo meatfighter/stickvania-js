@@ -1,5 +1,5 @@
 import { GameContainer, Graphics } from "slick2d-ts";
-import { trunc } from "./JavaMath.js";
+import { javaFloat, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
 
@@ -20,18 +20,18 @@ export class DropItem extends Thing {
     public static readonly TYPE_STOP_WATCH: number = 13;
     public static readonly TYPE_TRIPLE: number = 14;
     public static readonly TYPE_WHIP: number = 15;
-    public static readonly FRACTION: number = 1 / 91;
+    public static readonly FRACTION: number = javaFloat(1 / 91);
     public type: number = 0;
     public disappears: boolean = true;
     public lifeTime: number = 728;
     public constructor(main: Main, x: number, y: number, type: number) {
         super(main, 32, 32);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
         this.type = type;
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         const wasSupported: boolean = this.supported;
         this.applyGravity();
         if (!wasSupported && this.supported) {
@@ -113,8 +113,8 @@ export class DropItem extends Thing {
                     break;
                 case DropItem.TYPE_POTION:
                     this.main.playRumble("invincibilityPotion");
-                    this.main.simon.invincible = 728;
-                    this.main.simon.drankPotion = true;
+                    this.main.simon!.invincible = 728;
+                    this.main.simon!.drankPotion = true;
                     break;
                 case DropItem.TYPE_STOP_WATCH:
                     this.main.setWeapon(Main.WEAPON_TYPE_STOP_WATCH);
@@ -157,11 +157,11 @@ export class DropItem extends Thing {
         }
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (this.lifeTime > 90) {
             this.main.draw(this.main.dropItems[this.type], this.x, this.y);
         } else {
-            this.main.drawFaded(this.main.dropItems[this.type], this.x, this.y, this.lifeTime * DropItem.FRACTION);
+            this.main.drawFaded(this.main.dropItems[this.type], this.x, this.y, javaFloat(this.lifeTime * DropItem.FRACTION));
         }
     }
 }

@@ -1,4 +1,5 @@
 import { GL11, Game, GameContainer, Graphics, InputListener, SlickCallable } from "slick2d-ts";
+import { javaFloat } from "./JavaMath.js";
 
 function isInputListener(value: unknown): value is InputListener {
     const candidate = value as Partial<InputListener> | null;
@@ -27,10 +28,12 @@ export class ScalableGame2 implements Game {
     private xoffset = 0;
     private yoffset = 0;
 
-    public constructor(held: Game, normalWidth: number, normalHeight: number, maintainAspect: boolean = true) {
+    public constructor(held: Game, normalWidth: number, normalHeight: number);
+    public constructor(held: Game, normalWidth: number, normalHeight: number, maintainAspect: boolean);
+    public constructor(held: Game, normalWidth: number, normalHeight: number, maintainAspect: boolean = false) {
         this.held = held;
-        this.normalWidth = normalWidth;
-        this.normalHeight = normalHeight;
+        this.normalWidth = javaFloat(normalWidth);
+        this.normalHeight = javaFloat(normalHeight);
         this.maintainAspect = maintainAspect;
     }
 
@@ -51,12 +54,16 @@ export class ScalableGame2 implements Game {
         this.calculateOffsets(container);
         const xoffset = this.xoffset;
         const yoffset = this.yoffset;
-        const xscale = this.targetWidth / ScalableGame2.VIEWPORT_WIDTH;
-        const yscale = this.targetHeight / ScalableGame2.VIEWPORT_HEIGHT;
+        const xscale = javaFloat(this.targetWidth / ScalableGame2.VIEWPORT_WIDTH);
+        const yscale = javaFloat(this.targetHeight / ScalableGame2.VIEWPORT_HEIGHT);
 
         SlickCallable.enterSafeBlock();
         g.setClip(xoffset, yoffset, this.targetWidth, this.targetHeight);
-        GL11.glTranslatef(xoffset - ScalableGame2.VIEWPORT_X * xscale, yoffset - ScalableGame2.VIEWPORT_Y * yscale, 0);
+        GL11.glTranslatef(
+            javaFloat(xoffset - javaFloat(ScalableGame2.VIEWPORT_X * xscale)),
+            javaFloat(yoffset - javaFloat(ScalableGame2.VIEWPORT_Y * yscale)),
+            0
+        );
         GL11.glScalef(xscale, yscale, 0);
         GL11.glPushMatrix();
         this.held.render(container, g);
@@ -86,12 +93,12 @@ export class ScalableGame2 implements Game {
         this.targetWidth = container.getWidth();
         this.targetHeight = container.getHeight();
         if (this.maintainAspect) {
-            const viewportAspect = ScalableGame2.VIEWPORT_WIDTH / ScalableGame2.VIEWPORT_HEIGHT;
-            const containerAspect = this.targetWidth / this.targetHeight;
+            const viewportAspect = javaFloat(ScalableGame2.VIEWPORT_WIDTH / ScalableGame2.VIEWPORT_HEIGHT);
+            const containerAspect = javaFloat(this.targetWidth / this.targetHeight);
             if (containerAspect > viewportAspect) {
-                this.targetWidth = Math.trunc(this.targetHeight * viewportAspect);
+                this.targetWidth = Math.trunc(javaFloat(this.targetHeight * viewportAspect));
             } else {
-                this.targetHeight = Math.trunc(this.targetWidth / viewportAspect);
+                this.targetHeight = Math.trunc(javaFloat(this.targetWidth / viewportAspect));
             }
         }
     }
@@ -100,10 +107,12 @@ export class ScalableGame2 implements Game {
         this.calculateOffsets(container);
         const xoffset = this.xoffset;
         const yoffset = this.yoffset;
-        const xscale = ScalableGame2.VIEWPORT_WIDTH / this.targetWidth;
-        const yscale = ScalableGame2.VIEWPORT_HEIGHT / this.targetHeight;
+        const xscale = javaFloat(ScalableGame2.VIEWPORT_WIDTH / this.targetWidth);
+        const yscale = javaFloat(ScalableGame2.VIEWPORT_HEIGHT / this.targetHeight);
         container.getInput().setScale(xscale, yscale);
-        container.getInput().setOffset(ScalableGame2.VIEWPORT_X - xoffset * xscale, ScalableGame2.VIEWPORT_Y - yoffset * yscale);
+        container
+            .getInput()
+            .setOffset(javaFloat(ScalableGame2.VIEWPORT_X - javaFloat(xoffset * xscale)), javaFloat(ScalableGame2.VIEWPORT_Y - javaFloat(yoffset * yscale)));
     }
 
     private calculateOffsets(container: GameContainer): void {

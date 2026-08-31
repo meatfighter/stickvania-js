@@ -1,6 +1,6 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Flame } from "./Flame.js";
-import { cc, trunc } from "./JavaMath.js";
+import { javaFloat, cc, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
@@ -10,22 +10,24 @@ export class Zombie extends Thing {
     private spriteIndexIncrementor: number = 0;
     private spriteIndex: number = 0;
     private direction: number = 0;
-    private zombieSpawner: ZombieSpawner = null;
+    private zombieSpawner: ZombieSpawner = null!;
     public constructor(main: Main, x: number, y: number, direction: number, zombieSpawner: ZombieSpawner) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 1, 0, 30, 64);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
         this.direction = direction;
         this.zombieSpawner = zombieSpawner;
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             if (this.main.random.nextBoolean()) {
-                this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h")));
+                this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h"))!);
             }
-            this.main.pushThing(new Flame(this.main, this.x, this.y + 24, 0, 0, -0.08, 0, 10));
+            this.main.pushThing(new Flame(this.main, this.x, javaFloat(this.y + 24), 0, 0, -0.08, 0, 10));
             this.zombieSpawner.zombieDied();
             this.main.addPoints(100);
             this.main.playSound(this.main.zombie_killed);
@@ -65,7 +67,7 @@ export class Zombie extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.zombies[this.direction][this.spriteIndex], this.x, this.y);
     }
 }

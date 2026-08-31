@@ -9,10 +9,11 @@
         "isolatedModules": true,
         "moduleDetection": "force",
         "noEmit": true,
-        "strict": false,
+        "strict": true,
+        "strictPropertyInitialization": false,
         "noUnusedLocals": false,
         "noUnusedParameters": false,
-        "noImplicitOverride": false,
+        "noImplicitOverride": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true
     },

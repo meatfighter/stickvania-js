@@ -1,7 +1,7 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Fireball } from "./Fireball.js";
 import { Flame } from "./Flame.js";
-import { cc, trunc } from "./JavaMath.js";
+import { javaFloat, cc, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
@@ -13,13 +13,15 @@ export class BonePillar extends Thing {
     private delay: number = 0;
     private bullets: number = 2;
     public constructor(main: Main, x: number, y: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 32, 64);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
         this.hits = main.adjustEnemyHits(this.hits);
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.kill) {
             this.hits = 0;
             this.stunned = 0;
@@ -31,10 +33,10 @@ export class BonePillar extends Thing {
             this.main.pushThing(new Spark(this.main, this));
             if (--this.hits <= 0) {
                 if (this.main.random.nextBoolean()) {
-                    this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h")));
+                    this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h"))!);
                 }
                 this.main.pushThing(new Flame(this.main, this.x, this.y, -1, 0, -0.08, 0, 10));
-                this.main.pushThing(new Flame(this.main, this.x, this.y + 32, 1, 0, -0.08, 0, 10));
+                this.main.pushThing(new Flame(this.main, this.x, javaFloat(this.y + 32), 1, 0, -0.08, 0, 10));
                 this.main.addPoints(400);
                 this.main.playSound(this.main.torch_breaks);
                 return false;
@@ -44,8 +46,8 @@ export class BonePillar extends Thing {
             }
         }
 
-        if (this.main.timeFrozen == 0 && Math.abs(this.main.simon.x - this.x) < 512) {
-            this.direction = this.main.simon.x < this.x ? Main.LEFT : Main.RIGHT;
+        if (this.main.timeFrozen == 0 && Math.abs(javaFloat(this.main.simon!.x - this.x)) < 512) {
+            this.direction = this.main.simon!.x < this.x ? Main.LEFT : Main.RIGHT;
 
             if (this.delay == 0) {
                 if (--this.bullets == 0) {
@@ -54,7 +56,7 @@ export class BonePillar extends Thing {
                 } else {
                     this.delay = this.main.adjustEnemyCooldown(364);
                 }
-                this.main.pushThing(new Fireball(this.main, this.x + 8, this.y + 18, this.direction == Main.LEFT ? -1.5 : 1.5, 0));
+                this.main.pushThing(new Fireball(this.main, javaFloat(this.x + 8), javaFloat(this.y + 18), this.direction == Main.LEFT ? -1.5 : 1.5, 0));
                 this.main.playRumble("fireProjectile");
                 this.main.playSound(this.main.fire_ball_shot);
             } else {
@@ -69,7 +71,7 @@ export class BonePillar extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.bonePillars[this.direction], this.x, this.y);
     }
 }

@@ -3,6 +3,7 @@ import { Flame } from "./Flame.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
+import { javaFloat } from "./JavaMath.js";
 
 export class Raven extends Thing {
     private static readonly spriteSequence: number[] = [0, 1, 2, 1, 3];
@@ -14,38 +15,40 @@ export class Raven extends Thing {
     private direction: number = 0;
     private state: number = Raven.STATE_INACTIVE;
     private delay: number = 0;
-    private targetX: number = 0;
+    private targetX: number = javaFloat(0);
     private applyingGravity: boolean = false;
     public constructor(main: Main, x: number, y: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 32, 32);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
     }
 
     private findTarget(): void {
-        if (this.main.simon.x + 16 < this.x) {
-            this.targetX = this.main.simon.x + 16 - this.main.random.nextInt(96);
+        if (javaFloat(this.main.simon!.x + 16) < this.x) {
+            this.targetX = javaFloat(javaFloat(this.main.simon!.x + 16) - this.main.random.nextInt(96));
         } else {
-            this.targetX = this.main.simon.x + 48 + this.main.random.nextInt(96);
+            this.targetX = javaFloat(javaFloat(this.main.simon!.x + 48) + this.main.random.nextInt(96));
         }
         if (this.main.random.nextBoolean()) {
-            let targetY: number = this.main.random.nextBoolean() ? this.main.simon.y + 8 : this.main.simon.y - 64;
+            let targetY: number = javaFloat(this.main.random.nextBoolean() ? javaFloat(this.main.simon!.y + 8) : javaFloat(this.main.simon!.y - 64));
             this.applyingGravity = true;
-            let t: number = Math.abs(this.main.simon.x + 16 - this.x);
-            let h: number = Math.abs(targetY - this.y);
-            this.G = (2 * h) / (t * t);
-            this.vy = Math.min(4, Math.sqrt(2 * this.G * h));
+            let t: number = javaFloat(Math.abs(javaFloat(javaFloat(this.main.simon!.x + 16) - this.x)));
+            let h: number = javaFloat(Math.abs(javaFloat(targetY - this.y)));
+            this.G = javaFloat(javaFloat(2 * h) / javaFloat(t * t));
+            this.vy = Math.min(4, javaFloat(Math.sqrt(javaFloat(javaFloat(2 * this.G) * h))));
             if (targetY > this.y) {
-                this.G = -this.G;
+                this.G = javaFloat(-this.G);
             } else {
-                this.vy = -this.vy;
+                this.vy = javaFloat(-this.vy);
             }
         } else {
             this.applyingGravity = false;
         }
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
@@ -55,7 +58,7 @@ export class Raven extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-            if (this.main.simon.x + 16 < this.x) {
+            if (javaFloat(this.main.simon!.x + 16) < this.x) {
                 this.direction = Main.LEFT;
             } else {
                 this.direction = Main.RIGHT;
@@ -72,7 +75,7 @@ export class Raven extends Thing {
 
             switch (this.state) {
                 case Raven.STATE_INACTIVE:
-                    if (Math.abs(this.main.simon.x + 16 - this.x) < 192) {
+                    if (Math.abs(javaFloat(javaFloat(this.main.simon!.x + 16) - this.x)) < 192) {
                         this.state = Raven.STATE_HOVERING;
                         this.delay = this.main.adjustEnemyBehaviorDelay(91 + this.main.random.nextInt(91));
                         this.spriteIndex = 0;
@@ -88,14 +91,14 @@ export class Raven extends Thing {
                     if (this.applyingGravity) {
                         this.applyGravity();
                         if (this.y < 0) {
-                            this.y = 0;
+                            this.y = javaFloat(0);
                             this.applyingGravity = false;
                         } else if (this.y > 320) {
-                            this.y = 320;
+                            this.y = javaFloat(320);
                             this.applyingGravity = false;
                         }
                     }
-                    if (Math.abs(this.targetX - this.x) <= 2) {
+                    if (Math.abs(javaFloat(this.targetX - this.x)) <= 2) {
                         this.state = Raven.STATE_HOVERING;
                         this.delay = this.main.adjustEnemyBehaviorDelay(91 + this.main.random.nextInt(91));
                     } else if (this.targetX < this.x) {
@@ -120,7 +123,7 @@ export class Raven extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.ravens[this.direction][Raven.spriteSequence[this.spriteIndex]], this.x, this.y);
     }
 }

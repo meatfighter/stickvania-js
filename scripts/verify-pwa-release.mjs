@@ -534,12 +534,13 @@ test("package scripts use temporary release stamping for public builds", () => {
     );
     assert.equal(scripts["build"], "node scripts/build-production.mjs");
     assert.equal(scripts["test:buffered-scaling-wiring"], "node scripts/test-buffered-scaling-wiring.mjs");
+    assert.equal(scripts["test:java-parity"], "node scripts/test-java-parity.mjs");
     assert.equal(scripts["test:about-page"], "node scripts/test-about-page.mjs");
     assert.equal(scripts["release"], "npm run verify && npm run verify:dependencies && npm run build");
     assert.equal(scripts["release:desktop"], "node scripts/release-desktop.mjs");
     assert.equal(
         scripts["verify"],
-        "npm run format:check && npm run lint && npm run test:buffered-scaling-wiring && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop"
+        "npm run format:check && npm run lint && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop"
     );
 
     for (const [name, script] of Object.entries(scripts)) {
@@ -907,7 +908,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const builtSource = builtJavaScript();
 
     assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 5;/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 6;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);

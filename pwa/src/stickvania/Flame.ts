@@ -1,25 +1,31 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
+import { javaFloat } from "./JavaMath.js";
 
 export class Flame extends Thing {
     private static readonly STATE_HIDDEN: number = 0;
     private static readonly STATE_FLAME_UP: number = 1;
     private static readonly STATE_FLAMING: number = 2;
     private static readonly STATE_FLAME_DOWN: number = 3;
-    private g: number = 0;
+    private g: number = javaFloat(0);
     private appearanceDelay: number = 0;
     private lifetime: number = 0;
     private state: number = Flame.STATE_HIDDEN;
     private spriteIndex: number = 0;
     private delay: number = 5;
     public constructor(main: Main, x: number, y: number, vx: number, vy: number, g: number, appearanceDelay: number, lifetime: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
+        vx = javaFloat(vx);
+        vy = javaFloat(vy);
+        g = javaFloat(g);
         super(main, 32, 32);
-        this.x = x;
-        this.y = y;
-        this.vx = vx;
-        this.vy = vy;
-        this.g = g;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
+        this.vx = javaFloat(vx);
+        this.vy = javaFloat(vy);
+        this.g = javaFloat(g);
         this.appearanceDelay = appearanceDelay;
         this.lifetime = lifetime;
 
@@ -28,11 +34,11 @@ export class Flame extends Thing {
         }
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.state != Flame.STATE_HIDDEN) {
-            this.x += this.vx;
-            this.y += this.vy;
-            this.vy += this.g;
+            this.x = javaFloat(this.x + this.vx);
+            this.y = javaFloat(this.y + this.vy);
+            this.vy = javaFloat(this.vy + this.g);
         }
 
         switch (this.state) {
@@ -80,7 +86,7 @@ export class Flame extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (this.state != Flame.STATE_HIDDEN) {
             this.main.draw(this.main.fires[this.spriteIndex], this.x, this.y);
         }

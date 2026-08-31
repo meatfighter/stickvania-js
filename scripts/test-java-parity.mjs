@@ -1,0 +1,261 @@
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+const STICKVANIA_TS = join(ROOT, "pwa", "src", "stickvania");
+const STICKVANIA_JAVA = join(ROOT, "desktop", "src", "stickvania");
+
+function readProjectFile(...parts) {
+    return readFileSync(join(ROOT, ...parts), "utf8");
+}
+
+function javaInt(value) {
+    if (Number.isNaN(value)) {
+        return 0;
+    }
+    if (value <= -0x80000000) {
+        return -0x80000000;
+    }
+    if (value >= 0x7fffffff) {
+        return 0x7fffffff;
+    }
+    const result = Math.trunc(value);
+    return result === 0 ? 0 : result;
+}
+
+function javaIntDivide(dividend, divisor) {
+    dividend = javaInt(dividend);
+    divisor = javaInt(divisor);
+    if (divisor === 0) {
+        throw new RangeError("Java integer division by zero");
+    }
+    if (dividend === -0x80000000 && divisor === -1) {
+        return -0x80000000;
+    }
+    return javaInt(dividend / divisor);
+}
+
+function javaIntRemainder(dividend, divisor) {
+    dividend = javaInt(dividend);
+    divisor = javaInt(divisor);
+    if (divisor === 0) {
+        throw new RangeError("Java integer division by zero");
+    }
+    const result = dividend % divisor;
+    return result === 0 ? 0 : result;
+}
+
+function simulateSimonJump({ binary32, startY, supportY }) {
+    const round = binary32 ? Math.fround : (value) => value;
+    const gravity = round(0.130027228);
+    const jumpVelocity = round(-4.262100987);
+    const ry2 = 63;
+
+    let y = round(startY);
+    let vy = jumpVelocity;
+    let minimumY = y;
+    let apexUpdate = 0;
+    const positions = [y];
+
+    for (let update = 1; update <= 1000; update++) {
+        const targetY = round(y + vy);
+        const y1 = javaInt(round(y + ry2));
+        const y2 = javaInt(round(targetY + ry2));
+        vy = round(vy + gravity);
+
+        if (targetY < minimumY) {
+            minimumY = targetY;
+            apexUpdate = update;
+        }
+
+        if (vy >= 0) {
+            for (let scanY = y1; scanY <= y2; scanY++) {
+                if (scanY + 1 === supportY) {
+                    y = round(scanY - ry2);
+                    vy = round(0);
+                    positions.push(y);
+                    return {
+                        apexUpdate,
+                        gravity,
+                        jumpVelocity,
+                        landingUpdate: update,
+                        minimumY,
+                        positions
+                    };
+                }
+            }
+        }
+
+        y = targetY;
+        positions.push(y);
+    }
+
+    throw new Error("Simon did not land within 1,000 updates");
+}
+
+function compareSimonJump(startY, supportY) {
+    const browserDouble = simulateSimonJump({ binary32: false, startY, supportY });
+    const javaFloat = simulateSimonJump({ binary32: true, startY, supportY });
+    let maximumPositionDelta = 0;
+    let differingRenderedYUpdates = 0;
+
+    assert.equal(browserDouble.positions.length, javaFloat.positions.length);
+    for (let index = 0; index < browserDouble.positions.length; index++) {
+        maximumPositionDelta = Math.max(maximumPositionDelta, Math.abs(browserDouble.positions[index] - javaFloat.positions[index]));
+        if (Math.trunc(browserDouble.positions[index]) !== Math.trunc(javaFloat.positions[index])) {
+            differingRenderedYUpdates++;
+        }
+    }
+
+    return {
+        browserDouble,
+        javaFloat,
+        maximumPositionDelta,
+        differingRenderedYUpdates
+    };
+}
+
+function assertClose(actual, expected, tolerance, label) {
+    assert.ok(Math.abs(actual - expected) <= tolerance, `${label}: expected ${expected}, received ${actual}`);
+}
+
+function countMatches(text, pattern) {
+    return [...text.matchAll(pattern)].length;
+}
+
+function collectTypeScriptFiles(directory) {
+    const files = [];
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) {
+            files.push(...collectTypeScriptFiles(path));
+        } else if (entry.name.endsWith(".ts")) {
+            files.push(path);
+        }
+    }
+    return files;
+}
+
+const javaMathSource = readProjectFile("pwa", "src", "stickvania", "JavaMath.ts");
+assert.match(
+    javaMathSource,
+    /export const javaFloat:\s*\(value: number\) => number = Math\.fround;/,
+    "javaFloat must remain a direct, allocation-free Math.fround binding"
+);
+assert.doesNotMatch(javaMathSource, /Float32Array|new\s+Number|Object\.create/, "Java float conversion must not allocate wrapper objects");
+assert.match(javaMathSource, /Number\.isNaN\(value\)/);
+assert.match(javaMathSource, /JAVA_INT_MIN/);
+assert.match(javaMathSource, /JAVA_INT_MAX/);
+assert.match(javaMathSource, /dividend === JAVA_INT_MIN && divisor === -1/);
+
+assert.equal(javaInt(Number.NaN), 0);
+assert.equal(javaInt(Number.POSITIVE_INFINITY), 0x7fffffff);
+assert.equal(javaInt(Number.NEGATIVE_INFINITY), -0x80000000);
+assert.equal(javaInt(12.9), 12);
+assert.equal(javaInt(-12.9), -12);
+assert.equal(Object.is(javaInt(-0.25), -0), false);
+assert.equal(javaIntDivide(-0x80000000, -1), -0x80000000);
+assert.equal(javaIntDivide(-7, 3), -2);
+assert.equal(javaIntRemainder(-7, 3), -1);
+assert.equal(Object.is(javaIntRemainder(-0x80000000, -1), -0), false);
+assert.throws(() => javaIntDivide(1, 0), RangeError);
+assert.throws(() => javaIntRemainder(1, 0), RangeError);
+
+const mainSource = readProjectFile("pwa", "src", "stickvania", "Main.ts");
+assert.match(mainSource, /HARD_ATTACK_COOLDOWN_MULTIPLIER: number = javaFloat\(0\.7\)/);
+assert.match(mainSource, /trunc\(javaFloat\(baseDelay \* multiplier\)\)/);
+assert.equal(Math.trunc(90 * 0.7), 62, "The old browser-double calculation should expose the known edge case");
+assert.equal(javaInt(Math.fround(90 * Math.fround(0.7))), 63, "Java float cooldown calculation must produce 63");
+
+const normalJump = compareSimonJump(256, 320);
+assert.equal(normalJump.browserDouble.apexUpdate, 33);
+assert.equal(normalJump.javaFloat.apexUpdate, 33);
+assert.equal(normalJump.browserDouble.landingUpdate, 67);
+assert.equal(normalJump.javaFloat.landingUpdate, 67);
+assert.equal(normalJump.differingRenderedYUpdates, 0);
+assertClose(normalJump.maximumPositionDelta, 0.0000959306251218095, 1e-15, "normal jump maximum position delta");
+
+const longDrop = compareSimonJump(-64, 320);
+assert.equal(longDrop.browserDouble.apexUpdate, 33);
+assert.equal(longDrop.javaFloat.apexUpdate, 33);
+assert.equal(longDrop.browserDouble.landingUpdate, 111);
+assert.equal(longDrop.javaFloat.landingUpdate, 111);
+assert.equal(longDrop.differingRenderedYUpdates, 0);
+assertClose(longDrop.maximumPositionDelta, 0.00029060946104664254, 1e-15, "long-drop maximum position delta");
+
+let gridAlignedJumpCases = 0;
+for (let startingSupportY = 0; startingSupportY <= 320; startingSupportY += 32) {
+    for (let landingSupportY = startingSupportY; landingSupportY <= 320; landingSupportY += 32) {
+        const comparison = compareSimonJump(startingSupportY - 64, landingSupportY);
+        assert.equal(comparison.browserDouble.landingUpdate, comparison.javaFloat.landingUpdate);
+        assert.equal(comparison.differingRenderedYUpdates, 0);
+        gridAlignedJumpCases++;
+    }
+}
+assert.equal(gridAlignedJumpCases, 66);
+
+const javaThingSource = readProjectFile("desktop", "src", "stickvania", "Thing.java");
+const javaMermanSpawnerSource = readProjectFile("desktop", "src", "stickvania", "MermanSpawner.java");
+const tsMermanSpawnerSource = readProjectFile("pwa", "src", "stickvania", "MermanSpawner.ts");
+assert.match(javaThingSource, /public float vy;/);
+assert.match(javaMermanSpawnerSource, /private float vy;/);
+assert.match(tsMermanSpawnerSource, /private spawnVy: number = javaFloat\(0\);/);
+assert.doesNotMatch(tsMermanSpawnerSource, /\b(?:public|private|protected)\s+vy\s*:/);
+assert.match(tsMermanSpawnerSource, /new Merman\(this\.main, target, this\.spawnVy, this\)/);
+
+const gameStateSchemaSource = readProjectFile("pwa", "src", "stickvania", "persistence", "GameStateSchema.ts");
+assert.match(gameStateSchemaSource, /GAME_STATE_VERSION = 6;/);
+for (const spawner of ["BirdSpawner.ts", "MermanSpawner.ts", "ZombieSpawner.ts"]) {
+    const source = readProjectFile("pwa", "src", "stickvania", spawner);
+    assert.doesNotMatch(source, /Number\.isFinite\(this\.(?:activeCap|count)\)/, `${spawner} still contains obsolete save-migration checks`);
+}
+
+const tsconfig = JSON.parse(readProjectFile("pwa", "tsconfig.json"));
+assert.equal(tsconfig.compilerOptions.strict, true);
+assert.equal(tsconfig.compilerOptions.noImplicitOverride, true);
+assert.equal(tsconfig.compilerOptions.strictPropertyInitialization, false);
+assert.equal(tsconfig.compilerOptions.useDefineForClassFields, true);
+
+const typeScriptFiles = collectTypeScriptFiles(STICKVANIA_TS);
+let combinedTypeScript = "";
+for (const file of typeScriptFiles) {
+    combinedTypeScript += `\n// ${relative(ROOT, file)}\n${readFileSync(file, "utf8")}`;
+}
+assert.doesNotMatch(combinedTypeScript, /@ts-nocheck/);
+assert.doesNotMatch(combinedTypeScript, /\bas\s+any\b|:\s*any\b|<any>/);
+assert.doesNotMatch(combinedTypeScript, /Float32Array\s*\(\s*\[/, "Float emulation must not create a temporary typed array");
+assert.ok(countMatches(combinedTypeScript, /\boverride\b/g) >= 130, "Expected Java override relationships to be expressed in TypeScript");
+assert.ok(countMatches(combinedTypeScript, /\bjavaFloat\b/g) >= 1200, "Expected the Java float semantic pass to remain in place");
+
+console.log("Java/TypeScript parity checks passed.");
+console.log(
+    JSON.stringify(
+        {
+            hardCooldown90: {
+                oldBrowserDouble: Math.trunc(90 * 0.7),
+                javaFloat: javaInt(Math.fround(90 * Math.fround(0.7)))
+            },
+            normalJump: {
+                apexUpdate: normalJump.javaFloat.apexUpdate,
+                browserHeight: 256 - normalJump.browserDouble.minimumY,
+                javaFloatHeight: 256 - normalJump.javaFloat.minimumY,
+                landingUpdate: normalJump.javaFloat.landingUpdate,
+                maximumPositionDelta: normalJump.maximumPositionDelta,
+                differingRenderedYUpdates: normalJump.differingRenderedYUpdates
+            },
+            topToBottomJump: {
+                apexUpdate: longDrop.javaFloat.apexUpdate,
+                browserHeight: -64 - longDrop.browserDouble.minimumY,
+                javaFloatHeight: -64 - longDrop.javaFloat.minimumY,
+                landingUpdate: longDrop.javaFloat.landingUpdate,
+                maximumPositionDelta: longDrop.maximumPositionDelta,
+                differingRenderedYUpdates: longDrop.differingRenderedYUpdates
+            },
+            gridAlignedJumpCases
+        },
+        null,
+        2
+    )
+);

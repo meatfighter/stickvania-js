@@ -1,6 +1,7 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
+import { javaFloat } from "./JavaMath.js";
 
 export class HolyWater extends Thing {
     public static readonly STATE_DROPPING: number = 0;
@@ -11,21 +12,23 @@ export class HolyWater extends Thing {
     public spriteIndex: number = 0;
     public delay: number = 0;
     public constructor(main: Main, x: number, y: number, direction: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 32, 27);
-        this.x = x;
-        this.y = y;
-        this.vx = direction == Main.RIGHT ? 3 : -3;
-        this.vy = -1.5;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
+        this.vx = javaFloat(direction == Main.RIGHT ? 3 : -3);
+        this.vy = javaFloat(-1.5);
         this.direction = direction;
         this.state = HolyWater.STATE_DROPPING;
         main.playSound(main.threw_dagger);
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.state == HolyWater.STATE_DROPPING) {
             this.applyGravity();
             if (this.supported || !this.moveX(this.vx) || this.intersected) {
-                this.y -= 5;
+                this.y = javaFloat(this.y - 5);
                 this.rx1 = 0;
                 this.ry1 = 0;
                 this.rx2 = 31;
@@ -57,7 +60,7 @@ export class HolyWater extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (this.state == HolyWater.STATE_DROPPING) {
             this.main.draw(this.main.holyWaters[this.direction], this.x, this.y);
         } else {

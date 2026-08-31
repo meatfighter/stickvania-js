@@ -839,7 +839,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
         showMenu("Unable to restore the saved game. Try Continue again or start a new game.");
         return;
     }
-    appContainer.setErrorHandler((error) => {
+    appContainer.setErrorHandler((error: unknown) => {
         console.error(error);
         destroyGame();
         showLoadError("Unable to continue.", "Reload the page and try again.", () => {
@@ -927,11 +927,11 @@ async function preloadPreparedResources(resourceRefs: readonly string[]): Promis
 
     updateProgress();
     await Promise.all([
-        ResourceLoader.preloadResources(nonAudioRefs, (progress) => {
+        ResourceLoader.preloadResources(nonAudioRefs, (progress: { loaded: number }) => {
             nonAudioLoaded = progress.loaded;
             updateProgress();
         }),
-        SoundStore.get().preloadAudioBuffers(audioRefs, (progress) => {
+        SoundStore.get().preloadAudioBuffers(audioRefs, (progress: { loaded: number }) => {
             audioLoaded = progress.loaded;
             updateProgress();
         })

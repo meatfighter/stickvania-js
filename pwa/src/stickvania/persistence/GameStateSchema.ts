@@ -1,4 +1,4 @@
 import { getBrowserStorageKey } from "../BrowserStorageKeys.js";
 
 export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey("game-state");
-export const GAME_STATE_VERSION = 5;
+export const GAME_STATE_VERSION = 6;

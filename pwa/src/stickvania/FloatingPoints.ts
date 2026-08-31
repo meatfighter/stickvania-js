@@ -1,6 +1,7 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
+import { javaFloat } from "./JavaMath.js";
 
 export class FloatingPoints extends Thing {
     public static readonly TYPE_100: number = 0;
@@ -11,14 +12,16 @@ export class FloatingPoints extends Thing {
     public type: number = 0;
     public count: number = 0;
     public constructor(main: Main, x: number, y: number, type: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 32, 32);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
         this.type = type;
     }
 
-    public update(gc: GameContainer): boolean {
-        this.y -= 0.25;
+    public override update(gc: GameContainer): boolean {
+        this.y = javaFloat(this.y - 0.25);
         if (++this.count >= 91) {
             return false;
         }
@@ -26,7 +29,7 @@ export class FloatingPoints extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.itemPoints[this.type], this.x, this.y);
     }
 }

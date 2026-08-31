@@ -1,7 +1,7 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Bone } from "./Bone.js";
 import { Flame } from "./Flame.js";
-import { cc, trunc } from "./JavaMath.js";
+import { javaFloat, cc, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
@@ -16,24 +16,28 @@ export class WhiteSkeleton extends Thing {
     private spriteIndexIncrementor: number = 0;
     private delay: number = 0;
     private state: number = WhiteSkeleton.STATE_INACTIVE;
-    private targetX: number = 0;
+    private targetX: number = javaFloat(0);
     private throwDelay: number = 0;
     private dying: number = 0;
     private dead: boolean = false;
     public constructor(main: Main, x: number, y: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 1, 0, 30, 64);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
         this.throwDelay = main.adjustEnemyCooldown(91 + main.random.nextInt(273));
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.dead) {
             if (++this.dying == 137) {
                 if (this.main.random.nextBoolean()) {
-                    this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y + 32), this.main.random.nextBoolean() ? cc("$") : cc("h")));
+                    this.main.pushThing(
+                        this.main.createCandleItem(trunc(this.x), trunc(javaFloat(this.y + 32)), this.main.random.nextBoolean() ? cc("$") : cc("h"))!
+                    );
                 }
-                this.main.pushThing(new Flame(this.main, this.x, this.y + 32, 0, 0, -0.05, 0, 10));
+                this.main.pushThing(new Flame(this.main, this.x, javaFloat(this.y + 32), 0, 0, -0.05, 0, 10));
                 this.main.addPoints(300);
                 this.main.playSound(this.main.wing_flaps);
                 return false;
@@ -50,14 +54,16 @@ export class WhiteSkeleton extends Thing {
                     this.dead = true;
                 } else {
                     if (this.main.random.nextBoolean()) {
-                        this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y + 32), this.main.random.nextBoolean() ? cc("$") : cc("h")));
+                        this.main.pushThing(
+                            this.main.createCandleItem(trunc(this.x), trunc(javaFloat(this.y + 32)), this.main.random.nextBoolean() ? cc("$") : cc("h"))!
+                        );
                     }
-                    this.main.pushThing(new Flame(this.main, this.x, this.y + 24, 0, 0, -0.08, 0, 10));
+                    this.main.pushThing(new Flame(this.main, this.x, javaFloat(this.y + 24), 0, 0, -0.08, 0, 10));
                     this.main.addPoints(300);
                     return false;
                 }
             } else if (this.main.timeFrozen == 0) {
-                if (this.main.simon.x + 16 < this.x) {
+                if (javaFloat(this.main.simon!.x + 16) < this.x) {
                     this.direction = Main.LEFT;
                 } else {
                     this.direction = Main.RIGHT;
@@ -68,12 +74,12 @@ export class WhiteSkeleton extends Thing {
                 if (this.state == WhiteSkeleton.STATE_STANDING || this.state == WhiteSkeleton.STATE_WALKING) {
                     if (--this.throwDelay == 0) {
                         this.throwDelay = this.main.adjustEnemyCooldown(91 + this.main.random.nextInt(273));
-                        let uy: number = -6.5 - 3 * this.main.random.nextFloat();
-                        let ux: number = 1 + this.main.random.nextFloat();
+                        let uy: number = javaFloat(-6.5 - javaFloat(3 * this.main.random.nextFloat()));
+                        let ux: number = javaFloat(1 + this.main.random.nextFloat());
                         if (this.direction == Main.RIGHT) {
-                            this.main.pushThing(new Bone(this.main, this.x, this.y + 8, ux, uy));
+                            this.main.pushThing(new Bone(this.main, this.x, javaFloat(this.y + 8), ux, uy));
                         } else {
-                            this.main.pushThing(new Bone(this.main, this.x, this.y + 8, -ux, uy));
+                            this.main.pushThing(new Bone(this.main, this.x, javaFloat(this.y + 8), -ux, uy));
                         }
                     }
                 }
@@ -89,10 +95,10 @@ export class WhiteSkeleton extends Thing {
                         if (--this.delay == 0) {
                             this.delay = this.main.adjustEnemyBehaviorDelay(91 + this.main.random.nextInt(273));
                             this.state = WhiteSkeleton.STATE_WALKING;
-                            if (this.main.simon.x + 16 > this.x) {
-                                this.targetX = this.main.simon.x - 48 - this.main.random.nextInt(160);
+                            if (javaFloat(this.main.simon!.x + 16) > this.x) {
+                                this.targetX = javaFloat(javaFloat(this.main.simon!.x - 48) - this.main.random.nextInt(160));
                             } else {
-                                this.targetX = this.main.simon.x + 80 + this.main.random.nextInt(160);
+                                this.targetX = javaFloat(javaFloat(this.main.simon!.x + 80) + this.main.random.nextInt(160));
                             }
                         }
                         break;
@@ -107,34 +113,34 @@ export class WhiteSkeleton extends Thing {
                                 this.spriteIndex = 0;
                             }
                         }
-                        if (Math.abs(this.x - this.targetX) < 2) {
-                            if (this.main.simon.x + 16 > this.x) {
-                                this.targetX = this.main.simon.x - 48 - this.main.random.nextInt(160);
+                        if (Math.abs(javaFloat(this.x - this.targetX)) < 2) {
+                            if (javaFloat(this.main.simon!.x + 16) > this.x) {
+                                this.targetX = javaFloat(javaFloat(this.main.simon!.x - 48) - this.main.random.nextInt(160));
                             } else {
-                                this.targetX = this.main.simon.x + 80 + this.main.random.nextInt(160);
+                                this.targetX = javaFloat(javaFloat(this.main.simon!.x + 80) + this.main.random.nextInt(160));
                             }
                         } else if (this.x < this.targetX) {
                             if (!this.moveX(1)) {
-                                this.targetX = this.x - this.main.random.nextInt(160);
-                            } else if (!this.main.isSupportive(trunc(this.x + 31), trunc(this.y + 64))) {
+                                this.targetX = javaFloat(this.x - this.main.random.nextInt(160));
+                            } else if (!this.main.isSupportive(trunc(javaFloat(this.x + 31)), trunc(javaFloat(this.y + 64)))) {
                                 if (this.main.random.nextInt(5) == 4) {
                                     this.state = WhiteSkeleton.STATE_JUMPING;
-                                    this.vy = Main.SIMON_JUMP_VELOCITY;
-                                    this.vx = 2;
+                                    this.vy = javaFloat(Main.SIMON_JUMP_VELOCITY);
+                                    this.vx = javaFloat(2);
                                 } else {
-                                    this.targetX = this.x - this.main.random.nextInt(160);
+                                    this.targetX = javaFloat(this.x - this.main.random.nextInt(160));
                                 }
                             }
                         } else {
                             if (!this.moveX(-1)) {
-                                this.targetX = this.x + this.main.random.nextInt(160);
-                            } else if (!this.main.isSupportive(trunc(this.x), trunc(this.y + 64))) {
+                                this.targetX = javaFloat(this.x + this.main.random.nextInt(160));
+                            } else if (!this.main.isSupportive(trunc(this.x), trunc(javaFloat(this.y + 64)))) {
                                 if (this.main.random.nextBoolean()) {
                                     this.state = WhiteSkeleton.STATE_JUMPING;
-                                    this.vy = Main.SIMON_JUMP_VELOCITY;
-                                    this.vx = -2;
+                                    this.vy = javaFloat(Main.SIMON_JUMP_VELOCITY);
+                                    this.vx = javaFloat(-2);
                                 } else {
-                                    this.targetX = this.x + this.main.random.nextInt(160);
+                                    this.targetX = javaFloat(this.x + this.main.random.nextInt(160));
                                 }
                             }
                         }
@@ -153,12 +159,12 @@ export class WhiteSkeleton extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (this.dead) {
             if (this.dying < 30) {
-                this.main.draw(this.main.crumble[0], this.x, this.y + 32);
+                this.main.draw(this.main.crumble[0], this.x, javaFloat(this.y + 32));
             } else {
-                this.main.draw(this.main.crumble[1], this.x, this.y + 48);
+                this.main.draw(this.main.crumble[1], this.x, javaFloat(this.y + 48));
             }
         } else {
             this.main.draw(this.main.skeletons[this.direction][this.spriteIndex], this.x, this.y);

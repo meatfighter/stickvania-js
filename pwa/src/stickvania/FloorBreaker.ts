@@ -23,16 +23,16 @@ export class FloorBreaker extends Thing {
         this.main.playRumble("floorBreak");
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.breakDelay <= 0) {
             this.breakDelay = 23;
-            if (this.main.walls[6][144] != Main.WALL_EMPTY) {
+            if (this.main.walls![6][144] != Main.WALL_EMPTY) {
                 this.removeBlock(144, 6);
-            } else if (this.main.walls[6][145] != Main.WALL_EMPTY) {
+            } else if (this.main.walls![6][145] != Main.WALL_EMPTY) {
                 this.removeBlock(145, 6);
-            } else if (this.main.walls[7][146] != Main.WALL_EMPTY) {
+            } else if (this.main.walls![7][146] != Main.WALL_EMPTY) {
                 this.removeBlock(146, 7);
-            } else if (this.main.walls[8][147] != Main.WALL_EMPTY) {
+            } else if (this.main.walls![8][147] != Main.WALL_EMPTY) {
                 this.removeBlock(147, 8);
             } else if (this.X != 143) {
                 this.removeBlock(this.X, 10);
@@ -52,5 +52,5 @@ export class FloorBreaker extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {}
+    public override render(gc: GameContainer, g: Graphics): void {}
 }

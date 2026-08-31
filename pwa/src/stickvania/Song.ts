@@ -1,10 +1,12 @@
 import { Music } from "slick2d-ts";
 
 export class Song {
-    private intro: Music = null;
-    private loop: Music = null;
+    private intro: Music | null = null;
+    private loop: Music | null = null;
     private playing = false;
 
+    public constructor(intro: string);
+    public constructor(intro: string | null, loop: string);
     public constructor(intro: string | null, loop?: string) {
         if (loop === undefined) {
             this.intro = new Music(intro as string);
@@ -32,7 +34,7 @@ export class Song {
         }
         this.stop();
         if (this.intro === null) {
-            this.loop.loop();
+            this.loop!.loop();
         } else {
             this.intro.play();
         }
@@ -64,7 +66,7 @@ export class Song {
         }
     }
 
-    private resumeMusicPart(music: Music): boolean {
+    private resumeMusicPart(music: Music | null): boolean {
         if (music === null || !music.playing()) {
             return false;
         }
@@ -72,11 +74,11 @@ export class Song {
         return true;
     }
 
-    public getIntroForState(): Music {
+    public getIntroForState(): Music | null {
         return this.intro;
     }
 
-    public getLoopForState(): Music {
+    public getLoopForState(): Music | null {
         return this.loop;
     }
 

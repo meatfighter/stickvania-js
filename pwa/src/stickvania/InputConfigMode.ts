@@ -48,13 +48,13 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     private static readonly EXTRA_HORIZONTAL_AXES = [2, 6];
     private static readonly EXTRA_VERTICAL_AXES = [3, 7];
 
-    private input: Input = null;
+    private input: Input | null = null;
     private stepIndex = 0;
     private doneDelay = 0;
     private armDelay = InputConfigMode.ARM_DELAY;
     private message = "";
     private finished = false;
-    private draft: MappingDraft = null;
+    private draft: MappingDraft | null = null;
     private readonly assignedKeys = new Set<number>();
     private readonly assignedControllerButtons = new Set<number>();
     private readonly extraAxisBaselines = new Array<number>(InputConfigMode.CONTROLLER_INDEX_LIMIT * InputConfigMode.GAMEPAD_AXIS_LIMIT).fill(Number.NaN);
@@ -276,22 +276,22 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.clearDraftKey(key);
         switch (this.getCurrentStep()) {
             case "UP":
-                this.draft.keyUp = key;
+                this.draft!.keyUp = key;
                 break;
             case "DOWN":
-                this.draft.keyDown = key;
+                this.draft!.keyDown = key;
                 break;
             case "LEFT":
-                this.draft.keyLeft = key;
+                this.draft!.keyLeft = key;
                 break;
             case "RIGHT":
-                this.draft.keyRight = key;
+                this.draft!.keyRight = key;
                 break;
             case "JUMP":
-                this.draft.keyJump = key;
+                this.draft!.keyJump = key;
                 break;
             case "ATTACK":
-                this.draft.keyAttack = key;
+                this.draft!.keyAttack = key;
                 break;
         }
         this.assignedKeys.add(key);
@@ -305,22 +305,22 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.clearDraftControllerButton(button);
         switch (this.getCurrentStep()) {
             case "UP":
-                this.draft.controllerUp = button;
+                this.draft!.controllerUp = button;
                 break;
             case "DOWN":
-                this.draft.controllerDown = button;
+                this.draft!.controllerDown = button;
                 break;
             case "LEFT":
-                this.draft.controllerLeft = button;
+                this.draft!.controllerLeft = button;
                 break;
             case "RIGHT":
-                this.draft.controllerRight = button;
+                this.draft!.controllerRight = button;
                 break;
             case "JUMP":
-                this.draft.controllerJump = button;
+                this.draft!.controllerJump = button;
                 break;
             case "ATTACK":
-                this.draft.controllerAttack = button;
+                this.draft!.controllerAttack = button;
                 break;
         }
         this.assignedControllerButtons.add(button);
@@ -394,61 +394,61 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     }
 
     private clearDraftKey(key: number): void {
-        if (this.draft.keyJump == key) {
-            this.draft.keyJump = ButtonMapping.NO_BINDING;
+        if (this.draft!.keyJump == key) {
+            this.draft!.keyJump = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.keyAttack == key) {
-            this.draft.keyAttack = ButtonMapping.NO_BINDING;
+        if (this.draft!.keyAttack == key) {
+            this.draft!.keyAttack = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.keyUp == key) {
-            this.draft.keyUp = ButtonMapping.NO_BINDING;
+        if (this.draft!.keyUp == key) {
+            this.draft!.keyUp = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.keyDown == key) {
-            this.draft.keyDown = ButtonMapping.NO_BINDING;
+        if (this.draft!.keyDown == key) {
+            this.draft!.keyDown = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.keyLeft == key) {
-            this.draft.keyLeft = ButtonMapping.NO_BINDING;
+        if (this.draft!.keyLeft == key) {
+            this.draft!.keyLeft = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.keyRight == key) {
-            this.draft.keyRight = ButtonMapping.NO_BINDING;
+        if (this.draft!.keyRight == key) {
+            this.draft!.keyRight = ButtonMapping.NO_BINDING;
         }
     }
 
     private clearDraftControllerButton(button: number): void {
-        if (this.draft.controllerJump == button) {
-            this.draft.controllerJump = ButtonMapping.NO_BINDING;
+        if (this.draft!.controllerJump == button) {
+            this.draft!.controllerJump = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.controllerAttack == button) {
-            this.draft.controllerAttack = ButtonMapping.NO_BINDING;
+        if (this.draft!.controllerAttack == button) {
+            this.draft!.controllerAttack = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.controllerUp == button) {
-            this.draft.controllerUp = ButtonMapping.NO_BINDING;
+        if (this.draft!.controllerUp == button) {
+            this.draft!.controllerUp = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.controllerDown == button) {
-            this.draft.controllerDown = ButtonMapping.NO_BINDING;
+        if (this.draft!.controllerDown == button) {
+            this.draft!.controllerDown = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.controllerLeft == button) {
-            this.draft.controllerLeft = ButtonMapping.NO_BINDING;
+        if (this.draft!.controllerLeft == button) {
+            this.draft!.controllerLeft = ButtonMapping.NO_BINDING;
         }
-        if (this.draft.controllerRight == button) {
-            this.draft.controllerRight = ButtonMapping.NO_BINDING;
+        if (this.draft!.controllerRight == button) {
+            this.draft!.controllerRight = ButtonMapping.NO_BINDING;
         }
     }
 
     private commitDraft(): void {
         const mapping = this.main.buttonMapping;
-        mapping.keyJump = this.draft.keyJump;
-        mapping.keyAttack = this.draft.keyAttack;
-        mapping.keyUp = this.draft.keyUp;
-        mapping.keyDown = this.draft.keyDown;
-        mapping.keyLeft = this.draft.keyLeft;
-        mapping.keyRight = this.draft.keyRight;
-        mapping.controllerJump = this.draft.controllerJump;
-        mapping.controllerAttack = this.draft.controllerAttack;
-        mapping.controllerUp = this.draft.controllerUp;
-        mapping.controllerDown = this.draft.controllerDown;
-        mapping.controllerLeft = this.draft.controllerLeft;
-        mapping.controllerRight = this.draft.controllerRight;
+        mapping.keyJump = this.draft!.keyJump;
+        mapping.keyAttack = this.draft!.keyAttack;
+        mapping.keyUp = this.draft!.keyUp;
+        mapping.keyDown = this.draft!.keyDown;
+        mapping.keyLeft = this.draft!.keyLeft;
+        mapping.keyRight = this.draft!.keyRight;
+        mapping.controllerJump = this.draft!.controllerJump;
+        mapping.controllerAttack = this.draft!.controllerAttack;
+        mapping.controllerUp = this.draft!.controllerUp;
+        mapping.controllerDown = this.draft!.controllerDown;
+        mapping.controllerLeft = this.draft!.controllerLeft;
+        mapping.controllerRight = this.draft!.controllerRight;
     }
 
     private advance(): void {
@@ -560,11 +560,12 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     }
 
     private readExtraAxisValue(controller: number, axis: number): number {
-        if (this.input.getAxisCount(controller) <= axis) {
+        const input = this.input!;
+        if (input.getAxisCount(controller) <= axis) {
             return 0;
         }
 
-        const value = this.input.getAxisValue(controller, axis);
+        const value = input.getAxisValue(controller, axis);
         const baselineIndex = controller * InputConfigMode.GAMEPAD_AXIS_LIMIT + axis;
         let baseline = this.extraAxisBaselines[baselineIndex];
         if (Number.isNaN(baseline)) {

@@ -30,7 +30,7 @@ import {
 import { GAME_STATE_VERSION } from "./GameStateSchema.js";
 import { getThingTypeId, isThingTypeId, THING_TYPES } from "./ThingTypeRegistry.js";
 
-type FieldBag = Record<string, any>;
+type FieldBag = Record<string, unknown>;
 
 type CaptureContext = {
     main: Main;
@@ -1020,7 +1020,7 @@ export class StickvaniaGameStateSerializer {
         region.max = snapshot.max;
         region.checkpoint = this.thingOrNull(context, snapshot.checkpoint) as Checkpoint;
         this.restoreStack(context, region.thingStack, snapshot.thingStack);
-        region.platforms = snapshot.platforms.map((id) => this.thingOrNull(context, id));
+        region.platforms = snapshot.platforms.map((id) => this.thingOrNull(context, id)!);
         region.stageNumber = snapshot.stageNumber;
     }
 
@@ -1030,12 +1030,12 @@ export class StickvaniaGameStateSerializer {
         this.setField(main, "stageSegments", context.stageSegments);
         this.setField(main, "stageSegment", currentSegment);
         this.setField(main, "checkpoint", this.thingOrNull(context, snapshot.checkpoint));
-        main.simon = this.thingOrNull(context, snapshot.simon) as any;
-        main.door = this.thingOrNull(context, snapshot.door) as any;
+        main.simon = this.thingOrNull(context, snapshot.simon) as Main["simon"];
+        main.door = this.thingOrNull(context, snapshot.door) as Main["door"];
         main.map = currentSegment === null ? null : currentSegment.map;
         main.walls = currentSegment === null ? null : currentSegment.walls;
         main.mapWidth = currentSegment === null ? 0 : currentSegment.mapWidth;
-        main.platforms = snapshot.platforms === null ? null : snapshot.platforms.map((id) => this.thingOrNull(context, id));
+        main.platforms = snapshot.platforms === null ? null : snapshot.platforms.map((id) => this.thingOrNull(context, id)!);
         this.restoreStack(context, main.regionThingStack, snapshot.regionThingStack);
         this.restoreStack(context, main.regionStackSwap, snapshot.regionStackSwap);
         this.restoreStack(context, main.weaponsStack, snapshot.weaponsStack);
@@ -1047,7 +1047,7 @@ export class StickvaniaGameStateSerializer {
         this.setField(main, "stageSegments", null);
         this.setField(main, "stageSegment", null);
         this.setField(main, "checkpoint", null);
-        main.door = null as any;
+        main.door = null;
         main.map = null;
         main.walls = null;
         main.platforms = null;
@@ -1061,7 +1061,7 @@ export class StickvaniaGameStateSerializer {
 
     private restoreStack(context: RestoreContext, stack: ThingStack, snapshot: ThingStackSnapshot): void {
         const capacity = Math.max(32, snapshot.$stack.capacity, snapshot.$stack.things.length);
-        stack.things = new Array<Thing>(capacity).fill(null);
+        stack.things = new Array<Thing | null>(capacity).fill(null);
         stack.top = snapshot.$stack.things.length - 1;
         for (let i = 0; i < snapshot.$stack.things.length; i++) {
             stack.things[i] = this.thingOrNull(context, snapshot.$stack.things[i]);

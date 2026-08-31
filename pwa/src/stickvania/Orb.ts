@@ -1,20 +1,21 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
+import { javaFloat } from "./JavaMath.js";
 
 export class Orb extends Thing {
-    public static readonly FRACTION: number = 1 / 91;
+    public static readonly FRACTION: number = javaFloat(1 / 91);
     public fadeIn: number = 0;
     public appearDelay: number = 0;
     private soundDelay: number = 0;
     public constructor(main: Main, x: number, y: number, appearDelay: number) {
         super(main, 32, 32);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
         this.appearDelay = appearDelay;
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.appearDelay > 0) {
             this.appearDelay--;
             return true;
@@ -43,12 +44,12 @@ export class Orb extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (this.appearDelay == 0) {
             if (this.fadeIn > 90) {
                 this.main.draw(this.main.orb, this.x, this.y);
             } else {
-                this.main.drawFaded(this.main.orb, this.x, this.y, this.fadeIn * Orb.FRACTION);
+                this.main.drawFaded(this.main.orb, this.x, this.y, javaFloat(this.fadeIn * Orb.FRACTION));
             }
         }
     }

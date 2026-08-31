@@ -3,21 +3,24 @@ import { Flame } from "./Flame.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
+import { javaFloat } from "./JavaMath.js";
 
 export class MedusaHead extends Thing {
     private direction: number = 0;
-    private angle: number = 0;
-    private Y: number = 0;
+    private angle: number = javaFloat(0);
+    private Y: number = javaFloat(0);
     private spriteIndex: number = 0;
     private spriteDelay: number = 0;
     public constructor(main: Main, x: number, y: number, direction: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 32, 32);
-        this.x = x;
-        this.Y = y;
+        this.x = javaFloat(x);
+        this.Y = javaFloat(y);
         this.direction = direction;
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
@@ -27,16 +30,16 @@ export class MedusaHead extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-            this.y = this.Y + 80 * FastTrig.sin(this.angle);
-            this.angle += 0.02;
+            this.y = javaFloat(this.Y + javaFloat(80 * FastTrig.sin(this.angle)));
+            this.angle = javaFloat(this.angle + 0.02);
 
             if (this.direction == Main.RIGHT) {
-                this.x += 1;
+                this.x = javaFloat(this.x + 1);
                 if (this.x > this.main.camera + 576) {
                     return false;
                 }
             } else {
-                this.x -= 1;
+                this.x = javaFloat(this.x - 1);
                 if (this.x < this.main.camera - 64) {
                     return false;
                 }
@@ -61,7 +64,7 @@ export class MedusaHead extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.medusaHeads[this.direction][this.spriteIndex], this.x, this.y);
     }
 }

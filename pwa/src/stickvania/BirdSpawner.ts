@@ -24,10 +24,10 @@ export class BirdSpawner extends Thing {
         }
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         this.syncActiveCap();
 
-        if (this.main.timeFrozen > 0 || this.main.simon.x < this.x1 || this.main.simon.x > this.x2 || this.count == 0) {
+        if (this.main.timeFrozen > 0 || this.main.simon!.x < this.x1 || this.main.simon!.x > this.x2 || this.count == 0) {
             return true;
         }
 
@@ -35,12 +35,12 @@ export class BirdSpawner extends Thing {
             this.delay = this.main.adjustEnemySpawnDelay(182);
 
             this.count--;
-            let Y: number = ((trunc(this.main.simon.y) >> 5) << 5) - (this.main.random.nextInt(4) << 5) - 64;
+            let Y: number = ((trunc(this.main.simon!.y) >> 5) << 5) - (this.main.random.nextInt(4) << 5) - 64;
             if (Y < 0) {
                 Y = 0;
             }
             let direction: number = this.main.random.nextBoolean()
-                ? this.main.simon.direction == Main.LEFT
+                ? this.main.simon!.direction == Main.LEFT
                     ? Main.RIGHT
                     : Main.LEFT
                 : this.main.random.nextBoolean()
@@ -58,14 +58,8 @@ export class BirdSpawner extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {}
+    public override render(gc: GameContainer, g: Graphics): void {}
     private syncActiveCap(): void {
-        if (!Number.isFinite(this.activeCap)) {
-            this.activeCap = BirdSpawner.BASE_ACTIVE_CAP;
-        }
-        if (!Number.isFinite(this.count)) {
-            this.count = this.activeCap;
-        }
         let activeCap: number = this.main.adjustEnemyActiveCap(BirdSpawner.BASE_ACTIVE_CAP);
         if (activeCap == this.activeCap) {
             return;

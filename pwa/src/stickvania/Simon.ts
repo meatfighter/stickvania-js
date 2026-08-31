@@ -1,5 +1,5 @@
 import { GameContainer, Graphics } from "slick2d-ts";
-import { trunc } from "./JavaMath.js";
+import { javaFloat, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
 
@@ -200,8 +200,8 @@ export class Simon extends Thing {
     public whipping: boolean = false;
     public throwing: boolean = false;
     public releasedWhip: boolean = false;
-    public lastX: number = 0;
-    public lastY: number = 0;
+    public lastX: number = javaFloat(0);
+    public lastY: number = javaFloat(0);
     public flashing: number = 0;
     public xMin: number = 0;
     public xMax: number = 0;
@@ -209,7 +209,7 @@ export class Simon extends Thing {
     public hurt: boolean = false;
     public dead: number = 0;
     public drankPotion: boolean = false;
-    public jumpVelocity: number = Main.SIMON_JUMP_VELOCITY;
+    public jumpVelocity: number = javaFloat(Main.SIMON_JUMP_VELOCITY);
     public constructor(main: Main) {
         super(main, 20, 4, 24, 60);
     }
@@ -248,8 +248,8 @@ export class Simon extends Thing {
     }
 
     public reset(): void {
-        this.G = Main.GRAVITY;
-        this.jumpVelocity = Main.SIMON_JUMP_VELOCITY;
+        this.G = javaFloat(Main.GRAVITY);
+        this.jumpVelocity = javaFloat(Main.SIMON_JUMP_VELOCITY);
         this.drankPotion = false;
         this.kneeling = false;
         this.whipping = false;
@@ -260,14 +260,14 @@ export class Simon extends Thing {
         this.invincible = 0;
         this.flashing = 0;
         this.intersected = false;
-        this.lastX = this.x;
-        this.lastY = this.y;
+        this.lastX = javaFloat(this.x);
+        this.lastY = javaFloat(this.y);
         this.releasedJump = true;
         this.releasedKneel = true;
         this.releasedWhip = true;
         this.throwing = false;
-        this.vx = 0;
-        this.vy = 0;
+        this.vx = javaFloat(0);
+        this.vy = javaFloat(0);
         this.onStairs = false;
         this.direction = Main.RIGHT;
         this.hurt = false;
@@ -291,7 +291,7 @@ export class Simon extends Thing {
         }
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         this.applyGravityWithPlatforms();
 
         if (this.main.playerPower == 0 && this.supported) {
@@ -326,7 +326,7 @@ export class Simon extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (this.dead > 0) {
             if (this.dead < 30) {
                 this.main.draw(this.main.simonKneeling[this.direction], this.x, this.y);
@@ -340,26 +340,26 @@ export class Simon extends Thing {
                 if (this.up) {
                     if (!this.throwing) {
                         let p: number[] = Simon.upWhipTable[this.whipType][this.whipIndex][this.direction];
-                        this.main.draw(this.main.whips[this.direction][this.whipType][this.whipIndex], this.x + p[0], this.y + p[1]);
+                        this.main.draw(this.main.whips[this.direction][this.whipType][this.whipIndex], javaFloat(this.x + p[0]), javaFloat(this.y + p[1]));
                     }
                     this.main.draw(this.main.simonUpWhipping[this.direction][this.whipIndex], this.x, this.y);
                 } else {
                     if (!this.throwing) {
                         let p: number[] = Simon.downWhipTable[this.whipType][this.whipIndex][this.direction];
-                        this.main.draw(this.main.whips[this.direction][this.whipType][this.whipIndex], this.x + p[0], this.y + p[1]);
+                        this.main.draw(this.main.whips[this.direction][this.whipType][this.whipIndex], javaFloat(this.x + p[0]), javaFloat(this.y + p[1]));
                     }
                     this.main.draw(this.main.simonDownWhipping[this.direction][this.whipIndex], this.x, this.y);
                 }
             } else if (this.kneeling) {
                 if (!this.throwing) {
                     let p: number[] = Simon.kneelingWhipTable[this.whipType][this.whipIndex][this.direction];
-                    this.main.draw(this.main.whips[this.direction][this.whipType][this.whipIndex], this.x + p[0], this.y + p[1]);
+                    this.main.draw(this.main.whips[this.direction][this.whipType][this.whipIndex], javaFloat(this.x + p[0]), javaFloat(this.y + p[1]));
                 }
                 this.main.draw(this.main.simonKneelWhipping[this.direction][this.whipIndex], this.x, this.y);
             } else {
                 if (!this.throwing) {
                     let p: number[] = Simon.standingWhipTable[this.whipType][this.whipIndex][this.direction];
-                    this.main.draw(this.main.whips[this.direction][this.whipType][this.whipIndex], this.x + p[0], this.y + p[1]);
+                    this.main.draw(this.main.whips[this.direction][this.whipType][this.whipIndex], javaFloat(this.x + p[0]), javaFloat(this.y + p[1]));
                 }
                 this.main.draw(this.main.simonWhipping[this.direction][this.whipIndex], this.x, this.y);
             }
@@ -367,7 +367,7 @@ export class Simon extends Thing {
             this.main.draw(this.main.simonKneeling[this.direction], this.x, this.y);
         } else {
             if (this.vy < 0) {
-                this.main.draw(this.main.simonKneeling[this.direction], this.x, this.y - 14);
+                this.main.draw(this.main.simonKneeling[this.direction], this.x, javaFloat(this.y - 14));
             } else if (this.vy > 0) {
                 this.main.draw(this.main.simonWalking[this.direction][0], this.x, this.y);
             } else {
@@ -382,7 +382,7 @@ export class Simon extends Thing {
                         if (this.up) {
                             this.main.draw(this.main.simonWalking[this.direction][1], this.x, this.y);
                         } else {
-                            this.main.draw(this.main.simonWalking[this.direction][1], this.x, this.y - 8);
+                            this.main.draw(this.main.simonWalking[this.direction][1], this.x, javaFloat(this.y - 8));
                         }
                     }
                 } else {

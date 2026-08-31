@@ -3,6 +3,7 @@ import { Flame } from "./Flame.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
+import { javaFloat } from "./JavaMath.js";
 
 export class BridgeBat extends Thing {
     public static readonly STATE_INACTIVE: number = 0;
@@ -11,49 +12,51 @@ export class BridgeBat extends Thing {
     private state: number = BridgeBat.STATE_INACTIVE;
     private spriteIndex: number = 0;
     private spriteIndexIncrementor: number = 0;
-    private targetX: number = 0;
+    private targetX: number = javaFloat(0);
     private applyingGravity: boolean = false;
     private delay: number = 0;
     public constructor(main: Main, x: number, y: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 96, 48);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
 
         this.spriteIndex = 1;
     }
 
     private findTarget(): void {
-        if (this.main.simon.x < this.x + 16) {
-            this.targetX = this.main.simon.x - 16 - this.main.random.nextInt(96);
+        if (this.main.simon!.x < javaFloat(this.x + 16)) {
+            this.targetX = javaFloat(javaFloat(this.main.simon!.x - 16) - this.main.random.nextInt(96));
         } else {
-            this.targetX = this.main.simon.x + 48 + this.main.random.nextInt(96);
+            this.targetX = javaFloat(javaFloat(this.main.simon!.x + 48) + this.main.random.nextInt(96));
         }
         if (this.main.random.nextInt(5) < 3) {
-            let targetY: number = this.main.random.nextInt(5) < 3 ? this.main.simon.y + 8 : this.main.simon.y - 80;
+            let targetY: number = javaFloat(this.main.random.nextInt(5) < 3 ? javaFloat(this.main.simon!.y + 8) : javaFloat(this.main.simon!.y - 80));
             this.applyingGravity = true;
-            let t: number = 2 * Math.abs(this.main.simon.x - this.x - 16);
-            let h: number = Math.abs(targetY - this.y);
-            this.G = (2 * h) / (t * t);
-            this.vy = Math.min(4, Math.sqrt(2 * this.G * h));
+            let t: number = javaFloat(2 * Math.abs(javaFloat(javaFloat(this.main.simon!.x - this.x) - 16)));
+            let h: number = javaFloat(Math.abs(javaFloat(targetY - this.y)));
+            this.G = javaFloat(javaFloat(2 * h) / javaFloat(t * t));
+            this.vy = Math.min(4, javaFloat(Math.sqrt(javaFloat(javaFloat(2 * this.G) * h))));
             if (targetY > this.y) {
-                this.G = -this.G;
+                this.G = javaFloat(-this.G);
             } else {
-                this.vy = -this.vy;
+                this.vy = javaFloat(-this.vy);
             }
         } else {
             this.applyingGravity = false;
         }
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, -0.9, 0, -0.06, 0, 10));
-            this.main.pushThing(new Flame(this.main, this.x + 32, this.y, 0, 0, -0.09, 0, 10));
-            this.main.pushThing(new Flame(this.main, this.x + 64, this.y, 1, 0, -0.08, 0, 10));
-            this.main.pushThing(new Flame(this.main, this.x, this.y + 32, 0, 0, 0.05, 0, 10));
-            this.main.pushThing(new Flame(this.main, this.x + 32, this.y + 32, 0, 0, 0.08, 0, 10));
-            this.main.pushThing(new Flame(this.main, this.x + 64, this.y + 32, 0, 0, 0.065, 0, 10));
+            this.main.pushThing(new Flame(this.main, javaFloat(this.x + 32), this.y, 0, 0, -0.09, 0, 10));
+            this.main.pushThing(new Flame(this.main, javaFloat(this.x + 64), this.y, 1, 0, -0.08, 0, 10));
+            this.main.pushThing(new Flame(this.main, this.x, javaFloat(this.y + 32), 0, 0, 0.05, 0, 10));
+            this.main.pushThing(new Flame(this.main, javaFloat(this.x + 32), javaFloat(this.y + 32), 0, 0, 0.08, 0, 10));
+            this.main.pushThing(new Flame(this.main, javaFloat(this.x + 64), javaFloat(this.y + 32), 0, 0, 0.065, 0, 10));
             this.main.addPoints(200);
             this.main.playSound(this.main.large_bat_killed);
             return false;
@@ -72,7 +75,7 @@ export class BridgeBat extends Thing {
 
             switch (this.state) {
                 case BridgeBat.STATE_INACTIVE:
-                    if (Math.abs(this.main.simon.x - this.x - 16) < 350) {
+                    if (Math.abs(javaFloat(javaFloat(this.main.simon!.x - this.x) - 16)) < 350) {
                         this.state = BridgeBat.STATE_HOVERING;
                         this.delay = this.main.adjustEnemyBehaviorDelay(this.main.random.nextInt(43));
                         this.spriteIndex = 1;
@@ -86,23 +89,23 @@ export class BridgeBat extends Thing {
                     break;
                 case BridgeBat.STATE_FLYING:
                     if (this.applyingGravity) {
-                        this.y += this.vy;
-                        this.vy += this.G;
+                        this.y = javaFloat(this.y + this.vy);
+                        this.vy = javaFloat(this.vy + this.G);
                         if (this.y < 0) {
-                            this.y = 0;
+                            this.y = javaFloat(0);
                             this.applyingGravity = false;
                         } else if (this.y > 303) {
-                            this.y = 303;
+                            this.y = javaFloat(303);
                             this.applyingGravity = false;
                         }
                     }
-                    if (Math.abs(this.targetX - this.x) <= 4) {
+                    if (Math.abs(javaFloat(this.targetX - this.x)) <= 4) {
                         this.state = BridgeBat.STATE_HOVERING;
                         this.delay = this.main.adjustEnemyBehaviorDelay(this.main.random.nextInt(43));
                     } else if (this.targetX < this.x) {
-                        this.x -= 2;
+                        this.x = javaFloat(this.x - 2);
                     } else {
-                        this.x += 2;
+                        this.x = javaFloat(this.x + 2);
                     }
                     break;
             }
@@ -115,7 +118,7 @@ export class BridgeBat extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.batBoss[this.spriteIndex], this.x, this.y);
     }
 }

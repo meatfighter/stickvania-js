@@ -1,27 +1,29 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Flame } from "./Flame.js";
-import { cc, trunc } from "./JavaMath.js";
+import { javaFloat, cc, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
 
 export class Ghost extends Thing {
-    private static readonly FRACTION: number = 1 / 91;
+    private static readonly FRACTION: number = javaFloat(1 / 91);
     public active: boolean = false;
     private fadeIn: number = 0;
     private direction: number = 0;
     private spriteIndex: number = 0;
-    private targetX: number = 0;
+    private targetX: number = javaFloat(0);
     public hits: number = 2;
     private stunned: number = 0;
     public constructor(main: Main, x: number, y: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 32, 32);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
         this.hits = main.adjustEnemyHits(this.hits);
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.fadeIn == 91) {
             if (this.kill) {
                 this.hits = 0;
@@ -34,7 +36,7 @@ export class Ghost extends Thing {
                 this.main.pushThing(new Spark(this.main, this));
                 if (--this.hits <= 0) {
                     if (this.main.random.nextBoolean()) {
-                        this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h")));
+                        this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h"))!);
                     }
                     this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
                     this.main.addPoints(300);
@@ -57,35 +59,35 @@ export class Ghost extends Thing {
                     this.fadeIn++;
                 } else {
                     if (this.direction == Main.LEFT) {
-                        this.x -= 0.75;
+                        this.x = javaFloat(this.x - 0.75);
                         if (this.x <= this.targetX) {
-                            this.targetX = this.main.simon.x + 96;
+                            this.targetX = javaFloat(this.main.simon!.x + 96);
                             this.direction = this.targetX < this.x ? Main.LEFT : Main.RIGHT;
                         }
                     } else {
-                        this.x += 0.75;
+                        this.x = javaFloat(this.x + 0.75);
                         if (this.x >= this.targetX) {
-                            this.targetX = this.main.simon.x - 64;
+                            this.targetX = javaFloat(this.main.simon!.x - 64);
                             this.direction = this.targetX < this.x ? Main.LEFT : Main.RIGHT;
                         }
                     }
-                    if (this.main.simon.y + 12 < this.y) {
-                        this.y -= 0.25;
-                    } else if (this.main.simon.y + 12 > this.y) {
-                        this.y += 0.25;
+                    if (javaFloat(this.main.simon!.y + 12) < this.y) {
+                        this.y = javaFloat(this.y - 0.25);
+                    } else if (javaFloat(this.main.simon!.y + 12) > this.y) {
+                        this.y = javaFloat(this.y + 0.25);
                     }
                 }
             } else if (this.main.intersectsSimon(this)) {
                 this.active = true;
-                this.y += 64;
-                if (this.main.simon.direction == Main.LEFT) {
-                    this.x += 128;
+                this.y = javaFloat(this.y + 64);
+                if (this.main.simon!.direction == Main.LEFT) {
+                    this.x = javaFloat(this.x + 128);
                     this.direction = Main.LEFT;
-                    this.targetX = this.main.simon.x - 64;
+                    this.targetX = javaFloat(this.main.simon!.x - 64);
                 } else {
-                    this.x -= 128;
+                    this.x = javaFloat(this.x - 128);
                     this.direction = Main.RIGHT;
-                    this.targetX = this.main.simon.x + 96;
+                    this.targetX = javaFloat(this.main.simon!.x + 96);
                 }
             }
         }
@@ -93,11 +95,11 @@ export class Ghost extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (this.fadeIn > 90) {
             this.main.draw(this.main.ghosts[this.direction][this.spriteIndex], this.x, this.y);
         } else {
-            this.main.drawFaded(this.main.ghosts[this.direction][this.spriteIndex], this.x, this.y, this.fadeIn * Ghost.FRACTION);
+            this.main.drawFaded(this.main.ghosts[this.direction][this.spriteIndex], this.x, this.y, javaFloat(this.fadeIn * Ghost.FRACTION));
         }
     }
 }

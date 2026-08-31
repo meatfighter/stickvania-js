@@ -1,6 +1,6 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Flame } from "./Flame.js";
-import { cc, trunc } from "./JavaMath.js";
+import { javaFloat, cc, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
@@ -15,15 +15,17 @@ export class LanceKnight extends Thing {
     public changeDirection: boolean = true;
     public changeDirectionDelay: number = 0;
     public constructor(main: Main, x: number, y: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 1, 0, 30, 64);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
 
         this.hits = main.adjustEnemyHits(this.hits);
         this.direction = main.random.nextBoolean() ? Main.LEFT : Main.RIGHT;
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.kill) {
             this.hits = 0;
             this.stunned = 0;
@@ -35,9 +37,9 @@ export class LanceKnight extends Thing {
             this.main.pushThing(new Spark(this.main, this));
             if (--this.hits <= 0) {
                 if (this.main.random.nextBoolean()) {
-                    this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h")));
+                    this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h"))!);
                 }
-                this.main.pushThing(new Flame(this.main, this.x, this.y + 24, 0, 0, -0.08, 0, 10));
+                this.main.pushThing(new Flame(this.main, this.x, javaFloat(this.y + 24), 0, 0, -0.08, 0, 10));
                 this.main.addPoints(400);
                 this.main.playSound(this.main.killed_3);
                 return false;
@@ -66,7 +68,7 @@ export class LanceKnight extends Thing {
             }
 
             if (this.direction == Main.LEFT) {
-                if (!this.moveX(-0.5) || !this.main.isSupportive(trunc(this.x), trunc(this.y + 64))) {
+                if (!this.moveX(-0.5) || !this.main.isSupportive(trunc(this.x), trunc(javaFloat(this.y + 64)))) {
                     this.direction = Main.RIGHT;
                     if (this.changeDirection) {
                         this.changeDirection = false;
@@ -76,7 +78,7 @@ export class LanceKnight extends Thing {
                     }
                 }
             } else {
-                if (!this.moveX(0.5) || !this.main.isSupportive(trunc(this.x + 31), trunc(this.y + 64))) {
+                if (!this.moveX(0.5) || !this.main.isSupportive(trunc(javaFloat(this.x + 31)), trunc(javaFloat(this.y + 64)))) {
                     this.direction = Main.LEFT;
                     if (this.changeDirection) {
                         this.changeDirection = false;
@@ -91,7 +93,7 @@ export class LanceKnight extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         this.main.draw(this.main.lanceKnight[this.direction][LanceKnight.walkSpriteIndexes[this.spriteIndex]], this.x, this.y);
     }
 }

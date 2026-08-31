@@ -1,6 +1,6 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Flame } from "./Flame.js";
-import { cc, trunc } from "./JavaMath.js";
+import { javaFloat, cc, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
 
@@ -17,19 +17,21 @@ export class RedSkeleton extends Thing {
     private standingDelay: number = 0;
     private crumbling: number = 0;
     public constructor(main: Main, x: number, y: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
         super(main, 1, 0, 30, 64);
-        this.x = x;
-        this.y = y;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
 
         this.direction = main.random.nextBoolean() ? Main.LEFT : Main.RIGHT;
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.kill) {
             if (this.main.random.nextBoolean()) {
-                this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h")));
+                this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h"))!);
             }
-            this.main.pushThing(new Flame(this.main, this.x, this.y + 24, 0, 0, -0.08, 0, 10));
+            this.main.pushThing(new Flame(this.main, this.x, javaFloat(this.y + 24), 0, 0, -0.08, 0, 10));
             this.main.addPoints(400);
             return false;
         }
@@ -55,11 +57,11 @@ export class RedSkeleton extends Thing {
                     break;
                 case RedSkeleton.STATE_WALKING:
                     if (this.direction == Main.LEFT) {
-                        if (!this.moveX(-0.5) || !this.main.isSupportive(trunc(this.x), trunc(this.y + 64))) {
+                        if (!this.moveX(-0.5) || !this.main.isSupportive(trunc(this.x), trunc(javaFloat(this.y + 64)))) {
                             this.direction = Main.RIGHT;
                         }
                     } else {
-                        if (!this.moveX(0.5) || !this.main.isSupportive(trunc(this.x + 31), trunc(this.y + 64))) {
+                        if (!this.moveX(0.5) || !this.main.isSupportive(trunc(javaFloat(this.x + 31)), trunc(javaFloat(this.y + 64)))) {
                             this.direction = Main.LEFT;
                         }
                     }
@@ -81,11 +83,11 @@ export class RedSkeleton extends Thing {
                         this.standingDelay = 0;
                         this.state = RedSkeleton.STATE_WALKING;
                         if (this.direction == Main.LEFT) {
-                            if (this.main.simon.x + 16 - this.x >= 64) {
+                            if (javaFloat(javaFloat(this.main.simon!.x + 16) - this.x) >= 64) {
                                 this.direction = Main.RIGHT;
                             }
                         } else {
-                            if (this.x - (this.main.simon.x + 16) >= 64) {
+                            if (javaFloat(this.x - javaFloat(this.main.simon!.x + 16)) >= 64) {
                                 this.direction = Main.LEFT;
                             }
                         }
@@ -100,11 +102,11 @@ export class RedSkeleton extends Thing {
                         this.spriteIndex = 0;
                         this.standingDelay = 0;
                         if (this.direction == Main.LEFT) {
-                            if (this.main.simon.x + 16 - this.x >= 64) {
+                            if (javaFloat(javaFloat(this.main.simon!.x + 16) - this.x) >= 64) {
                                 this.direction = Main.RIGHT;
                             }
                         } else {
-                            if (this.x - (this.main.simon.x + 16) >= 64) {
+                            if (javaFloat(this.x - javaFloat(this.main.simon!.x + 16)) >= 64) {
                                 this.direction = Main.LEFT;
                             }
                         }
@@ -116,12 +118,12 @@ export class RedSkeleton extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (this.state == RedSkeleton.STATE_CRUMBLING) {
             if (this.crumbling < 20 || this.crumbling > 253) {
-                this.main.draw(this.main.crumble[0], this.x, this.y + 32);
+                this.main.draw(this.main.crumble[0], this.x, javaFloat(this.y + 32));
             } else {
-                this.main.draw(this.main.crumble[1], this.x, this.y + 48);
+                this.main.draw(this.main.crumble[1], this.x, javaFloat(this.y + 48));
             }
         } else {
             this.main.draw(this.main.skeletons[this.direction][this.spriteIndex], this.x, this.y);

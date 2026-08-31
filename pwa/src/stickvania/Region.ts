@@ -5,8 +5,8 @@ import { ThingStack } from "./ThingStack.js";
 export class Region {
     public min: number = 0;
     public max: number = 0;
-    public checkpoint: Checkpoint = null;
+    public checkpoint: Checkpoint = null!;
     public readonly thingStack: ThingStack = new ThingStack();
-    public platforms: Thing[] = null;
+    public platforms: Thing[] = null!;
     public stageNumber: number = 0;
 }

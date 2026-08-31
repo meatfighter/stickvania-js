@@ -3,19 +3,24 @@ import { Flame } from "./Flame.js";
 import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
+import { javaFloat } from "./JavaMath.js";
 
 export class Snakes extends Thing {
     public spriteIndex: number = 0;
     public spriteIndexIncrementor: number = 0;
     public constructor(main: Main, x: number, y: number, vx: number, vy: number) {
+        x = javaFloat(x);
+        y = javaFloat(y);
+        vx = javaFloat(vx);
+        vy = javaFloat(vy);
         super(main, 3, 0, 34, 20);
-        this.x = x;
-        this.y = y;
-        this.vx = vx;
-        this.vy = vy;
+        this.x = javaFloat(x);
+        this.y = javaFloat(y);
+        this.vx = javaFloat(vx);
+        this.vy = javaFloat(vy);
     }
 
-    public update(gc: GameContainer): boolean {
+    public override update(gc: GameContainer): boolean {
         if (this.main.intersectsSimon(this)) {
             this.main.hurtSimon(2);
             this.kill = true;
@@ -23,7 +28,7 @@ export class Snakes extends Thing {
 
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
-            this.main.pushThing(new Flame(this.main, this.x + 4, this.y, 0, 0, -0.05, 0, 10));
+            this.main.pushThing(new Flame(this.main, javaFloat(this.x + 4), this.y, 0, 0, -0.05, 0, 10));
             this.main.addPoints(100);
             this.main.playSound(this.main.snuffed);
             return false;
@@ -40,7 +45,7 @@ export class Snakes extends Thing {
             }
 
             if (!this.moveX(this.vx)) {
-                this.vx = -this.vx;
+                this.vx = javaFloat(-this.vx);
             }
             const wasSupported: boolean = this.supported;
             this.applyGravity();
@@ -55,7 +60,7 @@ export class Snakes extends Thing {
         return true;
     }
 
-    public render(gc: GameContainer, g: Graphics): void {
+    public override render(gc: GameContainer, g: Graphics): void {
         if (this.vx < 0) {
             this.main.draw(this.main.snakes[Main.LEFT][this.spriteIndex], this.x, this.y);
         } else {

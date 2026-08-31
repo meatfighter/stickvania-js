@@ -1,19 +1,53 @@
 import { ResourceLoader } from "slick2d-ts";
 
+/** Reproduces a Java float conversion without allocating a wrapper object. */
+export const javaFloat: (value: number) => number = Math.fround;
+
+const JAVA_INT_MIN = -0x80000000;
+const JAVA_INT_MAX = 0x7fffffff;
+
+/** Reproduces Java's floating-point-to-int narrowing conversion. */
 export function toInt(value: number): number {
-    return value | 0;
+    if (Number.isNaN(value)) {
+        return 0;
+    }
+    if (value <= JAVA_INT_MIN) {
+        return JAVA_INT_MIN;
+    }
+    if (value >= JAVA_INT_MAX) {
+        return JAVA_INT_MAX;
+    }
+    const result = Math.trunc(value);
+    return result === 0 ? 0 : result;
 }
 
+/** Alias used at translated Java `(int)` cast sites. */
 export function trunc(value: number): number {
-    return Math.trunc(value);
+    return toInt(value);
 }
 
+/** Reproduces Java int division, including the MIN_VALUE / -1 overflow case. */
 export function idiv(a: number, b: number): number {
-    return Math.trunc(a / b);
+    const dividend = toInt(a);
+    const divisor = toInt(b);
+    if (divisor === 0) {
+        throw new RangeError("Java integer division by zero");
+    }
+    if (dividend === JAVA_INT_MIN && divisor === -1) {
+        return JAVA_INT_MIN;
+    }
+    return toInt(dividend / divisor);
 }
 
+/** Reproduces Java int remainder. */
 export function irem(a: number, b: number): number {
-    return toInt(a) % toInt(b);
+    const dividend = toInt(a);
+    const divisor = toInt(b);
+    if (divisor === 0) {
+        throw new RangeError("Java integer division by zero");
+    }
+    const result = dividend % divisor;
+    return result === 0 ? 0 : result;
 }
 
 export function cc(value: string): number {
