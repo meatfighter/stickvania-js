@@ -225,6 +225,16 @@ for (const file of typeScriptFiles) {
 }
 assert.doesNotMatch(combinedTypeScript, /@ts-nocheck/);
 assert.doesNotMatch(combinedTypeScript, /\bas\s+any\b|:\s*any\b|<any>/);
+for (const file of typeScriptFiles) {
+    const source = readFileSync(file, "utf8");
+    for (const line of source.split(/\r?\n/)) {
+        assert.doesNotMatch(
+            line,
+            /\bstatic\s+readonly\b.*=.*\bMain\./,
+            `${relative(ROOT, file)} has a Main-dependent static readonly initializer that can trip ES module cycles`
+        );
+    }
+}
 assert.doesNotMatch(combinedTypeScript, /Float32Array\s*\(\s*\[/, "Float emulation must not create a temporary typed array");
 assert.ok(countMatches(combinedTypeScript, /\boverride\b/g) >= 130, "Expected Java override relationships to be expressed in TypeScript");
 assert.ok(countMatches(combinedTypeScript, /\bjavaFloat\b/g) >= 1200, "Expected the Java float semantic pass to remain in place");

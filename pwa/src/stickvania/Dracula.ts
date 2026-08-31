@@ -15,7 +15,11 @@ export class Dracula extends Thing {
     public static readonly FADE_IN_FRACTION: number = javaFloat(1.0 / 91.0);
     public static readonly FADE_TO_BATS_FRACTION: number = javaFloat(1.0 / 45.0);
     public static readonly ANGLE_SCALE: number = javaFloat(Math.PI / 182);
-    public static readonly JUMP_VELOCITY: number = -javaFloat(Math.sqrt(javaFloat(Main.GRAVITY * 256)));
+
+    public static get JUMP_VELOCITY(): number {
+        return -javaFloat(Math.sqrt(javaFloat(Main.GRAVITY * 256)));
+    }
+
     public static readonly JUMP_TIME: number = 71;
     public static readonly DIE_FRACTION: number = javaFloat(1 / 910.0);
     public static readonly STATE_RESTING: number = 0;

@@ -8,8 +8,14 @@ import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
 
 export class Frankenstein extends Thing {
-    public static readonly IGOR_JUMP_VELOCITY: number = -javaFloat(Math.sqrt(javaFloat(384 * Main.GRAVITY)));
-    public static readonly FLY_TIME: number = javaFloat(javaFloat(2 * Math.abs(Frankenstein.IGOR_JUMP_VELOCITY)) / Main.GRAVITY);
+    public static get IGOR_JUMP_VELOCITY(): number {
+        return -javaFloat(Math.sqrt(javaFloat(384 * Main.GRAVITY)));
+    }
+
+    public static get FLY_TIME(): number {
+        return javaFloat(javaFloat(2 * Math.abs(Frankenstein.IGOR_JUMP_VELOCITY)) / Main.GRAVITY);
+    }
+
     public static readonly DYING_FADE: number = javaFloat(1 / 455);
     public static readonly STATE_INACTIVE: number = 0;
     public static readonly STATE_WALKING: number = 1;
