@@ -25,6 +25,10 @@ function javaInt(value) {
     return result === 0 ? 0 : result;
 }
 
+function javaFloat(value) {
+    return Math.fround(value);
+}
+
 function javaIntDivide(dividend, divisor) {
     dividend = javaInt(dividend);
     divisor = javaInt(divisor);
@@ -169,6 +173,25 @@ assert.match(mainSource, /trunc\(javaFloat\(baseDelay \* multiplier\)\)/);
 assert.equal(Math.trunc(90 * 0.7), 62, "The old browser-double calculation should expose the known edge case");
 assert.equal(javaInt(Math.fround(90 * Math.fround(0.7))), 63, "Java float cooldown calculation must produce 63");
 
+const javaMainSource = readProjectFile("desktop", "src", "stickvania", "Main.java");
+assert.match(javaMainSource, /checkpoint\.x -= 16 \* 32 \* 2 - 128;/, "Java credits checkpoint source changed; re-audit the TS expression");
+assert.doesNotMatch(
+    mainSource,
+    /checkpoint\.x = javaFloat\(javaFloat\(this\.checkpoint\.x - 16 \* 32 \* 2\) - 128\);/,
+    "Credits checkpoint -= expression must preserve Java RHS grouping"
+);
+assert.equal(
+    countMatches(mainSource, /checkpoint\.x = javaFloat\(this\.checkpoint\.x - \(16 \* 32 \* 2 - 128\)\);/g),
+    2,
+    "Credits cases 2 and 3 must both subtract Java's grouped 896-pixel offset"
+);
+
+const checkpointBaseX = javaFloat(4096);
+const creditsCheckpointSubtractionDelta = javaFloat(javaFloat(checkpointBaseX - javaFloat(16 * 32 * 2 - 128)) - checkpointBaseX);
+const badUngroupedCheckpointSubtractionDelta = javaFloat(javaFloat(javaFloat(checkpointBaseX - 16 * 32 * 2) - 128) - checkpointBaseX);
+assert.equal(creditsCheckpointSubtractionDelta, -896);
+assert.equal(badUngroupedCheckpointSubtractionDelta, -1152);
+
 const normalJump = compareSimonJump(256, 320);
 assert.equal(normalJump.browserDouble.apexUpdate, 33);
 assert.equal(normalJump.javaFloat.apexUpdate, 33);
@@ -246,6 +269,10 @@ console.log(
             hardCooldown90: {
                 oldBrowserDouble: Math.trunc(90 * 0.7),
                 javaFloat: javaInt(Math.fround(90 * Math.fround(0.7)))
+            },
+            creditsCheckpointSubtraction: {
+                javaParityDelta: creditsCheckpointSubtractionDelta,
+                badUngroupedDelta: badUngroupedCheckpointSubtractionDelta
             },
             normalJump: {
                 apexUpdate: normalJump.javaFloat.apexUpdate,

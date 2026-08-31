@@ -3394,7 +3394,7 @@ export class Main extends BasicGame {
             case 2:
                 this.createStage(1, true);
                 this.checkpoint = this.stageSegments![2].regions[0].checkpoint;
-                this.checkpoint.x = javaFloat(javaFloat(this.checkpoint.x - 16 * 32 * 2) - 128);
+                this.checkpoint.x = javaFloat(this.checkpoint.x - (16 * 32 * 2 - 128));
                 this.checkpoint.y = javaFloat(this.checkpoint.y + 32 * 1);
                 this.restoreCheckpoint();
                 break;
@@ -3403,7 +3403,7 @@ export class Main extends BasicGame {
                 this.createStage(1, true);
                 this.checkpoint = this.stageSegments![2].regions[0].checkpoint;
                 this.checkpoint.stageSegmentIndex = 3;
-                this.checkpoint.x = javaFloat(javaFloat(this.checkpoint.x - 16 * 32 * 2) - 128);
+                this.checkpoint.x = javaFloat(this.checkpoint.x - (16 * 32 * 2 - 128));
                 this.checkpoint.y = javaFloat(this.checkpoint.y + 32 * 1);
                 this.restoreCheckpoint();
                 break;
