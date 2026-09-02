@@ -2,7 +2,7 @@
 
 This repository contains the browser and desktop release project for **Stickvania**.
 
-The browser version is a TypeScript Progressive Web App (PWA) port of the original Java game and uses `slick2d-ts` as its Slick2D-style runtime layer. The desktop tree preserves the original Java project as a buildable archival artifact and as a behavioral reference for the browser port. A static public project/about page is built and released with both versions.
+The browser version is a TypeScript Progressive Web App (PWA) port of the original Java game and uses `slick2d-ts` as its Slick2D-style runtime layer. The desktop tree contains the maintained Java/Slick2D reference implementation used for behavioral and structural comparison with the browser port and for downloadable desktop builds. A static public project/about page is built and released with both versions.
 
 The TypeScript gameplay code intentionally stays close to the Java implementation where practical. Browser-only behavior—PWA lifecycle, deployment-scoped storage, save/continue, page UI, dark display mode, fullscreen/focus handling, and optional gamepad rumble—is layered around that gameplay port instead of being used as a reason to rewrite it wholesale.
 
@@ -15,7 +15,7 @@ The root release tooling treats `dist/` as a canonical deployable artifact. Prod
 If you are new to the repository, keep these points in mind:
 
 1. **`pwa/` is the browser game.** It contains the TypeScript port, browser shell, persistent-state implementation, service worker, resources, and rumble integration.
-2. **`desktop/` is the preserved Java game.** It remains buildable for archival use, parity checks, and downloadable desktop releases.
+2. **`desktop/` is the Java/Slick2D reference implementation.** It remains buildable for parity checks and downloadable desktop releases.
 3. **`about/` is the production source for the public project page.** The root `about.md` is project prose/reference material; `scripts/build-about.mjs` builds the deployed page from `about/`.
 4. **`scripts/` is the build/release system.** It stamps generated output, verifies the PWA and desktop package, enforces release-path safety, locks release operations, and promotes verified production candidates.
 5. **`dist/` is generated production output.** Do not patch it directly or manually assemble production output inside it.
@@ -49,7 +49,7 @@ The repository has three layers:
 SOURCE
   about/        production project-page source
   pwa/          TypeScript browser game
-  desktop/      preserved Java game
+  desktop/      Java/Slick2D reference implementation
        |
        v
 RELEASE TOOLING
@@ -160,24 +160,9 @@ The browser toolchain uses TypeScript, Vite, ESLint, Prettier, and `slick2d-ts`.
 
 ### Java desktop toolchain
 
-The Java desktop source is legacy-style and is compiled to Java 8-compatible bytecode.
+Use JDK 21 LTS for current desktop builds and smoke tests. The supported desktop build requires `javac` and `jar` on `PATH`; repository tooling invokes them directly against the verified vendored legacy runtime jars.
 
-The root desktop builder tries available build routes conservatively:
-
-1. Maven on the host;
-2. Maven in WSL2 when running from Windows and WSL2 Maven is available;
-3. a direct `javac`/`jar` fallback.
-
-This allows a developer with a JDK but no Maven installation to build the desktop artifact.
-
-If Maven is installed, Java-only development can also use:
-
-```sh
-cd desktop
-mvn package
-```
-
-That is a developer build path. Public desktop releases should still be produced by the root release tooling, which verifies runtime/source hashes and the final ZIP.
+The Java source is compiled as Java 8-compatible bytecode while JDK 21 remains the primary current build and validation environment. Use `npm run build:desktop` for Java-only development and the root release commands for public artifacts.
 
 See:
 
@@ -194,24 +179,24 @@ The production build requires a clean Git source tree and captures tracked-sourc
 
 ### Source and configuration
 
-| Path                              | Purpose                                                                                                                              |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `about/`                          | Source template/assets for the deployed public project page.                                                                         |
-| `about.md`                        | Project/about prose reference; not the input consumed by `scripts/build-about.mjs`.                                                  |
-| `pwa/`                            | TypeScript browser PWA.                                                                                                              |
-| `pwa/src/main.ts`                 | Browser application shell and lifecycle/UI integration.                                                                              |
-| `pwa/src/resources.ts`            | Application resource inventory/preparation data.                                                                                     |
-| `pwa/src/rumble/`                 | Browser Gamepad vibration implementation and effect definitions.                                                                     |
-| `pwa/src/stickvania/`             | Main TypeScript gameplay port plus browser storage/input helpers.                                                                    |
-| `pwa/src/stickvania/persistence/` | Versioned save-state schema, preflight validation, snapshots, serializer, store, and stable `Thing` registry.                        |
-| `pwa/public/`                     | Manifest, service-worker source, images/audio/game resources, and other static PWA files.                                            |
-| `desktop/`                        | Preserved Java project, legacy NetBeans/Maven metadata, launchers, runtime documentation, licenses, and third-party source material. |
-| `scripts/`                        | Build, verification, stamping, desktop packaging, release locking, path safety, and production-promotion tooling.                    |
-| `version.json`                    | Checked-in application version/build stamp.                                                                                          |
-| `package.json`                    | Root development/build/release command surface.                                                                                      |
-| `package-lock.json`               | Reproducible JavaScript dependency resolution.                                                                                       |
-| `THIRD_PARTY_NOTICES.md`          | Root third-party notices.                                                                                                            |
-| `LICENSE`                         | Project license.                                                                                                                     |
+| Path                              | Purpose                                                                                                                        |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `about/`                          | Source template/assets for the deployed public project page.                                                                   |
+| `about.md`                        | Project/about prose reference; not the input consumed by `scripts/build-about.mjs`.                                            |
+| `pwa/`                            | TypeScript browser PWA.                                                                                                        |
+| `pwa/src/main.ts`                 | Browser application shell and lifecycle/UI integration.                                                                        |
+| `pwa/src/resources.ts`            | Application resource inventory/preparation data.                                                                               |
+| `pwa/src/rumble/`                 | Browser Gamepad vibration implementation and effect definitions.                                                               |
+| `pwa/src/stickvania/`             | Main TypeScript gameplay port plus browser storage/input helpers.                                                              |
+| `pwa/src/stickvania/persistence/` | Versioned save-state schema, preflight validation, snapshots, serializer, store, and stable `Thing` registry.                  |
+| `pwa/public/`                     | Manifest, service-worker source, images/audio/game resources, and other static PWA files.                                      |
+| `desktop/`                        | Maintained Java/Slick2D reference implementation, launchers, runtime documentation, licenses, and third-party source material. |
+| `scripts/`                        | Build, verification, stamping, desktop packaging, release locking, path safety, and production-promotion tooling.              |
+| `version.json`                    | Checked-in application version/build stamp.                                                                                    |
+| `package.json`                    | Root development/build/release command surface.                                                                                |
+| `package-lock.json`               | Reproducible JavaScript dependency resolution.                                                                                 |
+| `THIRD_PARTY_NOTICES.md`          | Root third-party notices.                                                                                                      |
+| `LICENSE`                         | Project license.                                                                                                               |
 
 ### Generated and local state
 
@@ -340,23 +325,13 @@ The persistence layer handles more than a few scalar fields. It captures enough 
 
 When changing the save format, update the schema/serializer/tests deliberately.
 
-### `desktop/` — Preserved Java desktop project
+### `desktop/` — Java/Slick2D reference implementation
 
-The desktop tree is an archival copy of the original Java Stickvania project and also serves as a behavioral reference for the TypeScript port.
+The desktop tree contains the maintained Java implementation used to validate gameplay parity with the TypeScript port and to build the downloadable desktop application.
 
-The legacy layout includes Java and resources under `desktop/src/`, along with:
+The Java and resource layout under `desktop/src/` intentionally remains close to the original game. Obsolete project/IDE build metadata is not part of the current tree; Git history retains that historical scaffolding if it is ever needed. Current repository tooling invokes JDK 21 `javac` and `jar` directly and packages the exact verified Slick2D/LWJGL-era runtime.
 
-- NetBeans project metadata (`build.xml`, `manifest.mf`, `nbproject/`);
-- Maven/assembly metadata;
-- platform launchers;
-- legacy runtime JAR/native material in the full repository;
-- licenses and third-party source material;
-- `README.md`;
-- `RUNTIME_DEPENDENCIES.md`.
-
-Generated `build/`, `dist/`, `target/`, machine-local NetBeans state, and crash logs are not source.
-
-The desktop runtime remains intentionally conservative. It preserves the Slick2D/LWJGL-era stack rather than modernizing the rendering/audio platform as part of the browser-port project.
+The desktop runtime remains intentionally conservative. Modernizing build orchestration does not mean rewriting the Java gameplay or replacing the runtime stack that defines the reference behavior.
 
 ### `scripts/` — Build and release system
 

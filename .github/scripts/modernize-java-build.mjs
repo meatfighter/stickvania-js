@@ -39,8 +39,14 @@ if (!build.includes("async function buildWithJavacFallback()")) {
     throw new Error("Expected the existing direct-JDK fallback function.");
 }
 build = build.replace("async function buildWithJavacFallback()", "async function buildWithJdk()");
-build = build.replace('throw new Error("The desktop build requires Maven, WSL2 Maven, or javac on PATH.");', 'throw new Error("The desktop build requires javac on PATH.");');
-build = build.replace('throw new Error("The desktop build requires Maven, WSL2 Maven, or jar on PATH.");', 'throw new Error("The desktop build requires jar on PATH.");');
+build = build.replace(
+    'throw new Error("The desktop build requires Maven, WSL2 Maven, or javac on PATH.");',
+    'throw new Error("The desktop build requires javac on PATH.");'
+);
+build = build.replace(
+    'throw new Error("The desktop build requires Maven, WSL2 Maven, or jar on PATH.");',
+    'throw new Error("The desktop build requires jar on PATH.");'
+);
 const oldDispatch = `    if (!(await tryNativeMaven()) && !(await tryWslMaven())) {\n        await buildWithJavacFallback();\n    }`;
 if (!build.includes(oldDispatch)) {
     throw new Error("Expected Maven/direct-JDK desktop build dispatch.");

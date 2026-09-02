@@ -1,51 +1,29 @@
-# Stickvania Legacy Java Source
+# Stickvania Java Reference Implementation
 
-This directory is an archival copy of the original Java Stickvania project.
+This directory contains the maintained Java/Slick2D reference implementation of Stickvania. The Java gameplay code is the behavioral and structural reference for the TypeScript browser port and is also built into the downloadable desktop distribution.
 
-Copied into this repository:
+The source and resources remain under `desktop/src` in a layout close to the original game. Obsolete project/IDE build metadata is intentionally not retained in the maintained tree; Git history preserves it, while current builds use one supported JDK-based path.
 
-- `src/`
-- `build.xml`
-- `manifest.mf`
-- `nbproject/`, except machine-local `nbproject/private/`
+## Build
 
-Also included:
+Use JDK 21 LTS for current development and release validation. The build requires `javac` and `jar` on `PATH` and emits Java 8-compatible bytecode for the legacy Slick2D/LWJGL runtime.
 
-- `pom.xml`
-- `assembly.xml`
-- `lib/`
-- `natives/`
-- native-path launch scripts
+From the repository root:
 
-Intentionally not copied:
-
-- generated `build/`
-- generated `dist/`
-- machine-local `nbproject/private/`
-- crash logs
-
-The project has a conservative Maven build plus a local Node fallback build. The Java source layout remains legacy-style: Java files and resources both live under `src/`, matching the original NetBeans project.
-
-The desktop build emits Java 8-compatible bytecode to improve the odds of running the legacy Slick2D/LWJGL stack across older and newer Java installations. Modern compiler warnings about obsolete targets are suppressed, but real compilation errors still fail the build.
-
-Build from the repository root:
-
-```text
-npm.cmd run build:desktop
+```sh
+npm run build:desktop
 ```
 
-If Maven is installed on Windows or available in WSL2, the Node build helper will prefer Maven. The Maven build is intentionally build-only: it compiles against the vendored legacy jars from `lib/` without declaring them as publishable Maven dependencies. You can also build directly from this directory:
+On Windows, `npm.cmd run build:desktop` is equivalent. The repository build script owns the compile classpath, exact vendored-runtime verification, resource copying, manifest generation, runtime/native packaging, license/corresponding-source checks, and final ZIP construction.
 
-```text
-mvn package
+Public desktop releases should be produced through the root release tooling so the desktop artifact is verified together with the PWA and release candidate.
+
+## Run
+
+From the repository root:
+
+```sh
+npm run run:desktop
 ```
 
-Direct `mvn package` is a developer build path. Public desktop releases should be produced through the repository-level npm release tooling, which verifies the pinned runtime/source hashes, normalizes the runtime allowlist, and verifies the final ZIP.
-
-Launch after building on Windows:
-
-```text
-npm.cmd run run:desktop
-```
-
-See `RUNTIME_DEPENDENCIES.md` for the vendored legacy Slick2D/LWJGL jars and native libraries copied in to improve future desktop compatibility.
+The generated distribution contains the platform launchers and the vendored runtime/native files they require. See `RUNTIME_DEPENDENCIES.md` for the runtime contract and provenance details.
