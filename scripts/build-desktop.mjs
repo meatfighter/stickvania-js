@@ -323,7 +323,7 @@ async function buildWithJdk() {
         throw new Error("The desktop build requires jar on PATH.");
     }
 
-    console.log("Building desktop archive with javac fallback.");
+    console.log("Building desktop archive with JDK tools.");
     rmSync(classesDir, { recursive: true, force: true });
     mkdirSync(classesDir, { recursive: true });
     mkdirSync(targetDir, { recursive: true });
