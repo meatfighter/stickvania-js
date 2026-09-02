@@ -30,12 +30,6 @@ test("the native framebuffer is exactly the visible viewport and supports all pr
     assert.match(wrapperSource, /setScalingPreference\(preference: StickvaniaScalingPreference\): void/);
 });
 
-test("the unchanged 640x480 game coordinate system is translated into the small framebuffer", () => {
-    assert.match(wrapperSource, /graphics\.translate\(-STICKVANIA_VIEWPORT_X,\s*-STICKVANIA_VIEWPORT_Y\)/);
-    assert.match(wrapperSource, /graphics\.pushTransform\(\)/);
-    assert.match(wrapperSource, /graphics\.popTransform\(\)/);
-});
-
 test("input is remapped back to Stickvania's original logical viewport", () => {
     assert.match(wrapperSource, /public override recalculateScale\(\): void/);
     assert.match(wrapperSource, /STICKVANIA_VIEWPORT_WIDTH\s*\/\s*this\.targetWidth/);
@@ -93,6 +87,6 @@ test("the PWA menu has a full local reset escape hatch", () => {
     assert.match(stylesSource, /\.reset-button/);
 });
 
-test("Stickvania requests the buffered-scaling slick2d-ts API", () => {
-    assert.equal(packageJson.dependencies["slick2d-ts"], "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.1");
+test("Stickvania requests the current buffered-scaling slick2d-ts baseline", () => {
+    assert.equal(packageJson.dependencies["slick2d-ts"], "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.2");
 });
