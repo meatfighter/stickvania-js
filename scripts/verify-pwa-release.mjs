@@ -30,8 +30,8 @@ const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
 const versionInfo = readVersion();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
-const expectedSlick2dTsDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.3.1";
-const expectedSlick2dTsVersion = "1.3.1";
+const expectedSlick2dTsDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.2";
+const expectedSlick2dTsVersion = "1.5.2";
 const defaultPwaScopeUrl = "https://example.test/pwa/";
 const relocationPwaScopeUrls = [
     "https://example.invalid/stickvania/pwa/",
@@ -564,7 +564,7 @@ test("PWA resolves the buffered-scaling Slick2D-ts runtime", () => {
     assert.equal(packageLock.packages[""].dependencies["slick2d-ts"], expectedSlick2dTsDependency);
     assert.ok(lockedSlick2dTsPackage, "package-lock.json should include the installed slick2d-ts package.");
     assert.equal(lockedSlick2dTsPackage.version, expectedSlick2dTsVersion);
-    assert.match(lockedSlick2dTsPackage.resolved, /^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
+    assert.match(lockedSlick2dTsPackage.resolved, /^git\+(?:https:\/\/github\.com\/|ssh:\/\/git@github\.com\/)meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
 });
 
 test("PWA display themes remain browser-only presentation state", () => {
