@@ -8,6 +8,7 @@ const mainSource = readFileSync(join(rootDir, "pwa", "src", "main.ts"), "utf8");
 const wrapperSource = readFileSync(join(rootDir, "pwa", "src", "stickvania", "StickvaniaBufferedGame.ts"), "utf8");
 const stylesSource = readFileSync(join(rootDir, "pwa", "src", "styles.css"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
+const packageLock = JSON.parse(readFileSync(join(rootDir, "package-lock.json"), "utf8"));
 
 test("Stickvania PWA uses the 512x416 buffered viewport wrapper", () => {
     assert.match(mainSource, /new runtime\.StickvaniaBufferedGame\(mainGame,\s*scalingPreference\)/);
@@ -88,5 +89,9 @@ test("the PWA menu has a full local reset escape hatch", () => {
 });
 
 test("Stickvania requests the current buffered-scaling slick2d-ts baseline", () => {
-    assert.equal(packageJson.dependencies["slick2d-ts"], "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.2");
+    const expectedDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.3";
+    assert.equal(packageJson.dependencies["slick2d-ts"], expectedDependency);
+    assert.equal(packageLock.packages[""].dependencies["slick2d-ts"], expectedDependency);
+    assert.equal(packageLock.packages["node_modules/slick2d-ts"].version, "1.5.3");
+    assert.match(packageLock.packages["node_modules/slick2d-ts"].resolved, /^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
 });

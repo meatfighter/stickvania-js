@@ -28,7 +28,8 @@ import {
     type ThingStackSnapshot
 } from "./GameStateSnapshot.js";
 import { GAME_STATE_VERSION } from "./GameStateSchema.js";
-import { getThingTypeId, isThingTypeId, THING_TYPES } from "./ThingTypeRegistry.js";
+import { MAIN_STATE_FIELD_NAMES, THING_STATE_FIELD_NAMES } from "./StateFieldRegistry.generated.js";
+import { getThingTypeId, isThingTypeId, THING_TYPES, type ThingTypeId } from "./ThingTypeRegistry.js";
 
 type FieldBag = Record<string, unknown>;
 
@@ -59,6 +60,11 @@ const MAIN_EXCLUDED_FIELDS = new Set<string>([
     "fades",
     "nativeCursor",
     "nativeDisplayMode",
+    "maxWidth",
+    "maxHeight",
+    "maxColorDepth",
+    "nextFrameTime",
+    "mapWidth",
     "appGameContainer",
     "appletGameContainer",
     "scalableGame",
@@ -362,7 +368,11 @@ export class StickvaniaGameStateSerializer {
         if (!this.isSupportedMode(snapshot.mode) || !Array.isArray(snapshot.things) || !this.isPlainRecord(snapshot.mainFields)) {
             return false;
         }
-        if (snapshot.mainFields.mode !== snapshot.mode || !this.areThingSnapshotsValid(snapshot.things)) {
+        if (
+            snapshot.mainFields.mode !== snapshot.mode ||
+            !this.areRecordFieldNamesAllowed(snapshot.mainFields, MAIN_STATE_FIELD_NAMES) ||
+            !this.areThingSnapshotsValid(snapshot.things)
+        ) {
             return false;
         }
 
@@ -484,47 +494,49 @@ export class StickvaniaGameStateSerializer {
         }
         for (let i = 0; i < snapshots.length; i++) {
             const thing = snapshots[i];
-            if (!this.isPlainRecord(thing) || thing.id !== i || !isThingTypeId(thing.type) || !this.isPlainRecord(thing.fields)) {
+            if (
+                !this.isPlainRecord(thing) ||
+                thing.id !== i ||
+                !isThingTypeId(thing.type) ||
+                !this.isPlainRecord(thing.fields) ||
+                !this.areRecordFieldNamesAllowed(thing.fields, THING_STATE_FIELD_NAMES[thing.type])
+            ) {
                 return false;
             }
         }
         return true;
     }
 
+    private areRecordFieldNamesAllowed(record: JsonRecord | EncodedRecord, allowed: readonly string[]): boolean {
+        const allowedSet = new Set<string>(allowed);
+        return Object.keys(record).every((field) => allowedSet.has(field));
+    }
+
     private isInputConfigSnapshotShape(snapshot: unknown): boolean {
         if (!this.isPlainRecord(snapshot) || !this.isPlainRecord(snapshot.draft)) {
             return false;
         }
-        const draftFields = [
-            "keyJump",
-            "keyAttack",
-            "keyUp",
-            "keyDown",
-            "keyLeft",
-            "keyRight",
-            "controllerJump",
-            "controllerAttack",
-            "controllerUp",
-            "controllerDown",
-            "controllerLeft",
-            "controllerRight"
-        ];
+        const keyFields = ["keyJump", "keyAttack", "keyUp", "keyDown", "keyLeft", "keyRight"] as const;
+        const controllerActionFields = ["controllerJump", "controllerAttack"] as const;
+        const controllerDirectionFields = ["controllerUp", "controllerDown", "controllerLeft", "controllerRight"] as const;
         return (
             this.isFiniteInteger(snapshot.stepIndex) &&
             this.isFiniteInteger(snapshot.doneDelay) &&
             this.isFiniteInteger(snapshot.armDelay) &&
             typeof snapshot.message === "string" &&
             typeof snapshot.finished === "boolean" &&
-            draftFields.every((field) => ButtonMapping.isValidBinding((snapshot.draft as FieldBag)[field])) &&
+            keyFields.every((field) => ButtonMapping.isValidKeyBinding((snapshot.draft as FieldBag)[field])) &&
+            controllerActionFields.every((field) => ButtonMapping.isValidControllerActionBinding((snapshot.draft as FieldBag)[field])) &&
+            controllerDirectionFields.every((field) => ButtonMapping.isValidControllerBinding((snapshot.draft as FieldBag)[field])) &&
             this.isAssignedInputCodeArray(snapshot.assignedKeys, 6) &&
-            this.isAssignedInputCodeArray(snapshot.assignedControllerButtons, 6) &&
-            Array.isArray(snapshot.extraAxisBaselines) &&
-            snapshot.extraAxisBaselines.length <= 256 &&
-            snapshot.extraAxisBaselines.every((value) => value === null || this.isFiniteNumber(value)) &&
-            typeof snapshot.extraAxisUpDown === "boolean" &&
-            typeof snapshot.extraAxisDownDown === "boolean" &&
-            typeof snapshot.extraAxisLeftDown === "boolean" &&
-            typeof snapshot.extraAxisRightDown === "boolean"
+            this.isAssignedControllerCodeArray(snapshot.assignedControllerButtons, 6) &&
+            Array.isArray(snapshot.controllerButtonDown) &&
+            snapshot.controllerButtonDown.length === 64 &&
+            snapshot.controllerButtonDown.every((value) => typeof value === "boolean") &&
+            typeof snapshot.controllerUpDown === "boolean" &&
+            typeof snapshot.controllerDownDown === "boolean" &&
+            typeof snapshot.controllerLeftDown === "boolean" &&
+            typeof snapshot.controllerRightDown === "boolean"
         );
     }
 
@@ -532,7 +544,17 @@ export class StickvaniaGameStateSerializer {
         if (!this.isPlainRecord(snapshot)) {
             return false;
         }
-        return this.isFiniteInteger(snapshot.seed0) && this.isFiniteInteger(snapshot.seed1) && this.isFiniteInteger(snapshot.seed2);
+        return (
+            this.isFiniteInteger(snapshot.seed0) &&
+            snapshot.seed0 >= 0 &&
+            snapshot.seed0 <= 0xffff &&
+            this.isFiniteInteger(snapshot.seed1) &&
+            snapshot.seed1 >= 0 &&
+            snapshot.seed1 <= 0xffff &&
+            this.isFiniteInteger(snapshot.seed2) &&
+            snapshot.seed2 >= 0 &&
+            snapshot.seed2 <= 0xffff
+        );
     }
 
     private isAudioSnapshotShape(snapshot: unknown): snapshot is AudioSnapshot {
@@ -707,6 +729,20 @@ export class StickvaniaGameStateSerializer {
         return Array.isArray(value) && value.length <= maxLength && value.every((item) => this.isFiniteInteger(item) && item >= 0);
     }
 
+    private isAssignedControllerCodeArray(value: unknown, maxLength: number): boolean {
+        return (
+            Array.isArray(value) &&
+            value.length <= maxLength &&
+            value.every(
+                (item) =>
+                    typeof item === "number" &&
+                    Number.isInteger(item) &&
+                    item !== ButtonMapping.NO_BINDING &&
+                    (ButtonMapping.isControllerDirection(item) || item >= 0)
+            )
+        );
+    }
+
     private isFiniteInteger(value: unknown): value is number {
         return typeof value === "number" && Number.isFinite(value) && Math.trunc(value) === value;
     }
@@ -843,7 +879,8 @@ export class StickvaniaGameStateSerializer {
     }
 
     private visitThingReferences(context: CaptureContext, thing: Thing): void {
-        for (const key of Object.keys(thing as unknown as FieldBag)) {
+        const type = getThingTypeId(thing);
+        for (const key of THING_STATE_FIELD_NAMES[type]) {
             if (key === "main") {
                 continue;
             }
@@ -872,18 +909,14 @@ export class StickvaniaGameStateSerializer {
     private captureThing(context: CaptureContext, thing: Thing, id: number): ThingSnapshot {
         const type = getThingTypeId(thing);
         const fields: EncodedRecord = {};
-        for (const key of Object.keys(thing as unknown as FieldBag)) {
+        for (const key of THING_STATE_FIELD_NAMES[type]) {
             const value = this.getField<unknown>(thing, key);
             if (!this.shouldCaptureThingField(key, value)) {
                 continue;
             }
             fields[key] = this.encodeValue(context, value, `${type}.${key}`);
         }
-        return {
-            id,
-            type,
-            fields
-        };
+        return { id, type, fields };
     }
 
     private shouldCaptureThingField(key: string, value: unknown): boolean {
@@ -896,7 +929,7 @@ export class StickvaniaGameStateSerializer {
     private captureMainFields(context: CaptureContext): EncodedRecord {
         const main = context.main;
         const fields: EncodedRecord = {};
-        for (const key of Object.keys(main as unknown as FieldBag)) {
+        for (const key of MAIN_STATE_FIELD_NAMES) {
             const value = this.getField<unknown>(main, key);
             if (!this.shouldCaptureMainField(key, value)) {
                 continue;
@@ -1284,21 +1317,15 @@ export class StickvaniaGameStateSerializer {
     }
 
     private captureRandom(random: JavaRandom): RandomSnapshot {
-        return {
-            seed0: this.numberField(random, "seed0", 0),
-            seed1: this.numberField(random, "seed1", 0),
-            seed2: this.numberField(random, "seed2", 0)
-        };
+        return random.getState();
     }
 
     private restoreRandom(random: JavaRandom, snapshot: RandomSnapshot): void {
-        this.setField(random, "seed0", snapshot.seed0);
-        this.setField(random, "seed1", snapshot.seed1);
-        this.setField(random, "seed2", snapshot.seed2);
+        random.setState(snapshot);
     }
 
     private callCreateStage(main: Main, stageIndex: number): void {
-        this.getField<(stageIndex: number, setCheckpoint: boolean) => void>(main, "createStage").call(main, stageIndex, true);
+        main.createStageForStateRestore(stageIndex);
     }
 
     private songForId(main: Main, id: SongId | null): Song | null {

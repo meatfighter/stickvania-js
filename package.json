@@ -30,6 +30,8 @@
         "build": "node scripts/build-production.mjs",
         "typecheck": "tsc --project pwa/tsconfig.json",
         "lint": "eslint \"pwa/src/**/*.ts\" \"pwa/vite.config.ts\" \"pwa/public/sw.js\"",
+        "generate:state-fields": "node scripts/generate-state-field-registry.mjs",
+        "check:state-fields": "node scripts/generate-state-field-registry.mjs --check",
         "test:about-page": "node scripts/test-about-page.mjs",
         "_verify:pwa-release": "node scripts/verify-pwa-release.mjs",
         "test:pwa-release": "node scripts/run-stamped-release.mjs --dist .release-components/pwa-test --clean-dist _build:pwa:release _verify:pwa-release",
@@ -37,7 +39,8 @@
         "verify:desktop-release": "node scripts/verify-desktop-release.mjs",
         "verify:release-tooling": "node scripts/verify-release-tooling.mjs",
         "verify:dependencies": "npm audit --audit-level=high",
-        "verify": "npm run format:check && npm run lint && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
+        "verify": "npm run format:check && npm run lint && npm run check:state-fields && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
+        "verify:browser": "node scripts/run-browser-verification.mjs",
         "release": "npm run verify && npm run verify:dependencies && npm run build",
         "preview": "npm run preview:pwa",
         "preview:pwa": "vite preview --config pwa/vite.config.ts --host 127.0.0.1",
@@ -48,7 +51,7 @@
         "test:java-parity": "node scripts/test-java-parity.mjs"
     },
     "dependencies": {
-        "slick2d-ts": "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.2"
+        "slick2d-ts": "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.3"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",

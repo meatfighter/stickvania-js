@@ -1,6 +1,4 @@
-import type { AppGameContainer } from "slick2d-ts/slick/AppGameContainer";
-import { SoundStore } from "slick2d-ts/slick/openal/SoundStore";
-import { ResourceLoader } from "slick2d-ts/slick/util/ResourceLoader";
+import { ResourceLoader, SoundStore, type AppGameContainer } from "slick2d-ts";
 import { createDisplayMonochromePalette, DISPLAY_MODE_DEFINITIONS, isDisplayModePreference, type DisplayModePreference } from "./DisplayThemes.js";
 import { RumbleManager } from "./rumble/RumbleManager.js";
 import { getBrowserStorageKey } from "./stickvania/BrowserStorageKeys.js";
@@ -22,6 +20,8 @@ const MAX_DEVICE_PIXEL_RATIO = 4;
 const GAME_CURSOR_HIDE_DELAY_MS = 3000;
 const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
+const RESOURCE_PRELOAD_CONCURRENCY = 6;
+const AUDIO_PRELOAD_CONCURRENCY = 4;
 const THEME_PICKER_BREATHING_ROOM_PX = 10;
 type SlickRuntimeModule = typeof import("slick2d-ts");
 type MainConstructor = typeof import("./stickvania/Main.js").Main;
@@ -95,9 +95,11 @@ let suspendedByFocusLoss = false;
 let suspendedByVisibilityLoss = false;
 let gameStateStore: StickvaniaGameStateStore | null = null;
 
-function setAudioVolume(value: number): void {
+function setAudioVolume(value: number, persist = true): void {
     volume = clampVolume(value);
-    writeVolume(volume);
+    if (persist) {
+        writeVolume(volume);
+    }
     applyAudioVolume(volume);
 }
 
@@ -546,8 +548,11 @@ function renderMenu(parent: HTMLElement, canContinue: boolean, errorText: string
     });
     updateRumbleUi(rumbleSwitchButton);
     volumeInput.addEventListener("input", () => {
-        setAudioVolume(Number(volumeInput.value) / 100);
+        setAudioVolume(Number(volumeInput.value) / 100, false);
         updateVolumeUi(volumeInput, volumeValue, volumeIcon);
+    });
+    volumeInput.addEventListener("change", () => {
+        setAudioVolume(Number(volumeInput.value) / 100);
     });
     updateVolumeUi(volumeInput, volumeValue, volumeIcon);
     newGameButton.addEventListener("click", () => {
@@ -927,13 +932,19 @@ async function preloadPreparedResources(resourceRefs: readonly string[]): Promis
 
     updateProgress();
     await Promise.all([
-        ResourceLoader.preloadResources(nonAudioRefs, (progress: { loaded: number }) => {
-            nonAudioLoaded = progress.loaded;
-            updateProgress();
+        ResourceLoader.preloadResources(nonAudioRefs, {
+            concurrency: RESOURCE_PRELOAD_CONCURRENCY,
+            onProgress: (progress: { loaded: number }) => {
+                nonAudioLoaded = progress.loaded;
+                updateProgress();
+            }
         }),
-        SoundStore.get().preloadAudioBuffers(audioRefs, (progress: { loaded: number }) => {
-            audioLoaded = progress.loaded;
-            updateProgress();
+        SoundStore.get().preloadAudioBuffers(audioRefs, {
+            concurrency: AUDIO_PRELOAD_CONCURRENCY,
+            onProgress: (progress: { loaded: number }) => {
+                audioLoaded = progress.loaded;
+                updateProgress();
+            }
         })
     ]);
     preparationProgress = 1;
@@ -1013,7 +1024,7 @@ function showLiveMenuOverlay(): void {
     }
     removeMenuOverlay();
     liveMenuOpen = true;
-    saveCurrentGameState();
+    const saved = saveCurrentGameState();
     game.setBrowserSuspended(true);
     container.stopSoundEffects();
     getRumbleManager().setSuspended(true);
@@ -1022,7 +1033,7 @@ function showLiveMenuOverlay(): void {
     stopHamburgerVisibilityMonitor();
     hideHamburgerButton();
     stopGameCursorAutoHide();
-    menuOverlay = renderMenu(activeGameShell, true, "", true);
+    menuOverlay = renderMenu(activeGameShell, true, saved ? "" : "Unable to save progress in this browser.", true);
 }
 
 function resumeLiveGameFromMenu(): void {
@@ -1503,9 +1514,6 @@ function safeReadDisplayModePreference(): DisplayModePreference {
         if (isDisplayModePreference(value)) {
             return value;
         }
-        if (value !== null) {
-            writeDisplayModePreference(DEFAULT_DISPLAY_MODE);
-        }
         return DEFAULT_DISPLAY_MODE;
     } catch {
         return DEFAULT_DISPLAY_MODE;
@@ -1523,9 +1531,6 @@ function safeReadScalingPreference(): StickvaniaScalingPreference {
         const value = localStorage.getItem(SCALING_STORAGE_KEY);
         if (isScalingPreference(value)) {
             return value;
-        }
-        if (value !== null) {
-            writeScalingPreference(DEFAULT_SCALING_PREFERENCE);
         }
         return DEFAULT_SCALING_PREFERENCE;
     } catch {

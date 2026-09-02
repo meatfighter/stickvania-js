@@ -19,8 +19,12 @@ type ButtonMappingSnapshot = {
 
 export class ButtonMapping {
     private static readonly STORAGE_KEY = getBrowserStorageKey("input-mapping");
-    private static readonly VERSION = 5;
+    private static readonly VERSION = 6;
     public static readonly NO_BINDING = -1;
+    public static readonly CONTROLLER_DIRECTION_UP = -2;
+    public static readonly CONTROLLER_DIRECTION_DOWN = -3;
+    public static readonly CONTROLLER_DIRECTION_LEFT = -4;
+    public static readonly CONTROLLER_DIRECTION_RIGHT = -5;
     private static readonly DEFAULT_KEY_JUMP = Input.KEY_X;
     private static readonly DEFAULT_KEY_ATTACK = Input.KEY_Z;
     private static readonly DEFAULT_KEY_UP = Input.KEY_UP;
@@ -29,10 +33,10 @@ export class ButtonMapping {
     private static readonly DEFAULT_KEY_RIGHT = Input.KEY_RIGHT;
     private static readonly DEFAULT_CONTROLLER_JUMP = 0;
     private static readonly DEFAULT_CONTROLLER_ATTACK = 2;
-    private static readonly DEFAULT_CONTROLLER_UP = 12;
-    private static readonly DEFAULT_CONTROLLER_DOWN = 13;
-    private static readonly DEFAULT_CONTROLLER_LEFT = 14;
-    private static readonly DEFAULT_CONTROLLER_RIGHT = 15;
+    private static readonly DEFAULT_CONTROLLER_UP = ButtonMapping.CONTROLLER_DIRECTION_UP;
+    private static readonly DEFAULT_CONTROLLER_DOWN = ButtonMapping.CONTROLLER_DIRECTION_DOWN;
+    private static readonly DEFAULT_CONTROLLER_LEFT = ButtonMapping.CONTROLLER_DIRECTION_LEFT;
+    private static readonly DEFAULT_CONTROLLER_RIGHT = ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
     private static readonly GAMEPAD_BUTTON_TEXT = [
         "GP-A",
         "GP-B",
@@ -104,6 +108,7 @@ export class ButtonMapping {
     public controllerDown: number = ButtonMapping.DEFAULT_CONTROLLER_DOWN;
     public controllerLeft: number = ButtonMapping.DEFAULT_CONTROLLER_LEFT;
     public controllerRight: number = ButtonMapping.DEFAULT_CONTROLLER_RIGHT;
+    private storageWriteProtected = false;
 
     public static load(): ButtonMapping {
         const mapping = new ButtonMapping();
@@ -113,6 +118,11 @@ export class ButtonMapping {
                 return mapping;
             }
             const snapshot = JSON.parse(text) as unknown;
+            const version = ButtonMapping.getSnapshotVersion(snapshot);
+            if (version !== null && version > ButtonMapping.VERSION) {
+                mapping.storageWriteProtected = true;
+                return mapping;
+            }
             if (!ButtonMapping.isSupportedSnapshot(snapshot)) {
                 return mapping;
             }
@@ -128,14 +138,24 @@ export class ButtonMapping {
             mapping.controllerDown = snapshot.controllerDown;
             mapping.controllerLeft = snapshot.controllerLeft;
             mapping.controllerRight = snapshot.controllerRight;
-        } catch {}
+        } catch (error) {
+            console.warn("Unable to load Stickvania input mapping.", error);
+        }
         return mapping;
     }
 
-    public save(): void {
+    public save(): boolean {
+        if (this.storageWriteProtected) {
+            console.warn("A newer Stickvania input-mapping format is stored; leaving it unchanged.");
+            return false;
+        }
         try {
             localStorage.setItem(ButtonMapping.STORAGE_KEY, JSON.stringify(this.toSnapshot()));
-        } catch {}
+            return true;
+        } catch (error) {
+            console.warn("Unable to save Stickvania input mapping.", error);
+            return false;
+        }
     }
 
     public resetToDefaults(): void {
@@ -258,13 +278,55 @@ export class ButtonMapping {
     }
 
     public static getGamepadButtonText(button: number): string {
-        if (button == ButtonMapping.NO_BINDING) {
-            return "GP-NONE";
+        switch (button) {
+            case ButtonMapping.NO_BINDING:
+                return "GP-NONE";
+            case ButtonMapping.CONTROLLER_DIRECTION_UP:
+                return "GP-UP";
+            case ButtonMapping.CONTROLLER_DIRECTION_DOWN:
+                return "GP-DOWN";
+            case ButtonMapping.CONTROLLER_DIRECTION_LEFT:
+                return "GP-LEFT";
+            case ButtonMapping.CONTROLLER_DIRECTION_RIGHT:
+                return "GP-RIGHT";
         }
         if (button >= 0 && button < ButtonMapping.GAMEPAD_BUTTON_TEXT.length) {
             return ButtonMapping.GAMEPAD_BUTTON_TEXT[button];
         }
         return "GP-" + button;
+    }
+
+    public static isControllerDirection(value: number): boolean {
+        return (
+            value === ButtonMapping.CONTROLLER_DIRECTION_UP ||
+            value === ButtonMapping.CONTROLLER_DIRECTION_DOWN ||
+            value === ButtonMapping.CONTROLLER_DIRECTION_LEFT ||
+            value === ButtonMapping.CONTROLLER_DIRECTION_RIGHT
+        );
+    }
+
+    public static isStandardGamepadDirectionButton(button: number): boolean {
+        return button >= 12 && button <= 15;
+    }
+
+    public static isValidKeyBinding(value: unknown): value is number {
+        return typeof value === "number" && Number.isInteger(value) && (value === ButtonMapping.NO_BINDING || value >= 0);
+    }
+
+    public static isValidControllerBinding(value: unknown): value is number {
+        return (
+            typeof value === "number" &&
+            Number.isInteger(value) &&
+            (value === ButtonMapping.NO_BINDING || ButtonMapping.isControllerDirection(value) || value >= 0)
+        );
+    }
+
+    public static isValidControllerActionBinding(value: unknown): value is number {
+        return typeof value === "number" && Number.isInteger(value) && (value === ButtonMapping.NO_BINDING || value >= 0);
+    }
+
+    public static isValidBinding(value: unknown): value is number {
+        return ButtonMapping.isValidControllerBinding(value);
     }
 
     private toSnapshot(): ButtonMappingSnapshot {
@@ -285,8 +347,12 @@ export class ButtonMapping {
         };
     }
 
-    public static isValidBinding(value: unknown): value is number {
-        return typeof value === "number" && Number.isInteger(value) && (value === ButtonMapping.NO_BINDING || value >= 0);
+    private static getSnapshotVersion(snapshot: unknown): number | null {
+        if (typeof snapshot !== "object" || snapshot === null || !("version" in snapshot)) {
+            return null;
+        }
+        const version = (snapshot as { version?: unknown }).version;
+        return typeof version === "number" && Number.isInteger(version) ? version : null;
     }
 
     private static isSupportedSnapshot(snapshot: unknown): snapshot is ButtonMappingSnapshot {
@@ -298,18 +364,18 @@ export class ButtonMapping {
             return false;
         }
         return (
-            ButtonMapping.isValidBinding(value.keyJump) &&
-            ButtonMapping.isValidBinding(value.keyAttack) &&
-            ButtonMapping.isValidBinding(value.keyUp) &&
-            ButtonMapping.isValidBinding(value.keyDown) &&
-            ButtonMapping.isValidBinding(value.keyLeft) &&
-            ButtonMapping.isValidBinding(value.keyRight) &&
-            ButtonMapping.isValidBinding(value.controllerJump) &&
-            ButtonMapping.isValidBinding(value.controllerAttack) &&
-            ButtonMapping.isValidBinding(value.controllerUp) &&
-            ButtonMapping.isValidBinding(value.controllerDown) &&
-            ButtonMapping.isValidBinding(value.controllerLeft) &&
-            ButtonMapping.isValidBinding(value.controllerRight)
+            ButtonMapping.isValidKeyBinding(value.keyJump) &&
+            ButtonMapping.isValidKeyBinding(value.keyAttack) &&
+            ButtonMapping.isValidKeyBinding(value.keyUp) &&
+            ButtonMapping.isValidKeyBinding(value.keyDown) &&
+            ButtonMapping.isValidKeyBinding(value.keyLeft) &&
+            ButtonMapping.isValidKeyBinding(value.keyRight) &&
+            ButtonMapping.isValidControllerActionBinding(value.controllerJump) &&
+            ButtonMapping.isValidControllerActionBinding(value.controllerAttack) &&
+            ButtonMapping.isValidControllerBinding(value.controllerUp) &&
+            ButtonMapping.isValidControllerBinding(value.controllerDown) &&
+            ButtonMapping.isValidControllerBinding(value.controllerLeft) &&
+            ButtonMapping.isValidControllerBinding(value.controllerRight)
         );
     }
 }

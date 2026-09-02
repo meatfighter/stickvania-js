@@ -1,5 +1,6 @@
-import { Color, type ControllerListener, type GameContainer, type Graphics, Input, type KeyListener } from "slick2d-ts";
+import { Color, type GameContainer, type Graphics, Input, type KeyListener } from "slick2d-ts";
 import { ButtonMapping } from "./ButtonMapping.js";
+import { ControllerSupport } from "./ControllerSupport.js";
 import type { Main } from "./Main.js";
 
 type BindingStep = "UP" | "DOWN" | "LEFT" | "RIGHT" | "JUMP" | "ATTACK";
@@ -28,25 +29,19 @@ export type InputConfigModeSnapshot = {
     draft: MappingDraft;
     assignedKeys: number[];
     assignedControllerButtons: number[];
-    extraAxisBaselines: Array<number | null>;
-    extraAxisUpDown: boolean;
-    extraAxisDownDown: boolean;
-    extraAxisLeftDown: boolean;
-    extraAxisRightDown: boolean;
+    controllerButtonDown: boolean[];
+    controllerUpDown: boolean;
+    controllerDownDown: boolean;
+    controllerLeftDown: boolean;
+    controllerRightDown: boolean;
 };
 
-export class InputConfigMode implements ControllerListener, KeyListener {
+export class InputConfigMode implements KeyListener {
     private static readonly STEPS: BindingStep[] = ["UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK"];
     private static readonly DONE_DELAY = 30;
     private static readonly ARM_DELAY = 8;
     private static readonly MESSAGE_Y = 232;
     private static readonly ERROR_Y = 280;
-    private static readonly CONTROLLER_INDEX_LIMIT = 16;
-    private static readonly GAMEPAD_AXIS_LIMIT = 16;
-    private static readonly AXIS_THRESHOLD = 0.5;
-    private static readonly AXIS_RECENTER_THRESHOLD = 0.05;
-    private static readonly EXTRA_HORIZONTAL_AXES = [2, 6];
-    private static readonly EXTRA_VERTICAL_AXES = [3, 7];
 
     private input: Input | null = null;
     private stepIndex = 0;
@@ -57,23 +52,22 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     private draft: MappingDraft | null = null;
     private readonly assignedKeys = new Set<number>();
     private readonly assignedControllerButtons = new Set<number>();
-    private readonly extraAxisBaselines = new Array<number>(InputConfigMode.CONTROLLER_INDEX_LIMIT * InputConfigMode.GAMEPAD_AXIS_LIMIT).fill(Number.NaN);
-    private extraAxisUpDown = false;
-    private extraAxisDownDown = false;
-    private extraAxisLeftDown = false;
-    private extraAxisRightDown = false;
+    private readonly controllerButtonDown = new Array<boolean>(ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT).fill(false);
+    private controllerUpDown = false;
+    private controllerDownDown = false;
+    private controllerLeftDown = false;
+    private controllerRightDown = false;
 
     public constructor(private readonly main: Main) {}
 
     public init(gc: GameContainer): void {
         this.input = gc.getInput();
+        ControllerSupport.configureInput(this.input);
         this.input.addKeyListener(this);
-        this.input.addControllerListener(this);
         this.draft = this.createDraft();
         this.assignedKeys.clear();
         this.assignedControllerButtons.clear();
-        this.extraAxisBaselines.fill(Number.NaN);
-        this.syncExtraAxisDirectionState();
+        this.syncControllerInputState();
         this.main.clearInputPressedRecords();
     }
 
@@ -87,19 +81,19 @@ export class InputConfigMode implements ControllerListener, KeyListener {
             draft: this.cloneDraft(this.draft ?? this.createDraft()),
             assignedKeys: Array.from(this.assignedKeys),
             assignedControllerButtons: Array.from(this.assignedControllerButtons),
-            extraAxisBaselines: this.extraAxisBaselines.map((value) => (Number.isFinite(value) ? value : null)),
-            extraAxisUpDown: this.extraAxisUpDown,
-            extraAxisDownDown: this.extraAxisDownDown,
-            extraAxisLeftDown: this.extraAxisLeftDown,
-            extraAxisRightDown: this.extraAxisRightDown
+            controllerButtonDown: this.controllerButtonDown.slice(),
+            controllerUpDown: this.controllerUpDown,
+            controllerDownDown: this.controllerDownDown,
+            controllerLeftDown: this.controllerLeftDown,
+            controllerRightDown: this.controllerRightDown
         };
     }
 
     public restoreSnapshot(gc: GameContainer, snapshot: InputConfigModeSnapshot): void {
         this.dispose();
         this.input = gc.getInput();
+        ControllerSupport.configureInput(this.input);
         this.input.addKeyListener(this);
-        this.input.addControllerListener(this);
         this.stepIndex = this.clampStepIndex(snapshot.stepIndex, snapshot.finished);
         this.doneDelay = this.sanitizedDelay(snapshot.doneDelay);
         this.armDelay = this.sanitizedDelay(snapshot.armDelay);
@@ -107,21 +101,20 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.finished = Boolean(snapshot.finished);
         this.draft = this.cloneDraft(snapshot.draft ?? this.createDraft());
         this.assignedKeys.clear();
-        this.copyFiniteNumbersIntoSet(this.assignedKeys, snapshot.assignedKeys);
+        this.copyAssignedCodesIntoSet(this.assignedKeys, snapshot.assignedKeys, InputConfigMode.isAssignedKeyCode);
         this.assignedControllerButtons.clear();
-        this.copyFiniteNumbersIntoSet(this.assignedControllerButtons, snapshot.assignedControllerButtons);
-        this.extraAxisBaselines.fill(Number.NaN);
-        if (Array.isArray(snapshot.extraAxisBaselines)) {
-            const limit = Math.min(snapshot.extraAxisBaselines.length, this.extraAxisBaselines.length);
+        this.copyAssignedCodesIntoSet(this.assignedControllerButtons, snapshot.assignedControllerButtons, InputConfigMode.isAssignedControllerCode);
+        this.controllerButtonDown.fill(false);
+        if (Array.isArray(snapshot.controllerButtonDown)) {
+            const limit = Math.min(snapshot.controllerButtonDown.length, this.controllerButtonDown.length);
             for (let i = 0; i < limit; i++) {
-                const value = snapshot.extraAxisBaselines[i];
-                this.extraAxisBaselines[i] = typeof value === "number" && Number.isFinite(value) ? value : Number.NaN;
+                this.controllerButtonDown[i] = snapshot.controllerButtonDown[i] === true;
             }
         }
-        this.extraAxisUpDown = Boolean(snapshot.extraAxisUpDown);
-        this.extraAxisDownDown = Boolean(snapshot.extraAxisDownDown);
-        this.extraAxisLeftDown = Boolean(snapshot.extraAxisLeftDown);
-        this.extraAxisRightDown = Boolean(snapshot.extraAxisRightDown);
+        this.controllerUpDown = Boolean(snapshot.controllerUpDown);
+        this.controllerDownDown = Boolean(snapshot.controllerDownDown);
+        this.controllerLeftDown = Boolean(snapshot.controllerLeftDown);
+        this.controllerRightDown = Boolean(snapshot.controllerRightDown);
         this.main.clearInputPressedRecords();
     }
 
@@ -130,13 +123,13 @@ export class InputConfigMode implements ControllerListener, KeyListener {
             return;
         }
         this.input.removeKeyListener(this);
-        this.input.removeControllerListener(this);
         this.input = null;
     }
 
     public update(gc: GameContainer): void {
+        void gc;
         if (this.armDelay > 0) {
-            this.syncExtraAxisDirectionState();
+            this.syncControllerInputState();
             this.armDelay--;
             return;
         }
@@ -144,10 +137,11 @@ export class InputConfigMode implements ControllerListener, KeyListener {
             this.finish();
             return;
         }
-        this.bindExtraAxisDirectionPressed();
+        this.bindControllerInputPressed();
     }
 
     public render(gc: GameContainer, g: Graphics): void {
+        void gc;
         g.setColor(Color.white);
         g.fillRect(64, 32, 512, 416);
         if (this.finished) {
@@ -162,6 +156,7 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     }
 
     public keyPressed(key: number, c: string): void {
+        void c;
         if (!this.canAcceptInput() || ButtonMapping.isReservedKey(key)) {
             return;
         }
@@ -172,48 +167,10 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.advance();
     }
 
-    public keyReleased(key: number, c: string): void {}
-
-    public controllerButtonPressed(controller: number, button: number): void {
-        if (!this.canAcceptInput()) {
-            return;
-        }
-        const buttonIndex = button - 1;
-        if (buttonIndex < 0 || (this.isActionStep() && InputConfigMode.isDirectionalGamepadButton(buttonIndex))) {
-            return;
-        }
-        if (!this.bindControllerButton(buttonIndex)) {
-            this.message = "ALREADY USED";
-            return;
-        }
-        this.advance();
+    public keyReleased(key: number, c: string): void {
+        void key;
+        void c;
     }
-
-    public controllerButtonReleased(controller: number, button: number): void {}
-
-    public controllerLeftPressed(controller: number): void {
-        this.bindControllerDirection(14);
-    }
-
-    public controllerLeftReleased(controller: number): void {}
-
-    public controllerRightPressed(controller: number): void {
-        this.bindControllerDirection(15);
-    }
-
-    public controllerRightReleased(controller: number): void {}
-
-    public controllerUpPressed(controller: number): void {
-        this.bindControllerDirection(12);
-    }
-
-    public controllerUpReleased(controller: number): void {}
-
-    public controllerDownPressed(controller: number): void {
-        this.bindControllerDirection(13);
-    }
-
-    public controllerDownReleased(controller: number): void {}
 
     public setInput(input: Input): void {
         this.input = input;
@@ -231,42 +188,82 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         return !this.finished && this.armDelay == 0;
     }
 
-    private bindControllerDirection(button: number): void {
+    private bindControllerDirection(binding: number): void {
         if (!this.canAcceptInput() || this.isActionStep()) {
             return;
         }
-        if (!this.bindControllerButton(button)) {
+        if (!this.bindControllerButton(binding)) {
             this.message = "ALREADY USED";
             return;
         }
         this.advance();
     }
 
-    private bindExtraAxisDirectionPressed(): void {
-        if (!this.canAcceptInput() || this.isActionStep()) {
-            this.syncExtraAxisDirectionState();
+    private bindControllerInputPressed(): void {
+        if (!this.canAcceptInput()) {
+            this.syncControllerInputState();
             return;
         }
-        const button = this.getPressedExtraAxisDirection();
-        if (button !== null) {
-            this.bindControllerDirection(button);
+        const input = this.input;
+        if (input === null) {
+            return;
+        }
+        if (ControllerSupport.refreshControllersIfNeeded(input)) {
+            this.syncControllerInputState();
+            return;
+        }
+        const direction = this.getPressedControllerDirection();
+        if (direction !== ButtonMapping.NO_BINDING && !this.isActionStep()) {
+            this.bindControllerDirection(direction);
+            return;
+        }
+
+        const button = this.getPressedNonDirectionalControllerButton();
+        if (button !== ButtonMapping.NO_BINDING) {
+            if (!this.bindControllerButton(button)) {
+                this.message = "ALREADY USED";
+                return;
+            }
+            this.advance();
         }
     }
 
-    private getPressedExtraAxisDirection(): number | null {
-        if (this.isExtraAxisUpPressed()) {
-            return 12;
+    private getPressedControllerDirection(): number {
+        if (this.isControllerUpPressed()) {
+            return ButtonMapping.CONTROLLER_DIRECTION_UP;
         }
-        if (this.isExtraAxisDownPressed()) {
-            return 13;
+        if (this.isControllerDownPressed()) {
+            return ButtonMapping.CONTROLLER_DIRECTION_DOWN;
         }
-        if (this.isExtraAxisLeftPressed()) {
-            return 14;
+        if (this.isControllerLeftPressed()) {
+            return ButtonMapping.CONTROLLER_DIRECTION_LEFT;
         }
-        if (this.isExtraAxisRightPressed()) {
-            return 15;
+        if (this.isControllerRightPressed()) {
+            return ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
         }
-        return null;
+        return ButtonMapping.NO_BINDING;
+    }
+
+    private getPressedNonDirectionalControllerButton(): number {
+        const input = this.input;
+        if (input === null) {
+            return ButtonMapping.NO_BINDING;
+        }
+        let pressedButton = ButtonMapping.NO_BINDING;
+        for (let button = 0; button < this.controllerButtonDown.length; button++) {
+            const down = ControllerSupport.isButtonDown(input, button);
+            const pressed = down && !this.controllerButtonDown[button];
+            this.controllerButtonDown[button] = down;
+            if (
+                pressedButton === ButtonMapping.NO_BINDING &&
+                pressed &&
+                !ControllerSupport.isDirectionalButton(button) &&
+                !this.isDraftDirectionButton(button)
+            ) {
+                pressedButton = button;
+            }
+        }
+        return pressedButton;
     }
 
     private bindKey(key: number): boolean {
@@ -347,23 +344,31 @@ export class InputConfigMode implements ControllerListener, KeyListener {
 
     private cloneDraft(draft: MappingDraft): MappingDraft {
         return {
-            keyJump: this.sanitizedBinding(draft.keyJump),
-            keyAttack: this.sanitizedBinding(draft.keyAttack),
-            keyUp: this.sanitizedBinding(draft.keyUp),
-            keyDown: this.sanitizedBinding(draft.keyDown),
-            keyLeft: this.sanitizedBinding(draft.keyLeft),
-            keyRight: this.sanitizedBinding(draft.keyRight),
-            controllerJump: this.sanitizedBinding(draft.controllerJump),
-            controllerAttack: this.sanitizedBinding(draft.controllerAttack),
-            controllerUp: this.sanitizedBinding(draft.controllerUp),
-            controllerDown: this.sanitizedBinding(draft.controllerDown),
-            controllerLeft: this.sanitizedBinding(draft.controllerLeft),
-            controllerRight: this.sanitizedBinding(draft.controllerRight)
+            keyJump: this.sanitizedKeyBinding(draft.keyJump),
+            keyAttack: this.sanitizedKeyBinding(draft.keyAttack),
+            keyUp: this.sanitizedKeyBinding(draft.keyUp),
+            keyDown: this.sanitizedKeyBinding(draft.keyDown),
+            keyLeft: this.sanitizedKeyBinding(draft.keyLeft),
+            keyRight: this.sanitizedKeyBinding(draft.keyRight),
+            controllerJump: this.sanitizedControllerActionBinding(draft.controllerJump),
+            controllerAttack: this.sanitizedControllerActionBinding(draft.controllerAttack),
+            controllerUp: this.sanitizedControllerBinding(draft.controllerUp),
+            controllerDown: this.sanitizedControllerBinding(draft.controllerDown),
+            controllerLeft: this.sanitizedControllerBinding(draft.controllerLeft),
+            controllerRight: this.sanitizedControllerBinding(draft.controllerRight)
         };
     }
 
-    private sanitizedBinding(value: unknown): number {
-        return ButtonMapping.isValidBinding(value) ? value : ButtonMapping.NO_BINDING;
+    private sanitizedKeyBinding(value: unknown): number {
+        return ButtonMapping.isValidKeyBinding(value) ? value : ButtonMapping.NO_BINDING;
+    }
+
+    private sanitizedControllerBinding(value: unknown): number {
+        return ButtonMapping.isValidControllerBinding(value) ? value : ButtonMapping.NO_BINDING;
+    }
+
+    private sanitizedControllerActionBinding(value: unknown): number {
+        return ButtonMapping.isValidControllerActionBinding(value) ? value : ButtonMapping.NO_BINDING;
     }
 
     private sanitizedDelay(value: unknown): number {
@@ -378,19 +383,28 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         return Math.max(0, Math.min(upper, Math.trunc(value)));
     }
 
-    private copyFiniteNumbersIntoSet(target: Set<number>, values: unknown): void {
+    private copyAssignedCodesIntoSet(target: Set<number>, values: unknown, isValid: (value: unknown) => value is number): void {
         if (!Array.isArray(values)) {
             return;
         }
         for (const value of values) {
-            if (InputConfigMode.isAssignedInputCode(value)) {
+            if (isValid(value)) {
                 target.add(value);
             }
         }
     }
 
-    private static isAssignedInputCode(value: unknown): value is number {
+    private static isAssignedKeyCode(value: unknown): value is number {
         return typeof value === "number" && Number.isInteger(value) && value >= 0;
+    }
+
+    private static isAssignedControllerCode(value: unknown): value is number {
+        return (
+            typeof value === "number" &&
+            Number.isInteger(value) &&
+            value !== ButtonMapping.NO_BINDING &&
+            (ButtonMapping.isControllerDirection(value) || value >= 0)
+        );
     }
 
     private clearDraftKey(key: number): void {
@@ -457,9 +471,8 @@ export class InputConfigMode implements ControllerListener, KeyListener {
         this.stepIndex++;
         if (this.stepIndex == InputConfigMode.STEPS.length) {
             this.finished = true;
-            this.message = "SAVED";
             this.commitDraft();
-            this.main.buttonMapping.save();
+            this.message = this.main.buttonMapping.save() ? "SAVED" : "NOT SAVED";
             this.main.controlInput?.clearPressedState();
             this.doneDelay = InputConfigMode.DONE_DELAY;
         }
@@ -471,7 +484,7 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     }
 
     private getCurrentStep(): BindingStep {
-        return InputConfigMode.STEPS[this.stepIndex];
+        return InputConfigMode.STEPS[this.stepIndex] ?? InputConfigMode.STEPS[InputConfigMode.STEPS.length - 1];
     }
 
     private isActionStep(): boolean {
@@ -480,109 +493,62 @@ export class InputConfigMode implements ControllerListener, KeyListener {
     }
 
     private centerX(text: string): number {
-        return Math.trunc((640 - text.length * 16) / 2);
+        return (640 - (text.length << 4)) >> 1;
     }
 
-    private static isDirectionalGamepadButton(button: number): boolean {
-        return button >= 12 && button <= 15;
+    private isDraftDirectionButton(button: number): boolean {
+        return (
+            this.draft!.controllerUp === button ||
+            this.draft!.controllerDown === button ||
+            this.draft!.controllerLeft === button ||
+            this.draft!.controllerRight === button
+        );
     }
 
-    private isExtraAxisUpDown(): boolean {
-        return this.isAnyAxisLessThan(InputConfigMode.EXTRA_VERTICAL_AXES, -InputConfigMode.AXIS_THRESHOLD);
-    }
-
-    private isExtraAxisDownDown(): boolean {
-        return this.isAnyAxisGreaterThan(InputConfigMode.EXTRA_VERTICAL_AXES, InputConfigMode.AXIS_THRESHOLD);
-    }
-
-    private isExtraAxisLeftDown(): boolean {
-        return this.isAnyAxisLessThan(InputConfigMode.EXTRA_HORIZONTAL_AXES, -InputConfigMode.AXIS_THRESHOLD);
-    }
-
-    private isExtraAxisRightDown(): boolean {
-        return this.isAnyAxisGreaterThan(InputConfigMode.EXTRA_HORIZONTAL_AXES, InputConfigMode.AXIS_THRESHOLD);
-    }
-
-    private isExtraAxisUpPressed(): boolean {
-        const down = this.isExtraAxisUpDown();
-        const pressed = down && !this.extraAxisUpDown;
-        this.extraAxisUpDown = down;
-        return pressed;
-    }
-
-    private isExtraAxisDownPressed(): boolean {
-        const down = this.isExtraAxisDownDown();
-        const pressed = down && !this.extraAxisDownDown;
-        this.extraAxisDownDown = down;
-        return pressed;
-    }
-
-    private isExtraAxisLeftPressed(): boolean {
-        const down = this.isExtraAxisLeftDown();
-        const pressed = down && !this.extraAxisLeftDown;
-        this.extraAxisLeftDown = down;
-        return pressed;
-    }
-
-    private isExtraAxisRightPressed(): boolean {
-        const down = this.isExtraAxisRightDown();
-        const pressed = down && !this.extraAxisRightDown;
-        this.extraAxisRightDown = down;
-        return pressed;
-    }
-
-    private isAnyAxisLessThan(axes: readonly number[], threshold: number): boolean {
-        if (!this.input) {
-            return false;
-        }
-        for (let controller = 0; controller < InputConfigMode.CONTROLLER_INDEX_LIMIT; controller++) {
-            for (let i = 0; i < axes.length; i++) {
-                if (this.readExtraAxisValue(controller, axes[i]) < threshold) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private isAnyAxisGreaterThan(axes: readonly number[], threshold: number): boolean {
-        if (!this.input) {
-            return false;
-        }
-        for (let controller = 0; controller < InputConfigMode.CONTROLLER_INDEX_LIMIT; controller++) {
-            for (let i = 0; i < axes.length; i++) {
-                if (this.readExtraAxisValue(controller, axes[i]) > threshold) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private readExtraAxisValue(controller: number, axis: number): number {
+    private isControllerUpPressed(): boolean {
         const input = this.input!;
-        if (input.getAxisCount(controller) <= axis) {
-            return 0;
-        }
-
-        const value = input.getAxisValue(controller, axis);
-        const baselineIndex = controller * InputConfigMode.GAMEPAD_AXIS_LIMIT + axis;
-        let baseline = this.extraAxisBaselines[baselineIndex];
-        if (Number.isNaN(baseline)) {
-            baseline = value;
-            this.extraAxisBaselines[baselineIndex] = baseline;
-        }
-        if (Math.abs(value) <= InputConfigMode.AXIS_RECENTER_THRESHOLD) {
-            baseline = 0;
-            this.extraAxisBaselines[baselineIndex] = baseline;
-        }
-        return value - baseline;
+        const down = ControllerSupport.isUpDown(input);
+        const pressed = down && !this.controllerUpDown;
+        this.controllerUpDown = down;
+        return pressed;
     }
 
-    private syncExtraAxisDirectionState(): void {
-        this.extraAxisUpDown = this.isExtraAxisUpDown();
-        this.extraAxisDownDown = this.isExtraAxisDownDown();
-        this.extraAxisLeftDown = this.isExtraAxisLeftDown();
-        this.extraAxisRightDown = this.isExtraAxisRightDown();
+    private isControllerDownPressed(): boolean {
+        const input = this.input!;
+        const down = ControllerSupport.isDownDown(input);
+        const pressed = down && !this.controllerDownDown;
+        this.controllerDownDown = down;
+        return pressed;
+    }
+
+    private isControllerLeftPressed(): boolean {
+        const input = this.input!;
+        const down = ControllerSupport.isLeftDown(input);
+        const pressed = down && !this.controllerLeftDown;
+        this.controllerLeftDown = down;
+        return pressed;
+    }
+
+    private isControllerRightPressed(): boolean {
+        const input = this.input!;
+        const down = ControllerSupport.isRightDown(input);
+        const pressed = down && !this.controllerRightDown;
+        this.controllerRightDown = down;
+        return pressed;
+    }
+
+    private syncControllerInputState(): void {
+        const input = this.input;
+        if (input === null) {
+            return;
+        }
+        ControllerSupport.refreshControllersIfNeeded(input);
+        this.controllerUpDown = ControllerSupport.isUpDown(input);
+        this.controllerDownDown = ControllerSupport.isDownDown(input);
+        this.controllerLeftDown = ControllerSupport.isLeftDown(input);
+        this.controllerRightDown = ControllerSupport.isRightDown(input);
+        for (let button = 0; button < this.controllerButtonDown.length; button++) {
+            this.controllerButtonDown[button] = ControllerSupport.isButtonDown(input, button);
+        }
     }
 }

@@ -25,13 +25,13 @@ const gameStateSerializerSourcePath = join(rootDir, "pwa", "src", "stickvania", 
 const gameStateStoreSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "StickvaniaGameStateStore.ts");
 const thingTypeRegistrySourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "ThingTypeRegistry.ts");
 const inputMappingStorageKey = expectedBrowserStorageKey("input-mapping");
-const inputMappingVersion = 5;
+const inputMappingVersion = 6;
 const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
 const versionInfo = readVersion();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
-const expectedSlick2dTsDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.2";
-const expectedSlick2dTsVersion = "1.5.2";
+const expectedSlick2dTsDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.3";
+const expectedSlick2dTsVersion = "1.5.3";
 const defaultPwaScopeUrl = "https://example.test/pwa/";
 const relocationPwaScopeUrls = [
     "https://example.invalid/stickvania/pwa/",
@@ -323,12 +323,14 @@ async function importStickvaniaInput() {
     const outputDirectory = join(tempRoot, "stickvania-input");
     const browserStorageKeysOutputPath = join(outputDirectory, "BrowserStorageKeys.js");
     const buttonMappingOutputPath = join(outputDirectory, "ButtonMapping.js");
+    const controllerSupportOutputPath = join(outputDirectory, "ControllerSupport.js");
     const inputOutputPath = join(outputDirectory, "StickvaniaInput.mjs");
 
     rmSync(outputDirectory, { recursive: true, force: true });
     mkdirSync(outputDirectory, { recursive: true });
     writeTranspiledModule(browserStorageKeysSourcePath, browserStorageKeysOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ButtonMapping.ts"), buttonMappingOutputPath);
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ControllerSupport.ts"), controllerSupportOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "StickvaniaInput.ts"), inputOutputPath);
 
     return import(`${pathToFileURL(inputOutputPath).href}?v=${Date.now()}`);
@@ -379,10 +381,10 @@ function validMappingSnapshot(overrides = {}) {
         keyRight: 203,
         controllerJump: 0,
         controllerAttack: 2,
-        controllerUp: 12,
-        controllerDown: 13,
-        controllerLeft: 14,
-        controllerRight: 15,
+        controllerUp: -2,
+        controllerDown: -3,
+        controllerLeft: -4,
+        controllerRight: -5,
         ...overrides
     };
 }
@@ -423,10 +425,10 @@ function createTestButtonMapping(overrides = {}) {
         keyRight: 15,
         controllerJump: 0,
         controllerAttack: 2,
-        controllerUp: 12,
-        controllerDown: 13,
-        controllerLeft: 14,
-        controllerRight: 15,
+        controllerUp: -2,
+        controllerDown: -3,
+        controllerLeft: -4,
+        controllerRight: -5,
         ...overrides
     };
 }
@@ -434,13 +436,15 @@ function createTestButtonMapping(overrides = {}) {
 class FakeStickvaniaInput {
     keys = new Set();
     buttons = new Set();
-    axes = Array.from({ length: 16 }, () => []);
-    axisCountCalls = 0;
-    axisValueCalls = 0;
     controllerUp = false;
     controllerDown = false;
     controllerLeft = false;
     controllerRight = false;
+    additionalDirectionAxes = null;
+
+    setAdditionalControllerDirectionAxes(axes, threshold, recenterThreshold) {
+        this.additionalDirectionAxes = { axes, threshold, recenterThreshold };
+    }
 
     isKeyDown(key) {
         return this.keys.has(key);
@@ -469,21 +473,6 @@ class FakeStickvaniaInput {
     isControllerRight(controller) {
         void controller;
         return this.controllerRight;
-    }
-
-    getAxisCount(controller) {
-        this.axisCountCalls++;
-        return this.axes[controller]?.length ?? 0;
-    }
-
-    getAxisValue(controller, axis) {
-        this.axisValueCalls++;
-        return this.axes[controller]?.[axis] ?? 0;
-    }
-
-    resetAxisCounters() {
-        this.axisCountCalls = 0;
-        this.axisValueCalls = 0;
     }
 }
 
@@ -540,8 +529,9 @@ test("package scripts use temporary release stamping for public builds", () => {
     assert.equal(scripts["release:desktop"], "node scripts/release-desktop.mjs");
     assert.equal(
         scripts["verify"],
-        "npm run format:check && npm run lint && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop"
+        "npm run format:check && npm run lint && npm run check:state-fields && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop"
     );
+    assert.equal(scripts["verify:browser"], "node scripts/run-browser-verification.mjs");
 
     for (const [name, script] of Object.entries(scripts)) {
         if (name === "stamp") {
@@ -564,7 +554,7 @@ test("PWA resolves the buffered-scaling Slick2D-ts runtime", () => {
     assert.equal(packageLock.packages[""].dependencies["slick2d-ts"], expectedSlick2dTsDependency);
     assert.ok(lockedSlick2dTsPackage, "package-lock.json should include the installed slick2d-ts package.");
     assert.equal(lockedSlick2dTsPackage.version, expectedSlick2dTsVersion);
-    assert.match(lockedSlick2dTsPackage.resolved, /^git\+(?:https:\/\/github\.com\/|ssh:\/\/git@github\.com\/)meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
+    assert.match(lockedSlick2dTsPackage.resolved, /^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
 });
 
 test("PWA display themes remain browser-only presentation state", () => {
@@ -614,7 +604,8 @@ test("PWA display themes remain browser-only presentation state", () => {
     assert.match(mainSource, /const DEFAULT_VOLUME = 0\.1;/);
     assert.match(mainSource, /const DEFAULT_RUMBLE_ENABLED = true;/);
     assert.match(mainSource, /if \(value === "false"\) {\s*return false;\s*}/);
-    assert.match(mainSource, /writeDisplayModePreference\(DEFAULT_DISPLAY_MODE\);/);
+    assert.doesNotMatch(mainSource, /writeDisplayModePreference\(DEFAULT_DISPLAY_MODE\);/);
+    assert.doesNotMatch(mainSource, /writeScalingPreference\(DEFAULT_SCALING_PREFERENCE\);/);
     assert.match(mainSource, /createDisplayMonochromePalette\(displayModePreference\)/);
     assert.match(mainSource, /isDisplayModePreference\(value\)/);
     assert.match(mainSource, /getBrowserStorageKey\("display-mode"\)/);
@@ -908,7 +899,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const builtSource = builtJavaScript();
 
     assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 6;/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 7;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);
@@ -1003,7 +994,7 @@ test("StickvaniaInput preserves Java-style keyboard/controller menu edges", asyn
     directionInput.keys.add(directionMapping.keyUp);
     const directionControl = new StickvaniaInput(directionInput, directionMapping);
 
-    directionInput.buttons.add(directionMapping.controllerUp);
+    directionInput.controllerUp = true;
     directionControl.update();
     assert.equal(directionControl.isMenuUpPressed(), true);
 
@@ -1020,19 +1011,19 @@ test("StickvaniaInput preserves Java-style keyboard/controller menu edges", asyn
     assert.equal(selectControl.isMenuSelectPressed(), true);
 });
 
-test("StickvaniaInput reads extra gamepad axes once per update", async () => {
+test("StickvaniaInput delegates calibrated extra axes to slick2d-ts", async () => {
     const { StickvaniaInput } = await importStickvaniaInput();
     const fakeInput = new FakeStickvaniaInput();
-    fakeInput.axes[0] = [0, 0, 0, 0, 0, 0, 0, 0];
-    const control = new StickvaniaInput(fakeInput, createTestButtonMapping());
+    void new StickvaniaInput(fakeInput, createTestButtonMapping());
 
-    fakeInput.axes[0][3] = -1;
-    fakeInput.resetAxisCounters();
-    control.update();
-
-    assert.equal(control.isUp(), true);
-    assert.equal(fakeInput.axisCountCalls, 16);
-    assert.equal(fakeInput.axisValueCalls, 4);
+    assert.deepEqual(fakeInput.additionalDirectionAxes, {
+        axes: [
+            { horizontalAxis: 2, verticalAxis: 3 },
+            { horizontalAxis: 6, verticalAxis: 7 }
+        ],
+        threshold: 0.5,
+        recenterThreshold: 0.05
+    });
 });
 
 test("ButtonMapping accepts persisted integer bindings and NO_BINDING", async () => {
@@ -1044,7 +1035,7 @@ test("ButtonMapping accepts persisted integer bindings and NO_BINDING", async ()
 
     assert.equal(mapping.keyJump, -1);
     assert.equal(mapping.keyAttack, 90);
-    assert.equal(mapping.controllerLeft, 14);
+    assert.equal(mapping.controllerLeft, -4);
 });
 
 test("ButtonMapping rejects malformed persisted bindings", async () => {
@@ -1056,4 +1047,16 @@ test("ButtonMapping rejects malformed persisted bindings", async () => {
         const mapping = ButtonMapping.load();
         assert.notEqual(mapping.keyAttack, 12345);
     }
+});
+
+test("ButtonMapping preserves future-version mappings instead of overwriting them", async () => {
+    globalThis.localStorage = createLocalStorageMock();
+    const { ButtonMapping } = await importButtonMapping();
+    const future = validMappingSnapshot({ version: inputMappingVersion + 1, keyAttack: 12345 });
+    localStorage.setItem(inputMappingStorageKey, JSON.stringify(future));
+
+    const mapping = ButtonMapping.load();
+    assert.equal(mapping.keyAttack, 44);
+    assert.equal(mapping.save(), false);
+    assert.equal(localStorage.getItem(inputMappingStorageKey), JSON.stringify(future));
 });

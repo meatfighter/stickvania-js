@@ -174,6 +174,9 @@ assert.equal(Math.trunc(90 * 0.7), 62, "The old browser-double calculation shoul
 assert.equal(javaInt(Math.fround(90 * Math.fround(0.7))), 63, "Java float cooldown calculation must produce 63");
 
 const javaMainSource = readProjectFile("desktop", "src", "stickvania", "Main.java");
+assert.match(javaMainSource, /nextFrameTime \+= Sys\.getTimerResolution\(\) \/ 91;/);
+assert.match(mainSource, /nextFrameTime \+= idiv\(Sys\.getTimerResolution\(\), 91\);/);
+assert.equal(Math.trunc(1000 / 91), 10, "The historical Windows LWJGL timing expression must remain a 10 ms fixed step");
 assert.match(javaMainSource, /checkpoint\.x -= 16 \* 32 \* 2 - 128;/, "Java credits checkpoint source changed; re-audit the TS expression");
 assert.doesNotMatch(
     mainSource,
@@ -229,7 +232,7 @@ assert.doesNotMatch(tsMermanSpawnerSource, /\b(?:public|private|protected)\s+vy\
 assert.match(tsMermanSpawnerSource, /new Merman\(this\.main, target, this\.spawnVy, this\)/);
 
 const gameStateSchemaSource = readProjectFile("pwa", "src", "stickvania", "persistence", "GameStateSchema.ts");
-assert.match(gameStateSchemaSource, /GAME_STATE_VERSION = 6;/);
+assert.match(gameStateSchemaSource, /GAME_STATE_VERSION = 7;/);
 for (const spawner of ["BirdSpawner.ts", "MermanSpawner.ts", "ZombieSpawner.ts"]) {
     const source = readProjectFile("pwa", "src", "stickvania", spawner);
     assert.doesNotMatch(source, /Number\.isFinite\(this\.(?:activeCap|count)\)/, `${spawner} still contains obsolete save-migration checks`);

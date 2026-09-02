@@ -1,4 +1,4 @@
-import { Color } from "slick2d-ts/slick/Color";
+import { Color } from "slick2d-ts";
 
 export type DisplayModePreference =
     | "amber"

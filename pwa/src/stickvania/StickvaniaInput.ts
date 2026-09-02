@@ -1,5 +1,6 @@
 import { Input } from "slick2d-ts";
 import { ButtonMapping } from "./ButtonMapping.js";
+import { ControllerSupport } from "./ControllerSupport.js";
 
 type InputState = {
     up: boolean;
@@ -21,13 +22,6 @@ type InputState = {
     menuSelectJumpController: boolean;
     menuSelectAttackController: boolean;
     menuSelectAnyController: boolean;
-};
-
-type AxisDirections = {
-    up: boolean;
-    down: boolean;
-    left: boolean;
-    right: boolean;
 };
 
 function createEmptyState(): InputState {
@@ -54,31 +48,15 @@ function createEmptyState(): InputState {
     };
 }
 
-function createEmptyAxisDirections(): AxisDirections {
-    return {
-        up: false,
-        down: false,
-        left: false,
-        right: false
-    };
-}
-
 export class StickvaniaInput {
-    private static readonly CONTROLLER_INDEX_LIMIT = 16;
-    private static readonly GAMEPAD_AXIS_LIMIT = 16;
-    private static readonly AXIS_THRESHOLD = 0.5;
-    private static readonly AXIS_RECENTER_THRESHOLD = 0.05;
-    private static readonly EXTRA_HORIZONTAL_AXES = [2, 6];
-    private static readonly EXTRA_VERTICAL_AXES = [3, 7];
     private previous: InputState = createEmptyState();
     private current: InputState = createEmptyState();
-    private readonly extraAxisDirections = createEmptyAxisDirections();
-    private readonly extraAxisBaselines = new Array<number>(StickvaniaInput.CONTROLLER_INDEX_LIMIT * StickvaniaInput.GAMEPAD_AXIS_LIMIT).fill(Number.NaN);
 
     public constructor(
         private readonly input: Input,
         private readonly mapping: ButtonMapping
     ) {
+        ControllerSupport.configureInput(input);
         this.clearPressedState();
     }
 
@@ -148,27 +126,26 @@ export class StickvaniaInput {
     }
 
     private readStateInto(target: InputState): void {
-        this.readExtraAxisDirectionsInto(this.extraAxisDirections);
-        const keyUp = this.input.isKeyDown(this.mapping.keyUp);
-        const keyDown = this.input.isKeyDown(this.mapping.keyDown);
-        const keyLeft = this.input.isKeyDown(this.mapping.keyLeft);
-        const keyRight = this.input.isKeyDown(this.mapping.keyRight);
-        const keyJump = this.input.isKeyDown(this.mapping.keyJump);
-        const keyAttack = this.input.isKeyDown(this.mapping.keyAttack);
-        const controllerUp = this.isControllerBindingDown(this.mapping.controllerUp, this.extraAxisDirections);
-        const controllerDown = this.isControllerBindingDown(this.mapping.controllerDown, this.extraAxisDirections);
-        const controllerLeft = this.isControllerBindingDown(this.mapping.controllerLeft, this.extraAxisDirections);
-        const controllerRight = this.isControllerBindingDown(this.mapping.controllerRight, this.extraAxisDirections);
-        const controllerJump = this.isControllerBindingDown(this.mapping.controllerJump, this.extraAxisDirections);
-        const controllerAttack = this.isControllerBindingDown(this.mapping.controllerAttack, this.extraAxisDirections);
+        const keyUp = this.isKeyDown(this.mapping.keyUp);
+        const keyDown = this.isKeyDown(this.mapping.keyDown);
+        const keyLeft = this.isKeyDown(this.mapping.keyLeft);
+        const keyRight = this.isKeyDown(this.mapping.keyRight);
+        const keyJump = this.isKeyDown(this.mapping.keyJump);
+        const keyAttack = this.isKeyDown(this.mapping.keyAttack);
+        const controllerUp = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerUp);
+        const controllerDown = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerDown);
+        const controllerLeft = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerLeft);
+        const controllerRight = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerRight);
+        const controllerJump = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerJump);
+        const controllerAttack = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerAttack);
         const up = keyUp || controllerUp;
         const down = keyDown || controllerDown;
         const left = keyLeft || controllerLeft;
         const right = keyRight || controllerRight;
         const jump = keyJump || controllerJump;
         const attack = keyAttack || controllerAttack;
-        const enterSelect = !this.isKeyMappedToDirection(Input.KEY_ENTER) && this.input.isKeyDown(Input.KEY_ENTER);
-        const anyControllerSelect = this.isAnyControllerNonDirectionalButtonDown();
+        const enterSelect = !this.isKeyMappedToDirection(Input.KEY_ENTER) && this.isKeyDown(Input.KEY_ENTER);
+        const anyControllerSelect = ControllerSupport.isNonDirectionalButtonDown(this.input, this.mapping);
 
         target.up = up;
         target.down = down;
@@ -189,6 +166,10 @@ export class StickvaniaInput {
         target.menuSelectJumpController = controllerJump;
         target.menuSelectAttackController = controllerAttack;
         target.menuSelectAnyController = anyControllerSelect;
+    }
+
+    private isKeyDown(key: number): boolean {
+        return key !== ButtonMapping.NO_BINDING && this.input.isKeyDown(key);
     }
 
     private copyState(target: InputState, source: InputState): void {
@@ -219,122 +200,5 @@ export class StickvaniaInput {
 
     private static pressed(current: boolean, previous: boolean): boolean {
         return current && !previous;
-    }
-
-    private isControllerBindingDown(button: number, extraAxes: AxisDirections): boolean {
-        if (button === ButtonMapping.NO_BINDING) {
-            return false;
-        }
-        switch (button) {
-            case 12:
-                return this.isControllerUpDown(extraAxes) || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
-            case 13:
-                return this.isControllerDownDown(extraAxes) || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
-            case 14:
-                return this.isControllerLeftDown(extraAxes) || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
-            case 15:
-                return this.isControllerRightDown(extraAxes) || this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
-            default:
-                return this.input.isButtonPressed(button, Input.ANY_CONTROLLER);
-        }
-    }
-
-    private isControllerUpDown(extraAxes: AxisDirections): boolean {
-        return this.input.isControllerUp(Input.ANY_CONTROLLER) || extraAxes.up;
-    }
-
-    private isControllerDownDown(extraAxes: AxisDirections): boolean {
-        return this.input.isControllerDown(Input.ANY_CONTROLLER) || extraAxes.down;
-    }
-
-    private isControllerLeftDown(extraAxes: AxisDirections): boolean {
-        return this.input.isControllerLeft(Input.ANY_CONTROLLER) || extraAxes.left;
-    }
-
-    private isControllerRightDown(extraAxes: AxisDirections): boolean {
-        return this.input.isControllerRight(Input.ANY_CONTROLLER) || extraAxes.right;
-    }
-
-    private isAnyControllerNonDirectionalButtonDown(): boolean {
-        if (typeof navigator === "undefined" || !navigator.getGamepads) {
-            return false;
-        }
-
-        const gamepads = navigator.getGamepads();
-        for (let gamepadIndex = 0; gamepadIndex < gamepads.length; gamepadIndex++) {
-            const gamepad = gamepads[gamepadIndex];
-            if (!gamepad) {
-                continue;
-            }
-            for (let i = 0; i < gamepad.buttons.length; i++) {
-                if (!StickvaniaInput.isDirectionalGamepadButton(i) && !this.isMappedDirectionButton(i) && gamepad.buttons[i]?.pressed === true) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private isMappedDirectionButton(button: number): boolean {
-        return (
-            this.mapping.controllerUp === button ||
-            this.mapping.controllerDown === button ||
-            this.mapping.controllerLeft === button ||
-            this.mapping.controllerRight === button
-        );
-    }
-
-    private static isDirectionalGamepadButton(button: number): boolean {
-        return button >= 12 && button <= 15;
-    }
-
-    private readExtraAxisDirectionsInto(target: AxisDirections): void {
-        target.up = false;
-        target.down = false;
-        target.left = false;
-        target.right = false;
-        for (let controller = 0; controller < StickvaniaInput.CONTROLLER_INDEX_LIMIT; controller++) {
-            const axisCount = this.input.getAxisCount(controller);
-            if (axisCount <= 0) {
-                continue;
-            }
-            this.readExtraAxisPairInto(target, controller, axisCount, StickvaniaInput.EXTRA_VERTICAL_AXES, true);
-            this.readExtraAxisPairInto(target, controller, axisCount, StickvaniaInput.EXTRA_HORIZONTAL_AXES, false);
-            if (target.up && target.down && target.left && target.right) {
-                return;
-            }
-        }
-    }
-
-    private readExtraAxisPairInto(target: AxisDirections, controller: number, axisCount: number, axes: readonly number[], vertical: boolean): void {
-        for (let i = 0; i < axes.length; i++) {
-            const value = this.readExtraAxisValue(controller, axes[i], axisCount);
-            if (vertical) {
-                target.up ||= value < -StickvaniaInput.AXIS_THRESHOLD;
-                target.down ||= value > StickvaniaInput.AXIS_THRESHOLD;
-            } else {
-                target.left ||= value < -StickvaniaInput.AXIS_THRESHOLD;
-                target.right ||= value > StickvaniaInput.AXIS_THRESHOLD;
-            }
-        }
-    }
-
-    private readExtraAxisValue(controller: number, axis: number, axisCount: number): number {
-        if (axisCount <= axis) {
-            return 0;
-        }
-
-        const value = this.input.getAxisValue(controller, axis);
-        const baselineIndex = controller * StickvaniaInput.GAMEPAD_AXIS_LIMIT + axis;
-        let baseline = this.extraAxisBaselines[baselineIndex];
-        if (Number.isNaN(baseline)) {
-            baseline = value;
-            this.extraAxisBaselines[baselineIndex] = baseline;
-        }
-        if (Math.abs(value) <= StickvaniaInput.AXIS_RECENTER_THRESHOLD) {
-            baseline = 0;
-            this.extraAxisBaselines[baselineIndex] = baseline;
-        }
-        return value - baseline;
     }
 }

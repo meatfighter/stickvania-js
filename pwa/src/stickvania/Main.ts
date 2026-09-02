@@ -1058,6 +1058,7 @@ export class Main extends BasicGame {
         }
 
         let count: number = 0;
+        // Preserve the Java/LWJGL timing expression exactly: 1000 / 91 truncates to a 10 ms (100 TPS) step.
         while (this.nextFrameTime < Sys.getTime()) {
             this.updateFrame(gc);
             this.nextFrameTime += idiv(Sys.getTimerResolution(), 91);
@@ -1781,6 +1782,10 @@ export class Main extends BasicGame {
         if (this.hearts < 0) {
             this.hearts = 0;
         }
+    }
+
+    public createStageForStateRestore(stageIndex: number): void {
+        this.createStage(stageIndex, true);
     }
 
     private createStage(stageIndex: number, setCheckpoint: boolean): void {
