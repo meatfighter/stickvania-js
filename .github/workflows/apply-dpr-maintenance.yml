@@ -1,0 +1,42 @@
+name: Apply DPR maintenance
+
+on:
+    push:
+        paths:
+            - ".github/workflows/apply-dpr-maintenance.yml"
+
+permissions:
+    contents: write
+
+jobs:
+    apply:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Apply maintenance
+              shell: bash
+              run: |
+                  node --input-type=module <<'NODE'
+                  import { readFileSync, writeFileSync } from "node:fs";
+
+                  const path = "pwa/src/main.ts";
+                  const before = readFileSync(path, "utf8");
+                  const oldText = "const MAX_DEVICE_PIXEL_RATIO = 2;";
+                  const newText = "const MAX_DEVICE_PIXEL_RATIO = 4;";
+                  const matches = before.split(oldText).length - 1;
+                  if (matches !== 1) {
+                      throw new Error(`Expected exactly one legacy DPR cap, found ${matches}.`);
+                  }
+                  writeFileSync(path, before.replace(oldText, newText));
+                  NODE
+
+            - name: Commit maintenance
+              shell: bash
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git rm .github/workflows/apply-dpr-maintenance.yml
+                  git add pwa/src/main.ts
+                  git commit -m "Raise DPR ceiling for buffered presentation"
+                  git push
