@@ -36,10 +36,7 @@ async function preloadRuntimeResources(): Promise<void> {
     ResourceLoader.setRetryOptions(1, 0);
     const audioRefs = STICKVANIA_RESOURCE_REFS.filter((ref) => ref.endsWith(".ogg"));
     const nonAudioRefs = STICKVANIA_RESOURCE_REFS.filter((ref) => !ref.endsWith(".ogg"));
-    await Promise.all([
-        ResourceLoader.preloadResources(nonAudioRefs, { concurrency: 6 }),
-        SoundStore.get().preloadAudioBuffers(audioRefs, { concurrency: 4 })
-    ]);
+    await Promise.all([ResourceLoader.preloadResources(nonAudioRefs, { concurrency: 6 }), SoundStore.get().preloadAudioBuffers(audioRefs, { concurrency: 4 })]);
 }
 
 async function mountMain(restore: ((main: Main, container: AppGameContainer) => boolean) | null): Promise<{
