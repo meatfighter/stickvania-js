@@ -30,8 +30,6 @@ const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
 const versionInfo = readVersion();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
-const expectedSlick2dTsDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.3";
-const expectedSlick2dTsVersion = "1.5.3";
 const defaultPwaScopeUrl = "https://example.test/pwa/";
 const relocationPwaScopeUrls = [
     "https://example.invalid/stickvania/pwa/",
@@ -545,16 +543,18 @@ test("package scripts use temporary release stamping for public builds", () => {
     }
 });
 
-test("PWA resolves the buffered-scaling Slick2D-ts runtime", () => {
+test("PWA resolves the pinned Slick2D-ts runtime", () => {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
     const packageLock = JSON.parse(readFileSync(packageLockPath, "utf8"));
+    const dependency = packageJson.dependencies["slick2d-ts"];
+    const lockedDependency = packageLock.packages[""].dependencies["slick2d-ts"];
     const lockedSlick2dTsPackage = packageLock.packages["node_modules/slick2d-ts"];
 
-    assert.equal(packageJson.dependencies["slick2d-ts"], expectedSlick2dTsDependency);
-    assert.equal(packageLock.packages[""].dependencies["slick2d-ts"], expectedSlick2dTsDependency);
+    assert.equal(dependency, lockedDependency);
+    assert.match(dependency, /^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
     assert.ok(lockedSlick2dTsPackage, "package-lock.json should include the installed slick2d-ts package.");
-    assert.equal(lockedSlick2dTsPackage.version, expectedSlick2dTsVersion);
-    assert.match(lockedSlick2dTsPackage.resolved, /^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
+    assert.equal(lockedSlick2dTsPackage.resolved, dependency);
+    assert.match(lockedSlick2dTsPackage.version, /^\d+\.\d+\.\d+$/);
 });
 
 test("PWA display themes remain browser-only presentation state", () => {

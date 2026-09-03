@@ -88,10 +88,13 @@ test("the PWA menu has a full local reset escape hatch", () => {
     assert.match(stylesSource, /\.reset-button/);
 });
 
-test("Stickvania requests the current buffered-scaling slick2d-ts baseline", () => {
-    const expectedDependency = "git+https://github.com/meatfighter/slick2d-ts.git#semver:^1.5.3";
-    assert.equal(packageJson.dependencies["slick2d-ts"], expectedDependency);
-    assert.equal(packageLock.packages[""].dependencies["slick2d-ts"], expectedDependency);
-    assert.equal(packageLock.packages["node_modules/slick2d-ts"].version, "1.5.3");
-    assert.match(packageLock.packages["node_modules/slick2d-ts"].resolved, /^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
+test("Stickvania pins slick2d-ts to a reproducible public HTTPS revision", () => {
+    const dependency = packageJson.dependencies["slick2d-ts"];
+    const lockedDependency = packageLock.packages[""].dependencies["slick2d-ts"];
+    const lockedSlick = packageLock.packages["node_modules/slick2d-ts"];
+
+    assert.equal(dependency, lockedDependency);
+    assert.match(dependency, /^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
+    assert.equal(lockedSlick.resolved, dependency);
+    assert.match(lockedSlick.version, /^\d+\.\d+\.\d+$/);
 });
