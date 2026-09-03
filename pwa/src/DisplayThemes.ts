@@ -10,6 +10,7 @@ export type DisplayModePreference =
     | "dark"
     | "delft"
     | "ditto"
+    | "editor"
     | "gum"
     | "lcd"
     | "led"
@@ -95,6 +96,12 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         label: "Ditto",
         blackReplacement: [0x71, 0x68, 0x9d],
         whiteReplacement: [0xe9, 0xe2, 0xd2]
+    },
+    {
+        value: "editor",
+        label: "Editor",
+        blackReplacement: [0xff, 0xff, 0x50],
+        whiteReplacement: [0x00, 0x00, 0xaf]
     },
     {
         value: "gum",
