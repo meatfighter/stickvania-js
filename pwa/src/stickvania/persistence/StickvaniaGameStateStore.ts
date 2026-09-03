@@ -15,6 +15,9 @@ export class StickvaniaGameStateStore {
         }
 
         try {
+            if (this.hasProtectedStoredSnapshot()) {
+                return false;
+            }
             const snapshot = this.serializer.createSnapshot(main, this.appVersion);
             localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(snapshot));
             return true;
@@ -64,16 +67,40 @@ export class StickvaniaGameStateStore {
             return null;
         }
 
-        const snapshot = JSON.parse(text) as StickvaniaGameStateSnapshot | null;
-        if (this.shouldPreserveUnsupportedPublicSnapshot(snapshot)) {
-            return null;
-        }
-        if (snapshot === null || snapshot.version !== GAME_STATE_VERSION || !this.serializer.isSupportedSnapshot(snapshot)) {
+        let snapshot: unknown;
+        try {
+            snapshot = JSON.parse(text) as unknown;
+        } catch {
             this.clear();
             return null;
         }
 
-        return snapshot;
+        if (this.shouldPreserveUnsupportedPublicSnapshot(snapshot)) {
+            return null;
+        }
+        if (snapshot === null || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+            this.clear();
+            return null;
+        }
+        const typedSnapshot = snapshot as StickvaniaGameStateSnapshot;
+        if (typedSnapshot.version !== GAME_STATE_VERSION || !this.serializer.isSupportedSnapshot(typedSnapshot)) {
+            this.clear();
+            return null;
+        }
+
+        return typedSnapshot;
+    }
+
+    private hasProtectedStoredSnapshot(): boolean {
+        const text = localStorage.getItem(GAME_STATE_STORAGE_KEY);
+        if (text === null) {
+            return false;
+        }
+        try {
+            return this.shouldPreserveUnsupportedPublicSnapshot(JSON.parse(text) as unknown);
+        } catch {
+            return false;
+        }
     }
 
     private shouldPreserveUnsupportedPublicSnapshot(snapshot: unknown): boolean {

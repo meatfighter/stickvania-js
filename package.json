@@ -39,7 +39,7 @@
         "verify:desktop-release": "node scripts/verify-desktop-release.mjs",
         "verify:release-tooling": "node scripts/verify-release-tooling.mjs",
         "verify:dependencies": "npm audit --audit-level=high",
-        "verify": "npm run format:check && npm run lint && npm run check:resource-versions && npm run check:java-parity-metadata && npm run check:state-fields && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
+        "verify": "npm run format:check && npm run lint && npm run check:resource-versions && npm run check:java-parity-metadata && npm run check:state-fields && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:typescript-tech-debt && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
         "verify:browser": "node scripts/run-browser-verification.mjs && node scripts/run-offline-verification.mjs",
         "release": "npm run verify && npm run verify:dependencies && npm run build",
         "preview": "npm run preview:pwa",
@@ -52,7 +52,8 @@
         "generate:resource-versions": "node scripts/generate-resource-versions.mjs",
         "check:resource-versions": "node scripts/generate-resource-versions.mjs --check",
         "generate:java-parity-metadata": "node scripts/generate-java-parity-metadata.mjs",
-        "check:java-parity-metadata": "node scripts/generate-java-parity-metadata.mjs --check"
+        "check:java-parity-metadata": "node scripts/generate-java-parity-metadata.mjs --check",
+        "test:typescript-tech-debt": "node scripts/test-typescript-tech-debt-guardrails.mjs"
     },
     "dependencies": {
         "slick2d-ts": "git+https://github.com/meatfighter/slick2d-ts.git#39689c01a336c7620a7e80f992fe33558ef9652a"

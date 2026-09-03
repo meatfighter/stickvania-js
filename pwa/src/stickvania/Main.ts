@@ -1,12 +1,9 @@
 import {
-    AppGameContainer,
     BasicGame,
     BufferUtils,
     Color,
     Cursor,
     CursorLoader,
-    Display,
-    DisplayMode,
     FastTrig,
     GameContainer,
     Graphics,
@@ -17,11 +14,9 @@ import {
     Mouse,
     Music,
     PackedSpriteSheet,
-    SlickException,
     Sound,
     Sys
 } from "slick2d-ts";
-import { AppletGameContainer2 } from "./AppletGameContainer2.js";
 import { SONG_FIELD_NAMES, SOUND_EFFECT_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "./AudioRegistry.js";
 import { Axe } from "./Axe.js";
 import { AxeKnight } from "./AxeKnight.js";
@@ -61,7 +56,6 @@ import { MummyBoss } from "./MummyBoss.js";
 import { Raven } from "./Raven.js";
 import { RedSkeleton } from "./RedSkeleton.js";
 import { Region } from "./Region.js";
-import type { ScalableGame2 } from "./ScalableGame2.js";
 import { Secret } from "./Secret.js";
 import { ShootingSpark } from "./ShootingSpark.js";
 import { Simon } from "./Simon.js";
@@ -81,6 +75,13 @@ import { ZombieSpawner } from "./ZombieSpawner.js";
 import type { RumbleEffectId } from "../rumble/RumbleEffects.js";
 import { isRestorableGameStateMode, isStageRequiredGameStateMode } from "./persistence/GameStatePolicy.js";
 import type { RumbleManager } from "../rumble/RumbleManager.js";
+
+type BrowserAudioController = {
+    isMusicOn(): boolean;
+    isSoundOn(): boolean;
+    setMusicOn(value: boolean): void;
+    setSoundOn(value: boolean): void;
+};
 
 type BrowserFullscreenController = {
     isFullscreen(): boolean;
@@ -296,13 +297,6 @@ export class Main extends BasicGame {
     }> | null = null;
 
     private startupAudioQueued: boolean = false;
-    public nativeDisplayMode: DisplayMode | null = null;
-    public maxWidth: number = 0;
-    public maxHeight: number = 0;
-    public maxColorDepth: number = 0;
-    public appGameContainer: AppGameContainer | null = null;
-    public appletGameContainer: AppletGameContainer2 | null = null;
-    public scalableGame: ScalableGame2 | null = null;
     public rumble: RumbleManager | null = null;
     private nextFrameTime: number = 0;
     private loadedSegments: StageSegment[][] | null = null;
@@ -354,10 +348,6 @@ export class Main extends BasicGame {
     private titleBatSpriteIndex: number = 0;
     private titleBatSpriteIndexIncrementor: number = 0;
     private titleBatSteps: number = 0;
-    private pressEnterVisible: boolean = true;
-    private pressEnterVisibleIncrementor: number = 0;
-    private pressEnterVisibleCount: number = 0;
-    private enterPressed: boolean = false;
     private titleMenu: number = Main.TITLE_MENU_MAIN;
     private titleSelectedIndex: number = 0;
     private titleInputMappingLines: string[] = makeArray<string>(Main.TITLE_INPUT_ACTIONS.length, () => "");
@@ -532,7 +522,7 @@ export class Main extends BasicGame {
     public requestedSong: Song | null = null;
     public currentMusic: Music | null = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) | null = null;
-    public windowedDisplayModeProvider: (() => { width: number; height: number }) | null = null;
+    public browserAudioController: BrowserAudioController | null = null;
     public browserFullscreenController: BrowserFullscreenController | null = null;
     private browserSuspended: boolean = false;
     private browserSuspendedMusicOn: boolean = true;
@@ -571,23 +561,6 @@ export class Main extends BasicGame {
     }
 
     public override init(gc: GameContainer): void {
-        try {
-            for (const displayMode of Display.getAvailableDisplayModes()) {
-                if (
-                    displayMode.getWidth() > this.maxWidth ||
-                    displayMode.getHeight() > this.maxHeight ||
-                    (displayMode.getWidth() == this.maxWidth && displayMode.getHeight() == this.maxHeight && displayMode.getBitsPerPixel() > this.maxColorDepth)
-                ) {
-                    this.maxWidth = displayMode.getWidth();
-                    this.maxHeight = displayMode.getHeight();
-                    this.maxColorDepth = displayMode.getBitsPerPixel();
-                    this.nativeDisplayMode = displayMode;
-                }
-            }
-        } catch (t) {
-            throw new SlickException("Error finding native monitor resolution.", t);
-        }
-
         for (let i: number = 0; i < this.fades.length; i++) {
             this.fades[i] = new Color(0, 0, 0, idiv(255 * i, this.fades.length));
         }
@@ -1035,24 +1008,6 @@ export class Main extends BasicGame {
         }
     }
 
-    private getWindowedDisplayMode(): { width: number; height: number } {
-        if (this.windowedDisplayModeProvider != null) {
-            try {
-                const displayMode = this.windowedDisplayModeProvider();
-                if (Number.isFinite(displayMode.width) && Number.isFinite(displayMode.height)) {
-                    return {
-                        width: Math.max(1, trunc(displayMode.width)),
-                        height: Math.max(1, trunc(displayMode.height))
-                    };
-                }
-            } catch (e) {}
-        }
-        return {
-            width: 640,
-            height: 480
-        };
-    }
-
     public override update(gc: GameContainer, delta: number): void {
         if (this.browserSuspended) {
             this.nextFrameTime = Sys.getTime();
@@ -1084,43 +1039,20 @@ export class Main extends BasicGame {
             this.currentSong.update();
         }
 
-        const browserFullscreen = this.browserFullscreenController != null && this.browserFullscreenController.isFullscreen();
-        if (this.input!.isKeyPressed(Input.KEY_SPACE)) {
+        const fullscreenController = this.browserFullscreenController;
+        const browserFullscreen = fullscreenController?.isFullscreen() ?? false;
+        if (this.input!.isKeyPressed(Input.KEY_SPACE) && fullscreenController !== null) {
             if (browserFullscreen) {
                 this.showMouseCursor();
-                this.browserFullscreenController!.exitFullscreen();
-            } else if (gc.isFullscreen()) {
-                this.showMouseCursor();
-                if (this.appGameContainer == null) {
-                    this.appletGameContainer!.getContainer().setFullscreen(false);
-                } else {
-                    const displayMode = this.getWindowedDisplayMode();
-                    this.appGameContainer.setDisplayMode(displayMode.width, displayMode.height, false);
-                    this.scalableGame!.containerSizeChanged(gc);
-                }
+                fullscreenController.exitFullscreen();
             } else {
                 this.hideMouseCursor();
-                if (this.browserFullscreenController != null) {
-                    this.browserFullscreenController.enterFullscreen();
-                } else if (this.appGameContainer == null) {
-                    this.appletGameContainer!.getContainer().setFullscreen(true);
-                } else {
-                    this.appGameContainer.setDisplayMode(this.maxWidth, this.maxHeight, true);
-                    this.scalableGame!.containerSizeChanged(gc);
-                }
+                fullscreenController.enterFullscreen();
             }
             this.nextFrameTime = Sys.getTime();
-        } else if ((browserFullscreen || gc.isFullscreen()) && this.input!.isKeyPressed(Input.KEY_ESCAPE)) {
+        } else if (browserFullscreen && this.input!.isKeyPressed(Input.KEY_ESCAPE) && fullscreenController !== null) {
             this.showMouseCursor();
-            if (browserFullscreen) {
-                this.browserFullscreenController!.exitFullscreen();
-            } else if (this.appGameContainer == null) {
-                this.appletGameContainer!.getContainer().setFullscreen(false);
-            } else {
-                const displayMode = this.getWindowedDisplayMode();
-                this.appGameContainer.setDisplayMode(displayMode.width, displayMode.height, false);
-                this.scalableGame!.containerSizeChanged(gc);
-            }
+            fullscreenController.exitFullscreen();
             this.nextFrameTime = Sys.getTime();
         }
         this.controlInput!.update();
@@ -2530,13 +2462,6 @@ export class Main extends BasicGame {
         }
     }
 
-    private drawStringCentered(string: string, y: number): void {
-        let x: number = (640 - (string.length << 4)) >> 1;
-        for (let i: number = 0; i < string.length; i++, x += 16) {
-            this.symbols[string.charCodeAt(i)].draw(x, y);
-        }
-    }
-
     public drawString(string: string, x: number, y: number): void;
     public drawString(string: string, x: number, y: number, length: number): void;
     public drawString(string: string, x: number, y: number, length: number = string.length): void {
@@ -2772,16 +2697,16 @@ export class Main extends BasicGame {
         if (suspended) {
             this.stopAllSoundEffects();
             this.stopAllRumbles();
-            if (this.appGameContainer != null) {
-                this.browserSuspendedMusicOn = this.appGameContainer.isMusicOn();
-                this.browserSuspendedSoundOn = this.appGameContainer.isSoundOn();
-                this.appGameContainer.setMusicOn(false);
-                this.appGameContainer.setSoundOn(false);
+            if (this.browserAudioController != null) {
+                this.browserSuspendedMusicOn = this.browserAudioController.isMusicOn();
+                this.browserSuspendedSoundOn = this.browserAudioController.isSoundOn();
+                this.browserAudioController.setMusicOn(false);
+                this.browserAudioController.setSoundOn(false);
             }
         } else {
-            if (this.appGameContainer != null) {
-                this.appGameContainer.setMusicOn(this.browserSuspendedMusicOn);
-                this.appGameContainer.setSoundOn(this.browserSuspendedSoundOn);
+            if (this.browserAudioController != null) {
+                this.browserAudioController.setMusicOn(this.browserSuspendedMusicOn);
+                this.browserAudioController.setSoundOn(this.browserSuspendedSoundOn);
             }
             this.resumeBrowserAudio();
             this.clearInputPressedRecords();
@@ -2790,7 +2715,7 @@ export class Main extends BasicGame {
     }
 
     private resumeBrowserAudio(): void {
-        if (this.appGameContainer == null || !this.browserSuspendedMusicOn || !this.appGameContainer.isMusicOn()) {
+        if (this.browserAudioController == null || !this.browserSuspendedMusicOn || !this.browserAudioController.isMusicOn()) {
             return;
         }
         if (this.currentMusic != null) {
@@ -3937,10 +3862,6 @@ export class Main extends BasicGame {
         this.titleBatSpriteIndex = 0;
         this.titleBatSpriteIndexIncrementor = 0;
         this.titleBatSteps = 0;
-        this.pressEnterVisible = true;
-        this.pressEnterVisibleIncrementor = 0;
-        this.pressEnterVisibleCount = 0;
-        this.enterPressed = false;
         this.titleMenu = Main.TITLE_MENU_MAIN;
         this.titleSelectedIndex = 0;
         this.titleBatAngle = javaFloat(0);

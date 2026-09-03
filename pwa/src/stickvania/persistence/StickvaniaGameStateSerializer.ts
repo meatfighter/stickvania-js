@@ -160,7 +160,7 @@ export class StickvaniaGameStateSerializer {
         }
         if (
             snapshot.mainFields.mode !== snapshot.mode ||
-            !this.areRecordFieldNamesAllowed(snapshot.mainFields, MAIN_PERSISTED_STATE_FIELD_NAMES) ||
+            !this.areRecordFieldNamesExact(snapshot.mainFields, MAIN_PERSISTED_STATE_FIELD_NAMES) ||
             !this.areThingSnapshotsValid(snapshot.things)
         ) {
             return false;
@@ -289,7 +289,7 @@ export class StickvaniaGameStateSerializer {
                 thing.id !== i ||
                 !isThingTypeId(thing.type) ||
                 !this.isPlainRecord(thing.fields) ||
-                !this.areRecordFieldNamesAllowed(thing.fields, THING_PERSISTED_STATE_FIELD_NAMES[thing.type])
+                !this.areRecordFieldNamesExact(thing.fields, THING_PERSISTED_STATE_FIELD_NAMES[thing.type])
             ) {
                 return false;
             }
@@ -297,9 +297,13 @@ export class StickvaniaGameStateSerializer {
         return true;
     }
 
-    private areRecordFieldNamesAllowed(record: JsonRecord | EncodedRecord, allowed: readonly string[]): boolean {
-        const allowedSet = new Set<string>(allowed);
-        return Object.keys(record).every((field) => allowedSet.has(field));
+    private areRecordFieldNamesExact(record: JsonRecord | EncodedRecord, expected: readonly string[]): boolean {
+        const fields = Object.keys(record);
+        if (fields.length !== expected.length) {
+            return false;
+        }
+        const fieldSet = new Set<string>(fields);
+        return expected.every((field) => fieldSet.has(field));
     }
 
     private isInputConfigSnapshotShape(snapshot: unknown): boolean {

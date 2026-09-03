@@ -123,7 +123,10 @@ export class ButtonMapping {
                 mapping.storageWriteProtected = true;
                 return mapping;
             }
-            if (!ButtonMapping.isSupportedSnapshot(snapshot)) {
+            if (version !== ButtonMapping.VERSION || !ButtonMapping.isSupportedSnapshot(snapshot)) {
+                try {
+                    localStorage.removeItem(ButtonMapping.STORAGE_KEY);
+                } catch {}
                 return mapping;
             }
             mapping.keyJump = snapshot.keyJump;
@@ -145,7 +148,7 @@ export class ButtonMapping {
     }
 
     public save(): boolean {
-        if (this.storageWriteProtected) {
+        if (this.storageWriteProtected || ButtonMapping.hasProtectedStoredSnapshot()) {
             console.warn("A newer Stickvania input-mapping format is stored; leaving it unchanged.");
             return false;
         }
@@ -345,6 +348,24 @@ export class ButtonMapping {
             controllerLeft: this.controllerLeft,
             controllerRight: this.controllerRight
         };
+    }
+
+    private static hasProtectedStoredSnapshot(): boolean {
+        let text: string | null;
+        try {
+            text = localStorage.getItem(ButtonMapping.STORAGE_KEY);
+        } catch {
+            return true;
+        }
+        if (text === null) {
+            return false;
+        }
+        try {
+            const version = ButtonMapping.getSnapshotVersion(JSON.parse(text) as unknown);
+            return version !== null && version > ButtonMapping.VERSION;
+        } catch {
+            return false;
+        }
     }
 
     private static getSnapshotVersion(snapshot: unknown): number | null {

@@ -1,4 +1,4 @@
-import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION } from "./GameStateSchema.js";
+import { FIRST_PUBLIC_GAME_STATE_VERSION, GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION } from "./GameStateSchema.js";
 import { isInputConfigGameStateMode, isRestorableGameStateMode, isStageRequiredGameStateMode } from "./GameStatePolicy.js";
 
 type GameStateStorage = {
@@ -7,24 +7,31 @@ type GameStateStorage = {
 };
 
 export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage, storageKey: string = GAME_STATE_STORAGE_KEY): boolean {
+    let text: string | null;
     try {
-        const text = storage.getItem(storageKey);
-        if (text === null) return false;
-        const snapshot = JSON.parse(text) as unknown;
-        if (isFutureVersionStickvaniaGameStateSnapshot(snapshot)) return false;
-        if (!isPotentialStickvaniaGameStateSnapshot(snapshot)) {
-            clearStoredStickvaniaGameState(storage, storageKey);
-            return false;
-        }
-        return true;
+        text = storage.getItem(storageKey);
+    } catch {
+        return false;
+    }
+    if (text === null) return false;
+
+    let snapshot: unknown;
+    try {
+        snapshot = JSON.parse(text) as unknown;
     } catch {
         clearStoredStickvaniaGameState(storage, storageKey);
         return false;
     }
-}
 
-function isFutureVersionStickvaniaGameStateSnapshot(snapshot: unknown): boolean {
-    return isRecord(snapshot) && typeof snapshot.version === "number" && Number.isInteger(snapshot.version) && snapshot.version > GAME_STATE_VERSION;
+    const version = getStickvaniaGameStateVersion(snapshot);
+    if (version !== null && version >= FIRST_PUBLIC_GAME_STATE_VERSION && version !== GAME_STATE_VERSION) {
+        return false;
+    }
+    if (!isPotentialStickvaniaGameStateSnapshot(snapshot)) {
+        clearStoredStickvaniaGameState(storage, storageKey);
+        return false;
+    }
+    return true;
 }
 
 export function hasPotentialBrowserStoredStickvaniaGameState(): boolean {
@@ -61,6 +68,14 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
     );
 }
 
+function getStickvaniaGameStateVersion(snapshot: unknown): number | null {
+    if (!isRecord(snapshot)) {
+        return null;
+    }
+    const version = snapshot.version;
+    return typeof version === "number" && Number.isInteger(version) ? version : null;
+}
+
 function clearStoredStickvaniaGameState(storage: GameStateStorage, storageKey: string): void {
     try {
         storage.removeItem(storageKey);
@@ -70,5 +85,5 @@ function clearStoredStickvaniaGameState(storage: GameStateStorage, storageKey: s
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-    return value !== null && typeof value === "object";
+    return value !== null && typeof value === "object" && !Array.isArray(value);
 }

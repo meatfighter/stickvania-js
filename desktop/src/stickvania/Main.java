@@ -305,10 +305,6 @@ public final class Main extends BasicGame {
   private int titleBatSpriteIndex;
   private int titleBatSpriteIndexIncrementor;
   private int titleBatSteps;
-  private boolean pressEnterVisible = true;
-  private int pressEnterVisibleIncrementor;
-  private int pressEnterVisibleCount;
-  private boolean enterPressed;
   private static final int[] titleBatSequence = { 0, 1, 2, 1 };
 
   public int introWalkSpriteIndexIncrementor;
@@ -3931,10 +3927,6 @@ public final class Main extends BasicGame {
     titleBatSpriteIndex = 0;
     titleBatSpriteIndexIncrementor = 0;
     titleBatSteps = 0;
-    pressEnterVisible = true;
-    pressEnterVisibleIncrementor = 0;
-    pressEnterVisibleCount = 0;
-    enterPressed = false;
     titleMenu = TITLE_MENU_MAIN;
     titleSelectedIndex = 0;
     titleBatAngle = 0;

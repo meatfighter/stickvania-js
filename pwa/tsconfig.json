@@ -11,7 +11,7 @@
         "noEmit": true,
         "strict": true,
         "strictPropertyInitialization": false,
-        "noUnusedLocals": false,
+        "noUnusedLocals": true,
         "noUnusedParameters": false,
         "noImplicitOverride": true,
         "skipLibCheck": true,

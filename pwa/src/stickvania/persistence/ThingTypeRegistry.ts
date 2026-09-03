@@ -138,7 +138,7 @@ export type ThingTypeId = keyof typeof THING_TYPES;
 
 const THING_TYPE_IDS = new Set<string>(Object.keys(THING_TYPES));
 
-export const THING_TYPE_ID_BY_CONSTRUCTOR: ReadonlyMap<ThingConstructor, ThingTypeId> = new Map(
+export const THING_TYPE_ID_BY_CONSTRUCTOR: ReadonlyMap<unknown, ThingTypeId> = new Map(
     Object.entries(THING_TYPES).map(([typeId, constructor]) => [constructor, typeId as ThingTypeId])
 );
 
@@ -147,7 +147,7 @@ export function isThingTypeId(value: unknown): value is ThingTypeId {
 }
 
 export function getThingTypeId(thing: Thing): ThingTypeId {
-    const constructor = thing.constructor as unknown as ThingConstructor;
+    const constructor = thing.constructor;
     const typeId = THING_TYPE_ID_BY_CONSTRUCTOR.get(constructor);
     if (typeId === undefined) {
         throw new Error(`Unregistered Thing type: ${constructor.name}`);

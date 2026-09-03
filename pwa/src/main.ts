@@ -230,8 +230,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     container = appContainer;
     game = mainGame;
     activeBufferedGame = bufferedGame;
-    mainGame.appGameContainer = appContainer;
-    mainGame.windowedDisplayModeProvider = viewport.getResponsiveWindowedDisplayMode;
+    mainGame.browserAudioController = appContainer;
     mainGame.browserFullscreenController = viewport.createFullscreenController();
     if (restoreSavedGame) {
         mainGame.loadingCompleteHandler = (gc) => {
