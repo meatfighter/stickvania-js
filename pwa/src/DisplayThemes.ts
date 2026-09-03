@@ -3,11 +3,9 @@ import { Color } from "slick2d-ts";
 export type DisplayModePreference =
     | "amber"
     | "ballpoint"
-    | "blush"
     | "candlelight"
     | "charcoal"
     | "chalkboard"
-    | "coral"
     | "cyanotype"
     | "dark"
     | "delft"
@@ -16,14 +14,11 @@ export type DisplayModePreference =
     | "lcd"
     | "led"
     | "light"
-    | "marigold"
     | "newsprint"
     | "oscilloscope"
     | "plasma"
     | "redline"
     | "rose"
-    | "salmon"
-    | "seafoam"
     | "sepia"
     | "silver"
     | "slate"
@@ -60,12 +55,6 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0xed, 0xf0, 0xf2]
     },
     {
-        value: "blush",
-        label: "Blush",
-        blackReplacement: [0xec, 0x76, 0x8e],
-        whiteReplacement: [0xea, 0xe5, 0xdf]
-    },
-    {
         value: "candlelight",
         label: "Candlelight",
         blackReplacement: [0x17, 0x12, 0x0a],
@@ -82,12 +71,6 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         label: "Chalkboard",
         blackReplacement: [0xf0, 0xeb, 0xd8],
         whiteReplacement: [0x1e, 0x48, 0x36]
-    },
-    {
-        value: "coral",
-        label: "Coral",
-        blackReplacement: [0xfd, 0x76, 0x78],
-        whiteReplacement: [0x00, 0x36, 0x4e]
     },
     {
         value: "cyanotype",
@@ -138,12 +121,6 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: null
     },
     {
-        value: "marigold",
-        label: "Marigold",
-        blackReplacement: [0xf3, 0xa0, 0x1e],
-        whiteReplacement: [0xea, 0xe5, 0xdf]
-    },
-    {
         value: "newsprint",
         label: "Newsprint",
         blackReplacement: [0x22, 0x20, 0x1b],
@@ -172,18 +149,6 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         label: "Rose",
         blackReplacement: [0x21, 0x11, 0x17],
         whiteReplacement: [0xd9, 0x95, 0xa1]
-    },
-    {
-        value: "salmon",
-        label: "Salmon",
-        blackReplacement: [0xf1, 0x8a, 0x69],
-        whiteReplacement: [0xea, 0xe5, 0xdf]
-    },
-    {
-        value: "seafoam",
-        label: "Seafoam",
-        blackReplacement: [0x75, 0xbd, 0x97],
-        whiteReplacement: [0xea, 0xe5, 0xdf]
     },
     {
         value: "sepia",
