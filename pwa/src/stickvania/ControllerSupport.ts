@@ -55,20 +55,30 @@ export class ControllerSupport {
     }
 
     public static isButtonDown(input: Input, button: number): boolean {
-        return button >= 0 && button < ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT && input.isButtonPressed(button, Input.ANY_CONTROLLER);
+        return button >= 0 && button < ControllerSupport.getButtonScanLimit(input) && input.isButtonPressed(button, Input.ANY_CONTROLLER);
     }
 
     public static isNonDirectionalButtonDown(input: Input, mapping: ButtonMapping): boolean {
-        for (let button = 0; button < ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT; button++) {
+        const limit = ControllerSupport.getButtonScanLimit(input);
+        for (let button = 0; button < limit; button++) {
             if (
                 !ControllerSupport.isDirectionalButton(button) &&
                 !ControllerSupport.isMappedDirectionButton(mapping, button) &&
-                ControllerSupport.isButtonDown(input, button)
+                input.isButtonPressed(button, Input.ANY_CONTROLLER)
             ) {
                 return true;
             }
         }
         return false;
+    }
+
+    public static getButtonScanLimit(input: Input): number {
+        let count = 0;
+        const controllerCount = input.getControllerCount();
+        for (let controller = 0; controller < controllerCount; controller++) {
+            count = Math.max(count, input.getButtonCount(controller));
+        }
+        return Math.min(count, ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT);
     }
 
     public static isDirectionalButton(button: number): boolean {

@@ -48,6 +48,10 @@ export class StickvaniaGameStateStore {
         }
     }
 
+    public cancelPendingRestore(): void {
+        this.serializer.cancelPendingRestore();
+    }
+
     public clear(): void {
         try {
             localStorage.removeItem(GAME_STATE_STORAGE_KEY);

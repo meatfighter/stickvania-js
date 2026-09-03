@@ -1,0 +1,453 @@
+{
+    "version": 1,
+    "classes": [
+        {
+            "file": "Axe.java",
+            "className": "Axe",
+            "baseClass": "Thing",
+            "floatFields": ["angle", "vAngle"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "AxeKnight.java",
+            "className": "AxeKnight",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["axeGone", "render", "update"]
+        },
+        {
+            "file": "Bat.java",
+            "className": "Bat",
+            "baseClass": "Thing",
+            "floatFields": ["Y", "angle"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BatBoss.java",
+            "className": "BatBoss",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BatSpawner.java",
+            "className": "BatSpawner",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Bird.java",
+            "className": "Bird",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BirdSpawner.java",
+            "className": "BirdSpawner",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["birdDied", "render", "update"]
+        },
+        {
+            "file": "Bone.java",
+            "className": "Bone",
+            "baseClass": "Thing",
+            "floatFields": ["angle", "vAngle"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BoneDragon.java",
+            "className": "BoneDragon",
+            "baseClass": "Thing",
+            "floatFields": ["A0", "A1", "A2", "X", "Y", "angle", "angle2", "angle3", "angle4", "radius", "tx", "ty"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BoneDragonVertebra.java",
+            "className": "BoneDragonVertebra",
+            "baseClass": "Thing",
+            "floatFields": ["angle", "tx", "ty"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BonePillar.java",
+            "className": "BonePillar",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Boomerang.java",
+            "className": "Boomerang",
+            "baseClass": "Thing",
+            "floatFields": ["angle", "g"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BoomerangAxe.java",
+            "className": "BoomerangAxe",
+            "baseClass": "Thing",
+            "floatFields": ["angle", "g", "targetX"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BreakWall.java",
+            "className": "BreakWall",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BrickFragment.java",
+            "className": "BrickFragment",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "BridgeBat.java",
+            "className": "BridgeBat",
+            "baseClass": "Thing",
+            "floatFields": ["targetX"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Candles.java",
+            "className": "Candles",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Checkpoint.java",
+            "className": "Checkpoint",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Dagger.java",
+            "className": "Dagger",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "DieBat.java",
+            "className": "DieBat",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Dog.java",
+            "className": "Dog",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Door.java",
+            "className": "Door",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Dracula.java",
+            "className": "Dracula",
+            "baseClass": "Thing",
+            "floatFields": ["batVx", "headY", "targetX"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "DraculaBat.java",
+            "className": "DraculaBat",
+            "baseClass": "Thing",
+            "floatFields": ["Y", "amplitude"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "DropItem.java",
+            "className": "DropItem",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Droplets.java",
+            "className": "Droplets",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "FadingStairs.java",
+            "className": "FadingStairs",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Fireball.java",
+            "className": "Fireball",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Flame.java",
+            "className": "Flame",
+            "baseClass": "Thing",
+            "floatFields": ["g"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "FloatingPoints.java",
+            "className": "FloatingPoints",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "FloorBreaker.java",
+            "className": "FloorBreaker",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "FoodOrb.java",
+            "className": "FoodOrb",
+            "baseClass": "Thing",
+            "floatFields": ["X", "Y", "a", "angle", "b", "flyAngle", "radius", "shootAngle", "shootAngleInc", "sx0", "sx1", "sx2", "sy0", "sy1", "sy2"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Frankenstein.java",
+            "className": "Frankenstein",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Ghost.java",
+            "className": "Ghost",
+            "baseClass": "Thing",
+            "floatFields": ["targetX"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "GrimReaper.java",
+            "className": "GrimReaper",
+            "baseClass": "Thing",
+            "floatFields": ["FADE_FRACTION", "Y", "angle", "angleInc", "dy", "hoverAngle", "startY", "targetX"],
+            "publicMethods": ["render", "sickleGone", "update"]
+        },
+        {
+            "file": "HolyWater.java",
+            "className": "HolyWater",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Igor.java",
+            "className": "Igor",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "LanceKnight.java",
+            "className": "LanceKnight",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "MedusaBoss.java",
+            "className": "MedusaBoss",
+            "baseClass": "Thing",
+            "floatFields": ["Y", "angle"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "MedusaHead.java",
+            "className": "MedusaHead",
+            "baseClass": "Thing",
+            "floatFields": ["Y", "angle"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "MedusaHeadSpawner.java",
+            "className": "MedusaHeadSpawner",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Merman.java",
+            "className": "Merman",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "MermanSpawner.java",
+            "className": "MermanSpawner",
+            "baseClass": "Thing",
+            "floatFields": ["vy"],
+            "publicMethods": ["mermanDied", "render", "update"]
+        },
+        {
+            "file": "MovingPlatform.java",
+            "className": "MovingPlatform",
+            "baseClass": "Thing",
+            "floatFields": ["x1", "x2"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "MummyBoss.java",
+            "className": "MummyBoss",
+            "baseClass": "Thing",
+            "floatFields": ["targetX"],
+            "publicMethods": ["moveX", "render", "update"]
+        },
+        {
+            "file": "Orb.java",
+            "className": "Orb",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Raven.java",
+            "className": "Raven",
+            "baseClass": "Thing",
+            "floatFields": ["targetX"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "RedSkeleton.java",
+            "className": "RedSkeleton",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Secret.java",
+            "className": "Secret",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "ShootingSpark.java",
+            "className": "ShootingSpark",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Sickle.java",
+            "className": "Sickle",
+            "baseClass": "Thing",
+            "floatFields": ["angle", "g", "targetX"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Simon.java",
+            "className": "Simon",
+            "baseClass": "Thing",
+            "floatFields": ["jumpVelocity", "lastX", "lastY"],
+            "publicMethods": ["kneel", "render", "reset", "stand", "update", "walkLeft", "walkRight"]
+        },
+        {
+            "file": "SmallHeart.java",
+            "className": "SmallHeart",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Snakes.java",
+            "className": "Snakes",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Spark.java",
+            "className": "Spark",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Spikes.java",
+            "className": "Spikes",
+            "baseClass": "Thing",
+            "floatFields": ["top"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "StopWatch.java",
+            "className": "StopWatch",
+            "baseClass": "Thing",
+            "floatFields": ["angle", "sx0", "sx1", "sx2", "sy0", "sy1", "sy2"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "SwoopingBat.java",
+            "className": "SwoopingBat",
+            "baseClass": "Thing",
+            "floatFields": ["Y", "angle", "targetY"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Thing.java",
+            "className": "Thing",
+            "baseClass": null,
+            "floatFields": ["G", "vx", "vy", "x", "y"],
+            "publicMethods": ["applyGravity", "applyGravityWithPlatforms", "moveX", "moveY"]
+        },
+        {
+            "file": "Torch.java",
+            "className": "Torch",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "WhiteSkeleton.java",
+            "className": "WhiteSkeleton",
+            "baseClass": "Thing",
+            "floatFields": ["targetX"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Wrapping.java",
+            "className": "Wrapping",
+            "baseClass": "Thing",
+            "floatFields": ["Y", "angle"],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "Zombie.java",
+            "className": "Zombie",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update"]
+        },
+        {
+            "file": "ZombieSpawner.java",
+            "className": "ZombieSpawner",
+            "baseClass": "Thing",
+            "floatFields": [],
+            "publicMethods": ["render", "update", "zombieDied"]
+        }
+    ]
+}

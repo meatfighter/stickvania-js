@@ -26,6 +26,10 @@ export class Fireball extends Thing {
         }
     }
 
+    public restoreRuntimeStateAfterStateLoad(): void {
+        this.image = this.main.fireballs[this.vx < 0 ? Main.LEFT : Main.RIGHT];
+    }
+
     public override update(gc: GameContainer): boolean {
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));

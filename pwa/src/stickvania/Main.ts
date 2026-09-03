@@ -22,6 +22,7 @@ import {
     Sys
 } from "slick2d-ts";
 import { AppletGameContainer2 } from "./AppletGameContainer2.js";
+import { SONG_FIELD_NAMES, SOUND_EFFECT_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "./AudioRegistry.js";
 import { Axe } from "./Axe.js";
 import { AxeKnight } from "./AxeKnight.js";
 import { BatBoss } from "./BatBoss.js";
@@ -78,6 +79,7 @@ import { Torch } from "./Torch.js";
 import { WhiteSkeleton } from "./WhiteSkeleton.js";
 import { ZombieSpawner } from "./ZombieSpawner.js";
 import type { RumbleEffectId } from "../rumble/RumbleEffects.js";
+import { isRestorableGameStateMode, isStageRequiredGameStateMode } from "./persistence/GameStatePolicy.js";
 import type { RumbleManager } from "../rumble/RumbleManager.js";
 
 type BrowserFullscreenController = {
@@ -1960,7 +1962,6 @@ export class Main extends BasicGame {
                                 region.thingStack.push(new Door(this, x + 8, y, Main.RIGHT, true));
                             }
 
-                            region.platforms = makeArray<Thing>(platformList.length, () => null!);
                             region.platforms = platformList.slice();
 
                             region = new Region();
@@ -1978,7 +1979,6 @@ export class Main extends BasicGame {
                                 segment.map[i + 2][j] = Main.BLOCK_EMPTY;
                             } else {
                                 region.max = x - 1;
-                                region.platforms = makeArray<Thing>(platformList.length, () => null!);
                                 region.platforms = platformList.slice();
 
                                 region = new Region();
@@ -2286,14 +2286,11 @@ export class Main extends BasicGame {
                 }
             }
 
-            region.platforms = makeArray<Thing>(platformList.length, () => null!);
             region.platforms = platformList.slice();
         }
 
-        segment.regions = makeArray<Region>(regions.length, () => null!);
         segment.regions = regions.slice();
 
-        segment.stairsEntries = makeArray<StairsEntry>(stairsEntries.length, () => null!);
         segment.stairsEntries = stairsEntries.slice();
 
         if (segment.direction == Main.RIGHT) {
@@ -2748,24 +2745,18 @@ export class Main extends BasicGame {
     }
 
     public stopAllSoundEffects(): void {
-        const fields: Record<string, unknown> = this as unknown as Record<string, unknown>;
-        for (const value of Object.values(fields)) {
-            if (value instanceof Sound) {
-                (value as Sound).stop();
-            }
+        for (let i = 0; i < SOUND_EFFECT_FIELD_NAMES.length; i++) {
+            this[SOUND_EFFECT_FIELD_NAMES[i]].stop();
         }
     }
 
     public stopAllSounds(): void {
-        const fields: Record<string, unknown> = this as unknown as Record<string, unknown>;
-        for (const value of Object.values(fields)) {
-            if (value instanceof Sound) {
-                (value as Sound).stop();
-            } else if (value instanceof Music) {
-                (value as Music).stop();
-            } else if (value instanceof Song) {
-                value.stop();
-            }
+        this.stopAllSoundEffects();
+        for (let i = 0; i < STANDALONE_MUSIC_FIELD_NAMES.length; i++) {
+            this[STANDALONE_MUSIC_FIELD_NAMES[i]].stop();
+        }
+        for (let i = 0; i < SONG_FIELD_NAMES.length; i++) {
+            this[SONG_FIELD_NAMES[i]].stop();
         }
         this.currentMusic = null;
         this.currentSong = null;
@@ -2921,7 +2912,7 @@ export class Main extends BasicGame {
     }
 
     public isStateSaveReady(): boolean {
-        if (this.loadedSegments == null || this.input == null || this.controlInput == null) {
+        if (!isRestorableGameStateMode(this.mode) || this.loadedSegments == null || this.input == null || this.controlInput == null) {
             return false;
         }
         if (this.isStageStateRequiredForStateSave()) {
@@ -2939,7 +2930,7 @@ export class Main extends BasicGame {
     }
 
     private isStageStateRequiredForStateSave(): boolean {
-        return this.mode != Main.MODE_TITLE_SCREEN && this.mode != Main.MODE_INPUT_CONFIG;
+        return isStageRequiredGameStateMode(this.mode);
     }
 
     private hasStageStateForStateSave(): boolean {

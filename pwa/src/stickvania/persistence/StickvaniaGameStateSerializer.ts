@@ -1,7 +1,6 @@
-import { Color, GameContainer, Image, JavaRandom, Music, Sound } from "slick2d-ts";
+import { GameContainer, JavaRandom, Music } from "slick2d-ts";
 import { Checkpoint } from "../Checkpoint.js";
 import { ButtonMapping } from "../ButtonMapping.js";
-import { Fireball } from "../Fireball.js";
 import { Main } from "../Main.js";
 import { Region } from "../Region.js";
 import { Song } from "../Song.js";
@@ -28,8 +27,11 @@ import {
     type ThingStackSnapshot
 } from "./GameStateSnapshot.js";
 import { GAME_STATE_VERSION } from "./GameStateSchema.js";
-import { MAIN_STATE_FIELD_NAMES, THING_STATE_FIELD_NAMES } from "./StateFieldRegistry.generated.js";
-import { getThingTypeId, isThingTypeId, THING_TYPES, type ThingTypeId } from "./ThingTypeRegistry.js";
+import { MAIN_PERSISTED_STATE_FIELD_NAMES, THING_PERSISTED_STATE_FIELD_NAMES } from "./StateFieldRegistry.generated.js";
+import { getThingTypeId, isThingTypeId, THING_TYPES } from "./ThingTypeRegistry.js";
+import { rehydrateThingAfterStateRestore } from "./ThingRehydrationRegistry.js";
+import { isInputConfigGameStateMode, isRestorableGameStateMode, isStageRequiredGameStateMode } from "./GameStatePolicy.js";
+import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "../AudioRegistry.js";
 
 type FieldBag = Record<string, unknown>;
 
@@ -56,228 +58,9 @@ type SnapshotReferenceLimits = {
     regionCounts: number[];
 };
 
-const MAIN_EXCLUDED_FIELDS = new Set<string>([
-    "fades",
-    "nativeCursor",
-    "nativeDisplayMode",
-    "maxWidth",
-    "maxHeight",
-    "maxColorDepth",
-    "nextFrameTime",
-    "mapWidth",
-    "appGameContainer",
-    "appletGameContainer",
-    "scalableGame",
-    "rumble",
-    "loadedSegments",
-    "stageSegments",
-    "stageSegment",
-    "checkpoint",
-    "map",
-    "walls",
-    "regionThingStack",
-    "regionStackSwap",
-    "weaponsStack",
-    "weaponsStackSwap",
-    "platforms",
-    "simon",
-    "random",
-    "demoKeyRecordings",
-    "endingKeyRecordings",
-    "door",
-    "oldThingStack",
-    "blocks",
-    "symbols",
-    "power",
-    "simonWalking",
-    "simonOnStairsUp",
-    "simonOnStairsDown",
-    "simonKneeling",
-    "simonWhipping",
-    "simonKneelWhipping",
-    "simonUpWhipping",
-    "simonDownWhipping",
-    "simonHurt",
-    "simonDead",
-    "whips",
-    "dropItems",
-    "candles",
-    "itemPoints",
-    "fires",
-    "doors",
-    "daggers",
-    "holyWaters",
-    "zombies",
-    "bats",
-    "dogs",
-    "mermen",
-    "fireballs",
-    "batBoss",
-    "lanceKnight",
-    "medusaHeads",
-    "bonePillars",
-    "ghosts",
-    "medusaBoss",
-    "snakes",
-    "igors",
-    "skeletons",
-    "crumble",
-    "ravens",
-    "mummyBoss",
-    "wrappings",
-    "birds",
-    "boneDragons",
-    "axeKnights",
-    "grimReaperBoss",
-    "draculaBoss",
-    "frankensteinBoss",
-    "titleImage",
-    "titleBats",
-    "gateBats",
-    "gates",
-    "clouds",
-    "castleMaps",
-    "castleBottom",
-    "castleTop",
-    "castleTrees",
-    "axe",
-    "boomerang",
-    "weaponBorder",
-    "smallHeart",
-    "spark",
-    "brickFragment",
-    "torch",
-    "droplets",
-    "orb",
-    "platform",
-    "spikes",
-    "bone",
-    "sickle",
-    "simonBack",
-    "blank_32",
-    "boss_1",
-    "boss_2",
-    "ending",
-    "game_over",
-    "map_1",
-    "map_2",
-    "map_3",
-    "map_4",
-    "prologue",
-    "simon_killed",
-    "stage_1_1",
-    "stage_1_2",
-    "stage_2_1",
-    "stage_3_1",
-    "stage_4_1",
-    "stage_4_2",
-    "stage_5_1",
-    "stage_6_1",
-    "stage_6_2",
-    "stage_cleared",
-    "dracula_dead",
-    "advance_whip",
-    "bat_killed",
-    "bleep",
-    "boss_hurt",
-    "boss_killed_1",
-    "boss_killed_2",
-    "boss_killed_3",
-    "breaks_wall",
-    "crumble_sfx",
-    "dog_killed",
-    "door_opens_1",
-    "door_opens_2",
-    "gain_potion",
-    "got_money",
-    "heartbeat",
-    "hit_candle",
-    "killed_1",
-    "killed_2",
-    "killed_3",
-    "killed_4",
-    "killed_5",
-    "lose_potion",
-    "merman_spit",
-    "one_up",
-    "pressed_enter",
-    "simon_hurt",
-    "splash",
-    "torch_breaks",
-    "whip_1",
-    "whip_2",
-    "wing_flaps",
-    "zombie_killed",
-    "got_double",
-    "kill_all_sfx",
-    "simon_in_pit",
-    "threw_dagger",
-    "got_weapon",
-    "used_holy_water",
-    "spinning",
-    "raven_killed",
-    "ching",
-    "snuffed",
-    "medusa_head_killed",
-    "stunned",
-    "watch_tick",
-    "twang",
-    "large_bat_killed",
-    "thunder",
-    "fire_ball_shot",
-    "dracula_to_bats",
-    "lands",
-    "currentSong",
-    "requestedSong",
-    "currentMusic",
-    "input",
-    "buttonMapping",
-    "controlInput",
-    "inputConfigMode",
-    "startupAudioQueued",
-    "loadingCompleteHandler",
-    "windowedDisplayModeProvider",
-    "browserFullscreenController",
-    "darkDisplayMode",
-    "displayMonochromePalette",
-    "browserSuspended",
-    "browserSuspendedMusicOn",
-    "browserSuspendedSoundOn",
-    "titleInputMappingLines",
-    "titleInputMappingX",
-    "titleInputMappingCacheDirty"
-]);
+const SONG_IDS: SongId[] = [...SONG_FIELD_NAMES];
+const STANDALONE_MUSIC_IDS: MusicId[] = [...STANDALONE_MUSIC_FIELD_NAMES];
 
-const SONG_IDS: SongId[] = [
-    "boss_1",
-    "boss_2",
-    "ending",
-    "stage_1_1",
-    "stage_1_2",
-    "stage_2_1",
-    "stage_3_1",
-    "stage_4_1",
-    "stage_4_2",
-    "stage_5_1",
-    "stage_6_1",
-    "stage_6_2"
-];
-
-const STANDALONE_MUSIC_IDS: MusicId[] = ["game_over", "map_1", "map_2", "map_3", "map_4", "prologue", "simon_killed", "stage_cleared", "dracula_dead"];
-
-const RESTORABLE_MODES = new Set<number>([
-    Main.MODE_TITLE_SCREEN,
-    Main.MODE_DEMO,
-    Main.MODE_CONTINUE_SCREEN,
-    Main.MODE_PLAYING,
-    Main.MODE_INTRO,
-    Main.MODE_MAP,
-    Main.MODE_CASTLE_FALLS,
-    Main.MODE_CREDITS,
-    Main.MODE_INPUT_CONFIG
-]);
-
-const STAGELESS_MODES = new Set<number>([Main.MODE_TITLE_SCREEN, Main.MODE_INPUT_CONFIG]);
 const EXPECTED_STAGE_SEGMENT_COUNTS = [2, 4, 3, 2, 4, 3];
 const MAX_SAVED_STACK_CAPACITY = 4096;
 const MAX_SAVED_GRID_ROWS = 128;
@@ -309,6 +92,12 @@ const MUSIC_IDS: MusicId[] = [
 const MUSIC_ID_SET = new Set<string>(MUSIC_IDS);
 
 export class StickvaniaGameStateSerializer {
+    private restoreGeneration = 0;
+
+    public cancelPendingRestore(): void {
+        this.restoreGeneration++;
+    }
+
     public createSnapshot(main: Main, appVersion: string): StickvaniaGameStateSnapshot {
         if (!main.isStateSaveReady()) {
             throw new Error("Game state is not ready to save.");
@@ -334,6 +123,7 @@ export class StickvaniaGameStateSerializer {
     }
 
     public restoreSnapshot(main: Main, gc: GameContainer, snapshot: StickvaniaGameStateSnapshot): void {
+        const restoreGeneration = ++this.restoreGeneration;
         if (!this.isSupportedSnapshot(snapshot)) {
             throw new Error("Unsupported saved game state.");
         }
@@ -355,7 +145,7 @@ export class StickvaniaGameStateSerializer {
             this.clearMainStageRoots(main);
         }
         main.restoreInputConfigModeState(gc, snapshot.inputConfigMode);
-        this.restoreAudio(context, snapshot.audio);
+        this.restoreAudio(context, snapshot.audio, restoreGeneration);
         main.setBrowserSuspended(false);
         main.clearInputPressedRecords();
         main.resetNextFrameTime();
@@ -370,13 +160,13 @@ export class StickvaniaGameStateSerializer {
         }
         if (
             snapshot.mainFields.mode !== snapshot.mode ||
-            !this.areRecordFieldNamesAllowed(snapshot.mainFields, MAIN_STATE_FIELD_NAMES) ||
+            !this.areRecordFieldNamesAllowed(snapshot.mainFields, MAIN_PERSISTED_STATE_FIELD_NAMES) ||
             !this.areThingSnapshotsValid(snapshot.things)
         ) {
             return false;
         }
 
-        const stageRequired = !STAGELESS_MODES.has(snapshot.mode);
+        const stageRequired = isStageRequiredGameStateMode(snapshot.mode);
         if (stageRequired) {
             if (!this.isStageSnapshotValid(snapshot.stage, snapshot.things.length)) {
                 return false;
@@ -384,7 +174,7 @@ export class StickvaniaGameStateSerializer {
         } else if (snapshot.stage !== null || snapshot.things.length !== 0) {
             return false;
         }
-        if (snapshot.mode === Main.MODE_INPUT_CONFIG) {
+        if (isInputConfigGameStateMode(snapshot.mode)) {
             if (!this.isInputConfigSnapshotShape(snapshot.inputConfigMode)) {
                 return false;
             }
@@ -406,7 +196,7 @@ export class StickvaniaGameStateSerializer {
     }
 
     private isSupportedMode(mode: unknown): mode is number {
-        return this.isFiniteInteger(mode) && RESTORABLE_MODES.has(mode);
+        return isRestorableGameStateMode(mode);
     }
 
     private isStageSnapshotValid(snapshot: unknown, thingCount: number): snapshot is StageSnapshot {
@@ -499,7 +289,7 @@ export class StickvaniaGameStateSerializer {
                 thing.id !== i ||
                 !isThingTypeId(thing.type) ||
                 !this.isPlainRecord(thing.fields) ||
-                !this.areRecordFieldNamesAllowed(thing.fields, THING_STATE_FIELD_NAMES[thing.type])
+                !this.areRecordFieldNamesAllowed(thing.fields, THING_PERSISTED_STATE_FIELD_NAMES[thing.type])
             ) {
                 return false;
             }
@@ -880,10 +670,7 @@ export class StickvaniaGameStateSerializer {
 
     private visitThingReferences(context: CaptureContext, thing: Thing): void {
         const type = getThingTypeId(thing);
-        for (const key of THING_STATE_FIELD_NAMES[type]) {
-            if (key === "main") {
-                continue;
-            }
+        for (const key of THING_PERSISTED_STATE_FIELD_NAMES[type]) {
             this.visitValueReferences(context, this.getField<unknown>(thing, key));
         }
     }
@@ -909,59 +696,23 @@ export class StickvaniaGameStateSerializer {
     private captureThing(context: CaptureContext, thing: Thing, id: number): ThingSnapshot {
         const type = getThingTypeId(thing);
         const fields: EncodedRecord = {};
-        for (const key of THING_STATE_FIELD_NAMES[type]) {
+        for (const key of THING_PERSISTED_STATE_FIELD_NAMES[type]) {
             const value = this.getField<unknown>(thing, key);
-            if (!this.shouldCaptureThingField(key, value)) {
-                continue;
-            }
             fields[key] = this.encodeValue(context, value, `${type}.${key}`);
         }
         return { id, type, fields };
     }
 
-    private shouldCaptureThingField(key: string, value: unknown): boolean {
-        if (key === "main") {
-            return false;
-        }
-        return !this.isRuntimeResource(value);
-    }
-
     private captureMainFields(context: CaptureContext): EncodedRecord {
-        const main = context.main;
         const fields: EncodedRecord = {};
-        for (const key of MAIN_STATE_FIELD_NAMES) {
-            const value = this.getField<unknown>(main, key);
-            if (!this.shouldCaptureMainField(key, value)) {
-                continue;
-            }
-            fields[key] = this.encodeValue(context, value, `Main.${key}`);
+        for (const key of MAIN_PERSISTED_STATE_FIELD_NAMES) {
+            fields[key] = this.encodeValue(context, this.getField<unknown>(context.main, key), `Main.${key}`);
         }
         return fields;
     }
 
     private snapshotMode(main: Main): number {
         return main.mode;
-    }
-
-    private shouldCaptureMainField(key: string, value: unknown): boolean {
-        if (MAIN_EXCLUDED_FIELDS.has(key)) {
-            return false;
-        }
-        if (
-            this.isRuntimeResource(value) ||
-            value instanceof Song ||
-            value instanceof Thing ||
-            value instanceof ThingStack ||
-            value instanceof StageSegment ||
-            value instanceof Region ||
-            value instanceof StairsEntry
-        ) {
-            return false;
-        }
-        if (Array.isArray(value) && this.arrayContainsRuntimeResource(value)) {
-            return false;
-        }
-        return typeof value !== "function";
     }
 
     private encodeValue(context: CaptureContext, value: unknown, path: string): EncodedValue {
@@ -1004,9 +755,6 @@ export class StickvaniaGameStateSerializer {
 
     private restoreMainFields(main: Main, fields: EncodedRecord, context: RestoreContext): void {
         for (const [key, value] of Object.entries(fields)) {
-            if (MAIN_EXCLUDED_FIELDS.has(key)) {
-                continue;
-            }
             this.setField(main, key, this.decodeValue(context, value));
         }
     }
@@ -1145,9 +893,7 @@ export class StickvaniaGameStateSerializer {
     private runAfterRestoreHooks(context: RestoreContext): void {
         for (const thing of context.thingById.values()) {
             thing.main = context.main;
-            if (thing instanceof Fireball) {
-                this.setField(thing, "image", context.main.fireballs[thing.vx < 0 ? Main.LEFT : Main.RIGHT]);
-            }
+            rehydrateThingAfterStateRestore(getThingTypeId(thing), thing, context.main);
         }
         this.restoreSimonAlpha(context.main);
         context.main.syncSimonPhysicsProfile();
@@ -1205,19 +951,19 @@ export class StickvaniaGameStateSerializer {
         if (id === null) {
             throw new Error("Unable to identify music for state capture.");
         }
-        const looped = Boolean(this.getField<boolean>(music, "looped"));
+        const looped = music.isLooped();
         return {
             id,
             looped,
-            paused: Boolean(this.getField<boolean>(music, "paused")),
+            paused: music.isPaused(),
             playing: music.playing(),
-            playbackRate: this.numberField(music, "playbackRate", 1),
+            playbackRate: music.getPlaybackRate(),
             position: this.normalizeMusicPosition(music, music.getPosition(), looped),
             volume: music.getVolume()
         };
     }
 
-    private restoreAudio(context: RestoreContext, snapshot: AudioSnapshot): void {
+    private restoreAudio(context: RestoreContext, snapshot: AudioSnapshot, restoreGeneration: number): void {
         const main = context.main;
         main.stopAllSounds();
         for (const songSnapshot of snapshot.songs) {
@@ -1237,7 +983,7 @@ export class StickvaniaGameStateSerializer {
         if (snapshot.currentMusic !== null) {
             this.restoreMusicPassive(main, snapshot.currentMusic);
             if (snapshot.currentMusic.playing || snapshot.currentMusic.paused) {
-                this.restoreActiveMusic(context, snapshot.currentMusic);
+                this.restoreActiveMusic(context, snapshot.currentMusic, restoreGeneration);
             } else {
                 context.gc.setMusicOn(true);
             }
@@ -1251,7 +997,7 @@ export class StickvaniaGameStateSerializer {
         }
         const activeSongMusic = this.activeSongMusicSnapshot(currentSongSnapshot);
         if (activeSongMusic !== null) {
-            this.restoreActiveMusic(context, activeSongMusic);
+            this.restoreActiveMusic(context, activeSongMusic, restoreGeneration);
         } else {
             context.gc.setMusicOn(true);
         }
@@ -1279,7 +1025,7 @@ export class StickvaniaGameStateSerializer {
         music.setPosition(this.normalizeMusicPosition(music, snapshot.position, snapshot.looped));
     }
 
-    private restoreActiveMusic(context: RestoreContext, snapshot: MusicSnapshot): void {
+    private restoreActiveMusic(context: RestoreContext, snapshot: MusicSnapshot, restoreGeneration: number): void {
         const music = this.musicForId(context.main, snapshot.id);
         if (music === null) {
             context.gc.setMusicOn(true);
@@ -1302,7 +1048,13 @@ export class StickvaniaGameStateSerializer {
         void music
             .ready()
             .then(() => {
+                if (restoreGeneration !== this.restoreGeneration) {
+                    return;
+                }
                 globalThis.setTimeout(() => {
+                    if (restoreGeneration !== this.restoreGeneration) {
+                        return;
+                    }
                     music.setPosition(this.normalizeMusicPosition(music, position, snapshot.looped));
                     music.setVolume(snapshot.volume);
                     if (snapshot.paused) {
@@ -1312,7 +1064,9 @@ export class StickvaniaGameStateSerializer {
                 }, 0);
             })
             .catch(() => {
-                context.gc.setMusicOn(true);
+                if (restoreGeneration === this.restoreGeneration) {
+                    context.gc.setMusicOn(true);
+                }
             });
     }
 
@@ -1390,8 +1144,7 @@ export class StickvaniaGameStateSerializer {
         if (!looped) {
             return sanitized;
         }
-        const buffer = this.getField<{ duration?: unknown } | null>(music, "buffer");
-        const duration = typeof buffer?.duration === "number" ? buffer.duration : 0;
+        const duration = music.getDuration() ?? 0;
         if (!Number.isFinite(duration) || duration <= 0) {
             return sanitized;
         }
@@ -1449,22 +1202,6 @@ export class StickvaniaGameStateSerializer {
         return grid.map((row) => row.slice());
     }
 
-    private isRuntimeResource(value: unknown): boolean {
-        return value instanceof Image || value instanceof Sound || value instanceof Music || value instanceof Color;
-    }
-
-    private arrayContainsRuntimeResource(value: unknown[]): boolean {
-        for (const item of value) {
-            if (this.isRuntimeResource(item)) {
-                return true;
-            }
-            if (Array.isArray(item) && this.arrayContainsRuntimeResource(item)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private isPlainRecord(value: unknown): value is JsonRecord {
         if (value === null || typeof value !== "object") {
             return false;
@@ -1475,11 +1212,6 @@ export class StickvaniaGameStateSerializer {
 
     private hasOwn(value: object, key: string): boolean {
         return Object.prototype.hasOwnProperty.call(value, key);
-    }
-
-    private numberField(target: unknown, key: string, fallback: number): number {
-        const value = this.getField<unknown>(target, key);
-        return typeof value === "number" && Number.isFinite(value) ? value : fallback;
     }
 
     private getField<T>(target: unknown, key: string): T {

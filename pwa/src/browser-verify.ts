@@ -1,79 +1,68 @@
-import { AppGameContainer, BasicGame, Display, Image, ResourceLoader, type GameContainer, type Graphics } from "slick2d-ts";
+import { AppGameContainer, Display, ResourceLoader, SoundStore } from "slick2d-ts";
+import { getStickvaniaResourceVersion } from "./ResourceVersions.generated.js";
+import { STICKVANIA_RESOURCE_REFS } from "./resources.js";
+import { Main } from "./stickvania/Main.js";
 import { StickvaniaBufferedGame } from "./stickvania/StickvaniaBufferedGame.js";
+import { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
 
 const result = document.querySelector<HTMLElement>("#result");
 const host = document.querySelector<HTMLElement>("#game-host");
-if (result === null || host === null) {
-    throw new Error("Browser verification fixture is missing required elements.");
-}
+if (result === null || host === null) throw new Error("Browser verification fixture is missing required elements.");
 
 function assert(condition: unknown, message: string): asserts condition {
-    if (!condition) {
-        throw new Error(message);
-    }
+    if (!condition) throw new Error(message);
 }
 
-class StickvaniaSmokeGame extends BasicGame {
-    public rendered = false;
-
-    public constructor(private readonly titleImage: Image) {
-        super("Stickvania browser verification");
-    }
-
-    public init(_gc: GameContainer): void {}
-
-    public update(_gc: GameContainer, _delta: number): void {}
-
-    public render(_gc: GameContainer, g: Graphics): void {
-        g.drawImage(this.titleImage, 0, 0);
-        this.rendered = true;
-    }
-}
-
-async function waitForRender(game: StickvaniaSmokeGame): Promise<void> {
-    const deadline = performance.now() + 5000;
-    while (!game.rendered && performance.now() < deadline) {
+async function waitForTitle(main: Main): Promise<void> {
+    const deadline = performance.now() + 10_000;
+    while (main.mode !== Main.MODE_TITLE_SCREEN && performance.now() < deadline) {
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     }
-    assert(game.rendered, "Buffered Stickvania fixture did not render a browser frame.");
+    assert(main.mode === Main.MODE_TITLE_SCREEN, `Real Stickvania Main did not reach the title screen; mode=${main.mode}.`);
+    for (let i = 0; i < 3; i++) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 async function verify(): Promise<void> {
+    localStorage.clear();
     ResourceLoader.clearCache();
     ResourceLoader.removeAllResourceLocations();
     ResourceLoader.addResourceLocation(new URL("./", window.location.href));
-    ResourceLoader.setCacheBust(null);
-    await ResourceLoader.preloadResources(["images/title_screen.png"], { concurrency: 2 });
-
-    const title = new Image("images/title_screen.png");
-    await ResourceLoader.waitForAll();
-    assert(title.getWidth() > 0 && title.getHeight() > 0, "Stickvania title image did not decode.");
+    ResourceLoader.setCacheVersionResolver((ref) => getStickvaniaResourceVersion(ref));
+    ResourceLoader.setRetryOptions(1, 0);
+    const audioRefs = STICKVANIA_RESOURCE_REFS.filter((ref) => ref.endsWith(".ogg"));
+    const nonAudioRefs = STICKVANIA_RESOURCE_REFS.filter((ref) => !ref.endsWith(".ogg"));
+    await Promise.all([ResourceLoader.preloadResources(nonAudioRefs, { concurrency: 6 }), SoundStore.get().preloadAudioBuffers(audioRefs, { concurrency: 4 })]);
 
     Display.setParent(host);
-    const game = new StickvaniaSmokeGame(title);
-    const buffered = new StickvaniaBufferedGame(game, "crisp");
+    const main = new Main();
+    const buffered = new StickvaniaBufferedGame(main, "crisp");
     const container = new AppGameContainer(buffered, 1024, 832, false);
-    container.setLoopSuspended(false);
+    container.setPreserveAudioCacheOnDestroy(true);
     container.setHighDpiEnabled(true);
     container.setMaxDevicePixelRatio(2);
     try {
         await container.start();
-        await waitForRender(game);
+        await waitForTitle(main);
         assert(buffered.getPresentationInfo().physicalWidth > 0, "Buffered presentation did not acquire a physical width.");
+        const store = new StickvaniaGameStateStore("browser-verification");
+        assert(main.isStateSaveReady(), "Title-screen Main should be ready for a stageless save.");
+        assert(store.save(main), "Real browser Main did not save successfully.");
+        assert(store.hasValidSave(), "Saved real browser Main did not validate.");
+        store.clear();
         buffered.setScalingPreference("smooth");
         buffered.setScalingPreference("pixel-perfect");
         buffered.setScalingPreference("crisp");
     } finally {
         container.destroy();
-        title.destroy();
         Display.setParent(null);
+        localStorage.clear();
     }
 }
 
 void verify().then(
     () => {
         result.dataset.status = "passed";
-        result.textContent = "Stickvania browser verification passed.";
+        result.textContent = "Real Stickvania browser verification passed.";
     },
     (error: unknown) => {
         console.error(error);

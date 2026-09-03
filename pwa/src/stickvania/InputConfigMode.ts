@@ -52,7 +52,7 @@ export class InputConfigMode implements KeyListener {
     private draft: MappingDraft | null = null;
     private readonly assignedKeys = new Set<number>();
     private readonly assignedControllerButtons = new Set<number>();
-    private readonly controllerButtonDown = new Array<boolean>(ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT).fill(false);
+    private controllerButtonDown: boolean[] = [];
     private controllerUpDown = false;
     private controllerDownDown = false;
     private controllerLeftDown = false;
@@ -104,13 +104,9 @@ export class InputConfigMode implements KeyListener {
         this.copyAssignedCodesIntoSet(this.assignedKeys, snapshot.assignedKeys, InputConfigMode.isAssignedKeyCode);
         this.assignedControllerButtons.clear();
         this.copyAssignedCodesIntoSet(this.assignedControllerButtons, snapshot.assignedControllerButtons, InputConfigMode.isAssignedControllerCode);
-        this.controllerButtonDown.fill(false);
-        if (Array.isArray(snapshot.controllerButtonDown)) {
-            const limit = Math.min(snapshot.controllerButtonDown.length, this.controllerButtonDown.length);
-            for (let i = 0; i < limit; i++) {
-                this.controllerButtonDown[i] = snapshot.controllerButtonDown[i] === true;
-            }
-        }
+        this.controllerButtonDown = Array.isArray(snapshot.controllerButtonDown)
+            ? snapshot.controllerButtonDown.slice(0, ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT).map((value) => value === true)
+            : [];
         this.controllerUpDown = Boolean(snapshot.controllerUpDown);
         this.controllerDownDown = Boolean(snapshot.controllerDownDown);
         this.controllerLeftDown = Boolean(snapshot.controllerLeftDown);
@@ -249,6 +245,7 @@ export class InputConfigMode implements KeyListener {
         if (input === null) {
             return ButtonMapping.NO_BINDING;
         }
+        this.resizeControllerButtonState(input);
         let pressedButton = ButtonMapping.NO_BINDING;
         for (let button = 0; button < this.controllerButtonDown.length; button++) {
             const down = ControllerSupport.isButtonDown(input, button);
@@ -537,12 +534,24 @@ export class InputConfigMode implements KeyListener {
         return pressed;
     }
 
+    private resizeControllerButtonState(input: Input): void {
+        const length = ControllerSupport.getButtonScanLimit(input);
+        if (this.controllerButtonDown.length < length) {
+            const previousLength = this.controllerButtonDown.length;
+            this.controllerButtonDown.length = length;
+            this.controllerButtonDown.fill(false, previousLength);
+        } else if (this.controllerButtonDown.length > length) {
+            this.controllerButtonDown.length = length;
+        }
+    }
+
     private syncControllerInputState(): void {
         const input = this.input;
         if (input === null) {
             return;
         }
         ControllerSupport.refreshControllersIfNeeded(input);
+        this.resizeControllerButtonState(input);
         this.controllerUpDown = ControllerSupport.isUpDown(input);
         this.controllerDownDown = ControllerSupport.isDownDown(input);
         this.controllerLeftDown = ControllerSupport.isLeftDown(input);

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const STICKVANIA_TS = join(ROOT, "pwa", "src", "stickvania");
 const STICKVANIA_JAVA = join(ROOT, "desktop", "src", "stickvania");
+const JAVA_PARITY_METADATA = JSON.parse(readProjectFile("scripts", "generated", "java-parity-metadata.json"));
 
 function readProjectFile(...parts) {
     return readFileSync(join(ROOT, ...parts), "utf8");
@@ -232,7 +233,7 @@ assert.doesNotMatch(tsMermanSpawnerSource, /\b(?:public|private|protected)\s+vy\
 assert.match(tsMermanSpawnerSource, /new Merman\(this\.main, target, this\.spawnVy, this\)/);
 
 const gameStateSchemaSource = readProjectFile("pwa", "src", "stickvania", "persistence", "GameStateSchema.ts");
-assert.match(gameStateSchemaSource, /GAME_STATE_VERSION = 7;/);
+assert.match(gameStateSchemaSource, /GAME_STATE_VERSION = 8;/);
 for (const spawner of ["BirdSpawner.ts", "MermanSpawner.ts", "ZombieSpawner.ts"]) {
     const source = readProjectFile("pwa", "src", "stickvania", spawner);
     assert.doesNotMatch(source, /Number\.isFinite\(this\.(?:activeCap|count)\)/, `${spawner} still contains obsolete save-migration checks`);
@@ -264,6 +265,21 @@ for (const file of typeScriptFiles) {
 assert.doesNotMatch(combinedTypeScript, /Float32Array\s*\(\s*\[/, "Float emulation must not create a temporary typed array");
 assert.ok(countMatches(combinedTypeScript, /\boverride\b/g) >= 130, "Expected Java override relationships to be expressed in TypeScript");
 assert.ok(countMatches(combinedTypeScript, /\bjavaFloat\b/g) >= 1200, "Expected the Java float semantic pass to remain in place");
+
+const floatFieldRenames = new Map([["MermanSpawner.vy", "spawnVy"]]);
+for (const classInfo of JAVA_PARITY_METADATA.classes) {
+    const source = readProjectFile("pwa", "src", "stickvania", `${classInfo.className}.ts`);
+    for (const javaField of classInfo.floatFields) {
+        const tsField = floatFieldRenames.get(`${classInfo.className}.${javaField}`) ?? javaField;
+        assert.match(source, new RegExp(`\\b${tsField}: number\\b`), `${classInfo.className}.${javaField} must remain an explicit TypeScript number field.`);
+        const roundedInitializer = new RegExp(`\\b${tsField}: number\\s*=\\s*javaFloat\\(`);
+        const roundedAssignment = new RegExp(`this\\.${tsField}\\s*=\\s*javaFloat\\(`);
+        assert.ok(
+            roundedInitializer.test(source) || roundedAssignment.test(source),
+            `${classInfo.className}.${javaField} must preserve a Java float32 write boundary.`
+        );
+    }
+}
 
 console.log("Java/TypeScript parity checks passed.");
 console.log(

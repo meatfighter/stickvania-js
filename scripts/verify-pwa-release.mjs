@@ -16,12 +16,18 @@ const releaseStampScriptPath = join(rootDir, "scripts", "run-stamped-release.mjs
 const serviceWorkerPath = join(distPwaDir, "sw.js");
 const mainSourcePath = join(rootDir, "pwa", "src", "main.ts");
 const displayThemesSourcePath = join(rootDir, "pwa", "src", "DisplayThemes.ts");
+const browserPreferencesSourcePath = join(rootDir, "pwa", "src", "app", "BrowserPreferences.ts");
+const menuViewSourcePath = join(rootDir, "pwa", "src", "app", "MenuView.ts");
+const serviceWorkerRegistrarSourcePath = join(rootDir, "pwa", "src", "app", "ServiceWorkerRegistrar.ts");
+const resourceVersions = JSON.parse(readFileSync(join(rootDir, "pwa", "resource-versions.generated.json"), "utf8"));
 const stickvaniaMainSourcePath = join(rootDir, "pwa", "src", "stickvania", "Main.ts");
 const browserStorageKeysSourcePath = join(rootDir, "pwa", "src", "stickvania", "BrowserStorageKeys.ts");
 const gameStateSchemaSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStateSchema.ts");
+const gameStatePolicySourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStatePolicy.ts");
 const gameStatePreflightSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStatePreflight.ts");
 const gameStateSnapshotSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "GameStateSnapshot.ts");
 const gameStateSerializerSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "StickvaniaGameStateSerializer.ts");
+const mainStateFieldPolicySourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "MainStateFieldPolicy.ts");
 const gameStateStoreSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "StickvaniaGameStateStore.ts");
 const thingTypeRegistrySourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "ThingTypeRegistry.ts");
 const inputMappingStorageKey = expectedBrowserStorageKey("input-mapping");
@@ -79,12 +85,12 @@ function expectedPrecacheUrls() {
         .map((file) => relative(distPwaDir, file).replaceAll("\\", "/"))
         .filter((file) => file !== "sw.js")
         .sort()
-        .map((file) => `./${file}`);
-    return ["./", ...fileUrls].map(addCacheVersion);
+        .map((file) => addCacheVersion(`./${file}`, resourceVersions[file] ?? cacheVersion));
+    return [addCacheVersion("./", cacheVersion), ...fileUrls];
 }
 
-function addCacheVersion(url) {
-    return `${url}${url.includes("?") ? "&" : "?"}v=${encodedCacheVersion}`;
+function addCacheVersion(url, version = cacheVersion) {
+    return `${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(version)}`;
 }
 
 function expectedPrecacheCacheUrls(scopeUrl = defaultPwaScopeUrl) {
@@ -339,12 +345,14 @@ async function importGameStatePreflight() {
     const browserStorageKeysOutputPath = join(outputDirectory, "BrowserStorageKeys.js");
     const persistenceOutputDirectory = join(outputDirectory, "persistence");
     const schemaOutputPath = join(persistenceOutputDirectory, "GameStateSchema.js");
+    const policyOutputPath = join(persistenceOutputDirectory, "GameStatePolicy.js");
     const preflightOutputPath = join(persistenceOutputDirectory, "GameStatePreflight.mjs");
 
     rmSync(outputDirectory, { recursive: true, force: true });
     mkdirSync(persistenceOutputDirectory, { recursive: true });
     writeTranspiledModule(browserStorageKeysSourcePath, browserStorageKeysOutputPath);
     writeTranspiledModule(gameStateSchemaSourcePath, schemaOutputPath);
+    writeTranspiledModule(gameStatePolicySourcePath, policyOutputPath);
     writeTranspiledModule(gameStatePreflightSourcePath, preflightOutputPath);
 
     const schema = await import(`${pathToFileURL(schemaOutputPath).href}?v=${Date.now()}`);
@@ -440,6 +448,14 @@ class FakeStickvaniaInput {
     controllerRight = false;
     additionalDirectionAxes = null;
 
+    getControllerCount() {
+        return this.controllerCount ?? 1;
+    }
+
+    getButtonCount(_controller) {
+        return this.buttonCount ?? 17;
+    }
+
     setAdditionalControllerDirectionAxes(axes, threshold, recenterThreshold) {
         this.additionalDirectionAxes = { axes, threshold, recenterThreshold };
     }
@@ -501,7 +517,7 @@ test("package scripts use temporary release stamping for public builds", () => {
 
     assert.equal(scripts["build:pwa"], "npm run build:pwa:release");
     assert.equal(scripts["build:pwa:release"], "node scripts/run-stamped-release.mjs --dist .release-components/pwa --clean-dist _build:pwa:release");
-    assert.equal(scripts["_build:pwa:release"], "tsc --project pwa/tsconfig.json && vite build --config pwa/vite.config.ts");
+    assert.equal(scripts["_build:pwa:release"], "npm run check:resource-versions && tsc --project pwa/tsconfig.json && vite build --config pwa/vite.config.ts");
     assert.equal(scripts["build:about"], "node scripts/run-stamped-release.mjs --dist .release-components/about --clean-dist _build:about");
     assert.equal(scripts["_build:about"], "node scripts/build-about.mjs");
     assert.equal(scripts.assemble, undefined);
@@ -525,11 +541,11 @@ test("package scripts use temporary release stamping for public builds", () => {
     assert.equal(scripts["test:about-page"], "node scripts/test-about-page.mjs");
     assert.equal(scripts["release"], "npm run verify && npm run verify:dependencies && npm run build");
     assert.equal(scripts["release:desktop"], "node scripts/release-desktop.mjs");
-    assert.equal(
-        scripts["verify"],
-        "npm run format:check && npm run lint && npm run check:state-fields && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop"
-    );
-    assert.equal(scripts["verify:browser"], "node scripts/run-browser-verification.mjs");
+    assert.match(scripts["verify"], /check:resource-versions/);
+    assert.match(scripts["verify"], /check:java-parity-metadata/);
+    assert.match(scripts["verify"], /check:state-fields/);
+    assert.match(scripts["verify"], /test:java-parity/);
+    assert.equal(scripts["verify:browser"], "node scripts/run-browser-verification.mjs && node scripts/run-offline-verification.mjs");
 
     for (const [name, script] of Object.entries(scripts)) {
         if (name === "stamp") {
@@ -559,9 +575,13 @@ test("PWA resolves the pinned Slick2D-ts runtime", () => {
 
 test("PWA display themes remain browser-only presentation state", () => {
     const mainSource = readFileSync(mainSourcePath, "utf8");
+    const browserPreferencesSource = readFileSync(browserPreferencesSourcePath, "utf8");
+    const menuViewSource = readFileSync(menuViewSourcePath, "utf8");
+    const shellSource = `${mainSource}\n${browserPreferencesSource}\n${menuViewSource}`;
     const displayThemesSource = readFileSync(displayThemesSourcePath, "utf8");
     const stickvaniaMainSource = readFileSync(stickvaniaMainSourcePath, "utf8");
     const serializerSource = readFileSync(gameStateSerializerSourcePath, "utf8");
+    const mainStateFieldPolicySource = readFileSync(mainStateFieldPolicySourcePath, "utf8");
 
     for (const theme of [
         "amber",
@@ -593,30 +613,32 @@ test("PWA display themes remain browser-only presentation state", () => {
     for (const retiredTheme of ["amber-monitor", "green-monitor", "twilight", "negative", "moonlight", "phantom"]) {
         assert.doesNotMatch(displayThemesSource, new RegExp(`value: "${retiredTheme}"`), `DisplayThemes.ts should not define ${retiredTheme}.`);
     }
-    assert.match(mainSource, /id="display-mode-picker"/);
-    assert.match(mainSource, /id="display-mode-button"/);
-    assert.match(mainSource, /id="display-mode-list"/);
-    assert.match(mainSource, /const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";/);
-    assert.match(mainSource, /id="scaling-picker"/);
-    assert.match(mainSource, /id="scaling-button"/);
-    assert.match(mainSource, /id="scaling-list"/);
-    assert.match(mainSource, /const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";/);
-    assert.match(mainSource, /const DEFAULT_VOLUME = 0\.1;/);
-    assert.match(mainSource, /const DEFAULT_RUMBLE_ENABLED = true;/);
-    assert.match(mainSource, /if \(value === "false"\) {\s*return false;\s*}/);
-    assert.doesNotMatch(mainSource, /writeDisplayModePreference\(DEFAULT_DISPLAY_MODE\);/);
-    assert.doesNotMatch(mainSource, /writeScalingPreference\(DEFAULT_SCALING_PREFERENCE\);/);
-    assert.match(mainSource, /createDisplayMonochromePalette\(displayModePreference\)/);
-    assert.match(mainSource, /isDisplayModePreference\(value\)/);
-    assert.match(mainSource, /getBrowserStorageKey\("display-mode"\)/);
-    assert.match(mainSource, /target\.darkDisplayMode = displayModePreference === "dark";/);
-    assert.match(mainSource, /target\.displayMonochromePalette = createDisplayMonochromePalette\(displayModePreference\);/);
+    assert.match(menuViewSource, /id="display-mode-picker"/);
+    assert.match(menuViewSource, /id="display-mode-button"/);
+    assert.match(menuViewSource, /id="display-mode-list"/);
+    assert.match(browserPreferencesSource, /DEFAULT_DISPLAY_MODE: DisplayModePreference = "light"/);
+    assert.match(menuViewSource, /id="scaling-picker"/);
+    assert.match(menuViewSource, /id="scaling-button"/);
+    assert.match(menuViewSource, /id="scaling-list"/);
+    assert.match(browserPreferencesSource, /DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp"/);
+    assert.match(browserPreferencesSource, /DEFAULT_VOLUME = 0\.1/);
+    assert.match(browserPreferencesSource, /DEFAULT_RUMBLE_ENABLED = true/);
+    assert.match(browserPreferencesSource, /value === "false"/);
+    assert.doesNotMatch(shellSource, /writeDisplayModePreference\(DEFAULT_DISPLAY_MODE\);/);
+    assert.doesNotMatch(shellSource, /writeScalingPreference\(DEFAULT_SCALING_PREFERENCE\);/);
+    assert.match(mainSource, /createDisplayMonochromePalette\(preferences\.displayMode\)/);
+    assert.match(browserPreferencesSource, /isDisplayModePreference\(value\)/);
+    assert.match(browserPreferencesSource, /getBrowserStorageKey\("display-mode"\)/);
+    assert.match(mainSource, /target\.darkDisplayMode = preferences\.displayMode === "dark";/);
+    assert.match(mainSource, /target\.displayMonochromePalette = createDisplayMonochromePalette\(preferences\.displayMode\);/);
     assert.match(stickvaniaMainSource, /public displayMonochromePalette:/);
     assert.match(stickvaniaMainSource, /g\.setMonochromePalette\(displayMonochromePalette\.blackReplacement, displayMonochromePalette\.whiteReplacement\);/);
     assert.match(stickvaniaMainSource, /g\.clearMonochromePalette\(\);/);
     assert.match(stickvaniaMainSource, /g\.setColorInverted\(false\);/);
-    assert.match(serializerSource, /"darkDisplayMode"/);
-    assert.match(serializerSource, /"displayMonochromePalette"/);
+    assert.match(mainStateFieldPolicySource, /\bdarkDisplayMode:\s*"runtime"/);
+    assert.match(mainStateFieldPolicySource, /\bdisplayMonochromePalette:\s*"runtime"/);
+    assert.doesNotMatch(serializerSource, /"darkDisplayMode"/);
+    assert.doesNotMatch(serializerSource, /"displayMonochromePalette"/);
 });
 
 test("temporary release stamp wrapper restores version.json after success and failure", () => {
@@ -638,10 +660,13 @@ test("temporary release stamp wrapper restores version.json after success and fa
 
 test("PWA service worker registration is relative to the current PWA page", () => {
     const mainSource = readFileSync(mainSourcePath, "utf8");
+    const registrarSource = readFileSync(serviceWorkerRegistrarSourcePath, "utf8");
 
     assert.doesNotMatch(mainSource, /BASE_URL/);
-    assert.match(mainSource, /new URL\(`\.\/sw\.js\?v=\$\{version\}`, window\.location\.href\)/);
-    assert.match(mainSource, /navigator\.serviceWorker\.register\(serviceWorkerUrl\.href, \{ scope: "\.\/" \}\)/);
+    assert.doesNotMatch(registrarSource, /BASE_URL/);
+    assert.match(registrarSource, /new URL\(`\.\/sw\.js\?v=\$\{version\}`, window\.location\.href\)/);
+    assert.match(registrarSource, /navigator\.serviceWorker\.register\(serviceWorkerUrl\.href, \{ scope: "\.\/" \}\)/);
+    assert.match(mainSource, /registerStickvaniaServiceWorker\(__CACHE_VERSION__\)/);
 });
 
 test("PWA runtime error screen tears down the active game before replacing the UI", () => {
@@ -825,9 +850,11 @@ test("PWA service worker handles only same-origin requests under its own scope",
     assert.equal(canUseCacheApi({ method: "POST", url: new URL("./images/icon.png", scopeUrl).href }), false);
 });
 
-test("PWA service worker precache keys include the current cache version", () => {
+test("PWA service worker precache keys use release or resource content versions", () => {
     for (const url of actualPrecacheUrls()) {
-        assert.equal(new URL(url, defaultPwaScopeUrl).searchParams.get("v"), cacheVersion);
+        const parsed = new URL(url, defaultPwaScopeUrl);
+        const relativePath = parsed.pathname.substring(new URL(defaultPwaScopeUrl).pathname.length);
+        assert.equal(parsed.searchParams.get("v"), resourceVersions[relativePath] ?? cacheVersion);
     }
 });
 
@@ -860,6 +887,7 @@ test("PWA browser storage keys are scoped to the deployed path", async () => {
 test("PWA browser storage source uses scoped keys for saves and preferences", () => {
     const sources = [
         mainSourcePath,
+        browserPreferencesSourcePath,
         browserStorageKeysSourcePath,
         join(rootDir, "pwa", "src", "stickvania", "ButtonMapping.ts"),
         join(rootDir, "pwa", "src", "stickvania", "Main.ts"),
@@ -899,7 +927,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const builtSource = builtJavaScript();
 
     assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 7;/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 8;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);
@@ -959,11 +987,11 @@ test("PWA Continue launch failures preserve saved games", () => {
     const mainSource = readFileSync(mainSourcePath, "utf8");
     const storeSource = readFileSync(gameStateStoreSourcePath, "utf8");
     const mainClearCalls = [...mainSource.matchAll(/\bclearStoredGameState\(\);/g)].map((match) => match.index ?? -1);
-    const newGameClearIndex = mainSource.indexOf("newGameButton.addEventListener");
+    const newGameClearIndex = mainSource.indexOf("onNewGame: () => {");
 
     assert.equal(mainClearCalls.length, 1, "The PWA shell should only clear saved game state from the New Game action.");
     assert.ok(newGameClearIndex >= 0 && mainClearCalls[0] > newGameClearIndex, "The remaining shell save clear should stay in the New Game handler.");
-    assert.match(mainSource, /void startGame\(restoreSavedGame\);/, "Load-error Retry should preserve the original New Game or Continue intent.");
+    assert.match(mainSource, /\(\) => void startGame\(restoreSavedGame\)/, "Load-error Retry should preserve the original New Game or Continue intent.");
     assert.match(
         storeSource,
         /console\.warn\("Unable to restore Stickvania game state\.", error\);\s*return false;\s*}\s*}\s*public hasValidSave/,

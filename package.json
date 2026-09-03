@@ -21,7 +21,7 @@
         "dev:pwa": "vite --config pwa/vite.config.ts --host 127.0.0.1",
         "build:pwa": "npm run build:pwa:release",
         "build:pwa:release": "node scripts/run-stamped-release.mjs --dist .release-components/pwa --clean-dist _build:pwa:release",
-        "_build:pwa:release": "tsc --project pwa/tsconfig.json && vite build --config pwa/vite.config.ts",
+        "_build:pwa:release": "npm run check:resource-versions && tsc --project pwa/tsconfig.json && vite build --config pwa/vite.config.ts",
         "build:about": "node scripts/run-stamped-release.mjs --dist .release-components/about --clean-dist _build:about",
         "_build:about": "node scripts/build-about.mjs",
         "build:desktop": "node scripts/build-desktop.mjs",
@@ -39,8 +39,8 @@
         "verify:desktop-release": "node scripts/verify-desktop-release.mjs",
         "verify:release-tooling": "node scripts/verify-release-tooling.mjs",
         "verify:dependencies": "npm audit --audit-level=high",
-        "verify": "npm run format:check && npm run lint && npm run check:state-fields && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
-        "verify:browser": "node scripts/run-browser-verification.mjs",
+        "verify": "npm run format:check && npm run lint && npm run check:resource-versions && npm run check:java-parity-metadata && npm run check:state-fields && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:about-page && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
+        "verify:browser": "node scripts/run-browser-verification.mjs && node scripts/run-offline-verification.mjs",
         "release": "npm run verify && npm run verify:dependencies && npm run build",
         "preview": "npm run preview:pwa",
         "preview:pwa": "vite preview --config pwa/vite.config.ts --host 127.0.0.1",
@@ -48,7 +48,11 @@
         "release:desktop": "node scripts/release-desktop.mjs",
         "run:desktop": "node scripts/run-desktop.mjs",
         "test:buffered-scaling-wiring": "node scripts/test-buffered-scaling-wiring.mjs",
-        "test:java-parity": "node scripts/test-java-parity.mjs"
+        "test:java-parity": "node scripts/test-java-parity.mjs",
+        "generate:resource-versions": "node scripts/generate-resource-versions.mjs",
+        "check:resource-versions": "node scripts/generate-resource-versions.mjs --check",
+        "generate:java-parity-metadata": "node scripts/generate-java-parity-metadata.mjs",
+        "check:java-parity-metadata": "node scripts/generate-java-parity-metadata.mjs --check"
     },
     "dependencies": {
         "slick2d-ts": "git+https://github.com/meatfighter/slick2d-ts.git#39689c01a336c7620a7e80f992fe33558ef9652a"

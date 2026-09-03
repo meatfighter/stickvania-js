@@ -8,29 +8,27 @@ const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const stickvaniaDir = join(rootDir, "pwa", "src", "stickvania");
 const registryPath = join(stickvaniaDir, "persistence", "StateFieldRegistry.generated.ts");
 const thingRegistryPath = join(stickvaniaDir, "persistence", "ThingTypeRegistry.ts");
+const mainPolicyPath = join(stickvaniaDir, "persistence", "MainStateFieldPolicy.ts");
+const rehydrationRegistryPath = join(stickvaniaDir, "persistence", "ThingRehydrationRegistry.ts");
 const checkOnly = process.argv.includes("--check");
+const RUNTIME_RESOURCE_TYPES = new Set(["Color", "Image", "Music", "Sound"]);
+const VALID_MAIN_CLASSIFICATIONS = new Set(["persisted", "runtime", "reconstructed", "special"]);
 
 function collectTypeScriptFiles(directory) {
     const files = [];
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
         const file = join(directory, entry.name);
-        if (entry.isDirectory()) {
-            files.push(...collectTypeScriptFiles(file));
-        } else if (entry.isFile() && entry.name.endsWith(".ts") && file !== registryPath) {
-            files.push(file);
-        }
+        if (entry.isDirectory()) files.push(...collectTypeScriptFiles(file));
+        else if (entry.isFile() && entry.name.endsWith(".ts") && file !== registryPath) files.push(file);
     }
     return files;
 }
-
 function hasModifier(node, kind) {
     return node.modifiers?.some((modifier) => modifier.kind === kind) === true;
 }
-
 function propertyNameText(name) {
     return ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name) ? name.text : null;
 }
-
 function baseClassName(node) {
     const clause = node.heritageClauses?.find((item) => item.token === ts.SyntaxKind.ExtendsKeyword);
     const expression = clause?.types[0]?.expression;
@@ -39,19 +37,21 @@ function baseClassName(node) {
     if (ts.isPropertyAccessExpression(expression)) return expression.name.text;
     return null;
 }
-
-function collectDeclaredInstanceFields(node) {
+function typeName(member, source) {
+    return member.type ? member.type.getText(source).replace(/\s+/g, "") : "";
+}
+function collectDeclaredInstanceFields(node, source) {
     const fields = [];
     const seen = new Set();
-    const add = (name) => {
+    const add = (name, runtimeResource = false) => {
         if (name !== null && !seen.has(name)) {
             seen.add(name);
-            fields.push(name);
+            fields.push({ name, runtimeResource });
         }
     };
     for (const member of node.members) {
         if (ts.isPropertyDeclaration(member) && !hasModifier(member, ts.SyntaxKind.StaticKeyword)) {
-            add(propertyNameText(member.name));
+            add(propertyNameText(member.name), RUNTIME_RESOURCE_TYPES.has(typeName(member, source)));
             continue;
         }
         if (!ts.isConstructorDeclaration(member)) continue;
@@ -61,12 +61,11 @@ function collectDeclaredInstanceFields(node) {
                 hasModifier(parameter, ts.SyntaxKind.PrivateKeyword) ||
                 hasModifier(parameter, ts.SyntaxKind.ProtectedKeyword) ||
                 hasModifier(parameter, ts.SyntaxKind.ReadonlyKeyword);
-            if (parameterProperty) add(propertyNameText(parameter.name));
+            if (parameterProperty) add(propertyNameText(parameter.name), false);
         }
     }
     return fields;
 }
-
 function collectClasses(sourcePaths) {
     const classes = new Map();
     for (const file of sourcePaths) {
@@ -75,13 +74,12 @@ function collectClasses(sourcePaths) {
             if (!ts.isClassDeclaration(statement) || statement.name === undefined) continue;
             const name = statement.name.text;
             if (classes.has(name)) throw new Error(`Duplicate TypeScript class name in Stickvania source: ${name}`);
-            classes.set(name, { name, base: baseClassName(statement), fields: collectDeclaredInstanceFields(statement), path: file });
+            classes.set(name, { name, base: baseClassName(statement), fields: collectDeclaredInstanceFields(statement, source), path: file });
         }
     }
     return classes;
 }
-
-function inheritedFields(classes, name) {
+function inheritedFieldInfo(classes, name) {
     const result = [];
     const seenFields = new Set();
     const visiting = new Set();
@@ -92,12 +90,11 @@ function inheritedFields(classes, name) {
         visiting.add(className);
         if (info.base && classes.has(info.base)) visit(info.base);
         for (const field of info.fields) {
-            if (seenFields.has(field)) {
+            if (seenFields.has(field.name))
                 throw new Error(
-                    `TypeScript field hiding is not allowed in the Stickvania port: ${className}.${field} hides an inherited field (${relative(rootDir, info.path)}).`
+                    `TypeScript field hiding is not allowed in the Stickvania port: ${className}.${field.name} hides an inherited field (${relative(rootDir, info.path)}).`
                 );
-            }
-            seenFields.add(field);
+            seenFields.add(field.name);
             result.push(field);
         }
         visiting.delete(className);
@@ -105,38 +102,69 @@ function inheritedFields(classes, name) {
     visit(name);
     return result;
 }
-
 function unwrapExpression(expression) {
     let current = expression;
-    while (ts.isAsExpression(current) || ts.isSatisfiesExpression(current) || ts.isParenthesizedExpression(current) || ts.isTypeAssertionExpression(current)) {
+    while (ts.isAsExpression(current) || ts.isSatisfiesExpression(current) || ts.isParenthesizedExpression(current) || ts.isTypeAssertionExpression(current))
         current = current.expression;
-    }
     return current;
 }
-
-function readThingTypeMappings() {
-    const source = ts.createSourceFile(thingRegistryPath, readFileSync(thingRegistryPath, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+function readObjectLiteral(path, variableName) {
+    const source = ts.createSourceFile(path, readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
     for (const statement of source.statements) {
         if (!ts.isVariableStatement(statement)) continue;
         for (const declaration of statement.declarationList.declarations) {
-            if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "THING_TYPES" || declaration.initializer === undefined) continue;
+            if (!ts.isIdentifier(declaration.name) || declaration.name.text !== variableName || declaration.initializer === undefined) continue;
             const initializer = unwrapExpression(declaration.initializer);
-            if (!ts.isObjectLiteralExpression(initializer)) throw new Error("THING_TYPES must remain an object literal.");
-            return initializer.properties.map((property) => {
-                if (ts.isShorthandPropertyAssignment(property)) return { id: property.name.text, className: property.name.text };
-                if (!ts.isPropertyAssignment(property)) throw new Error("THING_TYPES contains an unsupported property form.");
-                const id = propertyNameText(property.name);
-                const value = unwrapExpression(property.initializer);
-                if (id === null || !ts.isIdentifier(value)) throw new Error("THING_TYPES entries must map a stable ID directly to a constructor.");
-                return { id, className: value.text };
-            });
+            if (!ts.isObjectLiteralExpression(initializer)) throw new Error(`${variableName} must remain an object literal.`);
+            return { source, initializer };
         }
     }
-    throw new Error("Unable to find THING_TYPES while generating state fields.");
+    throw new Error(`Unable to find ${variableName}.`);
 }
-
-async function formatGeneratedSource(mainFields, thingFields) {
-    const raw = `// Generated by scripts/generate-state-field-registry.mjs. Do not edit by hand.\n\nexport const MAIN_STATE_FIELD_NAMES = ${JSON.stringify(mainFields, null, 4)} as const;\n\nexport const THING_STATE_FIELD_NAMES = ${JSON.stringify(thingFields, null, 4)} as const;\n`;
+function readThingTypeMappings() {
+    const { initializer } = readObjectLiteral(thingRegistryPath, "THING_TYPES");
+    return initializer.properties.map((property) => {
+        if (ts.isShorthandPropertyAssignment(property)) return { id: property.name.text, className: property.name.text };
+        if (!ts.isPropertyAssignment(property)) throw new Error("THING_TYPES contains an unsupported property form.");
+        const id = propertyNameText(property.name);
+        const value = unwrapExpression(property.initializer);
+        if (id === null || !ts.isIdentifier(value)) throw new Error("THING_TYPES entries must map a stable ID directly to a constructor.");
+        return { id, className: value.text };
+    });
+}
+function readMainPolicy() {
+    const { initializer } = readObjectLiteral(mainPolicyPath, "MAIN_STATE_FIELD_POLICY");
+    const result = new Map();
+    for (const property of initializer.properties) {
+        if (!ts.isPropertyAssignment(property)) throw new Error("MAIN_STATE_FIELD_POLICY entries must be explicit property assignments.");
+        const name = propertyNameText(property.name);
+        const value = unwrapExpression(property.initializer);
+        if (name === null || !ts.isStringLiteral(value) || !VALID_MAIN_CLASSIFICATIONS.has(value.text))
+            throw new Error("MAIN_STATE_FIELD_POLICY contains an invalid classification.");
+        result.set(name, value.text);
+    }
+    return result;
+}
+function readRehydratorIds() {
+    const source = ts.createSourceFile(rehydrationRegistryPath, readFileSync(rehydrationRegistryPath, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    for (const statement of source.statements) {
+        if (!ts.isVariableStatement(statement)) continue;
+        for (const declaration of statement.declarationList.declarations) {
+            if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "THING_REHYDRATOR_TYPE_IDS" || declaration.initializer === undefined) continue;
+            let initializer = unwrapExpression(declaration.initializer);
+            if (!ts.isArrayLiteralExpression(initializer)) throw new Error("THING_REHYDRATOR_TYPE_IDS must remain an array literal.");
+            return new Set(
+                initializer.elements.map((element) => {
+                    if (!ts.isStringLiteral(element)) throw new Error("THING_REHYDRATOR_TYPE_IDS entries must be string literals.");
+                    return element.text;
+                })
+            );
+        }
+    }
+    throw new Error("Unable to find THING_REHYDRATOR_TYPE_IDS.");
+}
+async function formatGeneratedSource(mainFields, persistedMainFields, thingFields, persistedThingFields) {
+    const raw = `// Generated by scripts/generate-state-field-registry.mjs. Do not edit by hand.\n\nexport const MAIN_STATE_FIELD_NAMES = ${JSON.stringify(mainFields, null, 4)} as const;\n\nexport const MAIN_PERSISTED_STATE_FIELD_NAMES = ${JSON.stringify(persistedMainFields, null, 4)} as const;\n\nexport const THING_STATE_FIELD_NAMES = ${JSON.stringify(thingFields, null, 4)} as const;\n\nexport const THING_PERSISTED_STATE_FIELD_NAMES = ${JSON.stringify(persistedThingFields, null, 4)} as const;\n`;
     const config = (await prettier.resolveConfig(registryPath)) ?? {};
     return prettier.format(raw, { ...config, parser: "typescript" });
 }
@@ -144,20 +172,33 @@ async function formatGeneratedSource(mainFields, thingFields) {
 const classes = collectClasses(collectTypeScriptFiles(stickvaniaDir));
 const mainInfo = classes.get("Main");
 if (!mainInfo) throw new Error("Unable to find Stickvania Main class.");
+const mainFields = mainInfo.fields.map((field) => field.name);
+const mainPolicy = readMainPolicy();
+for (const field of mainFields)
+    if (!mainPolicy.has(field)) throw new Error(`Main field ${field} is unclassified. Add it to MAIN_STATE_FIELD_POLICY before changing save behavior.`);
+for (const field of mainPolicy.keys()) if (!mainFields.includes(field)) throw new Error(`MAIN_STATE_FIELD_POLICY contains stale field ${field}.`);
+const persistedMainFields = mainFields.filter((field) => mainPolicy.get(field) === "persisted");
+const rehydratorIds = readRehydratorIds();
 const thingFields = {};
+const persistedThingFields = {};
+const requiredRehydrators = new Set();
 for (const { id, className } of readThingTypeMappings()) {
     const info = classes.get(className);
     if (!info) throw new Error(`THING_TYPES refers to missing TypeScript class: ${className}`);
-    const fields = inheritedFields(classes, className);
-    if (!fields.includes("main")) throw new Error(`Registered Thing class ${className} does not inherit Thing.main.`);
-    thingFields[id] = fields;
+    const fields = inheritedFieldInfo(classes, className);
+    if (!fields.some((field) => field.name === "main")) throw new Error(`Registered Thing class ${className} does not inherit Thing.main.`);
+    thingFields[id] = fields.map((field) => field.name);
+    persistedThingFields[id] = fields.filter((field) => field.name !== "main" && !field.runtimeResource).map((field) => field.name);
+    if (fields.some((field) => field.runtimeResource)) requiredRehydrators.add(id);
 }
-const generated = await formatGeneratedSource(mainInfo.fields, thingFields);
+for (const id of requiredRehydrators)
+    if (!rehydratorIds.has(id)) throw new Error(`Thing type ${id} owns runtime resource fields and requires an explicit state rehydrator.`);
+for (const id of rehydratorIds) if (!requiredRehydrators.has(id)) throw new Error(`THING_REHYDRATOR_TYPE_IDS contains stale entry ${id}.`);
+const generated = await formatGeneratedSource(mainFields, persistedMainFields, thingFields, persistedThingFields);
 if (checkOnly) {
-    if (!existsSync(registryPath) || readFileSync(registryPath, "utf8") !== generated) {
+    if (!existsSync(registryPath) || readFileSync(registryPath, "utf8") !== generated)
         throw new Error("StateFieldRegistry.generated.ts is stale. Run npm run generate:state-fields and review the save-schema change.");
-    }
-    console.log("State field registry is current.");
+    console.log("State field registry and explicit field policy are current.");
 } else {
     writeFileSync(registryPath, generated);
     console.log(`Updated ${relative(rootDir, registryPath)}.`);

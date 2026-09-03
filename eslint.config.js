@@ -71,6 +71,24 @@ export default tseslint.config(
         }
     },
     {
+        files: [
+            "pwa/src/main.ts",
+            "pwa/src/app/**/*.ts",
+            "pwa/src/rumble/**/*.ts",
+            "pwa/src/stickvania/BrowserStorageKeys.ts",
+            "pwa/src/stickvania/ControllerSupport.ts",
+            "pwa/src/stickvania/persistence/**/*.ts",
+            "pwa/src/ResourceVersions.generated.ts",
+            "pwa/src/resources.ts"
+        ],
+        rules: {
+            "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+            "@typescript-eslint/no-explicit-any": "error",
+            "prefer-const": "error",
+            "no-empty": ["error", { allowEmptyCatch: true }]
+        }
+    },
+    {
         files: ["pwa/src/stickvania/**/*.ts"],
         rules: {
             "no-fallthrough": "off",

@@ -1,24 +1,17 @@
 import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION } from "./GameStateSchema.js";
+import { isInputConfigGameStateMode, isRestorableGameStateMode, isStageRequiredGameStateMode } from "./GameStatePolicy.js";
 
 type GameStateStorage = {
     getItem(key: string): string | null;
     removeItem(key: string): void;
 };
 
-const GAME_STATE_STAGELESS_MODES = new Set([0, 10]);
-const GAME_STATE_RESTORABLE_MODES = new Set([0, 1, 2, 4, 5, 6, 7, 8, 10]);
-const GAME_STATE_MODE_INPUT_CONFIG = 10;
-
 export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage, storageKey: string = GAME_STATE_STORAGE_KEY): boolean {
     try {
         const text = storage.getItem(storageKey);
-        if (text === null) {
-            return false;
-        }
+        if (text === null) return false;
         const snapshot = JSON.parse(text) as unknown;
-        if (isFutureVersionStickvaniaGameStateSnapshot(snapshot)) {
-            return false;
-        }
+        if (isFutureVersionStickvaniaGameStateSnapshot(snapshot)) return false;
         if (!isPotentialStickvaniaGameStateSnapshot(snapshot)) {
             clearStoredStickvaniaGameState(storage, storageKey);
             return false;
@@ -43,31 +36,20 @@ export function hasPotentialBrowserStoredStickvaniaGameState(): boolean {
 }
 
 export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boolean {
-    if (!isRecord(snapshot)) {
+    if (!isRecord(snapshot) || snapshot.version !== GAME_STATE_VERSION || !isRestorableGameStateMode(snapshot.mode) || !Array.isArray(snapshot.things)) {
         return false;
     }
-
     const stageValue = snapshot.stage;
+    const stageRequired = isStageRequiredGameStateMode(snapshot.mode);
     const mainFieldsValue = snapshot.mainFields;
     const hasStageShape =
         stageValue !== null &&
         typeof stageValue === "object" &&
         typeof (stageValue as { stageIndex?: unknown }).stageIndex === "number" &&
         Array.isArray((stageValue as { segments?: unknown }).segments);
-
     return (
-        snapshot.version === GAME_STATE_VERSION &&
-        typeof snapshot.mode === "number" &&
-        GAME_STATE_RESTORABLE_MODES.has(snapshot.mode) &&
-        Array.isArray(snapshot.things) &&
-        stageValue !== undefined &&
-        (stageValue === null || typeof stageValue === "object") &&
-        (stageValue !== null || snapshot.things.length === 0) &&
-        (!GAME_STATE_STAGELESS_MODES.has(snapshot.mode) || stageValue === null) &&
-        (GAME_STATE_STAGELESS_MODES.has(snapshot.mode) || stageValue !== null) &&
-        (stageValue === null || hasStageShape) &&
-        (snapshot.mode !== GAME_STATE_MODE_INPUT_CONFIG || snapshot.inputConfigMode != null) &&
-        (snapshot.mode === GAME_STATE_MODE_INPUT_CONFIG || snapshot.inputConfigMode == null) &&
+        (stageRequired ? hasStageShape : stageValue === null && snapshot.things.length === 0) &&
+        (isInputConfigGameStateMode(snapshot.mode) ? snapshot.inputConfigMode != null : snapshot.inputConfigMode == null) &&
         mainFieldsValue !== null &&
         typeof mainFieldsValue === "object" &&
         (mainFieldsValue as { mode?: unknown }).mode === snapshot.mode &&

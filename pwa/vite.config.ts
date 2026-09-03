@@ -22,6 +22,7 @@ const encodedBuildStamp = encodeURIComponent(versionInfo.buildStamp);
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
 const serviceWorkerPrecachePattern = /const PRECACHE_URLS = \[[\s\S]*?\];/;
 const serviceWorkerVersionPlaceholder = '"__SERVICE_WORKER_VERSION__"';
+const resourceVersions = JSON.parse(readFileSync(join(rootDir, "resource-versions.generated.json"), "utf8")) as Record<string, string>;
 
 function versionedHtmlPlugin(): PluginOption {
     return {
@@ -193,13 +194,13 @@ function createPrecacheUrls(): string[] {
         .map((file) => relative(distPwaDir, file).replaceAll("\\", "/"))
         .filter((file) => file !== "sw.js")
         .sort()
-        .map((file) => `./${file}`);
+        .map((file) => addCacheVersion(`./${file}`, resourceVersions[file] ?? cacheVersion));
 
-    return ["./", ...fileUrls].map(addCacheVersion);
+    return [addCacheVersion("./", cacheVersion), ...fileUrls];
 }
 
-function addCacheVersion(url: string): string {
-    return `${url}${url.includes("?") ? "&" : "?"}v=${encodedCacheVersion}`;
+function addCacheVersion(url: string, version: string): string {
+    return `${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(version)}`;
 }
 
 function formatPrecacheDeclaration(urls: string[]): string {
