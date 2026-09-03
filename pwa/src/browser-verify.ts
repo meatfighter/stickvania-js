@@ -10,6 +10,7 @@ const host = document.querySelector<HTMLElement>("#game-host");
 if (result === null || host === null) {
     throw new Error("Browser verification fixture is missing required elements.");
 }
+const gameHost = host;
 
 function assert(condition: unknown, message: string): asserts condition {
     if (!condition) {
@@ -44,8 +45,8 @@ async function mountMain(restore: ((main: Main, container: AppGameContainer) => 
     buffered: StickvaniaBufferedGame;
     container: AppGameContainer;
 }> {
-    host.replaceChildren();
-    Display.setParent(host);
+    gameHost.replaceChildren();
+    Display.setParent(gameHost);
     const main = new Main();
     const buffered = new StickvaniaBufferedGame(main, "crisp");
     const container = new AppGameContainer(buffered, 1024, 832, false);
