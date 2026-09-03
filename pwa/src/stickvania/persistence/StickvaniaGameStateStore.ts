@@ -1,7 +1,7 @@
 import type { GameContainer } from "slick2d-ts";
 import type { Main } from "../Main.js";
 import type { StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
-import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION } from "./GameStateSchema.js";
+import { FIRST_PUBLIC_GAME_STATE_VERSION, GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION } from "./GameStateSchema.js";
 import { StickvaniaGameStateSerializer } from "./StickvaniaGameStateSerializer.js";
 
 export class StickvaniaGameStateStore {
@@ -65,13 +65,7 @@ export class StickvaniaGameStateStore {
         }
 
         const snapshot = JSON.parse(text) as StickvaniaGameStateSnapshot | null;
-        if (
-            snapshot !== null &&
-            typeof snapshot === "object" &&
-            typeof snapshot.version === "number" &&
-            Number.isInteger(snapshot.version) &&
-            snapshot.version > GAME_STATE_VERSION
-        ) {
+        if (this.shouldPreserveUnsupportedPublicSnapshot(snapshot)) {
             return null;
         }
         if (snapshot === null || snapshot.version !== GAME_STATE_VERSION || !this.serializer.isSupportedSnapshot(snapshot)) {
@@ -80,5 +74,13 @@ export class StickvaniaGameStateStore {
         }
 
         return snapshot;
+    }
+
+    private shouldPreserveUnsupportedPublicSnapshot(snapshot: unknown): boolean {
+        if (snapshot === null || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+            return false;
+        }
+        const version = Reflect.get(snapshot, "version");
+        return typeof version === "number" && Number.isInteger(version) && version >= FIRST_PUBLIC_GAME_STATE_VERSION && version !== GAME_STATE_VERSION;
     }
 }
