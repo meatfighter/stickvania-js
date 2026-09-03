@@ -3,20 +3,27 @@ import { Color } from "slick2d-ts";
 export type DisplayModePreference =
     | "amber"
     | "ballpoint"
+    | "blush"
     | "candlelight"
     | "charcoal"
     | "chalkboard"
+    | "coral"
     | "cyanotype"
     | "dark"
+    | "delft"
     | "ditto"
+    | "gum"
     | "lcd"
     | "led"
     | "light"
+    | "marigold"
     | "newsprint"
     | "oscilloscope"
     | "plasma"
     | "redline"
     | "rose"
+    | "salmon"
+    | "seafoam"
     | "sepia"
     | "silver"
     | "slate"
@@ -53,6 +60,12 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0xed, 0xf0, 0xf2]
     },
     {
+        value: "blush",
+        label: "Blush",
+        blackReplacement: [0xec, 0x76, 0x8e],
+        whiteReplacement: [0xea, 0xe5, 0xdf]
+    },
+    {
         value: "candlelight",
         label: "Candlelight",
         blackReplacement: [0x17, 0x12, 0x0a],
@@ -71,6 +84,12 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: [0x1e, 0x48, 0x36]
     },
     {
+        value: "coral",
+        label: "Coral",
+        blackReplacement: [0xfd, 0x76, 0x78],
+        whiteReplacement: [0x00, 0x36, 0x4e]
+    },
+    {
         value: "cyanotype",
         label: "Cyanotype",
         blackReplacement: [0xec, 0xe9, 0xd9],
@@ -83,10 +102,22 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         whiteReplacement: null
     },
     {
+        value: "delft",
+        label: "Delft",
+        blackReplacement: [0x44, 0x67, 0xa9],
+        whiteReplacement: [0xea, 0xe5, 0xdf]
+    },
+    {
         value: "ditto",
         label: "Ditto",
         blackReplacement: [0x71, 0x68, 0x9d],
         whiteReplacement: [0xe9, 0xe2, 0xd2]
+    },
+    {
+        value: "gum",
+        label: "Gum",
+        blackReplacement: [0xfe, 0xc2, 0xdc],
+        whiteReplacement: [0x00, 0x36, 0x4e]
     },
     {
         value: "lcd",
@@ -105,6 +136,12 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         label: "Light",
         blackReplacement: null,
         whiteReplacement: null
+    },
+    {
+        value: "marigold",
+        label: "Marigold",
+        blackReplacement: [0xf3, 0xa0, 0x1e],
+        whiteReplacement: [0xea, 0xe5, 0xdf]
     },
     {
         value: "newsprint",
@@ -135,6 +172,18 @@ export const DISPLAY_MODE_DEFINITIONS: readonly DisplayModeDefinition[] = [
         label: "Rose",
         blackReplacement: [0x21, 0x11, 0x17],
         whiteReplacement: [0xd9, 0x95, 0xa1]
+    },
+    {
+        value: "salmon",
+        label: "Salmon",
+        blackReplacement: [0xf1, 0x8a, 0x69],
+        whiteReplacement: [0xea, 0xe5, 0xdf]
+    },
+    {
+        value: "seafoam",
+        label: "Seafoam",
+        blackReplacement: [0x75, 0xbd, 0x97],
+        whiteReplacement: [0xea, 0xe5, 0xdf]
     },
     {
         value: "sepia",
