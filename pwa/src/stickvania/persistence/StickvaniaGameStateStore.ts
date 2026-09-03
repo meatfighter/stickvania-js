@@ -81,11 +81,6 @@ export class StickvaniaGameStateStore {
             return false;
         }
         const version = Reflect.get(snapshot, "version");
-        return (
-            typeof version === "number" &&
-            Number.isInteger(version) &&
-            version >= FIRST_PUBLIC_GAME_STATE_VERSION &&
-            version !== GAME_STATE_VERSION
-        );
+        return typeof version === "number" && Number.isInteger(version) && version >= FIRST_PUBLIC_GAME_STATE_VERSION && version !== GAME_STATE_VERSION;
     }
 }
