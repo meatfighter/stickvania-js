@@ -578,6 +578,10 @@ html[data-theme="dark"] .site-logo {
     color: var(--text);
 }
 
+.site-footer__left {
+    font-size: 0.95rem;
+}
+
 .site-footer__left p {
     margin: 0;
 }
