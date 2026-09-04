@@ -106,6 +106,10 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /html\[data-theme="dark"\] \.site-logo \{[\s\S]*filter: none;/);
     assert.match(styles, /\.toc \{\s+margin: 0 0 2rem;/);
     assert.match(styles, /\.toc li:not\(:last-child\)::after \{[\s\S]*content: " \| ";/);
+    assert.match(styles, /\.site-footer__inner \{[\s\S]*font-family: var\(--font-ui\);\s+line-height: 1\.6;/);
+    assert.match(styles, /\.site-footer__left \{\s+font-size: 0\.95rem;\s+\}/);
+    assert.match(styles, /\.site-footer__left p \+ p \{\s+margin-top: 0\.08rem;\s+\}/);
+    assert.match(styles, /\.site-footer__links \{[\s\S]*line-height: 1\.6;\s+text-align: right;/);
     assert.match(styles, /font-family: "Source Sans 3";/);
     assert.match(themeScript, /stickvania-about-theme/);
     assert.match(themeScript, /theme === "dark" \? "#000000" : "#fcfcfc"/);

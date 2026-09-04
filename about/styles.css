@@ -576,6 +576,8 @@ html[data-theme="dark"] .site-logo {
     padding: 0.9rem 0 2rem;
     border-top: 1px solid var(--border);
     color: var(--text);
+    font-family: var(--font-ui);
+    line-height: 1.6;
 }
 
 .site-footer__left {
@@ -594,6 +596,7 @@ html[data-theme="dark"] .site-logo {
     display: block;
     flex-wrap: wrap;
     justify-content: flex-end;
+    line-height: 1.6;
     text-align: right;
 }
 
