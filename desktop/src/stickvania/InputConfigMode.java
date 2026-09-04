@@ -15,6 +15,10 @@ public class InputConfigMode implements KeyListener {
       "UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK" };
   private static final int DONE_DELAY = 30;
   private static final int ARM_DELAY = 8;
+  private static final String PROMPT_LINE_1 = "ON EITHER YOUR KEYBOARD";
+  private static final String PROMPT_LINE_2 = "OR GAMEPAD, PRESS:";
+  private static final int PROMPT_LINE_1_Y = 152;
+  private static final int PROMPT_LINE_2_Y = 184;
   private static final int MESSAGE_Y = 232;
   private static final int ERROR_Y = 280;
   private final Main main;
@@ -92,8 +96,10 @@ public class InputConfigMode implements KeyListener {
       return;
     }
 
-    String prompt = "PRESS " + getCurrentStep();
-    main.drawString(prompt, centerX(prompt), MESSAGE_Y);
+    String currentStep = getCurrentStep();
+    main.drawString(PROMPT_LINE_1, centerX(PROMPT_LINE_1), PROMPT_LINE_1_Y);
+    main.drawString(PROMPT_LINE_2, centerX(PROMPT_LINE_2), PROMPT_LINE_2_Y);
+    main.drawString(currentStep, centerX(currentStep), MESSAGE_Y);
     if (message.length() > 0) {
       main.drawString(message, centerX(message), ERROR_Y);
     }

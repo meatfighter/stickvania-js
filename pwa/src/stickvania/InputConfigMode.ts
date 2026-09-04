@@ -40,6 +40,10 @@ export class InputConfigMode implements KeyListener {
     private static readonly STEPS: BindingStep[] = ["UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK"];
     private static readonly DONE_DELAY = 30;
     private static readonly ARM_DELAY = 8;
+    private static readonly PROMPT_LINE_1 = "ON EITHER YOUR KEYBOARD";
+    private static readonly PROMPT_LINE_2 = "OR GAMEPAD, PRESS:";
+    private static readonly PROMPT_LINE_1_Y = 152;
+    private static readonly PROMPT_LINE_2_Y = 184;
     private static readonly MESSAGE_Y = 232;
     private static readonly ERROR_Y = 280;
 
@@ -144,8 +148,10 @@ export class InputConfigMode implements KeyListener {
             this.main.drawString(this.message, this.centerX(this.message), InputConfigMode.MESSAGE_Y);
             return;
         }
-        const prompt = "PRESS " + this.getCurrentStep();
-        this.main.drawString(prompt, this.centerX(prompt), InputConfigMode.MESSAGE_Y);
+        const currentStep = this.getCurrentStep();
+        this.main.drawString(InputConfigMode.PROMPT_LINE_1, this.centerX(InputConfigMode.PROMPT_LINE_1), InputConfigMode.PROMPT_LINE_1_Y);
+        this.main.drawString(InputConfigMode.PROMPT_LINE_2, this.centerX(InputConfigMode.PROMPT_LINE_2), InputConfigMode.PROMPT_LINE_2_Y);
+        this.main.drawString(currentStep, this.centerX(currentStep), InputConfigMode.MESSAGE_Y);
         if (this.message.length > 0) {
             this.main.drawString(this.message, this.centerX(this.message), InputConfigMode.ERROR_Y);
         }

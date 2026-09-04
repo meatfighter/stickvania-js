@@ -4487,7 +4487,6 @@ public final class Main extends BasicGame {
     main.appGameContainer.setVSync(true);
     main.appGameContainer.setSmoothDeltas(false);
     main.appGameContainer.setShowFPS(false);
-    main.appGameContainer.setSoundOn(false);
     main.appGameContainer.start();
   }
 }
