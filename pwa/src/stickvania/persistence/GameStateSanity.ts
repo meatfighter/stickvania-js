@@ -197,6 +197,6 @@ function hasExactFields(value: Record<string, unknown>, expected: readonly strin
     return keys.length === expected.length && expected.every((key) => Object.hasOwn(value, key));
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
