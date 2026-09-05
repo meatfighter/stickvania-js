@@ -32,6 +32,14 @@ function createNavigationIndexCacheUrl(request) {
     return createCacheUrl(indexUrl.href);
 }
 
+async function fetchOnce(request) {
+    const response = await fetch(request);
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+    return response;
+}
+
 const PRECACHE_CACHE_URLS = PRECACHE_URLS.map((url) => createCacheUrl(url));
 
 self.addEventListener("install", (event) => {
@@ -60,13 +68,12 @@ self.addEventListener("fetch", (event) => {
     }
     if (request.mode === "navigate") {
         const indexCacheUrl = createNavigationIndexCacheUrl(request);
-        event.respondWith(fetch(request).catch(() => caches.match(indexCacheUrl).then((cached) => cached || caches.match(createCacheUrl("./index.html")))));
+        event.respondWith(fetchOnce(request).catch(() => caches.match(indexCacheUrl).then((cached) => cached || caches.match(createCacheUrl("./index.html")))));
         return;
     }
     event.respondWith(
         caches.match(createCacheUrl(request)).then((cached) => {
-            const networked = fetch(request).catch(() => cached);
-            return cached || networked;
+            return cached || fetchOnce(request);
         })
     );
 });
