@@ -86,7 +86,12 @@ function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): bool
     if (snapshot === null) {
         return true;
     }
-    if (!isRecord(snapshot) || !hasExactFields(snapshot, INPUT_CONFIG_FIELDS) || !isRecord(snapshot.draft) || !hasExactFields(snapshot.draft, INPUT_DRAFT_FIELDS)) {
+    if (
+        !isRecord(snapshot) ||
+        !hasExactFields(snapshot, INPUT_CONFIG_FIELDS) ||
+        !isRecord(snapshot.draft) ||
+        !hasExactFields(snapshot.draft, INPUT_DRAFT_FIELDS)
+    ) {
         return false;
     }
     return (
