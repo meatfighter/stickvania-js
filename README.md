@@ -1,6 +1,6 @@
 # Stickvania
 
-This repository contains the browser and desktop versions of **Stickvania**, a stick-figure demake of Konami's original *Castlevania*.
+This repository contains the browser and desktop versions of **Stickvania**, a stick-figure demake of Konami's original _Castlevania_.
 
 I originally wrote Stickvania in Java in 2010 using Slick2D and JInput. The browser version is a TypeScript Progressive Web App (PWA) built on [`slick2d-ts`](https://github.com/meatfighter/slick2d-ts). The maintained Java source remains in this repository as the behavioral and structural reference for the TypeScript port and as the source for downloadable desktop builds.
 
@@ -8,7 +8,7 @@ Stickvania is a reimplementation, not an emulator, and does not contain or run t
 
 ## Gameplay
 
-Stickvania follows the stages, enemy placements, and bosses of the original *Castlevania* while deliberately changing some mechanics. Simon moves faster and can change direction in midair, weapons and enemies are rebalanced, and several bosses and the ending draw inspiration from *Super Castlevania IV*.
+Stickvania follows the stages, enemy placements, and bosses of the original _Castlevania_ while deliberately changing some mechanics. Simon moves faster and can change direction in midair, weapons and enemies are rebalanced, and several bosses and the ending draw inspiration from _Super Castlevania IV_.
 
 A selectable **Hard** mode is available from the in-game options menu.
 
@@ -16,14 +16,14 @@ A selectable **Hard** mode is available from the in-game options menu.
 
 Stickvania supports keyboard and gamepad input. The default mappings are:
 
-| Action | Keyboard | Gamepad |
-| --- | --- | --- |
-| Up | Up Arrow | D-Pad Up |
-| Down | Down Arrow | D-Pad Down |
-| Left | Left Arrow | D-Pad Left |
-| Right | Right Arrow | D-Pad Right |
-| Jump | X | A |
-| Attack | Z | X |
+| Action | Keyboard    | Gamepad     |
+| ------ | ----------- | ----------- |
+| Up     | Up Arrow    | D-Pad Up    |
+| Down   | Down Arrow  | D-Pad Down  |
+| Left   | Left Arrow  | D-Pad Left  |
+| Right  | Right Arrow | D-Pad Right |
+| Jump   | X           | A           |
+| Attack | Z           | X           |
 
 Press **Attack** to use the whip. Hold **Up** and press **Attack** to use the current sub-weapon.
 
@@ -31,10 +31,10 @@ Mappings can be changed from **Options → Input** in the game.
 
 Two browser controls are reserved and cannot be remapped:
 
-| Key | Action |
-| --- | --- |
+| Key   | Action            |
+| ----- | ----------------- |
 | Space | Toggle fullscreen |
-| Esc | Exit fullscreen |
+| Esc   | Exit fullscreen   |
 
 ## Browser version
 
@@ -62,17 +62,17 @@ Input mappings and other browser preferences are stored separately from game sta
 
 ## Repository layout
 
-| Path | Purpose |
-| --- | --- |
-| `pwa/` | TypeScript browser/PWA implementation and static game resources |
-| `pwa/src/stickvania/` | Java-shaped TypeScript gameplay port and browser-side game helpers |
-| `pwa/src/stickvania/persistence/` | Save-state schema, validation, serialization, and restoration |
-| `pwa/src/rumble/` | Browser gamepad-vibration support |
-| `desktop/` | Maintained Java/Slick2D reference implementation and desktop runtime files |
-| `about/` | Source for the public project/about page |
-| `scripts/` | Build, verification, packaging, and release tooling |
-| `version.json` | Application version/build-stamp source |
-| `THIRD_PARTY_NOTICES.md` | Third-party notices and attribution |
+| Path                              | Purpose                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `pwa/`                            | TypeScript browser/PWA implementation and static game resources            |
+| `pwa/src/stickvania/`             | Java-shaped TypeScript gameplay port and browser-side game helpers         |
+| `pwa/src/stickvania/persistence/` | Save-state schema, validation, serialization, and restoration              |
+| `pwa/src/rumble/`                 | Browser gamepad-vibration support                                          |
+| `desktop/`                        | Maintained Java/Slick2D reference implementation and desktop runtime files |
+| `about/`                          | Source for the public project/about page                                   |
+| `scripts/`                        | Build, verification, packaging, and release tooling                        |
+| `version.json`                    | Application version/build-stamp source                                     |
+| `THIRD_PARTY_NOTICES.md`          | Third-party notices and attribution                                        |
 
 Generated output such as `node_modules/`, `dist/`, `.release-components/`, and `desktop/target/` is not source and should not be edited manually.
 
