@@ -1,0 +1,51 @@
+name: Fix Slick release guard
+
+on:
+    push:
+        paths:
+            - ".github/workflows/fix-slick-release-guard.yml"
+
+permissions:
+    contents: write
+
+jobs:
+    fix:
+        if: github.actor != 'github-actions[bot]'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22.13.0
+                  cache: npm
+            - uses: actions/setup-java@v6
+              with:
+                  distribution: temurin
+                  java-version: "21"
+            - name: Update release dependency guard
+              run: |
+                  set -euo pipefail
+                  python3 - <<'PY'
+                  from pathlib import Path
+                  path = Path("scripts/verify-pwa-release.mjs")
+                  text = path.read_text()
+                  old = r'/^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/'
+                  new = r'/^https:\/\/codeload\.github\.com\/meatfighter\/slick2d-ts\/tar\.gz\/[a-f0-9]{40}$/'
+                  if text.count(old) != 1:
+                      raise SystemExit(f"Expected one old Slick release guard, found {text.count(old)}")
+                  path.write_text(text.replace(old, new))
+                  PY
+                  npx prettier scripts/verify-pwa-release.mjs --write
+                  rm .github/workflows/fix-slick-release-guard.yml
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add scripts/verify-pwa-release.mjs .github/workflows/fix-slick-release-guard.yml
+                  git diff --cached --check
+                  git commit -m "Accept immutable HTTPS Slick archive in release verifier"
+            - run: npm ci
+            - run: npm run verify
+            - name: Publish verified fix
+              run: git push origin HEAD:main
