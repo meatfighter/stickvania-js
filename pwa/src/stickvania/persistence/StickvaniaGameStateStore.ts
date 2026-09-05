@@ -1,7 +1,8 @@
 import type { GameContainer } from "slick2d-ts";
 import type { Main } from "../Main.js";
 import type { StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
-import { FIRST_PUBLIC_GAME_STATE_VERSION, GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION } from "./GameStateSchema.js";
+import { isReasonableStickvaniaGameStateSnapshot } from "./GameStateSanity.js";
+import { FIRST_PUBLIC_GAME_STATE_VERSION, GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
 import { StickvaniaGameStateSerializer } from "./StickvaniaGameStateSerializer.js";
 
 export class StickvaniaGameStateStore {
@@ -19,7 +20,14 @@ export class StickvaniaGameStateStore {
                 return false;
             }
             const snapshot = this.serializer.createSnapshot(main, this.appVersion);
-            localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(snapshot));
+            if (!isReasonableStickvaniaGameStateSnapshot(snapshot)) {
+                return false;
+            }
+            const text = JSON.stringify(snapshot);
+            if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
+                return false;
+            }
+            localStorage.setItem(GAME_STATE_STORAGE_KEY, text);
             return true;
         } catch (error) {
             console.warn("Unable to save Stickvania game state.", error);
@@ -66,6 +74,12 @@ export class StickvaniaGameStateStore {
         if (text === null) {
             return null;
         }
+        if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
+            // Leave oversized data untouched. An older build cannot know whether
+            // it belongs to a newer public format, so New Game/Reset remains the
+            // explicit destructive path.
+            return null;
+        }
 
         let snapshot: unknown;
         try {
@@ -83,7 +97,11 @@ export class StickvaniaGameStateStore {
             return null;
         }
         const typedSnapshot = snapshot as StickvaniaGameStateSnapshot;
-        if (typedSnapshot.version !== GAME_STATE_VERSION || !this.serializer.isSupportedSnapshot(typedSnapshot)) {
+        if (
+            typedSnapshot.version !== GAME_STATE_VERSION ||
+            !this.serializer.isSupportedSnapshot(typedSnapshot) ||
+            !isReasonableStickvaniaGameStateSnapshot(typedSnapshot)
+        ) {
             this.clear();
             return null;
         }
@@ -95,6 +113,9 @@ export class StickvaniaGameStateStore {
         const text = localStorage.getItem(GAME_STATE_STORAGE_KEY);
         if (text === null) {
             return false;
+        }
+        if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
+            return true;
         }
         try {
             return this.shouldPreserveUnsupportedPublicSnapshot(JSON.parse(text) as unknown);

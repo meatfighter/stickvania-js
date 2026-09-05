@@ -1,4 +1,4 @@
-import { FIRST_PUBLIC_GAME_STATE_VERSION, GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION } from "./GameStateSchema.js";
+import { FIRST_PUBLIC_GAME_STATE_VERSION, GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
 import { isInputConfigGameStateMode, isRestorableGameStateMode, isStageRequiredGameStateMode } from "./GameStatePolicy.js";
 
 type GameStateStorage = {
@@ -14,6 +14,11 @@ export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage,
         return false;
     }
     if (text === null) return false;
+    if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
+        // Do not parse or delete oversized state. It may belong to a newer public
+        // format; an older build should simply decline to offer Continue.
+        return false;
+    }
 
     let snapshot: unknown;
     try {
