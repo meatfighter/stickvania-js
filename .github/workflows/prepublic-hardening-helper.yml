@@ -1,0 +1,44 @@
+name: Prepublic Hardening Helper
+
+on:
+  push:
+    branches:
+      - chatgpt/prepublic-release-hardening-20260905
+    paths:
+      - .github/workflows/prepublic-hardening-helper.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: chatgpt/prepublic-release-hardening-20260905
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Apply guarded generated-test update
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-pwa-release.mjs')
+          text = path.read_text()
+          old = 'assert.match(schemaSource, /export const GAME_STATE_VERSION = 8;/);'
+          new = 'assert.match(schemaSource, /export const GAME_STATE_VERSION = 9;/);'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one schema-version assertion, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+      - run: npm run format
+      - name: Commit patch
+        run: |
+          git config user.name "zeroone"
+          git config user.email "54445200+meatfighter@users.noreply.github.com"
+          git add scripts/verify-pwa-release.mjs pwa/src/stickvania/persistence package.json scripts/test-pwa-state-hardening.mjs
+          git commit -m "Complete Stickvania pre-public save hardening"
+          git push origin HEAD:chatgpt/prepublic-release-hardening-20260905
