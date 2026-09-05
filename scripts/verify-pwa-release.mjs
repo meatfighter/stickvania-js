@@ -567,7 +567,7 @@ test("PWA resolves the pinned Slick2D-ts runtime", () => {
     const lockedSlick2dTsPackage = packageLock.packages["node_modules/slick2d-ts"];
 
     assert.equal(dependency, lockedDependency);
-    assert.match(dependency, /^git\+https:\/\/github\.com\/meatfighter\/slick2d-ts\.git#[a-f0-9]{40}$/);
+    assert.match(dependency, /^https:\/\/codeload\.github\.com\/meatfighter\/slick2d-ts\/tar\.gz\/[a-f0-9]{40}$/);
     assert.ok(lockedSlick2dTsPackage, "package-lock.json should include the installed slick2d-ts package.");
     assert.equal(lockedSlick2dTsPackage.resolved, dependency);
     assert.match(lockedSlick2dTsPackage.version, /^\d+\.\d+\.\d+$/);
