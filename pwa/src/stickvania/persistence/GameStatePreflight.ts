@@ -15,7 +15,8 @@ export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage,
     }
     if (text === null) return false;
     if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
-        clearStoredStickvaniaGameState(storage, storageKey);
+        // Do not parse or delete oversized state. It may belong to a newer public
+        // format; an older build should simply decline to offer Continue.
         return false;
     }
 
