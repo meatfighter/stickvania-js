@@ -143,7 +143,8 @@ export class StickvaniaRuntimeLoader {
         let nonAudioLoaded = 0;
         const updateProgress = () => this.setProgress(total === 0 ? 1 : (audioLoaded + nonAudioLoaded) / total);
         updateProgress();
-        await Promise.all([
+
+        const results = await Promise.allSettled([
             ResourceLoader.preloadResources(nonAudioRefs, {
                 signal,
                 concurrency: RESOURCE_PRELOAD_CONCURRENCY,
@@ -161,6 +162,13 @@ export class StickvaniaRuntimeLoader {
                 }
             })
         ]);
+        const failure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+        if (failure !== undefined) {
+            throw failure.reason;
+        }
+        if (signal.aborted) {
+            throw signal.reason ?? new Error("Stickvania runtime preparation was aborted.");
+        }
         this.setProgress(1);
     }
 
