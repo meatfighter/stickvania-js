@@ -50,13 +50,14 @@ The commands also work in Windows PowerShell; use `npm.cmd` if PowerShell blocks
 | Audit dependencies                 | `npm run verify:dependencies`                   | Queries current npm advisories                                       |
 | Build complete distribution        | `npm run build`                                 | `dist/`; clean-source release build                                  |
 | Verify, audit, and build release   | `npm run release`                               | `dist/`                                                              |
+| Qualify local commit               | `npm run qualify`                               | Full local pre-push qualification                                    |
 | Preview complete distribution      | `npm run preview:dist`                          | Run after building `dist/`                                           |
 
 Component builds use isolated output directories; building a component does not refresh the complete `dist/` distribution. Use the public scripts above rather than invoking internal `_build:*` steps directly.
 
 Browser fixtures use a locally installed Chrome, Chromium, or Edge. Set `CHROMIUM_PATH` to the executable if automatic discovery fails. Offline verification also needs a built PWA; consult [scripts/run-offline-verification.mjs](scripts/run-offline-verification.mjs) for its output-directory selection.
 
-For the separate Chromium/Firefox/WebKit qualification, install the browser engines locally with `npx playwright install chromium firefox webkit`, then run `npm run verify:production-browser` against an already built `dist/pwa/`. Set `PWA_ROOT` to use another built PWA directory. Linux also needs the Playwright system dependencies and a graphical display or Xvfb. See [RELEASING.md](RELEASING.md) for coverage limits and device checks. Run checks locally; GitHub Actions is not required for development.
+For the separate Chromium/Firefox/WebKit qualification, install the browser engines locally with `npx playwright install chromium firefox webkit`, then run `npm run qualify:browsers` against an already built `dist/pwa/`. Set `PWA_ROOT` to use another built PWA directory. Linux also needs the Playwright system dependencies and a graphical display or Xvfb. See [RELEASING.md](RELEASING.md) for coverage limits and device checks. Run `npm run qualify` before pushing release-affecting changes; GitHub Actions is an optional manual Linux check.
 
 ## Maintenance principles
 

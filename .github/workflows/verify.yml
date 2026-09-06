@@ -1,8 +1,6 @@
 name: Verify
 
 on:
-    push:
-    pull_request:
     workflow_dispatch:
 
 permissions:
@@ -54,23 +52,14 @@ jobs:
             - name: Install dependencies
               run: npm ci
 
-            - name: Dependency audit
-              run: npm run verify:dependencies
-
-            - name: Verify
-              run: npm run verify
-
-            - name: Build
-              run: npm run build
-
-            - name: Verify real browser
-              run: npm run verify:browser
+            - name: Qualify
+              run: npm run qualify
 
             - name: Install browser qualification engines
               run: npx playwright install --with-deps chromium firefox webkit
 
             - name: Qualify production browser lifecycle
-              run: xvfb-run --auto-servernum npm run verify:production-browser
+              run: xvfb-run --auto-servernum npm run qualify:browsers
 
             - name: Archive qualified build
               run: node scripts/archive-release.mjs dist "$RUNNER_TEMP/qualified-artifacts"
