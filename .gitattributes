@@ -1,0 +1,16 @@
+* text=auto eol=lf
+
+desktop/src/images/*.def -text !eol
+desktop/src/stages/*.txt -text !eol
+pwa/public/images/*.def -text !eol
+pwa/public/stages/*.txt -text !eol
+
+*.png binary
+*.ico binary
+*.ogg binary
+*.jar binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.jnilib binary
+*.zip binary
