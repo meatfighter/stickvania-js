@@ -34,19 +34,17 @@ public class StickvaniaInput {
   public StickvaniaInput(Input input, ButtonMapping mapping) {
     this.input = input;
     this.mapping = mapping;
+    ControllerSupport.initialize();
     clearPressedState();
   }
 
   public void update() {
-    if (ControllerSupport.refreshControllersIfNeeded()) {
-      clearPressedState();
-    }
     previous = current;
     current = readState();
   }
 
   public void clearPressedState() {
-    ControllerSupport.refreshControllersIfNeeded();
+
     current = readState();
     previous = copy(current);
   }

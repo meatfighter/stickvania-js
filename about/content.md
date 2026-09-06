@@ -98,7 +98,9 @@ _Stickvania_ is a reimplementation of _Castlevania_, not an emulation. It does n
 
 The source code for the project is available in the [meatfighter/stickvania-js repository](__REPOSITORY_URL__).
 
-The Java desktop version is available as a [ZIP file](__DESKTOP_ZIP__). Download and extract the ZIP, then run the launcher for your operating system:
+The Java desktop version is available as a [ZIP file](__DESKTOP_ZIP__). To use a gamepad with the Java version, connect and enable it before starting the game.
+
+Download and extract the ZIP, then run the launcher for your operating system:
 
 - Windows: `run-windows.cmd`
 - Linux: `run-linux.sh`

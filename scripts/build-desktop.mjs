@@ -1,3 +1,4 @@
+import { runDesktopInputTests } from "./desktop-input-tests.mjs";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
@@ -337,6 +338,7 @@ async function buildWithJdk() {
     const releaseArgs = javacVersion !== null && javacVersion >= 9 ? ["--release", "8"] : ["-source", "1.8", "-target", "1.8"];
 
     await run("javac", ["-encoding", "UTF-8", "-Xlint:-options", ...releaseArgs, "-cp", classpath, "-d", classesDir, `@${sourcesFile}`]);
+    runDesktopInputTests({ classesDir, classpath, releaseArgs });
 
     copyResources(sourceDir, classesDir);
     writeManifest();

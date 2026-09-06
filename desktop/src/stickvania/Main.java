@@ -1143,6 +1143,7 @@ public final class Main extends BasicGame {
   }
 
   public void update(GameContainer gc, int delta) throws SlickException {
+    ControllerSupport.beginFrame();
 
     int count = 0;
     while(nextFrameTime < Sys.getTime()) {
@@ -1180,7 +1181,7 @@ public final class Main extends BasicGame {
       restoreWindowedDisplayMode(gc);
       nextFrameTime = Sys.getTime();
     }
-    syncControllerRefreshPolicy();
+
     controlInput.update();
 
     if (fadeState == FADE_IN) {
@@ -3676,7 +3677,7 @@ public final class Main extends BasicGame {
   public void initInputConfig(GameContainer gc) {
 
     mode = MODE_INPUT_CONFIG;
-    syncControllerRefreshPolicy();
+
     if (inputConfigMode != null) {
       inputConfigMode.dispose();
     }
@@ -3685,21 +3686,9 @@ public final class Main extends BasicGame {
     nextFrameTime = Sys.getTime();
   }
 
-  private void syncControllerRefreshPolicy() {
-    ControllerSupport.setControllerRefreshEnabled(
-        isControllerRefreshAllowedForCurrentMode());
-  }
 
-  private boolean isControllerRefreshAllowedForCurrentMode() {
-    switch(mode) {
-      case MODE_TITLE_SCREEN:
-      case MODE_CONTINUE_SCREEN:
-      case MODE_INPUT_CONFIG:
-        return true;
-      default:
-        return false;
-    }
-  }
+
+
 
   public void updateInputConfig(GameContainer gc) {
     if (inputConfigMode != null) {

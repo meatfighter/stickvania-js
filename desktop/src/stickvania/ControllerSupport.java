@@ -4,9 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.lwjgl.input.Controller;
 import org.lwjgl.input.Controllers;
@@ -23,8 +22,6 @@ public final class ControllerSupport {
   private static final int NAMED_RY_AXIS_SLOT = GAMEPAD_AXIS_LIMIT + 4;
   private static final float AXIS_THRESHOLD = 0.5f;
   private static final float AXIS_RECENTER_THRESHOLD = 0.05f;
-  private static final long CONTROLLER_POLL_INTERVAL_NANOS = 1000000L;
-  private static final long CONTROLLER_REFRESH_INTERVAL_NANOS = 3000000000L;
   private static final int STANDARD_DPAD_UP = 12;
   private static final int STANDARD_DPAD_DOWN = 13;
   private static final int STANDARD_DPAD_LEFT = 14;
@@ -41,15 +38,69 @@ public final class ControllerSupport {
   private static Field jinputRYAxisField;
   private static boolean globalPollFailureFilterInstalled;
   private static volatile boolean globalPollFailureDetected;
-  private static boolean controllerRefreshEnabled = true;
   private static boolean controllersCreateAttempted;
   private static boolean controllersUnavailable;
-  private static long lastControllerPollNanos = Long.MIN_VALUE;
-  private static long lastControllerRefreshNanos = Long.MIN_VALUE;
   private static final boolean[] controllerCandidateKnown =
       new boolean[CONTROLLER_INDEX_LIMIT];
   private static final boolean[] controllerCandidate =
       new boolean[CONTROLLER_INDEX_LIMIT];
+
+  private static boolean initialized;
+  private static boolean sampledUp;
+  private static boolean sampledDown;
+  private static boolean sampledLeft;
+  private static boolean sampledRight;
+  private static final boolean[] sampledButtons =
+      new boolean[GAMEPAD_BUTTON_INDEX_LIMIT];
+  private static final boolean[] sampledNonDirectionalButtons =
+      new boolean[GAMEPAD_BUTTON_INDEX_LIMIT];
+
+  public static void initialize() {
+    if (initialized) {
+      return;
+    }
+    initialized = true;
+    prepareDesktopInput();
+    // Legacy JInput owns native resources for the lifetime of the process.
+    // Discover once; a newly enabled gamepad requires restarting the game.
+    ensureControllersCreated();
+    beginFrame();
+  }
+
+  public static void beginFrame() {
+    clearSnapshot();
+    pollControllers();
+    sampledUp = readControllerUp();
+    sampledDown = readControllerDown();
+    sampledLeft = readControllerLeft();
+    sampledRight = readControllerRight();
+    int controllerCount = getControllerCount();
+    for(int index = 0; index < controllerCount; index++) {
+      Controller controller = getGameController(index);
+      if (controller == null) {
+        continue;
+      }
+      int buttonCount = Math.min(safeButtonCount(controller),
+          GAMEPAD_BUTTON_INDEX_LIMIT);
+      for(int button = 0; button < buttonCount; button++) {
+        if (isControllerButtonDown(button, controller)) {
+          sampledButtons[button] = true;
+          if (!isDirectionalButton(button, controller)) {
+            sampledNonDirectionalButtons[button] = true;
+          }
+        }
+      }
+    }
+    if (isControllerInputUnavailable()) {
+      clearSnapshot();
+    }
+  }
+
+  private static void clearSnapshot() {
+    sampledUp = sampledDown = sampledLeft = sampledRight = false;
+    Arrays.fill(sampledButtons, false);
+    Arrays.fill(sampledNonDirectionalButtons, false);
+  }
 
   private ControllerSupport() {
   }
@@ -118,35 +169,18 @@ public final class ControllerSupport {
   }
 
   public static boolean isButtonDown(int button) {
-    if (button < 0 || button >= GAMEPAD_BUTTON_INDEX_LIMIT) {
-      return false;
-    }
-    int controllerCount = getControllerCount();
-    for(int controller = 0; controller < controllerCount; controller++) {
-      Controller lwjglController = getGameController(controller);
-      if (lwjglController != null
-          && isControllerButtonDown(button, lwjglController)) {
-        return true;
-      }
-    }
-    return false;
+    return !isControllerInputUnavailable() && button >= 0
+        && button < GAMEPAD_BUTTON_INDEX_LIMIT && sampledButtons[button];
   }
 
   public static boolean isNonDirectionalButtonDown(ButtonMapping mapping) {
-    int controllerCount = getControllerCount();
-    for(int controller = 0; controller < controllerCount; controller++) {
-      Controller lwjglController = getGameController(controller);
-      if (lwjglController == null) {
-        continue;
-      }
-      int buttonCount = Math.min(safeButtonCount(lwjglController),
-          GAMEPAD_BUTTON_INDEX_LIMIT);
-      for(int button = 0; button < buttonCount; button++) {
-        if (!isDirectionalButton(button, lwjglController)
-            && !isMappedDirectionButton(mapping, button)
-            && isControllerButtonDown(button, lwjglController)) {
-          return true;
-        }
+    if (isControllerInputUnavailable()) {
+      return false;
+    }
+    for(int button = 0; button < GAMEPAD_BUTTON_INDEX_LIMIT; button++) {
+      if (sampledNonDirectionalButtons[button]
+          && !isMappedDirectionButton(mapping, button)) {
+        return true;
       }
     }
     return false;
@@ -167,47 +201,11 @@ public final class ControllerSupport {
     return button >= STANDARD_DPAD_UP && button <= STANDARD_DPAD_RIGHT;
   }
 
-  public static boolean refreshControllersIfNeeded() {
-    if (!controllerRefreshEnabled) {
-      return false;
-    }
-
-    boolean createAttemptedBefore =
-        controllersCreateAttempted || Controllers.isCreated();
-    if (hasUsableGameController()) {
-      return false;
-    }
-
-    long now = System.nanoTime();
-    if (!createAttemptedBefore) {
-      lastControllerRefreshNanos = now;
-      return false;
-    }
-    if (lastControllerRefreshNanos != Long.MIN_VALUE
-        && now - lastControllerRefreshNanos
-        < CONTROLLER_REFRESH_INTERVAL_NANOS) {
-      return false;
-    }
-    lastControllerRefreshNanos = now;
-
-    return refreshControllers();
-  }
-
-  public static void setControllerRefreshEnabled(boolean enabled) {
-    if (controllerRefreshEnabled == enabled) {
-      return;
-    }
-    controllerRefreshEnabled = enabled;
-    if (enabled) {
-      lastControllerRefreshNanos = Long.MIN_VALUE;
-    }
-  }
-
-  public static boolean isControllerRefreshEnabled() {
-    return controllerRefreshEnabled;
-  }
-
   private static boolean isAnyControllerUp() {
+    return !isControllerInputUnavailable() && sampledUp;
+  }
+
+  private static boolean readControllerUp() {
     int controllerCount = getControllerCount();
     for(int controller = 0; controller < controllerCount; controller++) {
       Controller lwjglController = getGameController(controller);
@@ -223,6 +221,10 @@ public final class ControllerSupport {
   }
 
   private static boolean isAnyControllerDown() {
+    return !isControllerInputUnavailable() && sampledDown;
+  }
+
+  private static boolean readControllerDown() {
     int controllerCount = getControllerCount();
     for(int controller = 0; controller < controllerCount; controller++) {
       Controller lwjglController = getGameController(controller);
@@ -238,6 +240,10 @@ public final class ControllerSupport {
   }
 
   private static boolean isAnyControllerLeft() {
+    return !isControllerInputUnavailable() && sampledLeft;
+  }
+
+  private static boolean readControllerLeft() {
     int controllerCount = getControllerCount();
     for(int controller = 0; controller < controllerCount; controller++) {
       Controller lwjglController = getGameController(controller);
@@ -253,6 +259,10 @@ public final class ControllerSupport {
   }
 
   private static boolean isAnyControllerRight() {
+    return !isControllerInputUnavailable() && sampledRight;
+  }
+
+  private static boolean readControllerRight() {
     int controllerCount = getControllerCount();
     for(int controller = 0; controller < controllerCount; controller++) {
       Controller lwjglController = getGameController(controller);
@@ -413,9 +423,9 @@ public final class ControllerSupport {
 
   private static float readPovX(Controller controller) {
     try {
-      Float value = readJInputPovValue(controller);
-      if (value != null) {
-        return convertPovX(value.floatValue());
+      float value = readJInputPovValue(controller);
+      if (!Float.isNaN(value)) {
+        return convertPovX(value);
       }
       return controller.getPovX();
     } catch(RuntimeException e) {
@@ -425,9 +435,9 @@ public final class ControllerSupport {
 
   private static float readPovY(Controller controller) {
     try {
-      Float value = readJInputPovValue(controller);
-      if (value != null) {
-        return convertPovY(value.floatValue());
+      float value = readJInputPovValue(controller);
+      if (!Float.isNaN(value)) {
+        return convertPovY(value);
       }
       return controller.getPovY();
     } catch(RuntimeException e) {
@@ -435,16 +445,17 @@ public final class ControllerSupport {
     }
   }
 
-  private static float readAxisValue(int controllerIndex,
-      Controller controller, int axis) {
+  private static float readAxisValue(
+      int controllerIndex, Controller controller, int axis) {
     try {
       if (axis < 0 || axis >= controller.getAxisCount()
           || axis >= GAMEPAD_AXIS_LIMIT) {
         return 0f;
       }
-      Float directValue = readJInputAxisValue(controller, axis);
-      if (directValue != null) {
-        return directValue.floatValue();
+
+      float directValue = readJInputAxisValue(controller, axis);
+      if (!Float.isNaN(directValue)) {
+        return directValue;
       }
       return applyAxisDeadZone(controller.getAxisValue(axis));
     } catch(RuntimeException e) {
@@ -482,68 +493,55 @@ public final class ControllerSupport {
     }
   }
 
-  private static Float readJInputAxisValue(Controller controller, int axis) {
+  private static float readJInputAxisValue(Controller controller, int axis) {
     initJInputReflection(controller);
     net.java.games.input.Component component =
         getJInputComponent(controller, jinputAxesField, axis);
     if (component == null) {
-      return null;
+      return Float.NaN;
     }
 
-    Float pollData = readJInputComponentPollData(component);
-    if (pollData == null) {
-      return null;
+    float value = readJInputComponentPollData(component);
+    if (Float.isNaN(value)) {
+      return Float.NaN;
     }
 
-    float value = pollData.floatValue();
     float deadZone = Math.max(component.getDeadZone(),
         AXIS_RECENTER_THRESHOLD);
     if (Math.abs(value) <= deadZone) {
-      return Float.valueOf(0f);
+      return 0f;
     }
-    return Float.valueOf(value);
+    return value;
   }
 
-  private static Float readJInputPovValue(Controller controller) {
+  private static float readJInputPovValue(Controller controller) {
     initJInputReflection(controller);
     net.java.games.input.Component component =
         getJInputComponent(controller, jinputPovField, 0);
     if (component == null) {
-      return null;
+      return Float.NaN;
     }
     return readJInputComponentPollData(component);
   }
 
-  private static Boolean readJInputButtonValue(Controller controller,
-      int button) {
+  private static float readJInputButtonValue(Controller controller, int button) {
     initJInputReflection(controller);
     net.java.games.input.Component component =
         getJInputComponent(controller, jinputButtonsField, button);
     if (component == null) {
-      return null;
+      return Float.NaN;
     }
-    Float pollData = readJInputComponentPollData(component);
-    if (pollData == null) {
-      return null;
-    }
-    return Boolean.valueOf(pollData.floatValue() != 0f);
+    return readJInputComponentPollData(component);
   }
 
-  private static Float readJInputComponentPollData(
-      final net.java.games.input.Component component) {
-    final float[] value = new float[1];
+  private static float readJInputComponentPollData(
+      net.java.games.input.Component component) {
     try {
-      runWithFilteredJInputPollErrors(new JInputOperation() {
-        public void run() {
-          value[0] = component.getPollData();
-        }
-      });
-      if (isControllerInputUnavailable()) {
-        return null;
-      }
-      return Float.valueOf(value[0]);
-    } catch(Exception e) {
-      return null;
+      float value = component.getPollData();
+      return isControllerInputUnavailable() ? Float.NaN : value;
+    } catch(RuntimeException e) {
+      controllersUnavailable = true;
+      return Float.NaN;
     }
   }
 
@@ -714,9 +712,9 @@ public final class ControllerSupport {
       return false;
     }
     try {
-      Boolean directValue = readJInputButtonValue(controller, button);
-      if (directValue != null) {
-        return directValue.booleanValue();
+      float directValue = readJInputButtonValue(controller, button);
+      if (!Float.isNaN(directValue)) {
+        return directValue != 0f;
       }
       return controller.isButtonPressed(button);
     } catch(RuntimeException e) {
@@ -852,16 +850,6 @@ public final class ControllerSupport {
         || mapping.controllerRight == button;
   }
 
-  private static boolean hasUsableGameController() {
-    int controllerCount = getControllerCount();
-    for(int controller = 0; controller < controllerCount; controller++) {
-      if (getGameController(controller) != null) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   private static Controller getGameController(int controllerIndex) {
     if (!isGameController(controllerIndex)) {
       return null;
@@ -873,8 +861,7 @@ public final class ControllerSupport {
     if (controllerIndex < 0 || controllerIndex >= CONTROLLER_INDEX_LIMIT) {
       return false;
     }
-    if (!controllerCandidateKnown[controllerIndex]
-        || !controllerCandidate[controllerIndex]) {
+    if (!controllerCandidateKnown[controllerIndex]) {
       controllerCandidateKnown[controllerIndex] = true;
       controllerCandidate[controllerIndex] =
           computeGameController(controllerIndex);
@@ -935,8 +922,6 @@ public final class ControllerSupport {
       if (isControllerInputUnavailable()) {
         return null;
       }
-      ensureControllersCreated();
-      pollControllers();
       if (!Controllers.isCreated()
           || controllerIndex >= Controllers.getControllerCount()) {
         return null;
@@ -991,8 +976,6 @@ public final class ControllerSupport {
       if (isControllerInputUnavailable()) {
         return 0;
       }
-      ensureControllersCreated();
-      pollControllers();
       if (isControllerInputUnavailable() || !Controllers.isCreated()) {
         return 0;
       }
@@ -1012,155 +995,29 @@ public final class ControllerSupport {
         || Controllers.isCreated() || controllersCreateAttempted) {
       return;
     }
-
     controllersCreateAttempted = true;
     try {
-      runWithFilteredJInputPollErrors(new JInputOperation() {
-        public void run() throws Exception {
-          Controllers.create();
-        }
-      });
+      Controllers.create();
     } catch(Exception e) {
       controllersUnavailable = true;
+    } catch(LinkageError e) {
+      controllersUnavailable = true;
     }
-  }
-
-  private static boolean refreshControllers() {
-    synchronized(ControllerSupport.class) {
-      try {
-        resetLwjglControllers();
-        resetJInputDefaultEnvironment();
-        resetControllerState();
-        controllersCreateAttempted = true;
-        runWithFilteredJInputPollErrors(new JInputOperation() {
-          public void run() throws Exception {
-            Controllers.create();
-          }
-        });
-      } catch(Throwable t) {
-        controllersUnavailable = true;
-        return false;
-      }
-    }
-    return hasUsableGameController();
-  }
-
-  private static void resetLwjglControllers() throws Exception {
-    setStaticObjectField(Controllers.class, "controllers", new ArrayList());
-    setStaticObjectField(Controllers.class, "events", new ArrayList());
-    setStaticObjectField(Controllers.class, "event", null);
-    setStaticIntField(Controllers.class, "controllerCount", 0);
-    setStaticBooleanField(Controllers.class, "created", false);
-  }
-
-  private static void resetJInputDefaultEnvironment() throws Exception {
-    Class<?> environmentClass =
-        Class.forName("net.java.games.input.ControllerEnvironment");
-    setStaticObjectField(environmentClass, "defaultEnvironment",
-        createDefaultControllerEnvironment());
-  }
-
-  private static Object createDefaultControllerEnvironment() throws Exception {
-    Class<?> environmentClass =
-        Class.forName("net.java.games.input.DefaultControllerEnvironment");
-    Constructor<?> constructor = environmentClass.getDeclaredConstructor();
-    constructor.setAccessible(true);
-    return constructor.newInstance();
-  }
-
-  private static void resetControllerState() {
-    jinputReflectionInitialized = false;
-    jinputAxesField = null;
-    jinputButtonsField = null;
-    jinputPovField = null;
-    jinputXAxisField = null;
-    jinputYAxisField = null;
-    jinputRXAxisField = null;
-    jinputRYAxisField = null;
-    globalPollFailureDetected = false;
-    controllersCreateAttempted = false;
-    controllersUnavailable = false;
-    lastControllerPollNanos = Long.MIN_VALUE;
-
-    for(int controller = 0; controller < CONTROLLER_INDEX_LIMIT; controller++) {
-      controllerCandidateKnown[controller] = false;
-      controllerCandidate[controller] = false;
-    }
-  }
-
-  private static void setStaticObjectField(Class<?> clazz, String name,
-      Object value) throws Exception {
-    Field field = getAccessibleField(clazz, name);
-    field.set(null, value);
-  }
-
-  private static void setStaticIntField(Class<?> clazz, String name,
-      int value) throws Exception {
-    Field field = getAccessibleField(clazz, name);
-    field.setInt(null, value);
-  }
-
-  private static void setStaticBooleanField(Class<?> clazz, String name,
-      boolean value) throws Exception {
-    Field field = getAccessibleField(clazz, name);
-    field.setBoolean(null, value);
   }
 
   private static void pollControllers() {
-    if (isControllerInputUnavailable()) {
+    if (isControllerInputUnavailable() || !Controllers.isCreated()) {
       return;
     }
-
-    long now = System.nanoTime();
-    if (lastControllerPollNanos != Long.MIN_VALUE
-        && now - lastControllerPollNanos < CONTROLLER_POLL_INTERVAL_NANOS) {
-      return;
-    }
-    lastControllerPollNanos = now;
     try {
-      if (Controllers.isCreated()) {
-        runWithFilteredJInputPollErrors(new JInputOperation() {
-          public void run() {
-            Controllers.poll();
-          }
-        });
-      }
+      Controllers.poll();
+      // This input layer reads state, not LWJGL's queued controller events.
+      Controllers.clearEvents();
     } catch(Exception e) {
       controllersUnavailable = true;
+    } catch(LinkageError e) {
+      controllersUnavailable = true;
     }
-  }
-
-  private static void runWithFilteredJInputPollErrors(
-      JInputOperation operation) throws Exception {
-    synchronized(POLL_LOG_FILTER_LOCK) {
-      PrintStream originalOut = System.out;
-      PrintStream originalErr = System.err;
-      JInputPollFilterStream outFilterStream =
-          new JInputPollFilterStream(originalOut);
-      JInputPollFilterStream errFilterStream =
-          new JInputPollFilterStream(originalErr);
-      PrintStream filteredOut = new PrintStream(outFilterStream, true);
-      PrintStream filteredErr = new PrintStream(errFilterStream, true);
-      try {
-        System.setOut(filteredOut);
-        System.setErr(filteredErr);
-        operation.run();
-      } finally {
-        filteredOut.flush();
-        filteredErr.flush();
-        if (outFilterStream.hasSuppressedPollFailure()
-            || errFilterStream.hasSuppressedPollFailure()) {
-          controllersUnavailable = true;
-        }
-        System.setOut(originalOut);
-        System.setErr(originalErr);
-      }
-    }
-  }
-
-  private static interface JInputOperation {
-
-    public void run() throws Exception;
   }
 
   private static class JInputPollFilterStream extends OutputStream {
@@ -1168,7 +1025,6 @@ public final class ControllerSupport {
     private final PrintStream target;
     private final ByteArrayOutputStream lineBuffer =
         new ByteArrayOutputStream();
-    private boolean suppressedPollFailure;
 
     JInputPollFilterStream(PrintStream target) {
       this.target = target;
@@ -1216,14 +1072,10 @@ public final class ControllerSupport {
           && (text.indexOf("Failed to poll device") != -1
           || text.indexOf("Failed to get device state") != -1));
       if (pollFailure) {
-        suppressedPollFailure = true;
         globalPollFailureDetected = true;
       }
       return pollFailure;
     }
 
-    boolean hasSuppressedPollFailure() {
-      return suppressedPollFailure;
-    }
   }
 }

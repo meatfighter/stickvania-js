@@ -153,10 +153,6 @@ public class InputConfigMode implements KeyListener {
       syncControllerInputState();
       return;
     }
-    if (ControllerSupport.refreshControllersIfNeeded()) {
-      syncControllerInputState();
-      return;
-    }
     int direction = getPressedControllerDirection();
     if (direction != ButtonMapping.NO_BINDING && !isActionStep()) {
       bindControllerDirection(direction);
@@ -397,7 +393,7 @@ public class InputConfigMode implements KeyListener {
   }
 
   private void syncControllerInputState() {
-    ControllerSupport.refreshControllersIfNeeded();
+
     controllerUpDown = ControllerSupport.isUpDown();
     controllerDownDown = ControllerSupport.isDownDown();
     controllerLeftDown = ControllerSupport.isLeftDown();
