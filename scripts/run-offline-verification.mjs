@@ -45,12 +45,19 @@ try {
         'window.__stickvaniaBooted === true && navigator.serviceWorker?.controller !== null && document.querySelector("#new-game-button") !== null',
         30_000
     );
+    // Reload under the active worker so every preloaded byte belongs to its cache.
+    await browser.page.call("Page.enable");
+    await browser.page.call("Page.reload", { ignoreCache: true });
+    await waitForExpression(browser.page, "window.__gameResourcesPrepared === true", 120_000);
     await browser.page.call("Network.enable");
     await browser.page.call("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
     await browser.page.call("Page.enable");
     await browser.page.call("Page.reload", { ignoreCache: true });
     await waitForExpression(browser.page, 'window.__stickvaniaBooted === true && document.querySelector("#new-game-button") !== null', 30_000);
-    console.log("Stickvania production PWA booted successfully while offline.");
+    await waitForExpression(browser.page, "window.__gameResourcesPrepared === true", 120_000);
+    await browser.page.call("Runtime.evaluate", { expression: 'document.querySelector("#new-game-button").click()', userGesture: true });
+    await waitForExpression(browser.page, 'document.querySelector("canvas") !== null', 30_000);
+    console.log("Stickvania production PWA prepared all resources and entered the game while offline.");
 } finally {
     if (browser !== null) {
         try {

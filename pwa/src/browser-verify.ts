@@ -3,6 +3,7 @@ import { getStickvaniaResourceVersion } from "./ResourceVersions.generated.js";
 import { STICKVANIA_RESOURCE_REFS } from "./resources.js";
 import { Main } from "./stickvania/Main.js";
 import { StickvaniaBufferedGame } from "./stickvania/StickvaniaBufferedGame.js";
+import { StickvaniaGameStateSerializer } from "./stickvania/persistence/StickvaniaGameStateSerializer.js";
 import { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
 
 const result = document.querySelector<HTMLElement>("#result");
@@ -54,11 +55,16 @@ async function mountMain(restore: ((main: Main, container: AppGameContainer) => 
     container.setHighDpiEnabled(true);
     container.setMaxDevicePixelRatio(2);
     if (restore !== null) {
-        main.loadingCompleteHandler = () => restore(main, container);
+        main.loadingCompleteHandler = () => {
+            const restored = restore(main, container);
+            container.setLoopSuspended(true);
+            return restored;
+        };
     }
     await container.start();
     await ResourceLoader.waitForAll();
-    await waitForTitle(main);
+    if (restore === null) await waitForTitle(main);
+    container.setLoopSuspended(true);
     assert(buffered.getPresentationInfo().physicalWidth > 0, "Buffered presentation did not acquire a physical width.");
     return { main, buffered, container };
 }
@@ -72,6 +78,20 @@ function destroyMounted(mounted: { main: Main; container: AppGameContainer } | n
     Display.setParent(null);
 }
 
+function advanceFrames(mounted: { main: Main; container: AppGameContainer }, count: number): void {
+    // Call the existing Java-parity frame operation, bypassing only the wall clock.
+    const frame = Reflect.get(mounted.main, "updateFrame") as (gc: AppGameContainer) => void;
+    for (let i = 0; i < count; i++) frame.call(mounted.main, mounted.container);
+}
+
+function gameplaySnapshot(serializer: StickvaniaGameStateSerializer, main: Main): string {
+    const snapshot = serializer.createSnapshot(main, "browser-verification");
+    // Wall-clock timestamps and audio playback positions are intentionally nondeterministic.
+    const fields = { ...snapshot.mainFields };
+    delete fields.nextFrameTime;
+    return JSON.stringify({ mode: snapshot.mode, fields, random: snapshot.random, stage: snapshot.stage, things: snapshot.things });
+}
+
 async function verify(): Promise<void> {
     localStorage.clear();
     await preloadRuntimeResources();
@@ -81,7 +101,15 @@ async function verify(): Promise<void> {
     let second: Awaited<ReturnType<typeof mountMain>> | null = null;
     try {
         first = await mountMain(null);
-        assert(first.main.isStateSaveReady(), "Title-screen Main should be ready for a stageless save.");
+        first.main.createStageForStateRestore(0);
+        first.main.mode = Main.MODE_PLAYING;
+        first.main.playerPower = 16;
+        first.main.fade = Main.FADE_DONE;
+        first.main.fadeState = Main.FADE_IN;
+        assert(first.main.simon !== null, "Stage must contain Simon.");
+        first.main.simon.x += 16;
+        first.main.fireSparks(first.main.simon.x + 100, first.main.simon.y - 40);
+        assert(first.main.isStateSaveReady(), "Active stage must be saveable.");
         first.main.score = 123450;
         first.main.players = 3;
         assert(store.save(first.main), "Real browser Main did not save successfully.");
@@ -90,6 +118,11 @@ async function verify(): Promise<void> {
         first.buffered.setScalingPreference("pixel-perfect");
         first.buffered.setScalingPreference("crisp");
 
+        const serializer = new StickvaniaGameStateSerializer();
+        const saved = serializer.createSnapshot(first.main, "browser-verification");
+        assert(saved.stage !== null && saved.things.length > 1, "Fixture must contain a real stage and multiple entities.");
+        advanceFrames(first, 12);
+        const expected = gameplaySnapshot(serializer, first.main);
         destroyMounted(first);
         first = null;
 
@@ -97,6 +130,9 @@ async function verify(): Promise<void> {
         assert(second.main.isStateSaveReady(), "Restored browser Main is not save-state ready.");
         assert(second.main.score === 123450, "Fresh Stickvania Main did not restore score state.");
         assert(second.main.players === 3, "Fresh Stickvania Main did not restore player-count state.");
+        assert(second.main.mode === Main.MODE_PLAYING && second.main.simon !== null, "Fresh Main must restore active gameplay.");
+        advanceFrames(second, 12);
+        assert(gameplaySnapshot(serializer, second.main) === expected, "Restored stage diverged from uninterrupted gameplay after 12 simulation frames.");
     } finally {
         destroyMounted(first);
         destroyMounted(second);

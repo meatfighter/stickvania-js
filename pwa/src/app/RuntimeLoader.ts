@@ -71,6 +71,8 @@ export class StickvaniaRuntimeLoader {
         }
         if (this.readinessBarrier !== null) {
             await this.readinessBarrier.catch(() => undefined);
+            if (this.preparationPromise !== null) return this.preparationPromise;
+            if (this.preparedRuntime !== null) return this.preparedRuntime;
         }
 
         ResourceLoader.clearFailures();
@@ -86,6 +88,7 @@ export class StickvaniaRuntimeLoader {
                     throw new Error("Stickvania runtime preparation was superseded.");
                 }
                 this.preparedRuntime = runtime;
+                Reflect.set(window, "__gameResourcesPrepared", true);
                 this.preparationError = null;
                 this.setProgress(1);
                 return runtime;

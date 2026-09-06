@@ -1,3 +1,5 @@
+import { unlockGameAudio } from "./app/AudioUnlock.js";
+import { GameSessionOwnership } from "./app/GameSessionOwnership.js";
 import { SoundStore, type AppGameContainer } from "slick2d-ts";
 import { BrowserPreferences } from "./app/BrowserPreferences.js";
 import { GameViewportController } from "./app/GameViewportController.js";
@@ -18,6 +20,7 @@ const HIGH_DPI_ENABLED = true;
 const MAX_DEVICE_PIXEL_RATIO = 4;
 
 let app: HTMLElement;
+let ownership: GameSessionOwnership;
 let container: AppGameContainer | null = null;
 let game: Main | null = null;
 let activeBufferedGame: StickvaniaBufferedGame | null = null;
@@ -391,6 +394,7 @@ function hideHamburgerButton(): void {
 }
 
 function saveCurrentGameState(): boolean {
+    if (!ownership?.owned) return false;
     if (game === null || !game.isStateSaveReady()) {
         return false;
     }
@@ -525,7 +529,7 @@ function updateHamburgerVisibility(): void {
 }
 
 async function unlockAudio(): Promise<void> {
-    await SoundStore.get().unlock();
+    await unlockGameAudio();
 }
 
 function startPwaMenu(): void {
@@ -550,7 +554,11 @@ function setupPageLifecycleHandlers(): void {
 async function boot(): Promise<void> {
     app = requiredElement<HTMLElement>(document, "#app");
     setupPageLifecycleHandlers();
-    startPwaMenu();
+    ownership = new GameSessionOwnership(app, startPwaMenu, () => {
+        saveCurrentGameState();
+        destroyGame();
+    });
+    ownership.start();
 }
 
 function requiredElement<T extends Element>(parent: ParentNode, selector: string): T {
