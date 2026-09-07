@@ -1,4 +1,6 @@
 const VERSION = "__SERVICE_WORKER_VERSION__";
+/* global __INSTALL_ICON_VERSIONS__ */
+const INSTALL_ICON_VERSIONS = __INSTALL_ICON_VERSIONS__;
 const SCOPE_CACHE_ID = encodeURIComponent(new URL(self.registration.scope).pathname);
 const CACHE_PREFIX = `stickvania-pwa|${SCOPE_CACHE_ID}|`;
 const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
@@ -12,6 +14,22 @@ function canUseCacheApi(request) {
         url.origin === self.location.origin &&
         url.href.startsWith(self.registration.scope)
     );
+}
+
+function relativeResourcePath(url) {
+    const scope = new URL(self.registration.scope);
+    if (url.origin !== self.location.origin || !url.href.startsWith(scope.href)) {
+        return null;
+    }
+    return decodeURIComponent(url.pathname.slice(scope.pathname.length)).replace(/^\/+/, "");
+}
+
+function installIconVersionForUrl(url) {
+    const relativePath = relativeResourcePath(url);
+    if (relativePath === null) {
+        return null;
+    }
+    return INSTALL_ICON_VERSIONS[relativePath] ?? null;
 }
 
 function createCacheUrl(requestOrUrl) {
@@ -30,6 +48,22 @@ function createNavigationIndexCacheUrl(request) {
         indexUrl.searchParams.set("v", requestUrl.searchParams.get("v"));
     }
     return createCacheUrl(indexUrl.href);
+}
+
+async function matchCurrentCache(requestOrUrl) {
+    const rawUrl = typeof requestOrUrl === "string" ? requestOrUrl : requestOrUrl.url;
+    const requestUrl = new URL(rawUrl, self.registration.scope);
+    const cacheUrl = createCacheUrl(requestOrUrl);
+    const cached = await caches.match(cacheUrl, { cacheName: CACHE_NAME });
+    if (cached) {
+        return cached;
+    }
+
+    const installIconVersion = installIconVersionForUrl(requestUrl);
+    if (installIconVersion !== null && requestUrl.searchParams.get("v") === installIconVersion) {
+        return caches.match(cacheUrl, { cacheName: CACHE_NAME, ignoreSearch: true });
+    }
+    return undefined;
 }
 
 async function fetchOnce(request) {
@@ -72,7 +106,7 @@ self.addEventListener("fetch", (event) => {
         return;
     }
     event.respondWith(
-        caches.match(createCacheUrl(request)).then((cached) => {
+        matchCurrentCache(request).then((cached) => {
             return cached || fetchOnce(request);
         })
     );

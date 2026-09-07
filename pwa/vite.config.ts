@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, parse, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +23,12 @@ const encodedBuildStamp = encodeURIComponent(versionInfo.buildStamp);
 const encodedCacheVersion = encodeURIComponent(cacheVersion);
 const serviceWorkerPrecachePattern = /const PRECACHE_URLS = \[[\s\S]*?\];/;
 const serviceWorkerVersionPlaceholder = '"__SERVICE_WORKER_VERSION__"';
+const assetVersionTokenPattern = /%ASSET_VERSION\(([^)]+)\)%/g;
+const maskableIconRef = "images/icon-maskable.svg";
+const installIconRefs = ["images/icon.png", "images/icon-192.png", "images/icon-512.png"] as const;
 const resourceVersions = JSON.parse(readFileSync(join(rootDir, "resource-versions.generated.json"), "utf8")) as Record<string, string>;
+const maskableIconSvg = createMaskableIconSvg();
+const installIconVersions = createInstallIconVersions();
 
 function versionedHtmlPlugin(): PluginOption {
     return {
@@ -37,10 +43,12 @@ function versionedHtmlPlugin(): PluginOption {
 }
 
 function renderVersionPlaceholders(text: string): string {
-    return text
-        .replaceAll("%APP_VERSION%", versionInfo.version)
-        .replaceAll("%BUILD_STAMP%", encodedBuildStamp)
-        .replaceAll("%CACHE_VERSION%", encodedCacheVersion);
+    return renderAssetVersionPlaceholders(
+        text
+            .replaceAll("%APP_VERSION%", versionInfo.version)
+            .replaceAll("%BUILD_STAMP%", encodedBuildStamp)
+            .replaceAll("%CACHE_VERSION%", encodedCacheVersion)
+    );
 }
 
 function readVersionInfo(): VersionInfo {
@@ -52,6 +60,41 @@ function readVersionInfo(): VersionInfo {
         };
     }
     return version;
+}
+
+function createMaskableIconSvg(): string {
+    const iconBytes = readFileSync(join(rootDir, "public", "images", "icon-512.png"));
+    const dataUrl = `data:image/png;base64,${iconBytes.toString("base64")}`;
+    return [
+        '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">',
+        '    <rect width="512" height="512" fill="#000000"/>',
+        `    <image href="${dataUrl}" x="112" y="112" width="288" height="288" preserveAspectRatio="xMidYMid meet"/>`,
+        "</svg>",
+        ""
+    ].join("\n");
+}
+
+function contentVersion(bytes: string | Buffer): string {
+    return createHash("sha256").update(bytes).digest("hex");
+}
+
+function createInstallIconVersions(): Readonly<Record<string, string>> {
+    const versions: Record<string, string> = {};
+    for (const ref of installIconRefs) {
+        versions[ref] = contentVersion(readFileSync(join(rootDir, "public", ...ref.split("/"))));
+    }
+    versions[maskableIconRef] = contentVersion(maskableIconSvg);
+    return versions;
+}
+
+function renderAssetVersionPlaceholders(text: string): string {
+    return text.replace(assetVersionTokenPattern, (_match, ref: string) => {
+        const version = installIconVersions[ref];
+        if (version === undefined) {
+            throw new Error(`Unknown PWA install asset version token: ${ref}`);
+        }
+        return encodeURIComponent(version);
+    });
 }
 
 function resolveSafeDistRootDir(): string {
@@ -212,7 +255,12 @@ function renderServiceWorker(text: string): string {
         throw new Error("Unable to find service worker version placeholder in built service worker.");
     }
 
-    return renderVersionPlaceholders(text).replaceAll(serviceWorkerVersionPlaceholder, JSON.stringify(cacheVersion));
+    return renderVersionPlaceholders(text)
+        .replace(
+            "const INSTALL_ICON_VERSIONS = __INSTALL_ICON_VERSIONS__;",
+            `const INSTALL_ICON_VERSIONS = ${JSON.stringify(installIconVersions, null, 4)};`
+        )
+        .replaceAll(serviceWorkerVersionPlaceholder, JSON.stringify(cacheVersion));
 }
 
 function writeServiceWorkerPrecacheManifest(): void {
@@ -246,6 +294,8 @@ function versionedStaticAssetsPlugin(command: string): PluginOption {
             if (!isBuild) {
                 return;
             }
+
+            writeFileSync(join(distPwaDir, maskableIconRef), maskableIconSvg);
 
             const indexPath = join(distPwaDir, "index.html");
             if (existsSync(indexPath)) {
