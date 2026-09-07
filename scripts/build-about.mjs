@@ -10,6 +10,7 @@ import {
     withReleaseOperationLock,
     writeAtomicTextFile
 } from "./build-utils.mjs";
+import { finalizeAboutPageHtml, prepareAboutArticleHtml } from "./about-html.mjs";
 import { renderAboutMarkdown } from "./about-markdown.mjs";
 
 const packageJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
@@ -42,7 +43,7 @@ await withReleaseOperationLock("build-about", async () => {
     const renderedMarkdown = renderAboutMarkdown(contentMarkdown);
     const pageReplacements = {
         __APP_VERSION__: version.version,
-        __ARTICLE_HTML__: renderedMarkdown.articleHtml,
+        __ARTICLE_HTML__: prepareAboutArticleHtml(renderedMarkdown),
         __BUILD_STAMP__: version.buildStamp,
         __BUILD_STAMP_ENCODED__: encodedBuildStamp,
         __CANONICAL_URL__: canonicalUrl,
@@ -58,10 +59,10 @@ await withReleaseOperationLock("build-about", async () => {
 
     ensureDirectory(distDir);
     ensureDirectory(outputAssetsDir);
-    writeGeneratedText(
-        join(distDir, "index.html"),
+    const indexHtml = finalizeAboutPageHtml(
         renderCheckedTemplate(readFileSync(join(aboutDir, "index.html"), "utf8"), pageReplacements, "about index page")
     );
+    writeGeneratedText(join(distDir, "index.html"), indexHtml);
     writeGeneratedText(
         join(distDir, "styles.css"),
         renderCheckedTemplate(readFileSync(join(aboutDir, "styles.css"), "utf8"), pageReplacements, "about stylesheet")
