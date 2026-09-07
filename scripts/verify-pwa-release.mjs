@@ -694,14 +694,13 @@ test("PWA release output uses relocatable relative URLs", () => {
         assert.equal(new URL(manifest.scope, scopeUrl).href, scopeUrl);
 
         const startUrl = assertUrlInsideScope(manifest.start_url, scopeUrl, "manifest start_url");
-        assert.equal(startUrl.searchParams.get("v"), cacheVersion);
+        assert.equal(startUrl.href, scopeUrl);
         const identityUrl = new URL(manifest.id, `${startUrl.origin}/`).href;
         assert.equal(identityUrl, `${startUrl.origin}/stickvania`);
         identityUrls.add(identityUrl);
 
         for (const icon of manifest.icons) {
-            const iconUrl = assertUrlInsideScope(icon.src, scopeUrl, `manifest icon ${icon.src}`);
-            assert.equal(iconUrl.searchParams.get("v"), cacheVersion);
+            assertUrlInsideScope(icon.src, scopeUrl, `manifest icon ${icon.src}`);
         }
 
         for (const precacheUrl of actualPrecacheUrls()) {
@@ -829,7 +828,9 @@ test("PWA service worker preserves versioned cache-busting parameters", () => {
     assert.doesNotMatch(serviceWorker, /searchParams\.delete/);
     assert.match(serviceWorker, /!url\.searchParams\.has\("v"\)/);
     assert.match(serviceWorker, /url\.searchParams\.set\("v", VERSION\)/);
-    assert.match(serviceWorker, /caches\.match\(createCacheUrl\(request\)\)/);
+    assert.match(serviceWorker, /matchCurrentCache\(request\)/);
+    assert.match(serviceWorker, /requestUrl\.searchParams\.get\("v"\) === installIconVersion/);
+    assert.match(serviceWorker, /ignoreSearch:\s*true/);
 
     const oldCacheUrl = builtServiceWorkerCacheUrl("./images/icon.png?v=old");
     const newCacheUrl = builtServiceWorkerCacheUrl("./images/icon.png?v=new");
