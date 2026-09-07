@@ -683,6 +683,7 @@ test("PWA release output uses relocatable relative URLs", () => {
     const html = builtPwaIndexHtml();
     const manifest = builtPwaManifest();
     const htmlResourceUrls = extractHtmlResourceUrls(html);
+    const identityUrls = new Set();
     assert.ok(htmlResourceUrls.length > 0, "Built PWA index should contain resource URLs to verify.");
 
     for (const scopeUrl of relocationPwaScopeUrls) {
@@ -690,11 +691,13 @@ test("PWA release output uses relocatable relative URLs", () => {
             assertUrlInsideScope(resourceUrl, scopeUrl, `PWA index resource ${resourceUrl}`);
         }
 
-        assert.equal(new URL(manifest.id, scopeUrl).href, scopeUrl);
         assert.equal(new URL(manifest.scope, scopeUrl).href, scopeUrl);
 
         const startUrl = assertUrlInsideScope(manifest.start_url, scopeUrl, "manifest start_url");
         assert.equal(startUrl.searchParams.get("v"), cacheVersion);
+        const identityUrl = new URL(manifest.id, `${startUrl.origin}/`).href;
+        assert.equal(identityUrl, `${startUrl.origin}/stickvania`);
+        identityUrls.add(identityUrl);
 
         for (const icon of manifest.icons) {
             const iconUrl = assertUrlInsideScope(icon.src, scopeUrl, `manifest icon ${icon.src}`);
@@ -705,6 +708,12 @@ test("PWA release output uses relocatable relative URLs", () => {
             assertUrlInsideScope(precacheUrl, scopeUrl, `precache URL ${precacheUrl}`);
         }
     }
+
+    assert.deepEqual(
+        [...identityUrls],
+        ["https://example.invalid/stickvania"],
+        "Manifest id must remain the same game identity when identical PWA bytes are mounted at different paths."
+    );
 });
 
 test("PWA release output does not contain hard-coded deployment paths", () => {

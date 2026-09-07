@@ -28,7 +28,8 @@ select {
 }
 
 .boot-screen,
-.menu-screen {
+.menu-screen,
+.session-ownership-screen {
     position: fixed;
     inset: 0;
     display: flex;
@@ -104,6 +105,15 @@ select {
     flex-direction: column;
     align-items: center;
     gap: 24px;
+}
+
+.session-ownership-panel {
+    display: flex;
+    width: min(520px, calc(100vw - 48px));
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
 }
 
 .volume-row {
@@ -212,6 +222,12 @@ select {
     display: grid;
     align-items: center;
     gap: 10px;
+}
+
+.setting-theme-row,
+.setting-scaling-row,
+.setting-switch-row,
+.session-ownership-message {
     color: #ffffff;
     font-size: 16px;
     font-weight: 700;
@@ -225,6 +241,17 @@ select {
 
 .setting-switch-row {
     grid-template-columns: max-content 66px;
+}
+
+.session-ownership-message {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+    text-align: center;
+    white-space: normal;
 }
 
 .theme-picker {
