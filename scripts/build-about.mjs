@@ -57,9 +57,7 @@ await withReleaseOperationLock("build-about", async () => {
 
     ensureDirectory(distDir);
     ensureDirectory(outputAssetsDir);
-    const indexHtml = finalizeAboutPageHtml(
-        renderCheckedTemplate(readFileSync(join(aboutDir, "index.html"), "utf8"), pageReplacements, "about index page")
-    );
+    const indexHtml = finalizeAboutPageHtml(renderCheckedTemplate(readFileSync(join(aboutDir, "index.html"), "utf8"), pageReplacements, "about index page"));
     writeGeneratedText(join(distDir, "index.html"), indexHtml);
     writeGeneratedText(
         join(distDir, "styles.css"),
