@@ -32,7 +32,7 @@
         "lint": "eslint \"pwa/src/**/*.ts\" \"pwa/vite.config.ts\" \"pwa/public/sw.js\"",
         "generate:state-fields": "node scripts/generate-state-field-registry.mjs",
         "check:state-fields": "node scripts/generate-state-field-registry.mjs --check",
-        "test:about-page": "node scripts/test-about-page.mjs",
+        "test:about-page": "node scripts/test-about-page.mjs && node --test scripts/test-about-html.mjs",
         "_verify:pwa-release": "node scripts/verify-pwa-release.mjs",
         "test:pwa-release": "node scripts/run-stamped-release.mjs --dist .release-components/pwa-test --clean-dist _build:pwa:release _verify:pwa-release",
         "test:pwa-state-hardening": "node scripts/test-pwa-state-hardening.mjs",
