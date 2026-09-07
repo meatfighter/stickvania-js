@@ -1,13 +1,28 @@
 * text=auto eol=lf
 
+*.cmd text eol=lf
+*.ps1 text eol=lf
+*.sh text eol=lf
+*.svg text eol=lf
+
 desktop/src/images/*.def -text !eol
 desktop/src/stages/*.txt -text !eol
 pwa/public/images/*.def -text !eol
 pwa/public/stages/*.txt -text !eol
 
 *.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
 *.ico binary
 *.ogg binary
+*.wav binary
+*.mp3 binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
 *.jar binary
 *.dll binary
 *.so binary
