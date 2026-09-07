@@ -6,5 +6,6 @@ const manifestPath = new URL("../pwa/public/manifest.webmanifest", import.meta.u
 
 test("Stickvania PWA manifest has a stable game-specific identity", () => {
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-    assert.equal(manifest.id, "/stickvania/");
+    assert.equal(manifest.id, "./stickvania/");
+    assert.equal(new URL(manifest.id, "https://example.invalid/").pathname, "/stickvania/");
 });
