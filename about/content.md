@@ -40,9 +40,11 @@ While playing outside fullscreen mode, a hamburger button appears in the upper-l
 
 The browser menu also provides:
 
-- **Volume** — Adjusts the game volume.
 - **Theme** — Selects the game's color scheme.
 - **Rumble** — Switches vibration on or off for compatible gamepads.
+- **Scaling** — Controls how the game is resized to fit the display.
+- **Volume** — Adjusts the game volume.
+- **Reset** — Erases saved state and restores settings to their defaults.
 
 _Stickvania_ automatically pauses when the browser loses focus and resumes when the browser regains focus.
 
