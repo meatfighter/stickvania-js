@@ -70,7 +70,7 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(indexTemplate, /as="font"/);
     assert.match(indexTemplate, /class="site-logo"/);
     assert.match(indexTemplate, /src=".\/__TITLE_SVG_SRC__"/);
-    assert.match(indexTemplate, /sizes="__TITLE_IMAGE_SIZES__"/);
+    assert.doesNotMatch(indexTemplate, /sizes="__TITLE_IMAGE_SIZES__"/);
     assert.match(indexTemplate, /width="__TITLE_IMAGE_WIDTH__"/);
     assert.match(indexTemplate, /height="__TITLE_IMAGE_HEIGHT__"/);
     assert.match(indexTemplate, /__TOC_HTML__/);
