@@ -19,7 +19,6 @@ const repositoryUrl = normalizeRepositoryUrl(packageJson.repository);
 const description = "Play Stickvania in the browser and read about its Java origins, TypeScript rewrite, controls, difficulty modes, and desktop ZIP download.";
 const titleImageWidth = 750;
 const titleImageHeight = 480;
-const titleImageSizes = "min(750px, calc(100vw - 2rem))";
 
 await withReleaseOperationLock("build-about", async () => {
     const version = readVersion();
@@ -51,7 +50,6 @@ await withReleaseOperationLock("build-about", async () => {
         __REPOSITORY_URL__: repositoryUrl,
         __SOCIAL_IMAGE_URL__: `${canonicalUrl}assets/stickvania-screenshot.png?v=${encodedBuildStamp}`,
         __TITLE_IMAGE_HEIGHT__: titleImageHeight,
-        __TITLE_IMAGE_SIZES__: titleImageSizes,
         __TITLE_IMAGE_WIDTH__: titleImageWidth,
         __TITLE_SVG_SRC__: `assets/title.svg?v=${encodedBuildStamp}`,
         __TOC_HTML__: renderedMarkdown.tocHtml
