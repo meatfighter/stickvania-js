@@ -5,6 +5,7 @@ import { BrowserPreferences } from "./app/BrowserPreferences.js";
 import { GameViewportController } from "./app/GameViewportController.js";
 import { renderMenu } from "./app/MenuView.js";
 import { StickvaniaRuntimeLoader, type PreparedRuntime } from "./app/RuntimeLoader.js";
+import { ScreenWakeLockManager } from "./app/ScreenWakeLockManager.js";
 import { registerStickvaniaServiceWorker } from "./app/ServiceWorkerRegistrar.js";
 import { SessionGeneration } from "./app/SessionGeneration.js";
 import { createDisplayMonochromePalette, type DisplayModePreference } from "./DisplayThemes.js";
@@ -28,6 +29,7 @@ let activeGameShell: HTMLElement | null = null;
 let activeGameHost: HTMLElement | null = null;
 let menuOverlay: HTMLElement | null = null;
 let liveMenuOpen = false;
+let gameLaunchInProgress = false;
 let hamburgerVisibilityAnimationFrame = 0;
 let rumbleManager: RumbleManager | null = null;
 let gameStateStore: StickvaniaGameStateStore | null = null;
@@ -39,6 +41,7 @@ const preferences = new BrowserPreferences();
 const sessions = new SessionGeneration();
 const viewport = new GameViewportController();
 const runtimeLoader = new StickvaniaRuntimeLoader(refreshVisibleBootProgress);
+const screenWakeLock = new ScreenWakeLockManager();
 
 declare global {
     interface Window {
@@ -185,6 +188,8 @@ function showGameShell(): HTMLElement {
 async function startGame(restoreSavedGame: boolean): Promise<void> {
     const audioUnlockPromise = unlockAudio();
     destroyGame();
+    gameLaunchInProgress = true;
+    syncScreenWakeLock();
     const session = sessions.begin();
     if (runtimeLoader.getPreparedRuntime() === null) {
         showBoot(runtimeLoader.getProgress());
@@ -283,6 +288,8 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
         mainGame.setBrowserSuspended(false);
         appContainer.setLoopSuspended(false);
     }
+    gameLaunchInProgress = false;
+    syncScreenWakeLock();
 }
 
 function scheduleBackgroundPreparation(): void {
@@ -350,6 +357,7 @@ function showLiveMenuOverlay(): void {
     }
     removeMenuOverlay();
     liveMenuOpen = true;
+    syncScreenWakeLock();
     const saved = saveCurrentGameState();
     game.setBrowserSuspended(true);
     container.stopSoundEffects();
@@ -369,6 +377,7 @@ function resumeLiveGameFromMenu(): void {
     const liveGame = game;
     const liveContainer = container;
     removeMenuOverlay();
+    syncScreenWakeLock();
     liveContainer.getInput().resume();
     liveGame.clearInputPressedRecords();
     applyDisplayModePreference(liveGame);
@@ -478,9 +487,14 @@ function resetLifecycleSuspension(): void {
     suspendedByVisibilityLoss = false;
 }
 
+function syncScreenWakeLock(): void {
+    screenWakeLock.setDesired(gameLaunchInProgress || (container !== null && !liveMenuOpen));
+}
+
 function destroyGame(): void {
     sessions.invalidate();
     gameStateStore?.cancelPendingRestore();
+    gameLaunchInProgress = false;
     resetLifecycleSuspension();
     removeMenuOverlay();
     stopHamburgerVisibilityMonitor();
@@ -500,6 +514,7 @@ function destroyGame(): void {
     activeGameShell = null;
     activeGameHost = null;
     runtimeLoader.getPreparedRuntime()?.slick.Display.setParent(null);
+    syncScreenWakeLock();
 }
 
 function startHamburgerVisibilityMonitor(): void {
