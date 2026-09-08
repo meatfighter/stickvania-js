@@ -259,12 +259,18 @@ async function verifyGameplayViewportContainment(page) {
             Math.abs(geometry.shell.right - viewport.width) <= 1 && Math.abs(geometry.shell.bottom - viewport.height) <= 1,
             `${viewport.label}: game shell does not fill the current viewport.`
         );
-        assert.ok(geometry.canvas.left >= geometry.shell.left - 1 && geometry.canvas.top >= geometry.shell.top - 1, `${viewport.label}: canvas starts outside the game shell.`);
+        assert.ok(
+            geometry.canvas.left >= geometry.shell.left - 1 && geometry.canvas.top >= geometry.shell.top - 1,
+            `${viewport.label}: canvas starts outside the game shell.`
+        );
         assert.ok(
             geometry.canvas.right <= geometry.shell.right + 1 && geometry.canvas.bottom <= geometry.shell.bottom + 1,
             `${viewport.label}: canvas extends outside the game shell.`
         );
-        assert.ok(Math.abs(geometry.canvas.width / geometry.canvas.height - 512 / 416) <= 0.01, `${viewport.label}: Stickvania's 512x416 presentation ratio changed.`);
+        assert.ok(
+            Math.abs(geometry.canvas.width / geometry.canvas.height - 512 / 416) <= 0.01,
+            `${viewport.label}: Stickvania's 512x416 presentation ratio changed.`
+        );
         assert.ok(geometry.scrollWidth <= geometry.clientWidth + 1, `${viewport.label}: gameplay causes horizontal page overflow.`);
         assert.ok(geometry.scrollHeight <= geometry.clientHeight + 1, `${viewport.label}: gameplay causes vertical page overflow.`);
     }
