@@ -488,7 +488,7 @@ function resetLifecycleSuspension(): void {
 }
 
 function syncScreenWakeLock(): void {
-    screenWakeLock.setDesired(gameLaunchInProgress || (container !== null && !liveMenuOpen));
+    screenWakeLock.setDesired(!liveMenuOpen && (gameLaunchInProgress || container !== null));
 }
 
 function destroyGame(): void {
