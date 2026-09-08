@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { cleanupBrowser, findBrowser, launchBrowser, stopChild, waitForExpression, waitForHttpServer } from "./browser-test-utils.mjs";
@@ -9,6 +10,8 @@ const port = 5198;
 const browserVerificationUrl = `http://127.0.0.1:${port}/browser-verify.html`;
 const appUrl = `http://127.0.0.1:${port}/`;
 const viteBin = resolve(rootDir, "node_modules", "vite", "bin", "vite.js");
+const stylesSource = readFileSync(resolve(rootDir, "pwa", "src", "styles.css"), "utf8");
+verifyGameplayViewportCssContract(stylesSource);
 const server = spawn(process.execPath, [viteBin, "--config", "pwa/vite.config.ts", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
     cwd: rootDir,
     stdio: ["ignore", "pipe", "pipe"]
@@ -132,6 +135,7 @@ async function verifySessionOwnership(url, gameName) {
         assert.equal(await movedMessage.evaluate((element) => globalThis.getComputedStyle(element).display), "block");
 
         await second.locator(".setting-scaling-row > span").first().waitFor({ state: "visible", timeout: 30_000 });
+        await verifyGameplayViewportContainment(second);
         console.log(`${gameName} multi-tab ownership verification passed.`);
     } finally {
         await ownershipBrowser.close();
@@ -173,6 +177,113 @@ async function verifyMenuLayout(page) {
 
     await page.setViewportSize({ width: 800, height: 600 });
     console.log("Stickvania responsive settings layout verification passed.");
+}
+
+async function verifyGameplayViewportContainment(page) {
+    await page.locator("#new-game-button").click();
+    const shell = page.locator(".game-shell");
+    const canvas = page.locator(".game-host canvas");
+    await shell.waitFor({ state: "visible", timeout: 120_000 });
+    await canvas.waitFor({ state: "visible", timeout: 120_000 });
+    await page.locator("#hamburger-button").waitFor({ state: "visible", timeout: 120_000 });
+
+    const viewportSequence = [
+        { width: 375, height: 667, label: "iPhone 8 portrait" },
+        { width: 667, height: 375, label: "iPhone 8 landscape" },
+        { width: 667, height: 320, label: "iPhone 8 landscape with browser chrome" },
+        { width: 667, height: 375, label: "restored iPhone 8 landscape" },
+        { width: 375, height: 667, label: "restored iPhone 8 portrait" }
+    ];
+
+    for (const viewport of viewportSequence) {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.waitForFunction(
+            ({ width, height }) => {
+                const shellElement = globalThis.document.querySelector(".game-shell");
+                const canvasElement = globalThis.document.querySelector(".game-host canvas");
+                if (!(shellElement instanceof globalThis.HTMLElement) || !(canvasElement instanceof globalThis.HTMLCanvasElement)) {
+                    return false;
+                }
+                const shellRect = shellElement.getBoundingClientRect();
+                const canvasRect = canvasElement.getBoundingClientRect();
+                const tolerance = 1;
+                const expectedAspectRatio = 512 / 416;
+                const canvasAspectRatio = canvasRect.width / canvasRect.height;
+                return (
+                    Math.abs(shellRect.left) <= tolerance &&
+                    Math.abs(shellRect.top) <= tolerance &&
+                    Math.abs(shellRect.right - width) <= tolerance &&
+                    Math.abs(shellRect.bottom - height) <= tolerance &&
+                    canvasRect.left >= shellRect.left - tolerance &&
+                    canvasRect.top >= shellRect.top - tolerance &&
+                    canvasRect.right <= shellRect.right + tolerance &&
+                    canvasRect.bottom <= shellRect.bottom + tolerance &&
+                    Math.abs(canvasAspectRatio - expectedAspectRatio) <= 0.01
+                );
+            },
+            { width: viewport.width, height: viewport.height },
+            { timeout: 30_000 }
+        );
+
+        const geometry = await page.evaluate(() => {
+            const shellElement = globalThis.document.querySelector(".game-shell");
+            const canvasElement = globalThis.document.querySelector(".game-host canvas");
+            if (!(shellElement instanceof globalThis.HTMLElement) || !(canvasElement instanceof globalThis.HTMLCanvasElement)) {
+                throw new Error("Stickvania gameplay shell or canvas is missing.");
+            }
+            const shellRect = shellElement.getBoundingClientRect();
+            const canvasRect = canvasElement.getBoundingClientRect();
+            return {
+                innerWidth: globalThis.innerWidth,
+                innerHeight: globalThis.innerHeight,
+                clientWidth: globalThis.document.documentElement.clientWidth,
+                clientHeight: globalThis.document.documentElement.clientHeight,
+                scrollWidth: globalThis.document.documentElement.scrollWidth,
+                scrollHeight: globalThis.document.documentElement.scrollHeight,
+                shell: { left: shellRect.left, top: shellRect.top, right: shellRect.right, bottom: shellRect.bottom },
+                canvas: {
+                    left: canvasRect.left,
+                    top: canvasRect.top,
+                    right: canvasRect.right,
+                    bottom: canvasRect.bottom,
+                    width: canvasRect.width,
+                    height: canvasRect.height
+                }
+            };
+        });
+
+        assert.equal(geometry.innerWidth, viewport.width, `${viewport.label}: unexpected browser width.`);
+        assert.equal(geometry.innerHeight, viewport.height, `${viewport.label}: unexpected browser height.`);
+        assert.ok(Math.abs(geometry.shell.left) <= 1 && Math.abs(geometry.shell.top) <= 1, `${viewport.label}: game shell is offset from the viewport origin.`);
+        assert.ok(
+            Math.abs(geometry.shell.right - viewport.width) <= 1 && Math.abs(geometry.shell.bottom - viewport.height) <= 1,
+            `${viewport.label}: game shell does not fill the current viewport.`
+        );
+        assert.ok(geometry.canvas.left >= geometry.shell.left - 1 && geometry.canvas.top >= geometry.shell.top - 1, `${viewport.label}: canvas starts outside the game shell.`);
+        assert.ok(
+            geometry.canvas.right <= geometry.shell.right + 1 && geometry.canvas.bottom <= geometry.shell.bottom + 1,
+            `${viewport.label}: canvas extends outside the game shell.`
+        );
+        assert.ok(Math.abs(geometry.canvas.width / geometry.canvas.height - 512 / 416) <= 0.01, `${viewport.label}: Stickvania's 512x416 presentation ratio changed.`);
+        assert.ok(geometry.scrollWidth <= geometry.clientWidth + 1, `${viewport.label}: gameplay causes horizontal page overflow.`);
+        assert.ok(geometry.scrollHeight <= geometry.clientHeight + 1, `${viewport.label}: gameplay causes vertical page overflow.`);
+    }
+
+    console.log("Stickvania mobile gameplay viewport containment verification passed.");
+}
+
+function verifyGameplayViewportCssContract(source) {
+    const shellRule = source.match(/\.game-shell,\s*\.game-shell:fullscreen\s*\{([^}]*)\}/s)?.[1] ?? "";
+    assert.notEqual(shellRule, "", "Stickvania gameplay shell CSS rule is missing.");
+    assert.match(shellRule, /position:\s*fixed;/);
+    assert.match(shellRule, /inset:\s*0;/);
+    assert.doesNotMatch(shellRule, /(?:width:\s*100vw|height:\s*100vh)/, "Gameplay shell must not override fixed inset containment with large viewport units.");
+
+    const canvasRule = source.match(/\.game-host canvas\s*\{([^}]*)\}/s)?.[1] ?? "";
+    assert.notEqual(canvasRule, "", "Stickvania gameplay canvas CSS rule is missing.");
+    assert.match(canvasRule, /max-width:\s*100%;/);
+    assert.match(canvasRule, /max-height:\s*100%;/);
+    assert.doesNotMatch(canvasRule, /max-(?:width|height):\s*100v[wh]/, "Gameplay canvas limits must be relative to the corrected host rectangle.");
 }
 
 async function readMenuSettingGeometry(themeRow, rumbleRow, themePicker) {
