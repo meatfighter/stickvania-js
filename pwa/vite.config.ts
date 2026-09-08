@@ -44,10 +44,7 @@ function versionedHtmlPlugin(): PluginOption {
 
 function renderVersionPlaceholders(text: string): string {
     return renderAssetVersionPlaceholders(
-        text
-            .replaceAll("%APP_VERSION%", versionInfo.version)
-            .replaceAll("%BUILD_STAMP%", encodedBuildStamp)
-            .replaceAll("%CACHE_VERSION%", encodedCacheVersion)
+        text.replaceAll("%APP_VERSION%", versionInfo.version).replaceAll("%BUILD_STAMP%", encodedBuildStamp).replaceAll("%CACHE_VERSION%", encodedCacheVersion)
     );
 }
 
@@ -256,10 +253,7 @@ function renderServiceWorker(text: string): string {
     }
 
     return renderVersionPlaceholders(text)
-        .replace(
-            "const INSTALL_ICON_VERSIONS = __INSTALL_ICON_VERSIONS__;",
-            `const INSTALL_ICON_VERSIONS = ${JSON.stringify(installIconVersions, null, 4)};`
-        )
+        .replace("const INSTALL_ICON_VERSIONS = __INSTALL_ICON_VERSIONS__;", `const INSTALL_ICON_VERSIONS = ${JSON.stringify(installIconVersions, null, 4)};`)
         .replaceAll(serviceWorkerVersionPlaceholder, JSON.stringify(cacheVersion));
 }
 
