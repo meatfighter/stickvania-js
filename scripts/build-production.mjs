@@ -266,7 +266,7 @@ function validatePromotionJournal(journal) {
         resolve(journal.candidateDir) !== candidateDir ||
         !basename(resolve(journal.backupDir)).startsWith("dist-backup-")
     ) {
-        throw new Error("Unable to recover production promotion journal; release directories are in an ambiguous state.");
+        throw new Error("Production promotion journal does not match this repository.");
     }
 
     assertSafeGeneratedOutputDirectory(journal.candidateDir, { label: "journal candidate directory" });
