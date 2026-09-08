@@ -35,6 +35,7 @@
         "test:about-page": "node scripts/test-about-page.mjs",
         "test:about-html": "node --test scripts/test-about-html.mjs",
         "_verify:pwa-release": "node scripts/verify-pwa-release.mjs",
+        "verify:pwa-install-metadata": "node scripts/verify-pwa-install-metadata.mjs",
         "test:pwa-release": "node scripts/run-stamped-release.mjs --dist .release-components/pwa-test --clean-dist _build:pwa:release _verify:pwa-release",
         "test:pwa-state-hardening": "node scripts/test-pwa-state-hardening.mjs",
         "test:pwa-machinery-hardening": "node scripts/test-pwa-machinery-hardening.mjs",
