@@ -216,6 +216,11 @@ select {
     gap: 20px 24px;
 }
 
+.settings-row > .setting-theme-row,
+.settings-row > .setting-switch-row {
+    flex: 0 0 auto;
+}
+
 .setting-theme-row,
 .setting-scaling-row,
 .setting-switch-row {
