@@ -65,16 +65,16 @@
         "release:archive": "node scripts/archive-release.mjs"
     },
     "dependencies": {
-        "slick2d-ts": "https://codeload.github.com/meatfighter/slick2d-ts/tar.gz/f973bcb2155a14b8f7c90fc9b25ea5cedf326a0a"
+        "slick2d-ts": "https://codeload.github.com/meatfighter/slick2d-ts/tar.gz/962be7001549b4f2b96519dc4625447f05e0aeee"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/node": "^26.1.2",
         "eslint": "^10.8.0",
+        "playwright": "1.63.0",
         "prettier": "^3.9.6",
         "typescript": "^5.9.0",
         "typescript-eslint": "^8.65.0",
-        "vite": "^7.0.0",
-        "playwright": "1.63.0"
+        "vite": "^7.0.0"
     }
 }
