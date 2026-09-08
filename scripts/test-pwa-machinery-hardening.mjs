@@ -30,8 +30,5 @@ test("service worker treats HTTP failures like network failures", () => {
 
 test("theme and rumble settings wrap instead of compressing the measured theme picker", () => {
     assert.match(stylesSource, /\.settings-row\s*\{[^}]*flex-wrap:\s*wrap;/s);
-    assert.match(
-        stylesSource,
-        /\.settings-row\s*>\s*\.setting-theme-row,\s*\.settings-row\s*>\s*\.setting-switch-row\s*\{[^}]*flex:\s*0\s+0\s+auto;/s
-    );
+    assert.match(stylesSource, /\.settings-row\s*>\s*\.setting-theme-row,\s*\.settings-row\s*>\s*\.setting-switch-row\s*\{[^}]*flex:\s*0\s+0\s+auto;/s);
 });
