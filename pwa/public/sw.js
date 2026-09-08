@@ -1,5 +1,6 @@
 const VERSION = "__SERVICE_WORKER_VERSION__";
-/* global __INSTALL_ICON_VERSIONS__ */
+// The install-icon token below is replaced by pwa/vite.config.ts during the build.
+// eslint-disable-next-line no-undef
 const INSTALL_ICON_VERSIONS = __INSTALL_ICON_VERSIONS__;
 const SCOPE_CACHE_ID = encodeURIComponent(new URL(self.registration.scope).pathname);
 const CACHE_PREFIX = `stickvania-pwa|${SCOPE_CACHE_ID}|`;
