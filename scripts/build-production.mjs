@@ -17,7 +17,7 @@ import {
 
 const candidateDir = join(releaseComponentsDir, "production-candidate");
 const promotionJournalPath = join(releaseComponentsDir, "production-promotion-journal.json");
-const releaseScripts = ["_build:pwa:release", "_build:about", "build:desktop", "_assemble", "_verify:pwa-release", "verify:desktop-release"];
+const releaseScripts = ["_build:pwa:release", "_build:about", "build:desktop", "_assemble", "_verify:pwa-release", "verify:pwa-install-metadata", "verify:desktop-release"];
 
 await withReleaseOperationLock("build-production", async () => {
     const backupDir = join(releaseComponentsDir, `dist-backup-${process.pid}`);
