@@ -17,7 +17,15 @@ import {
 
 const candidateDir = join(releaseComponentsDir, "production-candidate");
 const promotionJournalPath = join(releaseComponentsDir, "production-promotion-journal.json");
-const releaseScripts = ["_build:pwa:release", "_build:about", "build:desktop", "_assemble", "_verify:pwa-release", "verify:pwa-install-metadata", "verify:desktop-release"];
+const releaseScripts = [
+    "_build:pwa:release",
+    "_build:about",
+    "build:desktop",
+    "_assemble",
+    "_verify:pwa-release",
+    "verify:pwa-install-metadata",
+    "verify:desktop-release"
+];
 
 await withReleaseOperationLock("build-production", async () => {
     const backupDir = join(releaseComponentsDir, `dist-backup-${process.pid}`);
@@ -258,7 +266,7 @@ function validatePromotionJournal(journal) {
         resolve(journal.candidateDir) !== candidateDir ||
         !basename(resolve(journal.backupDir)).startsWith("dist-backup-")
     ) {
-        throw new Error("Production promotion journal does not match this repository.");
+        throw new Error("Unable to recover production promotion journal; release directories are in an ambiguous state.");
     }
 
     assertSafeGeneratedOutputDirectory(journal.candidateDir, { label: "journal candidate directory" });
