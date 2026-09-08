@@ -20,6 +20,6 @@ test("Stickvania PWA manifest has stable identity and install metadata", () => {
     const maskableIcons = manifest.icons.filter((icon) => icon.purpose === "maskable");
     assert.equal(maskableIcons.length, 1);
     assert.equal(maskableIcons[0].src, "images/icon-maskable.svg?v=%ASSET_VERSION(images/icon-maskable.svg)%");
-    assert.equal(maskableIcons[0].sizes, "any");
+    assert.equal(maskableIcons[0].sizes, "512x512");
     assert.equal(maskableIcons[0].type, "image/svg+xml");
 });
