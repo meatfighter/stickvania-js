@@ -437,6 +437,7 @@ function syncCurrentGameLifecycleSuspension(): void {
     suspendedByFocusLoss = !document.hasFocus();
     applyCurrentGameLifecycleSuspension();
 }
+
 function handleWindowBlur(): void {
     suspendedByFocusLoss = true;
     applyCurrentGameLifecycleSuspension();
