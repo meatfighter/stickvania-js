@@ -86,6 +86,28 @@ test("silencing a legacy pulse-only actuator supersedes vibration with zero inte
     assert.deepEqual(pulses, [{ value: 0, duration: 1 }]);
 });
 
+test("silencing falls through to pulse when newer stop APIs are exposed but rejected", async () => {
+    const { silenceGamepads } = loadBrowserHaptics();
+    const calls = [];
+    const actuator = {
+        async reset() {
+            calls.push("reset");
+            throw new Error("reset rejected");
+        },
+        async playEffect() {
+            calls.push("playEffect");
+            throw new Error("playEffect rejected");
+        },
+        async pulse(value, duration) {
+            calls.push(`pulse:${value}:${duration}`);
+            return true;
+        }
+    };
+
+    await silenceGamepads([{ vibrationActuator: actuator, hapticActuators: [actuator] }]);
+    assert.deepEqual(calls, ["reset", "playEffect", "pulse:0:1"], "the same actuator should be deduplicated and fall through all stop APIs");
+});
+
 test("actuator descriptions distinguish missing browser functionality from exposed APIs", () => {
     const { getActuatorDescriptions } = loadBrowserHaptics();
     assert.deepEqual(Array.from(getActuatorDescriptions({})), []);
