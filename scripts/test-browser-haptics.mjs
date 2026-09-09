@@ -27,7 +27,7 @@ test("browser haptics prefers dual-rumble and preserves strong/weak magnitudes",
         vibrationActuator: {
             effects: ["dual-rumble"],
             async playEffect(effect, params) {
-                calls.push({ effect, params });
+                calls.push({ effect, params: { ...params } });
                 return "complete";
             }
         }
