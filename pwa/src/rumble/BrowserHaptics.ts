@@ -49,10 +49,14 @@ export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseSte
         strongMagnitude: pulse.strong,
         weakMagnitude: pulse.weak
     };
+    let failureMessage: string | null = null;
 
     const result = await tryActuator(hapticGamepad.vibrationActuator, "vibrationActuator", params);
     if (result.handled) {
         return result.message;
+    }
+    if (!result.missing) {
+        failureMessage = result.message;
     }
 
     const hapticActuators = getHapticActuators(gamepad);
@@ -61,9 +65,12 @@ export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseSte
         if (actuatorResult.handled) {
             return actuatorResult.message;
         }
+        if (!actuatorResult.missing) {
+            failureMessage = actuatorResult.message;
+        }
     }
 
-    return "no supported haptic actuator";
+    return failureMessage ?? "no supported haptic actuator";
 }
 
 export async function silenceGamepads(gamepads: readonly Gamepad[]): Promise<void> {
@@ -96,19 +103,21 @@ async function tryActuator(
     actuator: HapticActuator | undefined,
     label: string,
     params: DualRumbleParameters
-): Promise<{ readonly handled: boolean; readonly message: string }> {
+): Promise<{ readonly handled: boolean; readonly missing: boolean; readonly message: string }> {
     if (actuator === undefined) {
-        return { handled: false, message: `${label}: missing` };
+        return { handled: false, missing: true, message: `${label}: missing` };
     }
 
+    let playEffectFailed = false;
     if (typeof actuator.playEffect === "function") {
         const supportedEffects = Array.from(actuator.effects ?? []);
         const supportsDualRumble = supportedEffects.length === 0 || supportedEffects.includes("dual-rumble");
         if (supportsDualRumble) {
             try {
                 const result = await actuator.playEffect("dual-rumble", params);
-                return { handled: true, message: `${label}.playEffect: ${result || "started"}` };
+                return { handled: true, missing: false, message: `${label}.playEffect: ${result || "started"}` };
             } catch {
+                playEffectFailed = true;
                 // Fall through to pulse() when the browser exposes both APIs but
                 // rejects dual-rumble at runtime.
             }
@@ -119,13 +128,17 @@ async function tryActuator(
         try {
             const intensity = Math.max(params.strongMagnitude, params.weakMagnitude);
             const result = await actuator.pulse(intensity, params.duration);
-            return { handled: result !== false, message: `${label}.pulse: ${result === false ? "rejected" : "started"}` };
+            return { handled: result !== false, missing: false, message: `${label}.pulse: ${result === false ? "rejected" : "started"}` };
         } catch {
-            return { handled: false, message: `${label}.pulse failed` };
+            return { handled: false, missing: false, message: `${label}.pulse failed` };
         }
     }
 
-    return { handled: false, message: `${label}: unsupported` };
+    return {
+        handled: false,
+        missing: false,
+        message: playEffectFailed ? `${label}.playEffect failed` : `${label}: unsupported`
+    };
 }
 
 async function silenceActuator(actuator: HapticActuator): Promise<void> {
