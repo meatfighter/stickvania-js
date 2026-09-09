@@ -19,6 +19,11 @@ type HapticGamepad = Gamepad & {
     readonly hapticActuators?: ArrayLike<HapticActuator | null>;
 };
 
+type LabeledActuator = {
+    readonly label: string;
+    readonly actuator: HapticActuator;
+};
+
 export function getConnectedGamepads(): HapticGamepad[] {
     if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") {
         return [];
@@ -42,47 +47,31 @@ export function getActuatorDescriptions(gamepad: Gamepad): string[] {
 }
 
 export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseStep): Promise<string> {
-    const hapticGamepad = gamepad as HapticGamepad;
     const params = {
         startDelay: 0,
         duration: pulse.duration,
         strongMagnitude: pulse.strong,
         weakMagnitude: pulse.weak
     };
-    let failureMessage: string | null = null;
-
-    const result = await tryActuator(hapticGamepad.vibrationActuator, "vibrationActuator", params);
-    if (result.handled) {
-        return result.message;
+    const candidates = getDistinctLabeledActuators(gamepad);
+    if (candidates.length === 0) {
+        return "no supported haptic actuator";
     }
-    if (!result.missing) {
+
+    let failureMessage = "no supported haptic actuator";
+    for (const { label, actuator } of candidates) {
+        const result = await tryActuator(actuator, label, params);
+        if (result.handled) {
+            return result.message;
+        }
         failureMessage = result.message;
     }
-
-    const hapticActuators = getHapticActuators(gamepad);
-    for (let i = 0; i < hapticActuators.length; i++) {
-        const actuatorResult = await tryActuator(hapticActuators[i], `hapticActuators[${i}]`, params);
-        if (actuatorResult.handled) {
-            return actuatorResult.message;
-        }
-        if (!actuatorResult.missing) {
-            failureMessage = actuatorResult.message;
-        }
-    }
-
-    return failureMessage ?? "no supported haptic actuator";
+    return failureMessage;
 }
 
 export async function silenceGamepads(gamepads: readonly Gamepad[]): Promise<void> {
     for (const gamepad of gamepads) {
-        const hapticGamepad = gamepad as HapticGamepad;
-        const actuators = Array.from(
-            new Set(
-                [hapticGamepad.vibrationActuator, ...getHapticActuators(gamepad)].filter(
-                    (actuator): actuator is HapticActuator => actuator !== undefined
-                )
-            )
-        );
+        const actuators = Array.from(new Set(getDistinctLabeledActuators(gamepad).map(({ actuator }) => actuator)));
         for (const actuator of actuators) {
             await silenceActuator(actuator);
         }
@@ -99,15 +88,25 @@ export function describeActuator(label: string, actuator: HapticActuator): strin
     return `${label}: ${methods.join("/") || "no methods"}; ${effects}`;
 }
 
+function getDistinctLabeledActuators(gamepad: Gamepad): LabeledActuator[] {
+    const hapticGamepad = gamepad as HapticGamepad;
+    const candidates: LabeledActuator[] = [];
+    if (hapticGamepad.vibrationActuator !== undefined) {
+        candidates.push({ label: "vibrationActuator", actuator: hapticGamepad.vibrationActuator });
+    }
+    getHapticActuators(gamepad).forEach((actuator, index) => {
+        if (!candidates.some((candidate) => candidate.actuator === actuator)) {
+            candidates.push({ label: `hapticActuators[${index}]`, actuator });
+        }
+    });
+    return candidates;
+}
+
 async function tryActuator(
-    actuator: HapticActuator | undefined,
+    actuator: HapticActuator,
     label: string,
     params: DualRumbleParameters
-): Promise<{ readonly handled: boolean; readonly missing: boolean; readonly message: string }> {
-    if (actuator === undefined) {
-        return { handled: false, missing: true, message: `${label}: missing` };
-    }
-
+): Promise<{ readonly handled: boolean; readonly message: string }> {
     let playEffectFailed = false;
     if (typeof actuator.playEffect === "function") {
         const supportedEffects = Array.from(actuator.effects ?? []);
@@ -115,7 +114,7 @@ async function tryActuator(
         if (supportsDualRumble) {
             try {
                 const result = await actuator.playEffect("dual-rumble", params);
-                return { handled: true, missing: false, message: `${label}.playEffect: ${result || "started"}` };
+                return { handled: true, message: `${label}.playEffect: ${result || "started"}` };
             } catch {
                 playEffectFailed = true;
                 // Fall through to pulse() when the browser exposes both APIs but
@@ -128,15 +127,14 @@ async function tryActuator(
         try {
             const intensity = Math.max(params.strongMagnitude, params.weakMagnitude);
             const result = await actuator.pulse(intensity, params.duration);
-            return { handled: result !== false, missing: false, message: `${label}.pulse: ${result === false ? "rejected" : "started"}` };
+            return { handled: result !== false, message: `${label}.pulse: ${result === false ? "rejected" : "started"}` };
         } catch {
-            return { handled: false, missing: false, message: `${label}.pulse failed` };
+            return { handled: false, message: `${label}.pulse failed` };
         }
     }
 
     return {
         handled: false,
-        missing: false,
         message: playEffectFailed ? `${label}.playEffect failed` : `${label}: unsupported`
     };
 }
