@@ -4,9 +4,18 @@ import { join } from "node:path";
 import test from "node:test";
 
 const rootDir = process.cwd();
+const mainSource = readFileSync(join(rootDir, "pwa", "src", "main.ts"), "utf8");
 const runtimeLoaderSource = readFileSync(join(rootDir, "pwa", "src", "app", "RuntimeLoader.ts"), "utf8");
 const serviceWorkerSource = readFileSync(join(rootDir, "pwa", "public", "sw.js"), "utf8");
 const stylesSource = readFileSync(join(rootDir, "pwa", "src", "styles.css"), "utf8");
+
+test("game destruction precedes audio activation when starting a game", () => {
+    assert.match(
+        mainSource,
+        /async function startGame\(restoreSavedGame: boolean\): Promise<void> \{\s*destroyGame\(\);\s*const audioUnlockPromise = unlockAudio\(\);/,
+        "Destroy the live AppGameContainer before making the user-gesture audio resume the newest desired transition."
+    );
+});
 
 test("runtime preload waits for both resource branches before exposing failure", () => {
     assert.match(runtimeLoaderSource, /const results = await Promise\.allSettled\(\[/);
