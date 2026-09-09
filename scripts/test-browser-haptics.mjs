@@ -85,6 +85,29 @@ test("browser haptics reports an exposed actuator rejection when no fallback suc
     assert.equal(result, "vibrationActuator.playEffect failed");
 });
 
+test("the same actuator exposed through both gamepad APIs is attempted only once", async () => {
+    const { playPulseOnGamepad } = loadBrowserHaptics();
+    let playCalls = 0;
+    const actuator = {
+        effects: ["dual-rumble"],
+        async playEffect() {
+            playCalls++;
+            throw new Error("browser rejected dual-rumble");
+        }
+    };
+
+    const result = await playPulseOnGamepad(
+        {
+            vibrationActuator: actuator,
+            hapticActuators: [actuator]
+        },
+        { duration: 80, strong: 0.5, weak: 0.5 }
+    );
+
+    assert.equal(playCalls, 1);
+    assert.equal(result, "vibrationActuator.playEffect failed");
+});
+
 test("silencing a legacy pulse-only actuator supersedes vibration with zero intensity", async () => {
     const { silenceGamepads } = loadBrowserHaptics();
     const pulses = [];
