@@ -85,6 +85,12 @@ export async function silenceGamepads(gamepads: readonly Gamepad[]): Promise<voi
                         weakMagnitude: 0
                     });
                 } catch {}
+            } else if (typeof actuator.pulse === "function") {
+                try {
+                    // Legacy GamepadHapticActuator implementations can expose only
+                    // pulse(). A zero-intensity pulse supersedes an active pulse.
+                    await actuator.pulse(0, 1);
+                } catch {}
             }
         }
     }
