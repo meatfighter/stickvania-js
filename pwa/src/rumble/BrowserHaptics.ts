@@ -69,29 +69,15 @@ export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseSte
 export async function silenceGamepads(gamepads: readonly Gamepad[]): Promise<void> {
     for (const gamepad of gamepads) {
         const hapticGamepad = gamepad as HapticGamepad;
-        const actuators = [hapticGamepad.vibrationActuator, ...getHapticActuators(gamepad)].filter(
-            (actuator): actuator is HapticActuator => actuator !== undefined
+        const actuators = Array.from(
+            new Set(
+                [hapticGamepad.vibrationActuator, ...getHapticActuators(gamepad)].filter(
+                    (actuator): actuator is HapticActuator => actuator !== undefined
+                )
+            )
         );
         for (const actuator of actuators) {
-            if (typeof actuator.reset === "function") {
-                try {
-                    await actuator.reset();
-                } catch {}
-            } else if (typeof actuator.playEffect === "function") {
-                try {
-                    await actuator.playEffect("dual-rumble", {
-                        duration: 1,
-                        strongMagnitude: 0,
-                        weakMagnitude: 0
-                    });
-                } catch {}
-            } else if (typeof actuator.pulse === "function") {
-                try {
-                    // Legacy GamepadHapticActuator implementations can expose only
-                    // pulse(). A zero-intensity pulse supersedes an active pulse.
-                    await actuator.pulse(0, 1);
-                } catch {}
-            }
+            await silenceActuator(actuator);
         }
     }
 }
@@ -123,7 +109,8 @@ async function tryActuator(
                 const result = await actuator.playEffect("dual-rumble", params);
                 return { handled: true, message: `${label}.playEffect: ${result || "started"}` };
             } catch {
-                return { handled: false, message: `${label}.playEffect failed` };
+                // Fall through to pulse() when the browser exposes both APIs but
+                // rejects dual-rumble at runtime.
             }
         }
     }
@@ -139,4 +126,35 @@ async function tryActuator(
     }
 
     return { handled: false, message: `${label}: unsupported` };
+}
+
+async function silenceActuator(actuator: HapticActuator): Promise<void> {
+    if (typeof actuator.reset === "function") {
+        try {
+            await actuator.reset();
+            return;
+        } catch {
+            // Try the other haptic APIs if reset() is exposed but rejected.
+        }
+    }
+
+    if (typeof actuator.playEffect === "function") {
+        try {
+            await actuator.playEffect("dual-rumble", {
+                duration: 1,
+                strongMagnitude: 0,
+                weakMagnitude: 0
+            });
+            return;
+        } catch {
+            // Legacy pulse() can still stop vibration when playEffect() fails.
+        }
+    }
+
+    if (typeof actuator.pulse === "function") {
+        try {
+            // A zero-intensity pulse supersedes an active legacy pulse.
+            await actuator.pulse(0, 1);
+        } catch {}
+    }
 }
