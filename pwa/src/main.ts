@@ -186,8 +186,8 @@ function showGameShell(): HTMLElement {
 }
 
 async function startGame(restoreSavedGame: boolean): Promise<void> {
-    const audioUnlockPromise = unlockAudio();
     destroyGame();
+    const audioUnlockPromise = unlockAudio();
     gameLaunchInProgress = true;
     syncScreenWakeLock();
     const session = sessions.begin();
@@ -437,7 +437,6 @@ function syncCurrentGameLifecycleSuspension(): void {
     suspendedByFocusLoss = !document.hasFocus();
     applyCurrentGameLifecycleSuspension();
 }
-
 function handleWindowBlur(): void {
     suspendedByFocusLoss = true;
     applyCurrentGameLifecycleSuspension();
