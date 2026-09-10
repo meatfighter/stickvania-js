@@ -9,11 +9,13 @@ const runtimeLoaderSource = readFileSync(join(rootDir, "pwa", "src", "app", "Run
 const serviceWorkerSource = readFileSync(join(rootDir, "pwa", "public", "sw.js"), "utf8");
 const stylesSource = readFileSync(join(rootDir, "pwa", "src", "styles.css"), "utf8");
 
-test("new game destroys the old session before fresh audio activation", () => {
+test("new game requires prepared resources and destroys the old session before fresh audio activation", () => {
     const startGame = mainSource.slice(mainSource.indexOf("async function startGame"), mainSource.indexOf("async function launchPreparedGame"));
-    assert.ok(startGame.indexOf("destroyGame();") >= 0);
-    assert.ok(startGame.indexOf("const audioUnlockPromise = unlockAudio();") >= 0);
+    assert.match(startGame, /const runtime = runtimeLoader\.getPreparedRuntime\(\);/);
+    assert.match(startGame, /if \(runtime === null\) \{\s*startPwaMenu\(\);\s*return;\s*\}/);
+    assert.ok(startGame.indexOf("destroyGame();") > startGame.indexOf("const runtime = runtimeLoader.getPreparedRuntime();"));
     assert.ok(startGame.indexOf("destroyGame();") < startGame.indexOf("const audioUnlockPromise = unlockAudio();"));
+    assert.doesNotMatch(startGame, /ensurePrepared|showBoot/);
     assert.match(startGame, /pwaSessionState !== "menu"/);
     assert.match(startGame, /pwaSessionState = "starting"/);
 });
@@ -24,7 +26,16 @@ test("browser lifecycle only enters the PWA menu and never auto-resumes", () => 
     assert.match(mainSource, /document\.visibilityState === "hidden"/);
     assert.doesNotMatch(mainSource, /window\.addEventListener\("focus"/);
     assert.doesNotMatch(mainSource, /window\.addEventListener\("pageshow"/);
+    assert.match(mainSource, /if \(pwaSessionState === "starting"\) \{[\s\S]*showMenu\(\);[\s\S]*return;/);
+    assert.match(mainSource, /pwaSessionState === "running"[\s\S]*game\.isLiveMenuOverlayAllowed\(\)/);
     assert.match(mainSource, /releaseGameAudio\(\);[\s\S]*menuOverlay = renderMenuForParent/);
+});
+
+test("live-menu transition freezes gameplay before saving and retiring audio", () => {
+    const liveMenu = mainSource.slice(mainSource.indexOf("function showLiveMenuOverlay"), mainSource.indexOf("async function resumeLiveGameFromMenu"));
+    assert.ok(liveMenu.indexOf("game.setBrowserSuspended(true);") < liveMenu.indexOf("const saved = saveCurrentGameState();"));
+    assert.ok(liveMenu.indexOf("container.setLoopSuspended(true);") < liveMenu.indexOf("const saved = saveCurrentGameState();"));
+    assert.ok(liveMenu.indexOf("const saved = saveCurrentGameState();") < liveMenu.indexOf("releaseGameAudio();"));
 });
 
 test("runtime preload waits for both resource branches before exposing failure", () => {
