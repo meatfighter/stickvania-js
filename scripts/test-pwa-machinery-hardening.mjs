@@ -8,6 +8,7 @@ const mainSource = readFileSync(join(rootDir, "pwa", "src", "main.ts"), "utf8");
 const runtimeLoaderSource = readFileSync(join(rootDir, "pwa", "src", "app", "RuntimeLoader.ts"), "utf8");
 const serviceWorkerSource = readFileSync(join(rootDir, "pwa", "public", "sw.js"), "utf8");
 const stylesSource = readFileSync(join(rootDir, "pwa", "src", "styles.css"), "utf8");
+const songSource = readFileSync(join(rootDir, "pwa", "src", "stickvania", "Song.ts"), "utf8");
 
 test("new game requires prepared resources and destroys the old session before fresh audio activation", () => {
     const startGame = mainSource.slice(mainSource.indexOf("async function startGame"), mainSource.indexOf("async function launchPreparedGame"));
@@ -36,6 +37,13 @@ test("live-menu transition freezes gameplay before saving and retiring audio", (
     assert.ok(liveMenu.indexOf("game.setBrowserSuspended(true);") < liveMenu.indexOf("const saved = saveCurrentGameState();"));
     assert.ok(liveMenu.indexOf("container.setLoopSuspended(true);") < liveMenu.indexOf("const saved = saveCurrentGameState();"));
     assert.ok(liveMenu.indexOf("const saved = saveCurrentGameState();") < liveMenu.indexOf("releaseGameAudio();"));
+});
+
+test("Stickvania Song recovery never chooses or starts a replacement music segment", () => {
+    const resume = songSource.slice(songSource.indexOf("public resumeAfterBrowserSuspension"), songSource.indexOf("private resumeMusicPart"));
+    assert.match(resume, /this\.resumeMusicPart\(this\.intro\)/);
+    assert.match(resume, /this\.resumeMusicPart\(this\.loop\)/);
+    assert.doesNotMatch(resume, /\.play\(|\.loop\(/);
 });
 
 test("runtime preload waits for both resource branches before exposing failure", () => {
