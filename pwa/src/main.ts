@@ -193,20 +193,18 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
     if (pwaSessionState !== "menu") {
         return;
     }
+    const runtime = runtimeLoader.getPreparedRuntime();
+    if (runtime === null) {
+        startPwaMenu();
+        return;
+    }
     destroyGame();
     pwaSessionState = "starting";
     const audioUnlockPromise = unlockAudio();
     gameLaunchInProgress = true;
     syncScreenWakeLock();
     const session = sessions.begin();
-    if (runtimeLoader.getPreparedRuntime() === null) {
-        showBoot(runtimeLoader.getProgress());
-    }
     try {
-        const runtime = await runtimeLoader.ensurePrepared(runtimeLoader.hasError());
-        if (!sessions.isCurrent(session) || pwaSessionState !== "starting") {
-            return;
-        }
         await audioUnlockPromise;
         if (!sessions.isCurrent(session) || pwaSessionState !== "starting") {
             return;
@@ -223,7 +221,7 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
         console.error(error);
         destroyGame();
         pwaSessionState = "menu";
-        showLoadError("Unable to start.", "Check your connection and try again.", () => void startGame(restoreSavedGame));
+        showLoadError("Unable to start.", "Check your connection and try again.", startPwaMenu);
     }
 }
 
@@ -337,10 +335,15 @@ function requestPwaMenu(_reason: string): void {
     if (pwaSessionState === "booting" || pwaSessionState === "menu" || pwaSessionState === "stopping") {
         return;
     }
-    if (pwaSessionState === "starting" && liveMenuOpen) {
-        releaseGameAudio();
-        pwaSessionState = "menu";
-        syncScreenWakeLock();
+    if (pwaSessionState === "starting") {
+        if (liveMenuOpen) {
+            releaseGameAudio();
+            pwaSessionState = "menu";
+            syncScreenWakeLock();
+            return;
+        }
+        saveCurrentGameState();
+        showMenu();
         return;
     }
     if (canOpenLiveMenuOverlay()) {
@@ -353,7 +356,13 @@ function requestPwaMenu(_reason: string): void {
 
 function canOpenLiveMenuOverlay(): boolean {
     return (
-        game !== null && container !== null && activeGameShell !== null && activeGameHost !== null && game.isStateSaveReady() && game.isLiveMenuOverlayAllowed()
+        pwaSessionState === "running" &&
+        game !== null &&
+        container !== null &&
+        activeGameShell !== null &&
+        activeGameHost !== null &&
+        game.isStateSaveReady() &&
+        game.isLiveMenuOverlayAllowed()
     );
 }
 
@@ -371,12 +380,12 @@ function showLiveMenuOverlay(): void {
     removeMenuOverlay();
     liveMenuOpen = true;
     syncScreenWakeLock();
-    const saved = saveCurrentGameState();
     game.setBrowserSuspended(true);
     container.stopSoundEffects();
     getRumbleManager().setSuspended(true);
     container.setLoopSuspended(true);
     container.getInput().pause();
+    const saved = saveCurrentGameState();
     stopHamburgerVisibilityMonitor();
     hideHamburgerButton();
     viewport.suspendCursor();
