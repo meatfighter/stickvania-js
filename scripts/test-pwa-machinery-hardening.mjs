@@ -9,12 +9,22 @@ const runtimeLoaderSource = readFileSync(join(rootDir, "pwa", "src", "app", "Run
 const serviceWorkerSource = readFileSync(join(rootDir, "pwa", "public", "sw.js"), "utf8");
 const stylesSource = readFileSync(join(rootDir, "pwa", "src", "styles.css"), "utf8");
 
-test("game destruction precedes audio activation when starting a game", () => {
-    assert.match(
-        mainSource,
-        /async function startGame\(restoreSavedGame: boolean\): Promise<void> \{\s*destroyGame\(\);\s*const audioUnlockPromise = unlockAudio\(\);/,
-        "Destroy the live AppGameContainer before making the user-gesture audio resume the newest desired transition."
-    );
+test("new game destroys the old session before fresh audio activation", () => {
+    const startGame = mainSource.slice(mainSource.indexOf("async function startGame"), mainSource.indexOf("async function launchPreparedGame"));
+    assert.ok(startGame.indexOf("destroyGame();") >= 0);
+    assert.ok(startGame.indexOf("const audioUnlockPromise = unlockAudio();") >= 0);
+    assert.ok(startGame.indexOf("destroyGame();") < startGame.indexOf("const audioUnlockPromise = unlockAudio();"));
+    assert.match(startGame, /pwaSessionState !== "menu"/);
+    assert.match(startGame, /pwaSessionState = "starting"/);
+});
+
+test("browser lifecycle only enters the PWA menu and never auto-resumes", () => {
+    assert.match(mainSource, /window\.addEventListener\("pagehide", \(\) => requestPwaMenu\("pagehide"\)\)/);
+    assert.match(mainSource, /window\.addEventListener\("blur", \(\) => requestPwaMenu\("blur"\)\)/);
+    assert.match(mainSource, /document\.visibilityState === "hidden"/);
+    assert.doesNotMatch(mainSource, /window\.addEventListener\("focus"/);
+    assert.doesNotMatch(mainSource, /window\.addEventListener\("pageshow"/);
+    assert.match(mainSource, /releaseGameAudio\(\);[\s\S]*menuOverlay = renderMenuForParent/);
 });
 
 test("runtime preload waits for both resource branches before exposing failure", () => {
