@@ -10,7 +10,9 @@ let latestAttempt: GameAudioAttempt | null = null;
 /** Call synchronously from New Game/Continue, before the activation's first await. */
 export function beginGameAudio(): GameAudioAttempt {
     const attempt = playback.begin();
-    latestAttempt = attempt;
+    if (latestAttempt === null || attempt.id > latestAttempt.id) {
+        latestAttempt = attempt;
+    }
     return attempt;
 }
 
