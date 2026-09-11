@@ -36,6 +36,7 @@ const MUSIC_IDS = new Set([
 
 try {
     const { SONG_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/AudioRegistry.ts");
+    const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
     const { isReasonableStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSanity.ts");
     const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } = await server.ssrLoadModule(
         "/src/stickvania/persistence/GameStateSchema.ts"
@@ -44,6 +45,13 @@ try {
 
     assert.equal(GAME_STATE_VERSION, 10);
     assert.match(GAME_STATE_STORAGE_KEY, /game-state-v10$/);
+
+    const serializer = new StickvaniaGameStateSerializer();
+    assert.equal(serializer.isThingIdArray([null, 0], 1), true);
+    assert.equal(serializer.isThingIdArray([1], 1), false);
+    assert.equal(serializer.isThingIdArray([-1], 1), false);
+    assert.equal(serializer.isThingIdArray([0.5], 1), false);
+    assert.equal(serializer.isThingIdArray([Number.NaN], 1), false);
 
     const snapshot = createSnapshot(SONG_FIELD_NAMES);
     assert.equal(isReasonableStickvaniaGameStateSnapshot(snapshot), true);
