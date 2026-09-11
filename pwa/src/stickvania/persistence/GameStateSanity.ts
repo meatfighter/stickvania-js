@@ -143,7 +143,7 @@ function isReasonableAudio(snapshot: AudioSnapshot): boolean {
     }
 
     const seenSongs = new Set<string>();
-    const music = new Map<string, MusicSnapshot>();
+    const music = new Map<MusicId, MusicSnapshot>();
     for (const song of snapshot.songs) {
         if (
             !isRecord(song) ||
