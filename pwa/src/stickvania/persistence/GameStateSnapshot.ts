@@ -1,3 +1,4 @@
+import type { MusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
 import type { InputConfigModeSnapshot } from "../InputConfigMode.js";
 import type { ThingTypeId } from "./ThingTypeRegistry.js";
 
@@ -135,12 +136,7 @@ export type SongId =
 
 export type MusicSnapshot = {
     id: MusicId;
-    looped: boolean;
-    paused: boolean;
-    playing: boolean;
-    playbackRate: number;
-    position: number;
-    volume: number;
+    playback: MusicPlaybackSnapshot;
 };
 
 export type SongSnapshot = {
@@ -151,6 +147,8 @@ export type SongSnapshot = {
 };
 
 export type AudioSnapshot = {
+    musicOn: boolean;
+    soundOn: boolean;
     currentSong: SongId | null;
     requestedSong: SongId | null;
     currentMusic: MusicSnapshot | null;
