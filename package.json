@@ -47,7 +47,7 @@
         "verify:browser": "node scripts/run-browser-verification.mjs && node scripts/run-offline-verification.mjs",
         "release": "npm run verify && npm run verify:dependencies && npm run build",
         "qualify": "node scripts/assert-clean-git.mjs && npm run release && npm run verify:browser && node scripts/assert-clean-git.mjs",
-        "qualify:browsers": "npm run verify:production-browser && npm run verify:activation-races && npm run verify:audio-interruption && npm run verify:lifecycle-events && npm run verify:lifecycle-stress",
+        "qualify:browsers": "npm run verify:production-browser && npm run verify:activation-races && npm run verify:audio-interruption && npm run verify:lifecycle-events && npm run verify:ownership-transfer && npm run verify:persistence-failure && npm run verify:lifecycle-stress",
         "preview": "npm run preview:pwa",
         "preview:pwa": "vite preview --config pwa/vite.config.ts --host 127.0.0.1",
         "preview:dist": "vite preview --host 127.0.0.1 --outDir dist",
@@ -66,6 +66,8 @@
         "verify:activation-races": "node scripts/run-activation-race-qualification.mjs",
         "verify:audio-interruption": "node scripts/run-audio-interruption-qualification.mjs",
         "verify:lifecycle-events": "node scripts/run-lifecycle-event-qualification.mjs",
+        "verify:ownership-transfer": "node scripts/run-ownership-transfer-qualification.mjs",
+        "verify:persistence-failure": "node scripts/run-persistence-failure-qualification.mjs",
         "verify:lifecycle-stress": "node scripts/run-lifecycle-stress-qualification.mjs",
         "release:archive": "node scripts/archive-release.mjs"
     },
