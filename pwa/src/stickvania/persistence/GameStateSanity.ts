@@ -1,7 +1,7 @@
 import { isMusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
-import { SONG_FIELD_NAMES } from "../AudioRegistry.js";
+import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "../AudioRegistry.js";
 import type { InputConfigModeSnapshot } from "../InputConfigMode.js";
-import type { AudioSnapshot, MusicSnapshot, StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
+import type { AudioSnapshot, MusicId, MusicSnapshot, SongId, StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 
 const JAVA_INT_MIN = -2_147_483_648;
 const JAVA_INT_MAX = 2_147_483_647;
@@ -20,6 +20,28 @@ const MAX_INPUT_CONFIG_DONE_DELAY = 30;
 const MAX_INPUT_CONFIG_ARM_DELAY = 8;
 
 const EXPECTED_SONG_IDS = new Set<string>(SONG_FIELD_NAMES);
+const EXPECTED_MUSIC_IDS = new Set<string>([
+    ...STANDALONE_MUSIC_FIELD_NAMES,
+    "boss_1.intro",
+    "boss_1.loop",
+    "boss_2.intro",
+    "boss_2.loop",
+    "ending.loop",
+    "stage_1_1.loop",
+    "stage_1_2.intro",
+    "stage_1_2.loop",
+    "stage_2_1.intro",
+    "stage_2_1.loop",
+    "stage_3_1.intro",
+    "stage_3_1.loop",
+    "stage_4_1.loop",
+    "stage_4_2.loop",
+    "stage_5_1.intro",
+    "stage_5_1.loop",
+    "stage_6_1.loop",
+    "stage_6_2.intro",
+    "stage_6_2.loop"
+]);
 const TOP_LEVEL_FIELDS = ["version", "appVersion", "savedAt", "mode", "mainFields", "inputConfigMode", "random", "stage", "things", "audio"] as const;
 const AUDIO_FIELDS = ["musicOn", "soundOn", "currentSong", "requestedSong", "currentMusic", "songs"] as const;
 const SONG_FIELDS = ["id", "playing", "intro", "loop"] as const;
@@ -112,32 +134,97 @@ function isReasonableAudio(snapshot: AudioSnapshot): boolean {
         !hasExactFields(snapshot, AUDIO_FIELDS) ||
         typeof snapshot.musicOn !== "boolean" ||
         typeof snapshot.soundOn !== "boolean" ||
+        !isNullableSongId(snapshot.currentSong) ||
+        !isNullableSongId(snapshot.requestedSong) ||
         !Array.isArray(snapshot.songs) ||
         snapshot.songs.length !== SONG_FIELD_NAMES.length
     ) {
         return false;
     }
-    const seen = new Set<string>();
+
+    const seenSongs = new Set<string>();
+    const music = new Map<string, MusicSnapshot>();
     for (const song of snapshot.songs) {
-        if (!isRecord(song) || !hasExactFields(song, SONG_FIELDS) || !EXPECTED_SONG_IDS.has(song.id) || seen.has(song.id)) {
+        if (
+            !isRecord(song) ||
+            !hasExactFields(song, SONG_FIELDS) ||
+            typeof song.id !== "string" ||
+            !EXPECTED_SONG_IDS.has(song.id) ||
+            seenSongs.has(song.id) ||
+            typeof song.playing !== "boolean"
+        ) {
             return false;
         }
-        seen.add(song.id);
-        if ((song.intro !== null && !isReasonableMusic(song.intro)) || (song.loop !== null && !isReasonableMusic(song.loop))) {
+        seenSongs.add(song.id);
+        if (!isReasonableSongPart(song.id as SongId, "intro", song.intro) || !isReasonableSongPart(song.id as SongId, "loop", song.loop)) {
             return false;
+        }
+        for (const part of [song.intro, song.loop]) {
+            if (part !== null) {
+                const existing = music.get(part.id);
+                if (existing !== undefined && !sameMusicPlayback(existing, part)) {
+                    return false;
+                }
+                music.set(part.id, part);
+            }
         }
     }
-    if (seen.size !== EXPECTED_SONG_IDS.size) {
+    if (seenSongs.size !== EXPECTED_SONG_IDS.size) {
         return false;
     }
-    return snapshot.currentMusic === null || isReasonableMusic(snapshot.currentMusic);
+
+    if (snapshot.currentMusic !== null) {
+        if (!isReasonableMusic(snapshot.currentMusic)) {
+            return false;
+        }
+        const existing = music.get(snapshot.currentMusic.id);
+        if (existing !== undefined && !sameMusicPlayback(existing, snapshot.currentMusic)) {
+            return false;
+        }
+        music.set(snapshot.currentMusic.id, snapshot.currentMusic);
+    }
+
+    // Slick owns one logical Music transport. More than one active transport is
+    // contradictory and restore order must never decide which one wins.
+    return Array.from(music.values()).filter((part) => part.playback.transport !== "stopped").length <= 1;
+}
+
+function isReasonableSongPart(songId: SongId, suffix: "intro" | "loop", snapshot: MusicSnapshot | null): boolean {
+    const id = `${songId}.${suffix}`;
+    if (!EXPECTED_MUSIC_IDS.has(id)) {
+        return snapshot === null;
+    }
+    return snapshot !== null && isReasonableMusic(snapshot) && snapshot.id === id;
 }
 
 function isReasonableMusic(snapshot: MusicSnapshot): boolean {
-    if (!isRecord(snapshot) || !hasExactFields(snapshot, MUSIC_FIELDS)) {
+    if (!isRecord(snapshot) || !hasExactFields(snapshot, MUSIC_FIELDS) || typeof snapshot.id !== "string" || !EXPECTED_MUSIC_IDS.has(snapshot.id)) {
         return false;
     }
     return isMusicPlaybackSnapshot(snapshot.playback) && snapshot.playback.positionSeconds <= MAX_MUSIC_POSITION_SECONDS;
+}
+
+function sameMusicPlayback(left: MusicSnapshot, right: MusicSnapshot): boolean {
+    const a = left.playback;
+    const b = right.playback;
+    return (
+        a.transport === b.transport &&
+        a.looped === b.looped &&
+        a.playbackRate === b.playbackRate &&
+        a.positionSeconds === b.positionSeconds &&
+        a.volume === b.volume &&
+        (a.fade === null || b.fade === null
+            ? a.fade === b.fade
+            : a.fade.durationMs === b.fade.durationMs &&
+              a.fade.elapsedMs === b.fade.elapsedMs &&
+              a.fade.startVolume === b.fade.startVolume &&
+              a.fade.endVolume === b.fade.endVolume &&
+              a.fade.stopAfterFade === b.fade.stopAfterFade)
+    );
+}
+
+function isNullableSongId(value: unknown): value is SongId | null {
+    return value === null || (typeof value === "string" && EXPECTED_SONG_IDS.has(value));
 }
 
 function isReasonableValue(value: unknown, key: string, depth: number): boolean {
