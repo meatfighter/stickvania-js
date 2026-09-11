@@ -1,4 +1,4 @@
-import { GameContainer, JavaRandom, Music } from "slick2d-ts";
+import { GameContainer, JavaRandom, Music, SoundStore, isMusicPlaybackSnapshot } from "slick2d-ts";
 import { Checkpoint } from "../Checkpoint.js";
 import { ButtonMapping } from "../ButtonMapping.js";
 import { Main } from "../Main.js";
@@ -92,12 +92,6 @@ const MUSIC_IDS: MusicId[] = [
 const MUSIC_ID_SET = new Set<string>(MUSIC_IDS);
 
 export class StickvaniaGameStateSerializer {
-    private restoreGeneration = 0;
-
-    public cancelPendingRestore(): void {
-        this.restoreGeneration++;
-    }
-
     public createSnapshot(main: Main, appVersion: string): StickvaniaGameStateSnapshot {
         if (!main.isStateSaveReady()) {
             throw new Error("Game state is not ready to save.");
@@ -123,7 +117,6 @@ export class StickvaniaGameStateSerializer {
     }
 
     public restoreSnapshot(main: Main, gc: GameContainer, snapshot: StickvaniaGameStateSnapshot): void {
-        const restoreGeneration = ++this.restoreGeneration;
         if (!this.isSupportedSnapshot(snapshot)) {
             throw new Error("Unsupported saved game state.");
         }
@@ -145,8 +138,7 @@ export class StickvaniaGameStateSerializer {
             this.clearMainStageRoots(main);
         }
         main.restoreInputConfigModeState(gc, snapshot.inputConfigMode);
-        this.restoreAudio(context, snapshot.audio, restoreGeneration);
-        main.setBrowserSuspended(false);
+        this.restoreAudio(context, snapshot.audio);
         main.clearInputPressedRecords();
         main.resetNextFrameTime();
     }
@@ -352,44 +344,95 @@ export class StickvaniaGameStateSerializer {
     }
 
     private isAudioSnapshotShape(snapshot: unknown): snapshot is AudioSnapshot {
-        if (!this.isPlainRecord(snapshot) || !Array.isArray(snapshot.songs)) {
+        if (
+            !this.isPlainRecord(snapshot) ||
+            !this.areRecordFieldNamesExact(snapshot, ["musicOn", "soundOn", "currentSong", "requestedSong", "currentMusic", "songs"]) ||
+            typeof snapshot.musicOn !== "boolean" ||
+            typeof snapshot.soundOn !== "boolean" ||
+            !this.isNullableSongId(snapshot.currentSong) ||
+            !this.isNullableSongId(snapshot.requestedSong) ||
+            !Array.isArray(snapshot.songs) ||
+            snapshot.songs.length !== SONG_IDS.length ||
+            (snapshot.currentMusic !== null && !this.isMusicSnapshotShape(snapshot.currentMusic))
+        ) {
             return false;
         }
-        return (
-            this.isNullableSongId(snapshot.currentSong) &&
-            this.isNullableSongId(snapshot.requestedSong) &&
-            (snapshot.currentMusic === null || this.isMusicSnapshotShape(snapshot.currentMusic)) &&
-            snapshot.songs.every((song) => this.isSongSnapshotShape(song))
-        );
+        const songs = new Set<string>();
+        const music = new Map<MusicId, MusicSnapshot>();
+        for (const song of snapshot.songs) {
+            if (!this.isSongSnapshotShape(song) || songs.has(song.id)) {
+                return false;
+            }
+            songs.add(song.id);
+            for (const part of [song.intro, song.loop]) {
+                if (part !== null) {
+                    music.set(part.id, part);
+                }
+            }
+        }
+        const currentMusic = snapshot.currentMusic as MusicSnapshot | null;
+        if (currentMusic !== null) {
+            const existing = music.get(currentMusic.id);
+            if (existing !== undefined && !this.sameMusicPlayback(existing, currentMusic)) {
+                return false;
+            }
+            music.set(currentMusic.id, currentMusic);
+        }
+        // Slick has one logical Music transport. Reject contradictory snapshots
+        // rather than letting restore order choose which track survives.
+        return Array.from(music.values()).filter((part) => part.playback.transport !== "stopped").length <= 1;
     }
 
     private isSongSnapshotShape(snapshot: unknown): snapshot is SongSnapshot {
-        if (!this.isPlainRecord(snapshot)) {
+        if (
+            !this.isPlainRecord(snapshot) ||
+            !this.areRecordFieldNamesExact(snapshot, ["id", "playing", "intro", "loop"]) ||
+            typeof snapshot.id !== "string" ||
+            !SONG_ID_SET.has(snapshot.id) ||
+            typeof snapshot.playing !== "boolean"
+        ) {
             return false;
         }
-        return (
-            typeof snapshot.id === "string" &&
-            SONG_ID_SET.has(snapshot.id) &&
-            typeof snapshot.playing === "boolean" &&
-            (snapshot.intro === null || this.isMusicSnapshotShape(snapshot.intro)) &&
-            (snapshot.loop === null || this.isMusicSnapshotShape(snapshot.loop))
-        );
+        for (const suffix of ["intro", "loop"] as const) {
+            const id = `${snapshot.id}.${suffix}`;
+            const part = snapshot[suffix];
+            if (MUSIC_ID_SET.has(id)) {
+                if (!this.isMusicSnapshotShape(part) || part.id !== id) {
+                    return false;
+                }
+            } else if (part !== null) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private isMusicSnapshotShape(snapshot: unknown): snapshot is MusicSnapshot {
-        if (!this.isPlainRecord(snapshot)) {
-            return false;
-        }
         return (
+            this.isPlainRecord(snapshot) &&
+            this.areRecordFieldNamesExact(snapshot, ["id", "playback"]) &&
             typeof snapshot.id === "string" &&
             MUSIC_ID_SET.has(snapshot.id) &&
-            typeof snapshot.looped === "boolean" &&
-            typeof snapshot.paused === "boolean" &&
-            typeof snapshot.playing === "boolean" &&
-            this.isFiniteNumber(snapshot.playbackRate) &&
-            this.isFiniteNumber(snapshot.position) &&
-            snapshot.position >= 0 &&
-            this.isFiniteNumber(snapshot.volume)
+            isMusicPlaybackSnapshot(snapshot.playback)
+        );
+    }
+
+    private sameMusicPlayback(left: MusicSnapshot, right: MusicSnapshot): boolean {
+        const a = left.playback;
+        const b = right.playback;
+        return (
+            a.transport === b.transport &&
+            a.looped === b.looped &&
+            a.playbackRate === b.playbackRate &&
+            a.positionSeconds === b.positionSeconds &&
+            a.volume === b.volume &&
+            (a.fade === null || b.fade === null
+                ? a.fade === b.fade
+                : a.fade.durationMs === b.fade.durationMs &&
+                  a.fade.elapsedMs === b.fade.elapsedMs &&
+                  a.fade.startVolume === b.fade.startVolume &&
+                  a.fade.endVolume === b.fade.endVolume &&
+                  a.fade.stopAfterFade === b.fade.stopAfterFade)
         );
     }
 
@@ -485,8 +528,8 @@ export class StickvaniaGameStateSerializer {
         return value === null || (this.isFiniteInteger(value) && value >= 0 && value < length);
     }
 
-    private isThingIdArray(value: unknown, thingCount: number): value is Array<number | null> {
-        return Array.isArray(value) && value.every((id) => this.isNullableThingId(id, thingCount));
+    private isThingIdArray(value: unknown, thingCount: number): value is number[] {
+        return Array.isArray(value) && value.every((id) => this.isFiniteInteger(id) && id >= 0 && id < thingCount);
     }
 
     private isNullableRegionRef(value: unknown, limits: SnapshotReferenceLimits): value is [number, number] | null {
@@ -927,18 +970,23 @@ export class StickvaniaGameStateSerializer {
     }
 
     private captureAudio(main: Main): AudioSnapshot {
+        const songs = SONG_IDS.map((id) => this.captureSong(main, id));
+        const currentMusicId = this.musicIdForMusic(main, main.currentMusic);
+        const songPart = songs.flatMap((song) => [song.intro, song.loop]).find((part) => part !== null && part.id === currentMusicId);
         return {
+            musicOn: SoundStore.get().musicOn(),
+            soundOn: SoundStore.get().soundsOn(),
             currentSong: this.songIdForSong(main, main.currentSong),
             requestedSong: this.songIdForSong(main, main.requestedSong),
-            currentMusic: main.currentMusic === null ? null : this.captureMusic(main, main.currentMusic),
-            songs: SONG_IDS.map((id) => this.captureSong(main, id)).filter((song): song is SongSnapshot => song !== null)
+            currentMusic: main.currentMusic === null ? null : (songPart ?? this.captureMusic(main, main.currentMusic)),
+            songs
         };
     }
 
-    private captureSong(main: Main, id: SongId): SongSnapshot | null {
+    private captureSong(main: Main, id: SongId): SongSnapshot {
         const song = this.songForId(main, id);
         if (song === null) {
-            return null;
+            throw new Error(`Music is not initialized for state capture: ${id}`);
         }
         const intro = song.getIntroForState();
         const loop = song.getLoopForState();
@@ -955,123 +1003,44 @@ export class StickvaniaGameStateSerializer {
         if (id === null) {
             throw new Error("Unable to identify music for state capture.");
         }
-        const looped = music.isLooped();
-        return {
-            id,
-            looped,
-            paused: music.isPaused(),
-            playing: music.playing(),
-            playbackRate: music.getPlaybackRate(),
-            position: this.normalizeMusicPosition(music, music.getPosition(), looped),
-            volume: music.getVolume()
-        };
+        return { id, playback: music.capturePlaybackState() };
     }
 
-    private restoreAudio(context: RestoreContext, snapshot: AudioSnapshot, restoreGeneration: number): void {
+    private restoreAudio(context: RestoreContext, snapshot: AudioSnapshot): void {
         const main = context.main;
         main.stopAllSounds();
-        for (const songSnapshot of snapshot.songs) {
-            const song = this.songForId(main, songSnapshot.id);
+        Music.resetPlaybackState();
+        context.gc.setMusicOn(snapshot.musicOn);
+        context.gc.setSoundOn(snapshot.soundOn);
+        const parts = new Map<MusicId, MusicSnapshot>();
+        for (const state of snapshot.songs) {
+            const song = this.songForId(main, state.id);
             if (song === null) {
-                continue;
+                throw new Error(`Saved song is unavailable: ${state.id}`);
             }
-            song.setPlayingForState(songSnapshot.playing);
-            this.restoreMusicPassive(main, songSnapshot.intro);
-            this.restoreMusicPassive(main, songSnapshot.loop);
+            song.setPlayingForState(state.playing);
+            for (const part of [state.intro, state.loop]) {
+                if (part !== null) {
+                    parts.set(part.id, part);
+                }
+            }
         }
-
+        if (snapshot.currentMusic !== null) {
+            parts.set(snapshot.currentMusic.id, snapshot.currentMusic);
+        }
+        // Restore stopped parts first, then the sole active/paused/end-pending
+        // transport. No play/seek timer, native source, or temporary unmute is used.
+        const ordered = Array.from(parts.values()).sort((a, b) => Number(a.playback.transport !== "stopped") - Number(b.playback.transport !== "stopped"));
+        for (const part of ordered) {
+            const music = this.musicForId(main, part.id);
+            if (music === null) {
+                throw new Error(`Saved music is unavailable: ${part.id}`);
+            }
+            music.restorePlaybackState(part.playback);
+        }
         main.currentSong = this.songForId(main, snapshot.currentSong);
         main.requestedSong = this.songForId(main, snapshot.requestedSong);
         main.currentMusic = snapshot.currentMusic === null ? null : this.musicForId(main, snapshot.currentMusic.id);
-
-        if (snapshot.currentMusic !== null) {
-            this.restoreMusicPassive(main, snapshot.currentMusic);
-            if (snapshot.currentMusic.playing || snapshot.currentMusic.paused) {
-                this.restoreActiveMusic(context, snapshot.currentMusic, restoreGeneration);
-            } else {
-                context.gc.setMusicOn(true);
-            }
-            return;
-        }
-
-        const currentSongSnapshot = snapshot.currentSong === null ? null : (snapshot.songs.find((song) => song.id === snapshot.currentSong) ?? null);
-        if (currentSongSnapshot === null) {
-            context.gc.setMusicOn(true);
-            return;
-        }
-        const activeSongMusic = this.activeSongMusicSnapshot(currentSongSnapshot);
-        if (activeSongMusic !== null) {
-            this.restoreActiveMusic(context, activeSongMusic, restoreGeneration);
-        } else {
-            context.gc.setMusicOn(true);
-        }
-    }
-
-    private activeSongMusicSnapshot(song: SongSnapshot): MusicSnapshot | null {
-        if (song.intro !== null && (song.intro.playing || song.intro.paused)) {
-            return song.intro;
-        }
-        if (song.loop !== null && (song.loop.playing || song.loop.paused)) {
-            return song.loop;
-        }
-        return null;
-    }
-
-    private restoreMusicPassive(main: Main, snapshot: MusicSnapshot | null): void {
-        if (snapshot === null) {
-            return;
-        }
-        const music = this.musicForId(main, snapshot.id);
-        if (music === null) {
-            return;
-        }
-        music.setVolume(snapshot.volume);
-        music.setPosition(this.normalizeMusicPosition(music, snapshot.position, snapshot.looped));
-    }
-
-    private restoreActiveMusic(context: RestoreContext, snapshot: MusicSnapshot, restoreGeneration: number): void {
-        const music = this.musicForId(context.main, snapshot.id);
-        if (music === null) {
-            context.gc.setMusicOn(true);
-            return;
-        }
-        if (!snapshot.playing && !snapshot.paused) {
-            this.restoreMusicPassive(context.main, snapshot);
-            context.gc.setMusicOn(true);
-            return;
-        }
-        const position = this.normalizeMusicPosition(music, snapshot.position, snapshot.looped);
-        context.gc.setMusicOn(false);
-        music.setVolume(snapshot.volume);
-        music.setPosition(position);
-        if (snapshot.looped) {
-            music.loop(snapshot.playbackRate, snapshot.volume);
-        } else {
-            music.play(snapshot.playbackRate, snapshot.volume);
-        }
-        void music
-            .ready()
-            .then(() => {
-                if (restoreGeneration !== this.restoreGeneration) {
-                    return;
-                }
-                globalThis.setTimeout(() => {
-                    if (restoreGeneration !== this.restoreGeneration) {
-                        return;
-                    }
-                    music.setPosition(this.normalizeMusicPosition(music, position, snapshot.looped));
-                    music.setVolume(snapshot.volume);
-                    if (snapshot.paused) {
-                        music.pause();
-                    }
-                    context.gc.setMusicOn(true);
-                }, 0);
-            })
-            .catch(() => {
-                if (restoreGeneration === this.restoreGeneration) {
-                    context.gc.setMusicOn(true);
-                }
-            });
     }
 
     private captureRandom(random: JavaRandom): RandomSnapshot {
@@ -1141,18 +1110,6 @@ export class StickvaniaGameStateSerializer {
             }
         }
         return null;
-    }
-
-    private normalizeMusicPosition(music: Music, position: number, looped: boolean): number {
-        const sanitized = Number.isFinite(position) ? Math.max(0, position) : 0;
-        if (!looped) {
-            return sanitized;
-        }
-        const duration = music.getDuration() ?? 0;
-        if (!Number.isFinite(duration) || duration <= 0) {
-            return sanitized;
-        }
-        return sanitized % duration;
     }
 
     private existingThingId(context: CaptureContext, thing: Thing, path: string): number {
