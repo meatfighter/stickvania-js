@@ -21,7 +21,7 @@ function fixture({ enabled = true, restore = true } = {}) {
     const noop = () => {};
     const events = { pulses: 0, restores: 0, continuous: 0, loopResumes: 0 };
     const runtimeControls = { display: () => Promise.resolve(), focus: noop };
-    const node = () => ({ addEventListener: noop, remove: noop });
+    const node = () => ({ addEventListener: noop, removeEventListener: noop, remove: noop });
     const shell = node();
     const host = node();
     const hamburger = node();
@@ -59,6 +59,7 @@ function fixture({ enabled = true, restore = true } = {}) {
         }
     };
     vm.runInNewContext(compile(rumbleSource), rumbleContext);
+
     class Preferences {
         volume = 0.5;
         displayMode = "dark";
@@ -75,6 +76,7 @@ function fixture({ enabled = true, restore = true } = {}) {
             return true;
         }
     }
+
     class Sessions {
         serial = 0;
         begin() {
@@ -87,6 +89,39 @@ function fixture({ enabled = true, restore = true } = {}) {
             return serial === this.serial;
         }
     }
+
+    class Cleanup {
+        unsafe = null;
+        get safe() {
+            return this.unsafe === null;
+        }
+        get failure() {
+            return this.unsafe;
+        }
+        run(...steps) {
+            for (const step of steps) {
+                try {
+                    step();
+                } catch (error) {
+                    this.unsafe ??= error instanceof Error ? error : new Error(String(error));
+                }
+            }
+            return this.safe;
+        }
+        trySave(save) {
+            try {
+                return save();
+            } catch {
+                return false;
+            }
+        }
+        assertSafe() {
+            if (this.unsafe !== null) {
+                throw this.unsafe;
+            }
+        }
+    }
+
     class Viewport {
         setHost() {}
         createFullscreenController() {
@@ -108,6 +143,7 @@ function fixture({ enabled = true, restore = true } = {}) {
         resumeCursor() {}
         scheduleResize() {}
     }
+
     class Main {
         clearInputPressedRecords() {}
         setBrowserSuspended() {}
@@ -115,20 +151,20 @@ function fixture({ enabled = true, restore = true } = {}) {
         isStateSaveReady() {
             return true;
         }
-        isLiveMenuOverlayAllowed() {
-            return true;
-        }
         resumeBrowserOnlyRumbles() {
             events.continuous++;
         }
     }
+
     class Buffered {
         constructor(game) {
             this.game = game;
         }
     }
+
     const input = { pause: noop, resume: noop };
     class Container {
+        destroyed = false;
         constructor(buffered) {
             this.game = buffered.game;
         }
@@ -140,6 +176,7 @@ function fixture({ enabled = true, restore = true } = {}) {
         setSmoothDeltas() {}
         setShowFPS() {}
         setClearEachFrame() {}
+        setGraphicsLifecycleHandler() {}
         setDisplayMode() {
             return runtimeControls.display();
         }
@@ -158,11 +195,20 @@ function fixture({ enabled = true, restore = true } = {}) {
         isFullscreen() {
             return false;
         }
+        isGraphicsContextLost() {
+            return false;
+        }
+        isDestroyed() {
+            return this.destroyed;
+        }
         setSoundVolume() {}
         setMusicVolume() {}
         stopSoundEffects() {}
-        destroy() {}
+        destroy() {
+            this.destroyed = true;
+        }
     }
+
     class Store {
         hasValidSave() {
             return true;
@@ -174,16 +220,46 @@ function fixture({ enabled = true, restore = true } = {}) {
         save() {
             return true;
         }
-        cancelPendingRestore() {}
+        clear() {
+            return true;
+        }
     }
+
     const runtime = {
         Main,
         StickvaniaBufferedGame: Buffered,
         StickvaniaGameStateStore: Store,
         slick: { Display: { setParent: noop }, AppGameContainer: Container }
     };
+
+    let latestAudio = null;
+    let audioSerial = 0;
+    const playback = {
+        beginGameAudio() {
+            const attempt = { id: ++audioSerial, ready: Promise.resolve(true) };
+            latestAudio = attempt;
+            return attempt;
+        },
+        commitGameAudio(attempt) {
+            return Promise.resolve(latestAudio === attempt);
+        },
+        isGameAudioCurrent(attempt) {
+            return latestAudio === attempt;
+        },
+        isGameAudioLatest(attempt) {
+            return latestAudio === attempt;
+        },
+        releaseGameAudio(attempt) {
+            if (attempt === undefined || latestAudio === attempt) {
+                latestAudio = null;
+            }
+        },
+        setGameAudioInterruptionHandler() {}
+    };
+
     const imports = {
-        "./app/AudioUnlock.js": { releaseGameAudio: noop, unlockGameAudio: () => Promise.resolve("ready") },
+        "./app/SessionCleanup.js": { SessionCleanup: Cleanup },
+        "./app/PlaybackSession.js": playback,
         "./app/GameSessionOwnership.js": { GameSessionOwnership: class {} },
         "slick2d-ts": { SoundStore: { get: () => ({ setSoundVolume: noop, setMusicVolume: noop, stopAllPlayback: noop }) } },
         "./app/BrowserPreferences.js": { BrowserPreferences: Preferences },
@@ -213,16 +289,16 @@ function fixture({ enabled = true, restore = true } = {}) {
         ...common,
         exports: {},
         __APP_VERSION__: "test",
+        __CACHE_VERSION__: "test",
         cancelAnimationFrame: noop,
+        localStorage: { removeItem: noop },
         require(id) {
             assert.ok(Object.hasOwn(imports, id), `Unexpected application import: ${id}`);
             return imports[id];
         },
         testRoot: root,
-        testOwnership: { owned: true }
+        testOwnership: { owned: true, epoch: 1, isCurrent: () => true }
     };
-    // The whole application module executes. This test-only access bridge exposes
-    // existing lexical state without copying any production method into the test.
     const bridge = `
         app = globalThis.testRoot;
         ownership = globalThis.testOwnership;
@@ -240,7 +316,7 @@ function fixture({ enabled = true, restore = true } = {}) {
 for (const enabled of [true, false]) {
     for (const restore of [true, false]) {
         test(`${restore ? "cold Continue" : "New Game"} releases lifecycle suspension while preserving rumble enabled=${enabled}`, async () => {
-            const f = fixture({ enabled });
+            const f = fixture({ enabled, restore });
             const manager = f.getRumbleManager();
             manager.play("test");
             assert.equal(f.events.pulses, 0, "MENU must suppress haptics");
