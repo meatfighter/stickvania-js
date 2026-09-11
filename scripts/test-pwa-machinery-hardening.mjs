@@ -32,6 +32,12 @@ test("browser lifecycle only enters the PWA menu and never auto-resumes", () => 
     assert.match(mainSource, /function suspendGameForMenu[\s\S]*?releaseGameAudio\(\)/);
 });
 
+test("graphics lifecycle is exit-only and restoration never resumes gameplay", () => {
+    const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("function refreshVisibleBootProgress"));
+    assert.match(launch, /setGraphicsLifecycleHandler\(\(state\) => \{[\s\S]*?state === "lost"[\s\S]*?requestPwaMenu\("graphics-context-lost"\)/);
+    assert.doesNotMatch(launch, /state === "restored"[\s\S]*?(?:setLoopSuspended\(false\)|setBrowserSuspended\(false\)|beginGameAudio\(|commitGameAudio\()/);
+});
+
 test("live-menu transition freezes rumble/gameplay and retires playback before saving", () => {
     const liveMenu = mainSource.slice(mainSource.indexOf("function showLiveMenuOverlay"), mainSource.indexOf("async function resumeLiveGameFromMenu"));
     assert.ok(liveMenu.indexOf("suspendGameForMenu();") < liveMenu.indexOf("saveCurrentGameState"));
