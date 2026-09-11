@@ -49,6 +49,14 @@ test("live-menu transition freezes rumble/gameplay and retires playback before s
     assert.match(suspend, /releaseGameAudio\(\)/);
 });
 
+test("failed persistence keeps the initialized live game continuable", () => {
+    const liveMenu = mainSource.slice(mainSource.indexOf("function showLiveMenuOverlay"), mainSource.indexOf("async function resumeLiveGameFromMenu"));
+    assert.match(liveMenu, /const saved = sessionCleanup\.trySave\(saveCurrentGameState\)/);
+    assert.match(liveMenu, /Progress could not be saved\. Continue still preserves this live game\./);
+    assert.match(liveMenu, /pwaSessionState = "menu";/);
+    assert.doesNotMatch(liveMenu, /destroyGame\(/);
+});
+
 test("Stickvania Song sequencing uses logical transport and has no browser recovery authority", () => {
     assert.match(songSource, /getTransportState\(\) !== "stopped"/);
     assert.match(songSource, /isTransportActive\(\)/);
@@ -71,6 +79,20 @@ test("playback activation is attempt-scoped for live Continue", () => {
     assert.match(resume, /isGameAudioLatest\(audio\)/);
     assert.equal((resume.match(/isGameAudioLatest\(audio\)/g) ?? []).length, 2, "Continue catch and finally must both reject stale attempts.");
     assert.match(resume, /isStartingGameSession\(session, audio\)/);
+});
+
+test("synchronous post-commit UI hooks are rechecked before RUNNING", () => {
+    const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("function refreshVisibleBootProgress"));
+    const launchFocus = launch.indexOf("viewport.focusCanvas();");
+    const launchGuard = launch.indexOf("if (!isStartingGameSession(session, audio) || game !== mainGame || container !== appContainer)", launchFocus);
+    const launchRunning = launch.indexOf('pwaSessionState = "running";', launchFocus);
+    assert.ok(launchFocus >= 0 && launchGuard > launchFocus && launchRunning > launchGuard);
+
+    const resume = mainSource.slice(mainSource.indexOf("async function resumeLiveGameFromMenu"), mainSource.indexOf("function removeMenuOverlay"));
+    const resumeFocus = resume.indexOf("viewport.focusCanvas();");
+    const resumeGuard = resume.indexOf("if (!isStartingGameSession(session, audio))", resumeFocus);
+    const resumeRunning = resume.indexOf('pwaSessionState = "running";', resumeFocus);
+    assert.ok(resumeFocus >= 0 && resumeGuard > resumeFocus && resumeRunning > resumeGuard);
 });
 
 test("stale container retirement uses the shared cleanup latch", () => {
