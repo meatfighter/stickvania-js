@@ -57,6 +57,13 @@ test("failed persistence keeps the initialized live game continuable", () => {
     assert.doesNotMatch(liveMenu, /destroyGame\(/);
 });
 
+test("ownership relinquishment performs the final save before destructive cleanup", () => {
+    const release = mainSource.slice(mainSource.indexOf("function releaseOwnedSession"), mainSource.indexOf("function showCleanupFailure"));
+    const save = mainSource.slice(mainSource.indexOf("function saveCurrentGameState"), mainSource.indexOf("function clearStoredGameState"));
+    assert.ok(release.indexOf("sessionCleanup.trySave(saveCurrentGameState);") < release.indexOf("destroyGame();"));
+    assert.match(save, /if \(!ownership\?\.owned\) \{\s*return false;\s*\}/);
+});
+
 test("Stickvania Song sequencing uses logical transport and has no browser recovery authority", () => {
     assert.match(songSource, /getTransportState\(\) !== "stopped"/);
     assert.match(songSource, /isTransportActive\(\)/);
