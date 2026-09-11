@@ -5,6 +5,7 @@ import test from "node:test";
 
 const rootDir = process.cwd();
 const mainSource = readFileSync(join(rootDir, "pwa", "src", "main.ts"), "utf8");
+const gameMainSource = readFileSync(join(rootDir, "pwa", "src", "stickvania", "Main.ts"), "utf8");
 const runtimeLoaderSource = readFileSync(join(rootDir, "pwa", "src", "app", "RuntimeLoader.ts"), "utf8");
 const serviceWorkerSource = readFileSync(join(rootDir, "pwa", "public", "sw.js"), "utf8");
 const stylesSource = readFileSync(join(rootDir, "pwa", "src", "styles.css"), "utf8");
@@ -48,12 +49,29 @@ test("Stickvania Song sequencing uses logical transport and has no browser recov
     assert.doesNotMatch(songSource, /resumeAfterBrowserSuspension|resumeMusicPart|browser/i);
 });
 
+test("Stickvania Main no longer owns browser audio preferences or recovery", () => {
+    assert.doesNotMatch(gameMainSource, /BrowserAudioController|browserAudioController|browserSuspendedMusicOn|browserSuspendedSoundOn|resumeBrowserAudio/);
+    const suspension = gameMainSource.slice(gameMainSource.indexOf("public setBrowserSuspended"), gameMainSource.indexOf("public resetNextFrameTime"));
+    assert.match(suspension, /this\.browserSuspended = suspended/);
+    assert.match(suspension, /this\.stopAllRumbles\(\)/);
+    assert.match(suspension, /this\.clearInputPressedRecords\(\)/);
+    assert.doesNotMatch(suspension, /setMusicOn|setSoundOn|resume|Music|Song/);
+});
+
 test("playback activation is attempt-scoped for live Continue", () => {
     const resume = mainSource.slice(mainSource.indexOf("async function resumeLiveGameFromMenu"), mainSource.indexOf("function removeMenuOverlay"));
     assert.match(resume, /const audio = beginGameAudio\(\)/);
     assert.match(resume, /commitGameAudio\(audio\)/);
     assert.match(resume, /isGameAudioLatest\(audio\)/);
     assert.match(resume, /isStartingGameSession\(session, audio\)/);
+});
+
+test("stale container retirement uses the shared cleanup latch", () => {
+    assert.match(mainSource, /function retireStaleContainer\(appContainer: AppGameContainer\): void/);
+    assert.match(mainSource, /sessionCleanup\.run\(\(\) => appContainer\.destroy\(\)\)/);
+    assert.match(mainSource, /if \(!sessionCleanup\.safe\) \{\s*showCleanupFailure\(\);\s*\}/);
+    const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("function refreshVisibleBootProgress"));
+    assert.doesNotMatch(launch, /if \(!isStartingGameSession\(session, audio\)\) \{\s*appContainer\.destroy\(\);/);
 });
 
 test("runtime preload waits for both resource branches before exposing failure", () => {
