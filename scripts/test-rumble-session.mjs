@@ -4,8 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
 
-const compile = (source) =>
-    ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+const compile = (source) => ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
 const mainSource = readFileSync(new URL("../pwa/src/main.ts", import.meta.url), "utf8");
 const rumbleSource = readFileSync(new URL("../pwa/src/rumble/RumbleManager.ts", import.meta.url), "utf8");
 
@@ -349,9 +348,17 @@ test("Reset stays silent in MENU and permits haptics only after another accepted
     const f = fixture();
     await f.startGame(false);
     const manager = f.getRumbleManager();
-    f.resetPwaState();
+
+    f.requestPwaMenu("hamburger");
+    assert.equal(f.state().phase, "menu");
     manager.play("test");
     assert.equal(f.events.pulses, 0);
+
+    f.resetPwaState();
+    assert.equal(f.state().phase, "menu");
+    manager.play("test");
+    assert.equal(f.events.pulses, 0);
+
     await f.startGame(false);
     manager.play("test");
     assert.equal(f.events.pulses, 1);

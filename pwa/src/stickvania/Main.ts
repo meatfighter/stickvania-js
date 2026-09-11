@@ -76,13 +76,6 @@ import type { RumbleEffectId } from "../rumble/RumbleEffects.js";
 import { isRestorableGameStateMode, isStageRequiredGameStateMode } from "./persistence/GameStatePolicy.js";
 import type { RumbleManager } from "../rumble/RumbleManager.js";
 
-type BrowserAudioController = {
-    isMusicOn(): boolean;
-    isSoundOn(): boolean;
-    setMusicOn(value: boolean): void;
-    setSoundOn(value: boolean): void;
-};
-
 type BrowserFullscreenController = {
     isFullscreen(): boolean;
     enterFullscreen(): void;
@@ -522,11 +515,8 @@ export class Main extends BasicGame {
     public requestedSong: Song | null = null;
     public currentMusic: Music | null = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) | null = null;
-    public browserAudioController: BrowserAudioController | null = null;
     public browserFullscreenController: BrowserFullscreenController | null = null;
     private browserSuspended: boolean = false;
-    private browserSuspendedMusicOn: boolean = true;
-    private browserSuspendedSoundOn: boolean = true;
     private input: Input | null = null;
     public buttonMapping: ButtonMapping = ButtonMapping.load();
     public difficulty: number = Main.loadDifficulty();
@@ -2689,41 +2679,14 @@ export class Main extends BasicGame {
         this.stopAllRumbles();
     }
 
+    /** Menu suspension freezes simulation and input without unpausing any Music. */
     public setBrowserSuspended(suspended: boolean): void {
-        if (this.browserSuspended == suspended) {
-            return;
-        }
         this.browserSuspended = suspended;
         if (suspended) {
-            this.stopAllSoundEffects();
             this.stopAllRumbles();
-            if (this.browserAudioController != null) {
-                this.browserSuspendedMusicOn = this.browserAudioController.isMusicOn();
-                this.browserSuspendedSoundOn = this.browserAudioController.isSoundOn();
-                this.browserAudioController.setMusicOn(false);
-                this.browserAudioController.setSoundOn(false);
-            }
-        } else {
-            if (this.browserAudioController != null) {
-                this.browserAudioController.setMusicOn(this.browserSuspendedMusicOn);
-                this.browserAudioController.setSoundOn(this.browserSuspendedSoundOn);
-            }
-            this.resumeBrowserAudio();
-            this.clearInputPressedRecords();
-            this.resetNextFrameTime();
         }
-    }
-
-    private resumeBrowserAudio(): void {
-        if (this.browserAudioController == null || !this.browserSuspendedMusicOn || !this.browserAudioController.isMusicOn()) {
-            return;
-        }
-        if (this.currentMusic != null) {
-            this.currentMusic.resume();
-        }
-        if (this.currentSong != null) {
-            this.currentSong.resumeAfterBrowserSuspension();
-        }
+        this.clearInputPressedRecords();
+        this.resetNextFrameTime();
     }
 
     public resetNextFrameTime(): void {

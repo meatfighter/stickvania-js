@@ -142,20 +142,23 @@ try {
 }
 
 async function armReentrantSecondClick(page, selector) {
-    await page.locator(selector).first().evaluate((button) => {
-        let reentered = false;
-        button.addEventListener(
-            "click",
-            () => {
-                if (reentered) {
-                    return;
-                }
-                reentered = true;
-                button.click();
-            },
-            { once: true }
-        );
-    });
+    await page
+        .locator(selector)
+        .first()
+        .evaluate((button) => {
+            let reentered = false;
+            button.addEventListener(
+                "click",
+                () => {
+                    if (reentered) {
+                        return;
+                    }
+                    reentered = true;
+                    button.click();
+                },
+                { once: true }
+            );
+        });
 }
 
 async function openLiveMenu(page, label) {

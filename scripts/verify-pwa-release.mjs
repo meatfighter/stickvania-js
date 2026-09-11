@@ -413,6 +413,8 @@ function validPotentialGameStateSnapshot(version) {
         stage: null,
         things: [],
         audio: {
+            musicOn: true,
+            soundOn: true,
             currentSong: null,
             requestedSong: null,
             currentMusic: null,
@@ -669,13 +671,20 @@ test("PWA service worker registration is relative to the current PWA page", () =
     assert.match(mainSource, /registerStickvaniaServiceWorker\(__CACHE_VERSION__\)/);
 });
 
-test("PWA runtime error screen tears down the active game before replacing the UI", () => {
+test("PWA runtime error screen requires safe teardown before replacing the UI", () => {
     const mainSource = readFileSync(mainSourcePath, "utf8");
+    const showErrorStart = mainSource.indexOf("function showError(message: string): void");
+    const showErrorEnd = mainSource.indexOf("function showMenu", showErrorStart);
+    const showError = mainSource.slice(showErrorStart, showErrorEnd);
 
-    assert.match(
-        mainSource,
-        /function showError\(message: string\): void \{\s*destroyGame\(\);\s*showLoadError\("Unable to continue\.", message,/,
-        "showError should destroy the active AppGameContainer before showing the retry screen."
+    assert.match(showError, /if \(!destroyGame\(\)\) \{\s*return;\s*\}/, "showError must not replace the UI when destructive cleanup is unsafe.");
+    assert.ok(
+        showError.indexOf('pwaSessionState = "menu";') > showError.indexOf("if (!destroyGame())"),
+        "MENU state must be published only after safe teardown."
+    );
+    assert.ok(
+        showError.indexOf('showLoadError("Unable to continue.", message,') > showError.indexOf('pwaSessionState = "menu";'),
+        "the retry screen must be rendered only after teardown and MENU transition."
     );
 });
 
@@ -882,7 +891,7 @@ test("PWA browser storage keys are scoped to the deployed path", async () => {
     const productionCacheBustUrl = "https://example.test/stickvania/?v=two";
     const stagingUrl = "https://example.test/stickvania-staging/?v=one";
     const productionIndexUrl = "https://example.test/stickvania/index.html?v=one";
-    const names = ["game-state", "volume", "display-mode", "scaling", "rumble", "difficulty", "input-mapping"];
+    const names = ["game-state-v10", "volume", "display-mode", "scaling", "rumble", "difficulty", "input-mapping"];
 
     assert.equal(getBrowserStorageScopePath(productionUrl), "/stickvania/");
     assert.equal(getBrowserStorageScopePath(productionIndexUrl), "/stickvania/");
@@ -925,7 +934,7 @@ test("PWA browser storage source uses scoped keys for saves and preferences", ()
     assert.match(sourceText, /getBrowserStorageKey\("rumble"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("input-mapping"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("difficulty"\)/);
-    assert.match(sourceText, /getBrowserStorageKey\("game-state"\)/);
+    assert.match(sourceText, /getBrowserStorageKey\("game-state-v10"\)/);
 });
 
 test("PWA game-state Thing type IDs are stable through production minification", () => {
@@ -936,8 +945,8 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const mainSource = readFileSync(mainSourcePath, "utf8");
     const builtSource = builtJavaScript();
 
-    assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 9;/);
+    assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state-v10"\);/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 10;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);
@@ -969,17 +978,19 @@ test("PWA root-menu preflight handles unavailable localStorage", async () => {
     }
 });
 
-test("PWA root-menu preflight clears obsolete or malformed saved games", async () => {
+test("PWA root-menu preflight rejects obsolete or malformed saved games without mutating storage", async () => {
     const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, hasPotentialStoredStickvaniaGameState } = await importGameStatePreflight();
     const storage = createLocalStorageMock();
 
-    storage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(validPotentialGameStateSnapshot(GAME_STATE_VERSION - 1)));
+    const obsoleteText = JSON.stringify(validPotentialGameStateSnapshot(GAME_STATE_VERSION - 1));
+    storage.setItem(GAME_STATE_STORAGE_KEY, obsoleteText);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
-    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), null);
+    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), obsoleteText);
 
-    storage.setItem(GAME_STATE_STORAGE_KEY, "{");
+    const malformedText = "{";
+    storage.setItem(GAME_STATE_STORAGE_KEY, malformedText);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
-    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), null);
+    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), malformedText);
 });
 
 test("PWA root-menu preflight preserves future-version saved games", async () => {
@@ -1001,7 +1012,12 @@ test("PWA Continue launch failures preserve saved games", () => {
 
     assert.equal(mainClearCalls.length, 1, "The PWA shell should only clear saved game state from the New Game action.");
     assert.ok(newGameClearIndex >= 0 && mainClearCalls[0] > newGameClearIndex, "The remaining shell save clear should stay in the New Game handler.");
-    assert.match(mainSource, /\(\) => void startGame\(restoreSavedGame\)/, "Load-error Retry should preserve the original New Game or Continue intent.");
+    assert.match(
+        mainSource,
+        /showLoadError\("Unable to start\.", "Check your connection and try again\.", startPwaMenu\)/,
+        "A failed launch should return to the menu before another explicit activation."
+    );
+    assert.doesNotMatch(mainSource, /\(\) => void startGame\(restoreSavedGame\)/, "A failed launch must not automatically replay New Game or Continue.");
     assert.match(
         storeSource,
         /console\.warn\("Unable to restore Stickvania game state\.", error\);\s*return false;\s*}\s*}\s*public hasValidSave/,
@@ -1009,17 +1025,17 @@ test("PWA Continue launch failures preserve saved games", () => {
     );
 });
 
-test("PWA root-menu preflight clears only the selected deployment save", async () => {
+test("PWA root-menu preflight scopes reads without mutating deployment saves", async () => {
     const { GAME_STATE_VERSION, hasPotentialStoredStickvaniaGameState } = await importGameStatePreflight();
     const storage = createLocalStorageMock();
-    const stagingStorageKey = expectedBrowserStorageKey("game-state", "https://example.test/stickvania-staging/");
-    const productionStorageKey = expectedBrowserStorageKey("game-state", "https://example.test/stickvania/");
+    const stagingStorageKey = expectedBrowserStorageKey("game-state-v10", "https://example.test/stickvania-staging/");
+    const productionStorageKey = expectedBrowserStorageKey("game-state-v10", "https://example.test/stickvania/");
 
     storage.setItem(stagingStorageKey, "{");
     storage.setItem(productionStorageKey, JSON.stringify(validPotentialGameStateSnapshot(GAME_STATE_VERSION)));
 
     assert.equal(hasPotentialStoredStickvaniaGameState(storage, stagingStorageKey), false);
-    assert.equal(storage.getItem(stagingStorageKey), null);
+    assert.equal(storage.getItem(stagingStorageKey), "{");
     assert.notEqual(storage.getItem(productionStorageKey), null);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage, productionStorageKey), true);
 });

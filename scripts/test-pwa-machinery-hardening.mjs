@@ -15,8 +15,14 @@ test("new game requires prepared resources and destroys the old session before f
     const startGame = mainSource.slice(mainSource.indexOf("async function startGame"), mainSource.indexOf("async function launchPreparedGame"));
     assert.match(startGame, /const runtime = runtimeLoader\.getPreparedRuntime\(\);/);
     assert.match(startGame, /if \(runtime === null\) \{\s*startPwaMenu\(\);\s*return;\s*\}/);
-    assert.ok(startGame.indexOf("destroyGame();") > startGame.indexOf("const runtime = runtimeLoader.getPreparedRuntime();"));
-    assert.ok(startGame.indexOf("const session = sessions.begin();") < startGame.indexOf("const audio = beginGameAudio();"));
+    const runtimePrepared = startGame.indexOf("const runtime = runtimeLoader.getPreparedRuntime();");
+    const destroyOldSession = startGame.indexOf("if (!destroyGame())");
+    const beginSession = startGame.indexOf("const session = sessions.begin();");
+    const beginAudio = startGame.indexOf("const audio = beginGameAudio();");
+    assert.match(startGame, /if \(!destroyGame\(\)\) \{\s*return;\s*\}/);
+    assert.ok(destroyOldSession > runtimePrepared, "old-session cleanup must happen after prepared-resource validation");
+    assert.ok(beginSession > destroyOldSession, "a new session must not begin until old-session cleanup succeeds");
+    assert.ok(beginAudio > beginSession, "fresh playback activation must follow the new session identity");
     assert.ok(startGame.indexOf('pwaSessionState = "starting";') < startGame.indexOf("const audio = beginGameAudio();"));
     assert.match(startGame, /await audio\.ready/);
     assert.doesNotMatch(startGame, /unlockAudio|ensurePrepared|showBoot/);

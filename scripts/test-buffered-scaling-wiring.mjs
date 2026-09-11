@@ -79,7 +79,15 @@ test("the PWA menu has a full local reset escape hatch", () => {
     assert.match(menuSource, /id="reset-button" class="reset-button"/);
     assert.match(menuSource, /resetButton\.addEventListener\("click", callbacks\.onReset\)/);
     assert.match(mainSource, /function resetPwaState\(\): void/);
-    assert.match(mainSource, /destroyGame\(\);\s*const cleared = preferences\.reset\(\);/);
+    const resetStart = mainSource.indexOf("function resetPwaState(): void");
+    const resetEnd = mainSource.indexOf("function showGameShell", resetStart);
+    const reset = mainSource.slice(resetStart, resetEnd);
+    assert.match(reset, /if \(!canActivateFromMenu\(\)\) \{\s*return;\s*\}/);
+    assert.match(reset, /if \(!destroyGame\(\)\) \{\s*return;\s*\}/);
+    assert.ok(
+        reset.indexOf("const cleared = preferences.reset();") > reset.indexOf("if (!destroyGame())"),
+        "preferences must reset only after destructive cleanup succeeds"
+    );
     assert.match(preferencesSource, /this\.volume = DEFAULT_VOLUME;/);
     assert.match(preferencesSource, /this\.displayMode = DEFAULT_DISPLAY_MODE;/);
     assert.match(preferencesSource, /this\.scaling = DEFAULT_SCALING_PREFERENCE;/);
