@@ -10,15 +10,15 @@ const serviceWorkerSource = readFileSync(join(rootDir, "pwa", "public", "sw.js")
 const stylesSource = readFileSync(join(rootDir, "pwa", "src", "styles.css"), "utf8");
 const songSource = readFileSync(join(rootDir, "pwa", "src", "stickvania", "Song.ts"), "utf8");
 
-test("new game requires prepared resources and destroys the old session before fresh audio activation", () => {
+test("new game requires prepared resources and destroys the old session before fresh playback activation", () => {
     const startGame = mainSource.slice(mainSource.indexOf("async function startGame"), mainSource.indexOf("async function launchPreparedGame"));
     assert.match(startGame, /const runtime = runtimeLoader\.getPreparedRuntime\(\);/);
     assert.match(startGame, /if \(runtime === null\) \{\s*startPwaMenu\(\);\s*return;\s*\}/);
     assert.ok(startGame.indexOf("destroyGame();") > startGame.indexOf("const runtime = runtimeLoader.getPreparedRuntime();"));
-    assert.ok(startGame.indexOf("destroyGame();") < startGame.indexOf("const audioUnlockPromise = unlockAudio();"));
-    assert.doesNotMatch(startGame, /ensurePrepared|showBoot/);
-    assert.match(startGame, /pwaSessionState !== "menu"/);
-    assert.match(startGame, /pwaSessionState = "starting"/);
+    assert.ok(startGame.indexOf("const session = sessions.begin();") < startGame.indexOf("const audio = beginGameAudio();"));
+    assert.ok(startGame.indexOf('pwaSessionState = "starting";') < startGame.indexOf("const audio = beginGameAudio();"));
+    assert.match(startGame, /await audio\.ready/);
+    assert.doesNotMatch(startGame, /unlockAudio|ensurePrepared|showBoot/);
 });
 
 test("browser lifecycle only enters the PWA menu and never auto-resumes", () => {
@@ -27,23 +27,33 @@ test("browser lifecycle only enters the PWA menu and never auto-resumes", () => 
     assert.match(mainSource, /document\.visibilityState === "hidden"/);
     assert.doesNotMatch(mainSource, /window\.addEventListener\("focus"/);
     assert.doesNotMatch(mainSource, /window\.addEventListener\("pageshow"/);
-    assert.match(mainSource, /if \(pwaSessionState === "starting"\) \{[\s\S]*showMenu\(\);[\s\S]*return;/);
-    assert.match(mainSource, /pwaSessionState === "running"[\s\S]*game\.isLiveMenuOverlayAllowed\(\)/);
-    assert.match(mainSource, /releaseGameAudio\(\);[\s\S]*menuOverlay = renderMenuForParent/);
+    assert.match(mainSource, /function requestPwaMenu[\s\S]*?pwaSessionState = "stopping";[\s\S]*?suspendGameForMenu\(\)/);
+    assert.match(mainSource, /function suspendGameForMenu[\s\S]*?releaseGameAudio\(\)/);
 });
 
-test("live-menu transition freezes gameplay before saving and retiring audio", () => {
+test("live-menu transition freezes rumble/gameplay and retires playback before saving", () => {
     const liveMenu = mainSource.slice(mainSource.indexOf("function showLiveMenuOverlay"), mainSource.indexOf("async function resumeLiveGameFromMenu"));
-    assert.ok(liveMenu.indexOf("game.setBrowserSuspended(true);") < liveMenu.indexOf("const saved = saveCurrentGameState();"));
-    assert.ok(liveMenu.indexOf("container.setLoopSuspended(true);") < liveMenu.indexOf("const saved = saveCurrentGameState();"));
-    assert.ok(liveMenu.indexOf("const saved = saveCurrentGameState();") < liveMenu.indexOf("releaseGameAudio();"));
+    assert.ok(liveMenu.indexOf("suspendGameForMenu();") < liveMenu.indexOf("saveCurrentGameState"));
+    const suspend = mainSource.slice(mainSource.indexOf("function suspendGameForMenu"), mainSource.indexOf("function requestPwaMenu"));
+    assert.match(suspend, /setLoopSuspended\(true\)/);
+    assert.match(suspend, /setBrowserSuspended\(true\)/);
+    assert.match(suspend, /getInput\(\)\.pause\(\)/);
+    assert.match(suspend, /rumbleManager\?\.setSuspended\(true\)/);
+    assert.match(suspend, /releaseGameAudio\(\)/);
 });
 
-test("Stickvania Song recovery never chooses or starts a replacement music segment", () => {
-    const resume = songSource.slice(songSource.indexOf("public resumeAfterBrowserSuspension"), songSource.indexOf("private resumeMusicPart"));
-    assert.match(resume, /this\.resumeMusicPart\(this\.intro\)/);
-    assert.match(resume, /this\.resumeMusicPart\(this\.loop\)/);
-    assert.doesNotMatch(resume, /\.play\(|\.loop\(/);
+test("Stickvania Song sequencing uses logical transport and has no browser recovery authority", () => {
+    assert.match(songSource, /getTransportState\(\) !== "stopped"/);
+    assert.match(songSource, /isTransportActive\(\)/);
+    assert.doesNotMatch(songSource, /resumeAfterBrowserSuspension|resumeMusicPart|browser/i);
+});
+
+test("playback activation is attempt-scoped for live Continue", () => {
+    const resume = mainSource.slice(mainSource.indexOf("async function resumeLiveGameFromMenu"), mainSource.indexOf("function removeMenuOverlay"));
+    assert.match(resume, /const audio = beginGameAudio\(\)/);
+    assert.match(resume, /commitGameAudio\(audio\)/);
+    assert.match(resume, /isGameAudioLatest\(audio\)/);
+    assert.match(resume, /isStartingGameSession\(session, audio\)/);
 });
 
 test("runtime preload waits for both resource branches before exposing failure", () => {
