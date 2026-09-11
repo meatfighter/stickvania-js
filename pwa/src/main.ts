@@ -1,4 +1,12 @@
-import { releaseGameAudio, unlockGameAudio, type GameAudioActivation } from "./app/AudioUnlock.js";
+import {
+    beginGameAudio,
+    commitGameAudio,
+    isGameAudioCurrent,
+    isGameAudioLatest,
+    releaseGameAudio,
+    setGameAudioInterruptionHandler,
+    type GameAudioAttempt
+} from "./app/AudioUnlock.js";
 import { GameSessionOwnership } from "./app/GameSessionOwnership.js";
 import { SoundStore, type AppGameContainer } from "slick2d-ts";
 import { BrowserPreferences } from "./app/BrowserPreferences.js";
@@ -32,6 +40,9 @@ let menuOverlay: HTMLElement | null = null;
 let liveMenuOpen = false;
 let gameLaunchInProgress = false;
 let pwaSessionState: PwaSessionState = "booting";
+let gameOwnershipEpoch = -1;
+let activeGameSession = 0;
+let menuRequestSerial = 0;
 let hamburgerVisibilityAnimationFrame = 0;
 let rumbleManager: RumbleManager | null = null;
 let gameStateStore: StickvaniaGameStateStore | null = null;
@@ -46,6 +57,30 @@ declare global {
     interface Window {
         __stickvaniaBooted?: boolean;
     }
+}
+
+function canActivateFromMenu(): boolean {
+    return (
+        pwaSessionState === "menu" &&
+        ownership?.isCurrent(ownership.epoch) === true &&
+        document.visibilityState === "visible" &&
+        document.hasFocus()
+    );
+}
+
+function isCurrentGameSession(session: number): boolean {
+    return sessions.isCurrent(session) && ownership?.isCurrent(gameOwnershipEpoch) === true;
+}
+
+function isStartingGameSession(session: number, audio: GameAudioAttempt): boolean {
+    return (
+        isCurrentGameSession(session) &&
+        pwaSessionState === "starting" &&
+        isGameAudioCurrent(audio) &&
+        document.visibilityState === "visible" &&
+        document.hasFocus() &&
+        container?.isGraphicsContextLost() !== true
+    );
 }
 
 function setAudioVolume(value: number, persist = true): boolean {
@@ -114,6 +149,9 @@ function showBoot(progress = 0): void {
 }
 
 function showLoadError(title: string, message: string, retryHandler: () => void): void {
+    if (!ownership?.owned) {
+        return;
+    }
     app.innerHTML = `<main class="boot-screen boot-failed" role="alert"><section class="load-error-panel" aria-label="${escapeHtml(title)}"><div class="failure-icon" aria-hidden="true">&#x1F480;</div><div class="boot-title">${escapeHtml(title)}</div><p class="boot-error">${escapeHtml(message)}</p><button id="retry-button" class="retry-button" type="button">Retry</button></section></main>`;
     document.getElementById("retry-button")?.addEventListener("click", retryHandler);
 }
@@ -125,6 +163,9 @@ function showError(message: string): void {
 }
 
 function showMenu(errorText = ""): void {
+    if (!ownership?.isCurrent(ownership.epoch)) {
+        return;
+    }
     destroyGame();
     pwaSessionState = "menu";
     renderRootMenu(errorText);
@@ -153,13 +194,16 @@ function renderMenuForParent(parent: HTMLElement, canContinue: boolean, errorTex
             onVolumeInput: (value) => void setAudioVolume(value, false),
             onVolumeCommit: (value) => setAudioVolume(value, true),
             onNewGame: () => {
-                if (pwaSessionState !== "menu") {
+                if (!canActivateFromMenu()) {
                     return;
                 }
                 clearStoredGameState();
                 void startGame(false);
             },
             onContinue: () => {
+                if (!canActivateFromMenu()) {
+                    return;
+                }
                 if (hasLiveSuspendedGame()) {
                     void resumeLiveGameFromMenu();
                 } else {
@@ -172,6 +216,9 @@ function renderMenuForParent(parent: HTMLElement, canContinue: boolean, errorTex
 }
 
 function resetPwaState(): void {
+    if (!canActivateFromMenu()) {
+        return;
+    }
     destroyGame();
     pwaSessionState = "menu";
     const cleared = preferences.reset();
@@ -194,7 +241,7 @@ function showGameShell(): HTMLElement {
 }
 
 async function startGame(restoreSavedGame: boolean): Promise<void> {
-    if (pwaSessionState !== "menu") {
+    if (!canActivateFromMenu()) {
         return;
     }
     const runtime = runtimeLoader.getPreparedRuntime();
@@ -203,34 +250,40 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
         return;
     }
     destroyGame();
+    gameOwnershipEpoch = ownership.epoch;
     pwaSessionState = "starting";
-    const audioUnlockPromise = unlockAudio();
+    const audio = beginGameAudio();
     gameLaunchInProgress = true;
     syncScreenWakeLock();
     const session = sessions.begin();
+    activeGameSession = session;
     try {
-        const audioActivation = await audioUnlockPromise;
-        if (audioActivation === "superseded" || !sessions.isCurrent(session) || pwaSessionState !== "starting") {
+        if (!(await audio.ready) || !isStartingGameSession(session, audio)) {
             return;
         }
         if (restoreSavedGame && !getGameStateStore(runtime).hasValidSave()) {
             showMenu("Unable to restore the saved game. Try Continue again or start a new game.");
             return;
         }
-        await launchPreparedGame(runtime, restoreSavedGame, session);
+        await launchPreparedGame(runtime, restoreSavedGame, session, audio);
     } catch (error) {
-        if (!sessions.isCurrent(session)) {
+        if (!isCurrentGameSession(session)) {
             return;
         }
         console.error(error);
         destroyGame();
         pwaSessionState = "menu";
         showLoadError("Unable to start.", "Check your connection and try again.", startPwaMenu);
+    } finally {
+        if (isGameAudioLatest(audio) && isCurrentGameSession(session) && pwaSessionState === "starting") {
+            releaseGameAudio(audio);
+            showMenu("The game did not start. Try again, or reload the page.");
+        }
     }
 }
 
-async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: boolean, session: number): Promise<void> {
-    if (!sessions.isCurrent(session) || pwaSessionState !== "starting") {
+async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: boolean, session: number, audio: GameAudioAttempt): Promise<void> {
+    if (!isStartingGameSession(session, audio)) {
         return;
     }
     const host = showGameShell();
@@ -251,9 +304,14 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     activeBufferedGame = bufferedGame;
     mainGame.browserAudioController = appContainer;
     mainGame.browserFullscreenController = viewport.createFullscreenController();
+    appContainer.setGraphicsLifecycleHandler((state) => {
+        if (state === "lost" && isCurrentGameSession(session)) {
+            requestPwaMenu("graphics-context-lost");
+        }
+    });
     if (restoreSavedGame) {
         mainGame.loadingCompleteHandler = (gc) => {
-            if (!sessions.isCurrent(session) || !getGameStateStore(runtime).restore(mainGame, gc)) {
+            if (!isStartingGameSession(session, audio) || !getGameStateStore(runtime).restore(mainGame, gc)) {
                 restoreFailed = true;
                 return false;
             }
@@ -267,23 +325,21 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     appContainer.setShowFPS(false);
     appContainer.setClearEachFrame(true);
     await Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false));
-    if (!sessions.isCurrent(session) || pwaSessionState !== "starting") {
+    if (!isStartingGameSession(session, audio)) {
         appContainer.destroy();
         return;
     }
     await appContainer.start();
-    if (!sessions.isCurrent(session) || pwaSessionState !== "starting") {
+    if (!isStartingGameSession(session, audio)) {
         appContainer.destroy();
         return;
     }
     if (restoreFailed) {
-        destroyGame();
-        pwaSessionState = "menu";
-        renderRootMenu("Unable to restore the saved game. Try Continue again or start a new game.");
+        showMenu("Unable to restore the saved game. Try Continue again or start a new game.");
         return;
     }
     appContainer.setErrorHandler((error: unknown) => {
-        if (!sessions.isCurrent(session)) {
+        if (!isCurrentGameSession(session)) {
             return;
         }
         console.error(error);
@@ -291,30 +347,29 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
         pwaSessionState = "menu";
         showLoadError("Unable to continue.", "Reload the page and try again.", () => window.location.reload());
     });
-    viewport.start(appContainer, () => sessions.isCurrent(session), showError);
     applyAudioVolume(preferences.volume);
+    mainGame.setBrowserSuspended(false);
+    if (!(await commitGameAudio(audio)) || !isStartingGameSession(session, audio)) {
+        return;
+    }
+    viewport.start(appContainer, () => isCurrentGameSession(session), showError);
     getRumbleManager().setEnabled(preferences.rumbleEnabled);
     viewport.focusCanvas();
-    if (!sessions.isCurrent(session) || pwaSessionState !== "starting" || game !== mainGame || container !== appContainer) {
+    if (!isStartingGameSession(session, audio) || game !== mainGame || container !== appContainer) {
         return;
     }
     gameLaunchInProgress = false;
     pwaSessionState = "running";
-    mainGame.setBrowserSuspended(false);
-    // Enabled preference and lifecycle suspension are independent. A prior game
-    // suspended the page-lifetime manager; only this accepted start may release it.
+    // Only this accepted transaction releases the page-lifetime rumble manager.
     getRumbleManager().setSuspended(false);
     mainGame.resumeBrowserOnlyRumbles();
     appContainer.setLoopSuspended(false);
     startHamburgerVisibilityMonitor();
     syncScreenWakeLock();
-    if (document.visibilityState !== "visible" || !document.hasFocus()) {
-        requestPwaMenu("launch-lost-focus");
-    }
 }
 
 function refreshVisibleBootProgress(): void {
-    if (typeof app !== "undefined" && app.querySelector("[data-boot-progress='true']") !== null) {
+    if (typeof app !== "undefined" && ownership?.owned && pwaSessionState === "booting" && app.querySelector("[data-boot-progress='true']") !== null) {
         showBoot(runtimeLoader.getProgress());
     }
 }
@@ -342,12 +397,22 @@ function returnToMenu(): void {
     requestPwaMenu("hamburger");
 }
 
+function suspendGameForMenu(): void {
+    game?.setBrowserSuspended(true);
+    container?.stopSoundEffects();
+    container?.setLoopSuspended(true);
+    container?.getInput().pause();
+    rumbleManager?.setSuspended(true);
+}
+
 function requestPwaMenu(_reason: string): void {
     if (pwaSessionState === "booting" || pwaSessionState === "menu" || pwaSessionState === "stopping") {
         return;
     }
     if (pwaSessionState === "starting") {
+        suspendGameForMenu();
         if (liveMenuOpen) {
+            saveCurrentGameState();
             releaseGameAudio();
             pwaSessionState = "menu";
             syncScreenWakeLock();
@@ -361,6 +426,7 @@ function requestPwaMenu(_reason: string): void {
         showLiveMenuOverlay();
         return;
     }
+    suspendGameForMenu();
     saveCurrentGameState();
     showMenu();
 }
@@ -383,6 +449,7 @@ function hasLiveSuspendedGame(): boolean {
 
 function showLiveMenuOverlay(): void {
     if (!canOpenLiveMenuOverlay() || game === null || container === null || activeGameShell === null) {
+        suspendGameForMenu();
         saveCurrentGameState();
         showMenu();
         return;
@@ -391,11 +458,7 @@ function showLiveMenuOverlay(): void {
     removeMenuOverlay();
     liveMenuOpen = true;
     syncScreenWakeLock();
-    game.setBrowserSuspended(true);
-    container.stopSoundEffects();
-    getRumbleManager().setSuspended(true);
-    container.setLoopSuspended(true);
-    container.getInput().pause();
+    suspendGameForMenu();
     const saved = saveCurrentGameState();
     stopHamburgerVisibilityMonitor();
     hideHamburgerButton();
@@ -407,47 +470,60 @@ function showLiveMenuOverlay(): void {
 }
 
 async function resumeLiveGameFromMenu(): Promise<void> {
-    if (!hasLiveSuspendedGame() || game === null || container === null) {
+    if (!canActivateFromMenu() || !hasLiveSuspendedGame() || game === null || container === null || container.isGraphicsContextLost()) {
         return;
     }
     const liveGame = game;
     const liveContainer = container;
     const liveOverlay = menuOverlay;
+    const session = activeGameSession;
     pwaSessionState = "starting";
-    const audioUnlockPromise = unlockAudio();
-    const audioActivation = await audioUnlockPromise;
-    if (audioActivation === "superseded") {
-        return;
-    }
-    if (
-        pwaSessionState !== "starting" ||
-        game !== liveGame ||
-        container !== liveContainer ||
-        menuOverlay !== liveOverlay ||
-        document.visibilityState !== "visible" ||
-        !document.hasFocus()
-    ) {
-        releaseGameAudio();
-        if (game === liveGame && container === liveContainer && menuOverlay === liveOverlay) {
-            pwaSessionState = "menu";
+    const audio = beginGameAudio();
+    try {
+        if (!(await audio.ready) || !isStartingGameSession(session, audio) || game !== liveGame || container !== liveContainer || menuOverlay !== liveOverlay) {
+            return;
         }
-        return;
+        applyDisplayModePreference(liveGame);
+        applyAudioVolume(preferences.volume);
+        // Logical restoration happens behind the closed output gate and stopped RAF.
+        liveGame.setBrowserSuspended(false);
+        if (!(await commitGameAudio(audio)) || !isStartingGameSession(session, audio) || game !== liveGame || container !== liveContainer || menuOverlay !== liveOverlay) {
+            return;
+        }
+        viewport.scheduleResize();
+        viewport.focusCanvas();
+        if (!isStartingGameSession(session, audio)) {
+            return;
+        }
+        removeMenuOverlay();
+        liveContainer.getInput().resume();
+        liveGame.clearInputPressedRecords();
+        viewport.resumeCursor();
+        pwaSessionState = "running";
+        getRumbleManager().setSuspended(false);
+        liveGame.resumeBrowserOnlyRumbles();
+        liveContainer.setLoopSuspended(false);
+        startHamburgerVisibilityMonitor();
+        syncScreenWakeLock();
+    } catch (error) {
+        if (isCurrentGameSession(session) && isGameAudioLatest(audio)) {
+            console.error("Unable to continue the playback session.", error);
+        }
+    } finally {
+        if (
+            isGameAudioLatest(audio) &&
+            isCurrentGameSession(session) &&
+            pwaSessionState === "starting" &&
+            game === liveGame &&
+            container === liveContainer &&
+            menuOverlay === liveOverlay
+        ) {
+            suspendGameForMenu();
+            releaseGameAudio(audio);
+            pwaSessionState = "menu";
+            syncScreenWakeLock();
+        }
     }
-    removeMenuOverlay();
-    liveContainer.getInput().resume();
-    liveGame.clearInputPressedRecords();
-    applyDisplayModePreference(liveGame);
-    viewport.resumeCursor();
-    applyAudioVolume(preferences.volume);
-    viewport.scheduleResize();
-    viewport.focusCanvas();
-    liveGame.setBrowserSuspended(false);
-    getRumbleManager().setSuspended(false);
-    liveGame.resumeBrowserOnlyRumbles();
-    liveContainer.setLoopSuspended(false);
-    pwaSessionState = "running";
-    startHamburgerVisibilityMonitor();
-    syncScreenWakeLock();
 }
 
 function removeMenuOverlay(): void {
@@ -459,12 +535,18 @@ function removeMenuOverlay(): void {
 function hideHamburgerButton(): void {
     const hamburger = document.getElementById("hamburger-button") as HTMLButtonElement | null;
     if (hamburger !== null) {
-        hamburger.hidden = true;
+        hamburger.hidden = hiddenHamburger();
     }
 }
 
+function hiddenHamburger(): boolean {
+    return true;
+}
+
 function saveCurrentGameState(): boolean {
-    if (!ownership?.owned) return false;
+    if (!ownership?.owned) {
+        return false;
+    }
     if (game === null || !game.isStateSaveReady()) {
         return false;
     }
@@ -472,6 +554,9 @@ function saveCurrentGameState(): boolean {
 }
 
 function clearStoredGameState(): void {
+    if (!ownership?.owned) {
+        return;
+    }
     const store = getLoadedGameStateStore();
     if (store !== null) {
         store.clear();
@@ -485,13 +570,18 @@ function clearStoredGameState(): void {
 }
 
 function syncScreenWakeLock(): void {
-    screenWakeLock.setDesired(pwaSessionState === "running" || (pwaSessionState === "starting" && !liveMenuOpen && gameLaunchInProgress));
+    screenWakeLock.setDesired(
+        ownership?.isCurrent(gameOwnershipEpoch) === true &&
+            (pwaSessionState === "running" || (pwaSessionState === "starting" && !liveMenuOpen && gameLaunchInProgress))
+    );
 }
 
 function destroyGame(): void {
     pwaSessionState = "stopping";
     syncScreenWakeLock();
+    menuRequestSerial++;
     sessions.invalidate();
+    activeGameSession = 0;
     gameStateStore?.cancelPendingRestore();
     gameLaunchInProgress = false;
     releaseGameAudio();
@@ -539,11 +629,12 @@ function updateHamburgerVisibility(): void {
     }
 }
 
-async function unlockAudio(): Promise<GameAudioActivation> {
-    return unlockGameAudio();
-}
-
 function startPwaMenu(): void {
+    const epoch = ownership.epoch;
+    if (!ownership.isCurrent(epoch)) {
+        return;
+    }
+    const request = ++menuRequestSerial;
     pwaSessionState = "booting";
     applyAudioVolume(preferences.volume);
     showBoot(runtimeLoader.getProgress());
@@ -554,7 +645,7 @@ function startPwaMenu(): void {
     void runtimeLoader
         .ensurePrepared(runtimeLoader.hasError())
         .then(() => {
-            if (pwaSessionState !== "booting") {
+            if (request !== menuRequestSerial || !ownership.isCurrent(epoch) || pwaSessionState !== "booting") {
                 return;
             }
             pwaSessionState = "menu";
@@ -562,10 +653,10 @@ function startPwaMenu(): void {
             window.__stickvaniaBooted = true;
         })
         .catch((error) => {
-            console.error(error);
-            if (pwaSessionState !== "booting") {
+            if (request !== menuRequestSerial || !ownership.isCurrent(epoch) || pwaSessionState !== "booting") {
                 return;
             }
+            console.error(error);
             pwaSessionState = "menu";
             showLoadError("Unable to load.", "Check your connection and try again.", startPwaMenu);
         });
@@ -584,7 +675,11 @@ function setupPageLifecycleHandlers(): void {
 async function boot(): Promise<void> {
     app = requiredElement<HTMLElement>(document, "#app");
     setupPageLifecycleHandlers();
+    setGameAudioInterruptionHandler(requestPwaMenu);
     ownership = new GameSessionOwnership(app, startPwaMenu, () => {
+        pwaSessionState = "stopping";
+        syncScreenWakeLock();
+        suspendGameForMenu();
         saveCurrentGameState();
         destroyGame();
         pwaSessionState = "menu";
