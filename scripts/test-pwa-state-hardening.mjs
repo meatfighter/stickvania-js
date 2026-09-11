@@ -12,6 +12,28 @@ const server = await createServer({
     server: { middlewareMode: true }
 });
 
+const MUSIC_IDS = new Set([
+    "boss_1.intro",
+    "boss_1.loop",
+    "boss_2.intro",
+    "boss_2.loop",
+    "ending.loop",
+    "stage_1_1.loop",
+    "stage_1_2.intro",
+    "stage_1_2.loop",
+    "stage_2_1.intro",
+    "stage_2_1.loop",
+    "stage_3_1.intro",
+    "stage_3_1.loop",
+    "stage_4_1.loop",
+    "stage_4_2.loop",
+    "stage_5_1.intro",
+    "stage_5_1.loop",
+    "stage_6_1.loop",
+    "stage_6_2.intro",
+    "stage_6_2.loop"
+]);
+
 try {
     const { SONG_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/AudioRegistry.ts");
     const { isReasonableStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSanity.ts");
@@ -20,7 +42,8 @@ try {
     );
     const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
 
-    assert.equal(GAME_STATE_VERSION, 9);
+    assert.equal(GAME_STATE_VERSION, 10);
+    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v10$/);
 
     const snapshot = createSnapshot(SONG_FIELD_NAMES);
     assert.equal(isReasonableStickvaniaGameStateSnapshot(snapshot), true);
@@ -37,6 +60,19 @@ try {
     missingSong.audio.songs.pop();
     assert.equal(isReasonableStickvaniaGameStateSnapshot(missingSong), false);
 
+    const invalidCurrentSong = clone(snapshot);
+    invalidCurrentSong.audio.currentSong = "not-a-song";
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(invalidCurrentSong), false);
+
+    const mismatchedSongPart = clone(snapshot);
+    mismatchedSongPart.audio.songs.find((song) => song.id === "boss_1").intro.id = "boss_2.intro";
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(mismatchedSongPart), false);
+
+    const contradictoryTracks = clone(snapshot);
+    contradictoryTracks.audio.songs.find((song) => song.id === "boss_1").intro.playback.transport = "playing";
+    contradictoryTracks.audio.songs.find((song) => song.id === "boss_2").intro.playback.transport = "playing";
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(contradictoryTracks), false);
+
     const unsafeVelocity = clone(snapshot);
     unsafeVelocity.things.push({ id: 0, type: "Synthetic", fields: { vx: 1000000 } });
     assert.equal(isReasonableStickvaniaGameStateSnapshot(unsafeVelocity), false);
@@ -44,12 +80,7 @@ try {
     const unsafeVolume = clone(snapshot);
     unsafeVolume.audio.currentMusic = {
         id: "game_over",
-        looped: false,
-        paused: false,
-        playing: false,
-        playbackRate: 1,
-        position: 0,
-        volume: 2
+        playback: createPlayback({ volume: 2 })
     };
     assert.equal(isReasonableStickvaniaGameStateSnapshot(unsafeVolume), false);
 
@@ -60,16 +91,22 @@ try {
     assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), false);
 
     const storage = createStorage();
-    const obsolete = createPotentialSnapshot(8);
-    storage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(obsolete));
+    const obsolete = createPotentialSnapshot(9);
+    const obsoleteText = JSON.stringify(obsolete);
+    storage.setItem(GAME_STATE_STORAGE_KEY, obsoleteText);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
-    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), null);
+    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), obsoleteText);
 
-    const future = createPotentialSnapshot(10);
+    const future = createPotentialSnapshot(11);
     const futureText = JSON.stringify(future);
     storage.setItem(GAME_STATE_STORAGE_KEY, futureText);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), futureText);
+
+    const malformed = "{";
+    storage.setItem(GAME_STATE_STORAGE_KEY, malformed);
+    assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
+    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), malformed);
 
     const oversized = "x".repeat(MAX_GAME_STATE_TEXT_LENGTH + 1);
     storage.setItem(GAME_STATE_STORAGE_KEY, oversized);
@@ -83,7 +120,7 @@ try {
 
 function createSnapshot(songIds) {
     return {
-        version: 9,
+        version: 10,
         appVersion: "test-version",
         savedAt: new Date(0).toISOString(),
         mode: 4,
@@ -93,11 +130,40 @@ function createSnapshot(songIds) {
         stage: { stageIndex: 0 },
         things: [],
         audio: {
+            musicOn: true,
+            soundOn: true,
             currentSong: null,
             requestedSong: null,
             currentMusic: null,
-            songs: songIds.map((id) => ({ id, playing: false, intro: null, loop: null }))
+            songs: songIds.map((id) => ({
+                id,
+                playing: false,
+                intro: createSongPart(id, "intro"),
+                loop: createSongPart(id, "loop")
+            }))
         }
+    };
+}
+
+function createSongPart(songId, suffix) {
+    const id = `${songId}.${suffix}`;
+    return MUSIC_IDS.has(id)
+        ? {
+              id,
+              playback: createPlayback({ looped: suffix === "loop" })
+          }
+        : null;
+}
+
+function createPlayback(overrides = {}) {
+    return {
+        transport: "stopped",
+        looped: false,
+        playbackRate: 1,
+        positionSeconds: 0,
+        volume: 1,
+        fade: null,
+        ...overrides
     };
 }
 
@@ -141,7 +207,7 @@ function createPotentialSnapshot(version) {
         random: {},
         stage: null,
         things: [],
-        audio: { songs: [] }
+        audio: { musicOn: true, soundOn: true, songs: [] }
     };
 }
 
