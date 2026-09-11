@@ -528,8 +528,8 @@ export class StickvaniaGameStateSerializer {
         return value === null || (this.isFiniteInteger(value) && value >= 0 && value < length);
     }
 
-    private isThingIdArray(value: unknown, thingCount: number): value is number[] {
-        return Array.isArray(value) && value.every((id) => this.isFiniteInteger(id) && id >= 0 && id < thingCount);
+    private isThingIdArray(value: unknown, thingCount: number): value is Array<number | null> {
+        return Array.isArray(value) && value.every((id) => this.isNullableThingId(id, thingCount));
     }
 
     private isNullableRegionRef(value: unknown, limits: SnapshotReferenceLimits): value is [number, number] | null {
