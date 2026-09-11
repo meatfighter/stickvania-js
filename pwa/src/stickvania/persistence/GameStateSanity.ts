@@ -1,3 +1,4 @@
+import { isMusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
 import { SONG_FIELD_NAMES } from "../AudioRegistry.js";
 import type { InputConfigModeSnapshot } from "../InputConfigMode.js";
 import type { AudioSnapshot, MusicSnapshot, StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
@@ -13,7 +14,6 @@ const MAX_POSITION_MAGNITUDE = 131_072;
 const MAX_VELOCITY_MAGNITUDE = 512;
 const MAX_COLLISION_OFFSET_MAGNITUDE = 4096;
 const MAX_MUSIC_POSITION_SECONDS = 86_400;
-const MAX_MUSIC_PLAYBACK_RATE = 4;
 const MAX_INPUT_CONFIG_MESSAGE_LENGTH = 256;
 const MAX_INPUT_CONFIG_STEP_INDEX = 6;
 const MAX_INPUT_CONFIG_DONE_DELAY = 30;
@@ -21,9 +21,9 @@ const MAX_INPUT_CONFIG_ARM_DELAY = 8;
 
 const EXPECTED_SONG_IDS = new Set<string>(SONG_FIELD_NAMES);
 const TOP_LEVEL_FIELDS = ["version", "appVersion", "savedAt", "mode", "mainFields", "inputConfigMode", "random", "stage", "things", "audio"] as const;
-const AUDIO_FIELDS = ["currentSong", "requestedSong", "currentMusic", "songs"] as const;
+const AUDIO_FIELDS = ["musicOn", "soundOn", "currentSong", "requestedSong", "currentMusic", "songs"] as const;
 const SONG_FIELDS = ["id", "playing", "intro", "loop"] as const;
-const MUSIC_FIELDS = ["id", "looped", "paused", "playing", "playbackRate", "position", "volume"] as const;
+const MUSIC_FIELDS = ["id", "playback"] as const;
 const INPUT_CONFIG_FIELDS = [
     "stepIndex",
     "doneDelay",
@@ -107,7 +107,14 @@ function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): bool
 }
 
 function isReasonableAudio(snapshot: AudioSnapshot): boolean {
-    if (!isRecord(snapshot) || !hasExactFields(snapshot, AUDIO_FIELDS) || snapshot.songs.length !== SONG_FIELD_NAMES.length) {
+    if (
+        !isRecord(snapshot) ||
+        !hasExactFields(snapshot, AUDIO_FIELDS) ||
+        typeof snapshot.musicOn !== "boolean" ||
+        typeof snapshot.soundOn !== "boolean" ||
+        !Array.isArray(snapshot.songs) ||
+        snapshot.songs.length !== SONG_FIELD_NAMES.length
+    ) {
         return false;
     }
     const seen = new Set<string>();
@@ -130,17 +137,7 @@ function isReasonableMusic(snapshot: MusicSnapshot): boolean {
     if (!isRecord(snapshot) || !hasExactFields(snapshot, MUSIC_FIELDS)) {
         return false;
     }
-    return (
-        Number.isFinite(snapshot.playbackRate) &&
-        snapshot.playbackRate > 0 &&
-        snapshot.playbackRate <= MAX_MUSIC_PLAYBACK_RATE &&
-        Number.isFinite(snapshot.position) &&
-        snapshot.position >= 0 &&
-        snapshot.position <= MAX_MUSIC_POSITION_SECONDS &&
-        Number.isFinite(snapshot.volume) &&
-        snapshot.volume >= 0 &&
-        snapshot.volume <= 1
-    );
+    return isMusicPlaybackSnapshot(snapshot.playback) && snapshot.playback.positionSeconds <= MAX_MUSIC_POSITION_SECONDS;
 }
 
 function isReasonableValue(value: unknown, key: string, depth: number): boolean {
