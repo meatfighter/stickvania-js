@@ -2,7 +2,7 @@ import type { GameContainer } from "slick2d-ts";
 import type { Main } from "../Main.js";
 import type { StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isReasonableStickvaniaGameStateSnapshot } from "./GameStateSanity.js";
-import { FIRST_PUBLIC_GAME_STATE_VERSION, GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
+import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
 import { StickvaniaGameStateSerializer } from "./StickvaniaGameStateSerializer.js";
 
 export class StickvaniaGameStateStore {
@@ -14,13 +14,9 @@ export class StickvaniaGameStateStore {
         if (!main.isStateSaveReady()) {
             return false;
         }
-
         try {
-            if (this.hasProtectedStoredSnapshot()) {
-                return false;
-            }
             const snapshot = this.serializer.createSnapshot(main, this.appVersion);
-            if (!isReasonableStickvaniaGameStateSnapshot(snapshot)) {
+            if (!this.serializer.isSupportedSnapshot(snapshot) || !isReasonableStickvaniaGameStateSnapshot(snapshot)) {
                 return false;
             }
             const text = JSON.stringify(snapshot);
@@ -35,13 +31,13 @@ export class StickvaniaGameStateStore {
         }
     }
 
+    /** Success means every logical game/audio field is already restored. */
     public restore(main: Main, gc: GameContainer): boolean {
         try {
             const snapshot = this.readSnapshot();
             if (snapshot === null) {
                 return false;
             }
-
             this.serializer.restoreSnapshot(main, gc, snapshot);
             return true;
         } catch (error) {
@@ -59,41 +55,27 @@ export class StickvaniaGameStateStore {
         }
     }
 
-    public cancelPendingRestore(): void {
-        this.serializer.cancelPendingRestore();
-    }
-
     public clear(): void {
         try {
             localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-        } catch {}
+        } catch (error) {
+            console.warn("Unable to clear Stickvania game state.", error);
+        }
     }
 
+    /** Reads never mutate storage; only an owned Save, New Game, or Reset writes. */
     private readSnapshot(): StickvaniaGameStateSnapshot | null {
         const text = localStorage.getItem(GAME_STATE_STORAGE_KEY);
-        if (text === null) {
+        if (text === null || text.length > MAX_GAME_STATE_TEXT_LENGTH) {
             return null;
         }
-        if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
-            // Leave oversized data untouched. An older build cannot know whether
-            // it belongs to a newer public format, so New Game/Reset remains the
-            // explicit destructive path.
-            return null;
-        }
-
         let snapshot: unknown;
         try {
             snapshot = JSON.parse(text) as unknown;
         } catch {
-            this.clear();
-            return null;
-        }
-
-        if (this.shouldPreserveUnsupportedPublicSnapshot(snapshot)) {
             return null;
         }
         if (snapshot === null || typeof snapshot !== "object" || Array.isArray(snapshot)) {
-            this.clear();
             return null;
         }
         const typedSnapshot = snapshot as StickvaniaGameStateSnapshot;
@@ -102,33 +84,8 @@ export class StickvaniaGameStateStore {
             !this.serializer.isSupportedSnapshot(typedSnapshot) ||
             !isReasonableStickvaniaGameStateSnapshot(typedSnapshot)
         ) {
-            this.clear();
             return null;
         }
-
         return typedSnapshot;
-    }
-
-    private hasProtectedStoredSnapshot(): boolean {
-        const text = localStorage.getItem(GAME_STATE_STORAGE_KEY);
-        if (text === null) {
-            return false;
-        }
-        if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
-            return true;
-        }
-        try {
-            return this.shouldPreserveUnsupportedPublicSnapshot(JSON.parse(text) as unknown);
-        } catch {
-            return false;
-        }
-    }
-
-    private shouldPreserveUnsupportedPublicSnapshot(snapshot: unknown): boolean {
-        if (snapshot === null || typeof snapshot !== "object" || Array.isArray(snapshot)) {
-            return false;
-        }
-        const version = Reflect.get(snapshot, "version");
-        return typeof version === "number" && Number.isInteger(version) && version >= FIRST_PUBLIC_GAME_STATE_VERSION && version !== GAME_STATE_VERSION;
     }
 }
