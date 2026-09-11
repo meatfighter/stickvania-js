@@ -84,6 +84,7 @@ function setScalingPreference(value: StickvaniaScalingPreference): boolean {
 function getRumbleManager(): RumbleManager {
     if (rumbleManager === null) {
         rumbleManager = new RumbleManager(preferences.rumbleEnabled);
+        rumbleManager.setSuspended(pwaSessionState !== "running");
     }
     return rumbleManager;
 }
@@ -177,7 +178,7 @@ function resetPwaState(): void {
     applyAudioVolume(preferences.volume);
     const manager = getRumbleManager();
     manager.setEnabled(preferences.rumbleEnabled);
-    manager.setSuspended(false);
+    manager.setSuspended(true);
     renderRootMenu(cleared ? "" : "Some browser settings could not be cleared.");
 }
 
@@ -294,9 +295,16 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     applyAudioVolume(preferences.volume);
     getRumbleManager().setEnabled(preferences.rumbleEnabled);
     viewport.focusCanvas();
+    if (!sessions.isCurrent(session) || pwaSessionState !== "starting" || game !== mainGame || container !== appContainer) {
+        return;
+    }
     gameLaunchInProgress = false;
     pwaSessionState = "running";
     mainGame.setBrowserSuspended(false);
+    // Enabled preference and lifecycle suspension are independent. A prior game
+    // suspended the page-lifetime manager; only this accepted start may release it.
+    getRumbleManager().setSuspended(false);
+    mainGame.resumeBrowserOnlyRumbles();
     appContainer.setLoopSuspended(false);
     startHamburgerVisibilityMonitor();
     syncScreenWakeLock();
