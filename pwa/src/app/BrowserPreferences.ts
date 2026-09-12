@@ -5,6 +5,7 @@ import type { StickvaniaScalingPreference } from "../stickvania/StickvaniaBuffer
 
 export const DEFAULT_VOLUME = 0.1;
 export const DEFAULT_RUMBLE_ENABLED = true;
+export const DEFAULT_FULLSCREEN_PREFERENCE = true;
 export const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
 export const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";
 
@@ -12,6 +13,7 @@ const VOLUME_STORAGE_KEY = getBrowserStorageKey("volume");
 const DISPLAY_MODE_STORAGE_KEY = getBrowserStorageKey("display-mode");
 const SCALING_STORAGE_KEY = getBrowserStorageKey("scaling");
 const RUMBLE_STORAGE_KEY = getBrowserStorageKey("rumble");
+const FULLSCREEN_STORAGE_KEY = getBrowserStorageKey("fullscreen");
 const DIFFICULTY_STORAGE_KEY = getBrowserStorageKey("difficulty");
 const INPUT_MAPPING_STORAGE_KEY = getBrowserStorageKey("input-mapping");
 
@@ -21,6 +23,7 @@ const PWA_RESET_STORAGE_KEYS = [
     DISPLAY_MODE_STORAGE_KEY,
     SCALING_STORAGE_KEY,
     RUMBLE_STORAGE_KEY,
+    FULLSCREEN_STORAGE_KEY,
     DIFFICULTY_STORAGE_KEY,
     INPUT_MAPPING_STORAGE_KEY
 ] as const;
@@ -30,6 +33,7 @@ export class BrowserPreferences {
     public displayMode = this.readDisplayMode();
     public scaling = this.readScaling();
     public rumbleEnabled = this.readRumbleEnabled();
+    public fullscreen = this.readFullscreen();
 
     public setVolume(value: number, persist = true): boolean {
         this.volume = BrowserPreferences.clampVolume(value);
@@ -51,6 +55,11 @@ export class BrowserPreferences {
         return this.write(RUMBLE_STORAGE_KEY, String(value), "rumble preference");
     }
 
+    public setFullscreen(value: boolean): boolean {
+        this.fullscreen = value;
+        return this.write(FULLSCREEN_STORAGE_KEY, String(value), "fullscreen preference");
+    }
+
     public reset(): boolean {
         let success = true;
         for (const key of PWA_RESET_STORAGE_KEYS) {
@@ -65,6 +74,7 @@ export class BrowserPreferences {
         this.displayMode = DEFAULT_DISPLAY_MODE;
         this.scaling = DEFAULT_SCALING_PREFERENCE;
         this.rumbleEnabled = DEFAULT_RUMBLE_ENABLED;
+        this.fullscreen = DEFAULT_FULLSCREEN_PREFERENCE;
         return success;
     }
 
@@ -112,6 +122,21 @@ export class BrowserPreferences {
             return DEFAULT_RUMBLE_ENABLED;
         }
         return DEFAULT_RUMBLE_ENABLED;
+    }
+
+    private readFullscreen(): boolean {
+        try {
+            const value = localStorage.getItem(FULLSCREEN_STORAGE_KEY);
+            if (value === "true") {
+                return true;
+            }
+            if (value === "false") {
+                return false;
+            }
+        } catch {
+            return DEFAULT_FULLSCREEN_PREFERENCE;
+        }
+        return DEFAULT_FULLSCREEN_PREFERENCE;
     }
 
     private write(key: string, value: string, label: string): boolean {
