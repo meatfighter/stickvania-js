@@ -221,6 +221,7 @@ select {
 }
 
 .settings-row > .setting-theme-row,
+.settings-row > .setting-scaling-row,
 .settings-row > .setting-switch-row {
     flex: 0 0 auto;
 }
