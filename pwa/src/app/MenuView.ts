@@ -60,7 +60,7 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
                 </div>
                 <div class="setting-switch-row" role="group" aria-label="Rumble">
                     <span>Rumble</span>
-                    <button id="rumble-switch-button" class="menu-switch rumble-switch" type="button" aria-label="Toggle rumble" aria-pressed="${rumblePresented}" data-enabled="${rumblePresented}"${rumbleUnavailable ? ' disabled title="Rumble is unavailable in this browser"' : ""}><span></span></button>
+                    <button id="rumble-switch-button" class="menu-switch rumble-switch fullscreen-switch" type="button" aria-label="Toggle rumble" aria-pressed="${rumblePresented}" data-enabled="${rumblePresented}"${rumbleUnavailable ? ' disabled title="Rumble is unavailable in this browser"' : ""}><span></span></button>
                 </div>
             </div>
             <div class="settings-row settings-fullscreen-scaling-row">
@@ -335,10 +335,10 @@ function updateFullscreenUi(button: HTMLButtonElement, enabled: boolean): void {
 }
 
 function updateVolumeUi(input: HTMLInputElement, valueElement: HTMLElement, icon: HTMLElement, volume: number): void {
-    const percent = Math.round(volume * 100);
+    const percent = Math.round(value * 100);
     input.style.setProperty("--thumb-position", `${percent}%`);
     valueElement.textContent = String(percent);
-    icon.innerHTML = volumeIconSvg(volume);
+    icon.innerHTML = volumeIconSvg(value);
 }
 
 function volumeIconSvg(value: number): string {
