@@ -3,8 +3,10 @@ import { fileURLToPath } from "node:url";
 
 const mainPath = "pwa/src/stickvania/Main.ts";
 const stateTestPath = "scripts/test-pwa-state-hardening.mjs";
+const mainStatePolicyPath = "pwa/src/stickvania/persistence/MainStateFieldPolicy.ts";
 let mainSource = readFileSync(mainPath, "utf8");
 let stateTestSource = readFileSync(stateTestPath, "utf8");
+let mainStatePolicySource = readFileSync(mainStatePolicyPath, "utf8");
 
 mainSource = replaceExactlyOnce(
     mainSource,
@@ -47,10 +49,23 @@ if (/\bcreatePotentialSnapshot\(9\)/.test(stateTestSource)) {
     throw new Error(`Old development save fixture still exists in ${stateTestPath}`);
 }
 
+mainStatePolicySource = replaceExactlyOnce(
+    mainStatePolicySource,
+    /\n    browserFullscreenController: "runtime",/,
+    "",
+    "browserFullscreenController state-field policy entry"
+);
+if (mainStatePolicySource.includes("browserFullscreenController")) {
+    throw new Error(`Obsolete fullscreen state-field policy still exists in ${mainStatePolicyPath}`);
+}
+
 writeFileSync(mainPath, mainSource);
 writeFileSync(stateTestPath, stateTestSource);
+writeFileSync(mainStatePolicyPath, mainStatePolicySource);
 unlinkSync(fileURLToPath(import.meta.url));
-console.log("Removed obsolete Stickvania browser fullscreen machinery and pre-release save-schema fixture; cleanup helper deleted itself.");
+console.log(
+    "Removed obsolete Stickvania browser fullscreen machinery, pre-release save-schema fixture, and stale state-field policy entry; cleanup helper deleted itself. Regenerate StateFieldRegistry.generated.ts with npm run generate:state-fields before qualification."
+);
 
 function replaceExactlyOnce(text, pattern, replacement, label) {
     const globalPattern = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
