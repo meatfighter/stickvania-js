@@ -3,6 +3,7 @@ import { DropItem } from "./DropItem.js";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
+import { prepareStopWatchMusicHoldAfterRestore, reconcileStopWatchMusic } from "./StopWatchMusicHold.js";
 
 export class StopWatch extends Thing {
     public static readonly FRACTION: number = javaFloat(1 / 91);
@@ -20,12 +21,26 @@ export class StopWatch extends Thing {
     public constructor(main: Main) {
         super(main, 0, -10000, 32, 32);
         main.timeFrozen += 455;
+        reconcileStopWatchMusic(main);
+    }
+
+    private isTerminalGameplayState(): boolean {
+        return this.main.playerPower == 0 || this.main.simon?.dead != 0 || this.main.beatStageFlag;
     }
 
     public override update(gc: GameContainer): boolean {
+        // Region Things have already completed for this tick. Ending the watch
+        // here keeps the lethal/stage-complete frame internally consistent while
+        // allowing unrelated sub-weapons to continue through the weapon pass.
+        if (this.isTerminalGameplayState()) {
+            this.cancel();
+            return false;
+        }
+
         if (this.lifeTime > 0) {
             this.lifeTime--;
-            this.main.timeFrozen--;
+            this.main.timeFrozen = Math.max(0, this.main.timeFrozen - 1);
+            reconcileStopWatchMusic(this.main);
         } else {
             return false;
         }
@@ -52,12 +67,25 @@ export class StopWatch extends Thing {
         return true;
     }
 
-    public override onDiscarded(): void {
+    public cancel(): void {
         if (this.lifeTime <= 0) {
             return;
         }
         this.main.timeFrozen = Math.max(0, this.main.timeFrozen - this.lifeTime);
         this.lifeTime = 0;
+        reconcileStopWatchMusic(this.main);
+    }
+
+    public restoreRuntimeStateAfterStateLoad(): void {
+        if (this.isTerminalGameplayState()) {
+            this.cancel();
+        } else {
+            prepareStopWatchMusicHoldAfterRestore(this.main);
+        }
+    }
+
+    public override onDiscarded(): void {
+        this.cancel();
     }
 
     public override render(gc: GameContainer, g: Graphics): void {
