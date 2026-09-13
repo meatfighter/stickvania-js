@@ -10,6 +10,7 @@ const runtimeLoaderSource = readFileSync(join(rootDir, "pwa", "src", "app", "Run
 const serviceWorkerSource = readFileSync(join(rootDir, "pwa", "public", "sw.js"), "utf8");
 const stylesSource = readFileSync(join(rootDir, "pwa", "src", "styles.css"), "utf8");
 const songSource = readFileSync(join(rootDir, "pwa", "src", "stickvania", "Song.ts"), "utf8");
+const menuViewSource = readFileSync(join(rootDir, "pwa", "src", "app", "MenuView.ts"), "utf8");
 
 test("new game requires prepared resources and destroys the old session before fresh playback activation", () => {
     const startGame = mainSource.slice(mainSource.indexOf("async function startGame"), mainSource.indexOf("async function launchPreparedGame"));
@@ -30,6 +31,14 @@ test("new game requires prepared resources and destroys the old session before f
     assert.ok(fullscreen > beginAudio && firstAwait > fullscreen, "fullscreen request must stay inside the original activation before the first await");
     assert.ok(startGame.indexOf('pwaSessionState = "starting";') < beginAudio);
     assert.doesNotMatch(startGame, /unlockAudio|ensurePrepared|showBoot/);
+});
+
+test("menu launch admission is state-gated without sticky disabled buttons", () => {
+    assert.doesNotMatch(menuViewSource, /disableLaunchButtons|newGameButton\.disabled\s*=\s*true|continueButton\.disabled\s*=\s*true/);
+
+    const menuCallbacks = mainSource.slice(mainSource.indexOf("function renderMenuForParent"), mainSource.indexOf("function resetPwaState"));
+    assert.match(menuCallbacks, /onNewGame:[\s\S]*?if \(!canActivateFromMenu\(\)\)/);
+    assert.match(menuCallbacks, /onContinue:[\s\S]*?if \(!canActivateFromMenu\(\)\)/);
 });
 
 test("browser lifecycle only enters the PWA menu and never auto-resumes", () => {

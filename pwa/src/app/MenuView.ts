@@ -243,11 +243,9 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
         }
     });
     newGameButton.addEventListener("click", () => {
-        disableLaunchButtons(newGameButton, continueButton);
         callbacks.onNewGame();
     });
     continueButton.addEventListener("click", () => {
-        disableLaunchButtons(newGameButton, continueButton);
         callbacks.onContinue();
     });
     resetButton.addEventListener("click", callbacks.onReset);
@@ -509,11 +507,6 @@ function horizontalSpacing(style: CSSStyleDeclaration, includeBorder: boolean): 
 function parseCssPixels(value: string): number {
     const pixels = Number.parseFloat(value);
     return Number.isFinite(pixels) ? pixels : 0;
-}
-
-function disableLaunchButtons(newGameButton: HTMLButtonElement, continueButton: HTMLButtonElement): void {
-    newGameButton.disabled = true;
-    continueButton.disabled = true;
 }
 
 function showPersistenceError(menu: HTMLElement): void {

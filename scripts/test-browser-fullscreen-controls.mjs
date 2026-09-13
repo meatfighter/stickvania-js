@@ -113,6 +113,100 @@ test("retained Continue reconciles presentation before input and loop resume", (
     assert.match(viewport, /"fullscreenchange", "webkitfullscreenchange"/);
 });
 
+test("native fullscreen remains fenced across synchronous browser reentry", () => {
+    const start = viewport.indexOf("public requestFullscreen(): Promise<boolean> {");
+    const end = viewport.indexOf("\n    public exitFullscreenForMenu", start);
+    const request = viewport.slice(start, end);
+
+    const preflightSession = request.indexOf("!this.callbacks.isSessionCurrent(session)");
+    const preflightActivity = request.indexOf("!this.callbacks.isGameplayActive()");
+    const nativeRequest = request.indexOf("requestBrowserFullscreen(shell)");
+    const postflight = request.indexOf("const invocationStillCurrent");
+
+    assert.ok(start >= 0 && end > start);
+    assert.ok(preflightSession >= 0);
+    assert.ok(preflightActivity >= 0);
+    assert.ok(nativeRequest > preflightSession);
+    assert.ok(nativeRequest > preflightActivity);
+    assert.ok(postflight > nativeRequest);
+
+    assert.match(request, /this\.fullscreenSuppressedPresentation = presentation/);
+    assert.match(request, /this\.clearFullscreenSuppressionWhenSettled\(promise, shell, presentation\)/);
+});
+
+test("pending fullscreen entry is bounded while actual shell exit remains authoritative", () => {
+    const exitStart = viewport.indexOf("private async exitFullscreenForPresentation");
+    const exitEnd = viewport.indexOf("\n    private async waitForPendingFullscreenRequests", exitStart);
+    const exit = viewport.slice(exitStart, exitEnd);
+
+    const actualExit = exit.indexOf("this.requestExitForSpecificShell(targetShell)");
+    const pendingWait = exit.indexOf("this.waitForPendingFullscreenRequests(targetShell, targetPresentation)");
+
+    assert.ok(exitStart >= 0 && exitEnd > exitStart);
+    assert.ok(actualExit >= 0);
+    assert.ok(pendingWait > actualExit);
+    assert.match(exit, /this\.fullscreenRequestSerial\+\+/);
+    assert.match(exit, /this\.fullscreenEntryAuthorized = false/);
+    assert.match(exit, /this\.fullscreenSuppressedPresentation = targetPresentation/);
+
+    const pendingStart = viewport.indexOf("private async waitForPendingFullscreenRequests");
+    const pendingEnd = viewport.indexOf("\n    private clearFullscreenSuppressionWhenSettled", pendingStart);
+    const pending = viewport.slice(pendingStart, pendingEnd);
+
+    assert.ok(pendingStart >= 0 && pendingEnd > pendingStart);
+    assert.match(pending, /Promise\.race/);
+    assert.match(pending, /FULLSCREEN_REQUEST_SETTLE_TIMEOUT_MS/);
+});
+
+test("abandoned fullscreen suppression clears only after native settlement", () => {
+    const start = viewport.indexOf("private clearFullscreenSuppressionWhenSettled");
+    const end = viewport.indexOf("\n    private discardPendingFullscreenRequests", start);
+    const helper = viewport.slice(start, end);
+
+    assert.ok(start >= 0 && end > start);
+    assert.match(helper, /promise\.finally/);
+    assert.match(helper, /this\.fullscreenSuppressedPresentation === presentation/);
+    assert.match(helper, /this\.presentationGeneration === presentation/);
+    assert.match(helper, /this\.shell === shell/);
+    assert.match(helper, /this\.fullscreenSuppressedPresentation = null/);
+});
+
+test("unauthorized or retired fullscreen shells are forced back out", () => {
+    const retiredStart = viewport.indexOf("private hideRootUntilRetiredShellExits");
+    const retiredEnd = viewport.indexOf("\n    private applyDisplayMode", retiredStart);
+    const retired = viewport.slice(retiredStart, retiredEnd);
+
+    assert.ok(retiredStart >= 0 && retiredEnd > retiredStart);
+    assert.match(retired, /this\.root\.style\.visibility = "hidden"/);
+    assert.match(retired, /requestExitForSpecificShell\(shell\)/);
+    assert.match(retired, /this\.root\.style\.visibility = ""/);
+
+    const handlerStart = viewport.indexOf("private readonly handleFullscreenChange");
+    const handler = viewport.slice(handlerStart);
+
+    assert.ok(handlerStart >= 0);
+    assert.match(handler, /!this\.fullscreenEntryAuthorized/);
+    assert.match(handler, /!this\.callbacks\.isGameplayActive\(\)/);
+    assert.match(handler, /retiredFullscreenShells\.has\(fullscreenElement as HTMLElement\)/);
+});
+
+test("unsafe cleanup still performs viewport teardown before reload-required state", () => {
+    const start = webApp.indexOf("function destroyGame(): boolean {");
+    const end = webApp.indexOf("\nfunction startPwaMenu(): void {", start);
+    const destroy = webApp.slice(start, end);
+
+    assert.ok(start >= 0 && end > start);
+    assert.match(destroy, /viewport\.clear\(\)/);
+    assert.match(destroy, /if \(!sessionCleanup\.safe\)/);
+    assert.match(destroy, /showCleanupFailure\(\)/);
+
+    const viewportClear = destroy.indexOf("viewport.clear()");
+    const cleanupFailure = destroy.indexOf("showCleanupFailure()");
+
+    assert.ok(viewportClear >= 0);
+    assert.ok(cleanupFailure > viewportClear);
+});
+
 test("fullscreen CSS fills wrapper and protects touch safe-area chrome", () => {
     assert.match(styles, /\.game-shell:fullscreen/);
     assert.match(styles, /\.game-shell:-webkit-full-screen/);
