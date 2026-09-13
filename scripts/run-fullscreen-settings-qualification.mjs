@@ -136,11 +136,7 @@ async function waitForLiveMenu(page) {
 }
 
 async function assertWakeAccounting(page, expectedLive, label) {
-    await page.waitForFunction(
-        (expected) => globalThis.__stickvaniaSettingsHarness?.wakeStats().live === expected,
-        expectedLive,
-        { timeout: 5_000 }
-    );
+    await page.waitForFunction((expected) => globalThis.__stickvaniaSettingsHarness?.wakeStats().live === expected, expectedLive, { timeout: 5_000 });
     const stats = await page.evaluate(() => globalThis.__stickvaniaSettingsHarness.wakeStats());
     assert.equal(stats.live, expectedLive, `${label}: unexpected live wake-lock count`);
     assert.equal(stats.acquired - stats.released, stats.live, `${label}: wake-lock acquisitions/releases are not balanced`);
