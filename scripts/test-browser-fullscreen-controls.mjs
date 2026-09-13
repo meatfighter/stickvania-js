@@ -39,7 +39,8 @@ test("fullscreen preference defaults on, presents unavailable as off, and is ind
     assert.match(menuView, /class="menu-switch fullscreen-switch"/);
     assert.match(menuView, /disabled title="Fullscreen is unavailable in this browser"/);
     assert.match(menuView, /const presented = !button\.disabled && enabled/);
-    assert.match(styles, /\.fullscreen-switch:disabled/);
+    assert.match(styles, /\.fullscreen-switch:disabled\s*\{[^}]*border-color:\s*#555555;[^}]*background:\s*#555555;[^}]*opacity:\s*1;/s);
+    assert.match(styles, /\.fullscreen-switch:disabled span\s*\{[^}]*background:\s*#111111;[^}]*transform:\s*translateX\(0\);/s);
     assert.doesNotMatch(styles, /\.menu-switch:disabled\s*\{/);
 });
 
@@ -116,4 +117,5 @@ test("fullscreen CSS fills wrapper and protects touch safe-area chrome", () => {
     assert.match(styles, /height:\s*100vh/);
     assert.match(styles, /safe-area-inset-left/);
     assert.match(styles, /safe-area-inset-top/);
+    assert.match(styles, /\.menu-screen\s*\{[^}]*touch-action:\s*manipulation;/s);
 });
