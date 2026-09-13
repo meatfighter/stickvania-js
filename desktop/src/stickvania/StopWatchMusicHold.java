@@ -19,6 +19,21 @@ public final class StopWatchMusicHold {
     return heldMain == main && main.mode == Main.MODE_PLAYING && main.timeFrozen > 0;
   }
 
+  private static boolean songBelongsToMain(Main main, Song song) {
+    return main.boss_1 == song
+        || main.boss_2 == song
+        || main.ending == song
+        || main.stage_1_1 == song
+        || main.stage_1_2 == song
+        || main.stage_2_1 == song
+        || main.stage_3_1 == song
+        || main.stage_4_1 == song
+        || main.stage_4_2 == song
+        || main.stage_5_1 == song
+        || main.stage_6_1 == song
+        || main.stage_6_2 == song;
+  }
+
   private static boolean shouldHold(Main main) {
     return main.mode == Main.MODE_PLAYING
         && main.playerPower > 0
@@ -37,8 +52,9 @@ public final class StopWatchMusicHold {
   }
 
   /** Song uses this to defer a newly selected owner while the stopwatch is active. */
-  public static boolean isHeld() {
-    if (held && heldMain != null && !isSameLiveGame(heldMain)) {
+  public static boolean isHeld(Song song) {
+    if (held && heldMain != null
+        && (!isSameLiveGame(heldMain) || !songBelongsToMain(heldMain, song))) {
       abandonHold();
     }
     return held;
