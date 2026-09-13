@@ -38,6 +38,9 @@ export class StopWatch extends Thing {
         }
 
         if (this.lifeTime > 0) {
+            // Adopt any music-owner change made earlier in this simulation tick
+            // before this watch consumes its final contribution.
+            reconcileStopWatchMusic(this.main);
             this.lifeTime--;
             this.main.timeFrozen = Math.max(0, this.main.timeFrozen - 1);
             reconcileStopWatchMusic(this.main);
