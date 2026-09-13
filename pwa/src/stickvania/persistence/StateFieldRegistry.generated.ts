@@ -2,7 +2,6 @@
 
 export const MAIN_STATE_FIELD_NAMES = [
     "fades",
-    "nativeCursor",
     "mode",
     "darkDisplayMode",
     "displayMonochromePalette",
@@ -231,7 +230,6 @@ export const MAIN_STATE_FIELD_NAMES = [
     "requestedSong",
     "currentMusic",
     "loadingCompleteHandler",
-    "browserFullscreenController",
     "browserSuspended",
     "input",
     "buttonMapping",

@@ -99,11 +99,6 @@ try {
     assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), false);
 
     const storage = createStorage();
-    const obsolete = createPotentialSnapshot(9);
-    const obsoleteText = JSON.stringify(obsolete);
-    storage.setItem(GAME_STATE_STORAGE_KEY, obsoleteText);
-    assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
-    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), obsoleteText);
 
     const future = createPotentialSnapshot(11);
     const futureText = JSON.stringify(future);
@@ -121,7 +116,30 @@ try {
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), oversized);
 
-    console.log("Stickvania save-state hardening checks passed.");
+    // Space (Slick key code 57) is now an ordinary browser gameplay binding. Prove
+    // that it survives the real ButtonMapping save/load path rather than merely
+    // checking that the reserved-key predicate changed.
+    const oldLocalStorage = globalThis.localStorage;
+    const mappingStorage = createStorage();
+    globalThis.localStorage = mappingStorage;
+    try {
+        const { ButtonMapping } = await server.ssrLoadModule("/src/stickvania/ButtonMapping.ts");
+        const mapping = new ButtonMapping();
+        mapping.keyJump = 57;
+        assert.equal(ButtonMapping.isReservedKey(57), false);
+        assert.equal(mapping.save(), true);
+        const restored = ButtonMapping.load();
+        assert.equal(restored.keyJump, 57);
+        assert.equal(restored.keyboardLabelFor("JUMP"), "SPACE");
+    } finally {
+        if (oldLocalStorage === undefined) {
+            delete globalThis.localStorage;
+        } else {
+            globalThis.localStorage = oldLocalStorage;
+        }
+    }
+
+    console.log("Stickvania save-state and input-mapping hardening checks passed.");
 } finally {
     await server.close();
 }

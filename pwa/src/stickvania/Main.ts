@@ -1,22 +1,4 @@
-import {
-    BasicGame,
-    BufferUtils,
-    Color,
-    Cursor,
-    CursorLoader,
-    FastTrig,
-    GameContainer,
-    Graphics,
-    Image,
-    Input,
-    JavaRandom,
-    Log,
-    Mouse,
-    Music,
-    PackedSpriteSheet,
-    Sound,
-    Sys
-} from "slick2d-ts";
+import { BasicGame, Color, FastTrig, GameContainer, Graphics, Image, Input, JavaRandom, Music, PackedSpriteSheet, Sound, Sys } from "slick2d-ts";
 import { SONG_FIELD_NAMES, SOUND_EFFECT_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "./AudioRegistry.js";
 import { Axe } from "./Axe.js";
 import { AxeKnight } from "./AxeKnight.js";
@@ -75,12 +57,6 @@ import { ZombieSpawner } from "./ZombieSpawner.js";
 import type { RumbleEffectId } from "../rumble/RumbleEffects.js";
 import { isRestorableGameStateMode, isStageRequiredGameStateMode } from "./persistence/GameStatePolicy.js";
 import type { RumbleManager } from "../rumble/RumbleManager.js";
-
-type BrowserFullscreenController = {
-    isFullscreen(): boolean;
-    enterFullscreen(): void;
-    exitFullscreen(): void;
-};
 
 export class Main extends BasicGame {
     public static readonly GRAVITY: number = javaFloat(0.21);
@@ -281,7 +257,6 @@ export class Main extends BasicGame {
     ];
 
     public fades: Color[] = makeArray<Color>(23, () => null!);
-    private nativeCursor: Cursor | null = null;
     public mode: number = Main.MODE_TITLE_SCREEN;
     public darkDisplayMode: boolean = false;
     public displayMonochromePalette: Readonly<{
@@ -515,7 +490,6 @@ export class Main extends BasicGame {
     public requestedSong: Song | null = null;
     public currentMusic: Music | null = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) | null = null;
-    public browserFullscreenController: BrowserFullscreenController | null = null;
     private browserSuspended: boolean = false;
     private input: Input | null = null;
     public buttonMapping: ButtonMapping = ButtonMapping.load();
@@ -979,25 +953,6 @@ export class Main extends BasicGame {
         this.completeStartup(gc);
     }
 
-    private showMouseCursor(): void {
-        try {
-            Mouse.setNativeCursor(this.nativeCursor);
-        } catch (e) {
-            Log.error("Failed to load and apply cursor.", e);
-        }
-    }
-
-    private hideMouseCursor(): void {
-        try {
-            let buffer: Uint8Array = BufferUtils.createByteBuffer(32 * 32 * 4);
-            let cursor: Cursor = CursorLoader.get().getCursor(buffer, 0, 0, 32, 32);
-            this.nativeCursor = Mouse.getNativeCursor();
-            Mouse.setNativeCursor(cursor);
-        } catch (e) {
-            Log.error("Failed to load and apply cursor.", e);
-        }
-    }
-
     public override update(gc: GameContainer, delta: number): void {
         if (this.browserSuspended) {
             this.nextFrameTime = Sys.getTime();
@@ -1029,22 +984,6 @@ export class Main extends BasicGame {
             this.currentSong.update();
         }
 
-        const fullscreenController = this.browserFullscreenController;
-        const browserFullscreen = fullscreenController?.isFullscreen() ?? false;
-        if (this.input!.isKeyPressed(Input.KEY_SPACE) && fullscreenController !== null) {
-            if (browserFullscreen) {
-                this.showMouseCursor();
-                fullscreenController.exitFullscreen();
-            } else {
-                this.hideMouseCursor();
-                fullscreenController.enterFullscreen();
-            }
-            this.nextFrameTime = Sys.getTime();
-        } else if (browserFullscreen && this.input!.isKeyPressed(Input.KEY_ESCAPE) && fullscreenController !== null) {
-            this.showMouseCursor();
-            fullscreenController.exitFullscreen();
-            this.nextFrameTime = Sys.getTime();
-        }
         this.controlInput!.update();
 
         if (this.fadeState == Main.FADE_IN) {
@@ -3914,8 +3853,6 @@ export class Main extends BasicGame {
                 break;
         }
 
-        const fullscreenText = "SPACE - FULL-SCREEN MODE";
-        this.drawString(fullscreenText, trunc((640 - fullscreenText.length * 16) / 2), 400);
         const copyrightText = "@ 2010, 2026 MEATFIGHTER.COM";
         this.drawString(copyrightText, this.centerTextX(copyrightText), 430);
     }

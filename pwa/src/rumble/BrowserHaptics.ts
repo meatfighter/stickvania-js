@@ -24,6 +24,29 @@ type LabeledActuator = {
     readonly actuator: HapticActuator;
 };
 
+type BrowserRumbleGlobal = {
+    readonly Gamepad?: { readonly prototype: object };
+    readonly GamepadHapticActuator?: { readonly prototype: { readonly playEffect?: unknown } };
+};
+
+export type BrowserRumbleCapability = "available" | "unavailable";
+
+/** Browser-level menu capability. Controller capability is intentionally evaluated later, per connected pad. */
+export function getBrowserRumbleCapability(): BrowserRumbleCapability {
+    if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") {
+        return "unavailable";
+    }
+
+    const browser = globalThis as unknown as BrowserRumbleGlobal;
+    const gamepad = browser.Gamepad;
+    const hapticActuator = browser.GamepadHapticActuator;
+    if (gamepad === undefined || hapticActuator === undefined) {
+        return "unavailable";
+    }
+
+    return "vibrationActuator" in gamepad.prototype && typeof hapticActuator.prototype.playEffect === "function" ? "available" : "unavailable";
+}
+
 export function getConnectedGamepads(): HapticGamepad[] {
     if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") {
         return [];

@@ -3,7 +3,6 @@ export type MainStateFieldClassification = "persisted" | "runtime" | "reconstruc
 /** Every Main instance field must be deliberately classified before state-registry generation succeeds. */
 export const MAIN_STATE_FIELD_POLICY = {
     fades: "runtime",
-    nativeCursor: "runtime",
     mode: "persisted",
     darkDisplayMode: "runtime",
     displayMonochromePalette: "runtime",
@@ -232,7 +231,6 @@ export const MAIN_STATE_FIELD_POLICY = {
     requestedSong: "special",
     currentMusic: "special",
     loadingCompleteHandler: "runtime",
-    browserFullscreenController: "runtime",
     browserSuspended: "runtime",
     input: "runtime",
     buttonMapping: "runtime",

@@ -50,6 +50,7 @@ try {
 
     await page.goto(url);
     await page.locator(newGameSelector).first().waitFor({ state: "visible" });
+    await disableFullscreenIfAvailable(page);
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 120_000 });
     await page.reload();
     await page.locator(newGameSelector).first().waitFor({ state: "visible" });
@@ -94,6 +95,15 @@ try {
         await browser.close();
     }
     await new Promise((resolveClose) => server.close(resolveClose));
+}
+
+async function disableFullscreenIfAvailable(page) {
+    const fullscreenSwitch = page.locator("#fullscreen-switch-button").first();
+    await fullscreenSwitch.waitFor({ state: "visible" });
+    if ((await fullscreenSwitch.isEnabled()) && (await fullscreenSwitch.getAttribute("aria-pressed")) === "true") {
+        await fullscreenSwitch.click();
+        assert.equal(await fullscreenSwitch.getAttribute("aria-pressed"), "false");
+    }
 }
 
 async function waitForRunning(page, label) {

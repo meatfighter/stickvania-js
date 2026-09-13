@@ -38,6 +38,10 @@ select {
     background: #000000;
 }
 
+.menu-screen {
+    touch-action: manipulation;
+}
+
 .menu-overlay {
     z-index: 20;
 }
@@ -217,6 +221,7 @@ select {
 }
 
 .settings-row > .setting-theme-row,
+.settings-row > .setting-scaling-row,
 .settings-row > .setting-switch-row {
     flex: 0 0 auto;
 }
@@ -448,6 +453,18 @@ select {
     outline: none;
 }
 
+.fullscreen-switch:disabled {
+    border-color: #555555;
+    background: #555555;
+    cursor: default;
+    opacity: 1;
+}
+
+.fullscreen-switch:disabled span {
+    background: #111111;
+    transform: translateX(0);
+}
+
 .menu-buttons {
     display: flex;
     flex-wrap: wrap;
@@ -519,11 +536,21 @@ select {
 }
 
 .game-shell,
-.game-shell:fullscreen {
+.game-shell:fullscreen,
+.game-shell:-webkit-full-screen {
     position: fixed;
     inset: 0;
     overflow: hidden;
     background: #000000;
+}
+
+.game-shell:fullscreen,
+.game-shell:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    max-width: none;
+    max-height: none;
 }
 
 .game-host {
@@ -534,9 +561,16 @@ select {
     justify-content: center;
 }
 
+.game-shell:fullscreen .game-host,
+.game-shell:-webkit-full-screen .game-host {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+}
+
 .game-host canvas {
     display: block;
-
     max-width: 100%;
     max-height: 100%;
     background: #000000;
@@ -561,6 +595,12 @@ select {
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.55);
     cursor: pointer;
+}
+
+.game-shell:fullscreen .hamburger-button,
+.game-shell:-webkit-full-screen .hamburger-button {
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    left: calc(12px + env(safe-area-inset-left, 0px));
 }
 
 .hamburger-button:hover,

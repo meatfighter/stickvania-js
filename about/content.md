@@ -2,7 +2,7 @@
 
 _Stickvania_ is a stick-figure demake of Konami's original _Castlevania_ for the Nintendo Entertainment System. The game reduces the castle, enemies, objects, and Simon Belmont himself to simple line drawings that look like they were scribbled with a Sharpie.
 
-Press the **Play** button below to launch the browser version of _Stickvania_.
+Press the **Play** button below to launch the desktop browser version of _Stickvania_.
 
 [Play](__PWA_URL__)
 
@@ -23,13 +23,6 @@ Press **Attack** to use the whip. Hold **Up** and press **Attack** to use your c
 
 You can change the button mapping by selecting **Options → Input** from the in-game menu.
 
-_Stickvania_ reserves two keyboard controls that cannot be remapped:
-
-| Key   | Action            |
-| ----- | ----------------- |
-| Space | Toggle fullscreen |
-| Esc   | Exit fullscreen   |
-
 ## Browser Menu
 
 _Stickvania_ opens with a browser menu that provides **New Game** and **Continue** buttons.
@@ -42,11 +35,10 @@ The browser menu also provides:
 
 - **Theme** — Selects the game's color scheme.
 - **Rumble** — Switches vibration on or off for compatible gamepads.
+- **Fullscreen** — Makes the game fill the entire screen.
 - **Scaling** — Controls how the game is resized to fit the display.
 - **Volume** — Adjusts the game volume.
 - **Reset** — Erases saved state and restores settings to their defaults.
-
-_Stickvania_ automatically pauses when the browser loses focus and resumes when the browser regains focus.
 
 ## In-Game Menu
 

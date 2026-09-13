@@ -1,4 +1,4 @@
-import { getConnectedGamepads, playPulseOnGamepad, silenceGamepads } from "./BrowserHaptics.js";
+import { getBrowserRumbleCapability, getConnectedGamepads, playPulseOnGamepad, silenceGamepads } from "./BrowserHaptics.js";
 import { getRumbleEffect, isRumbleDelayStep, type RumbleChannel, type RumbleEffect, type RumbleEffectId } from "./RumbleEffects.js";
 
 export class RumbleManager {
@@ -7,17 +7,19 @@ export class RumbleManager {
     private globalToken: number = 0;
     private readonly channelTokens: Map<RumbleChannel, number> = new Map();
     private readonly lastStarted: Map<RumbleEffectId, number> = new Map();
+    private readonly browserRumbleAvailable = typeof getBrowserRumbleCapability !== "function" || getBrowserRumbleCapability() === "available";
 
     public constructor(enabled: boolean) {
-        this.enabled = enabled;
+        this.enabled = enabled && this.browserRumbleAvailable;
     }
 
     public setEnabled(enabled: boolean): void {
-        if (this.enabled == enabled) {
+        const effectiveEnabled = enabled && this.browserRumbleAvailable;
+        if (this.enabled == effectiveEnabled) {
             return;
         }
-        this.enabled = enabled;
-        if (!enabled) {
+        this.enabled = effectiveEnabled;
+        if (!effectiveEnabled) {
             this.stopAll();
         }
     }

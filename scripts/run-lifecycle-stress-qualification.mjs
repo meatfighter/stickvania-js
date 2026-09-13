@@ -139,6 +139,7 @@ try {
 
     await page.goto(url);
     await page.locator(newGameSelector).first().waitFor({ state: "visible" });
+    await disableFullscreenIfAvailable(page);
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 120_000 });
     await page.reload();
     await page.locator(newGameSelector).first().waitFor({ state: "visible" });
@@ -195,6 +196,12 @@ try {
     }
     if (finalLifecycle.wakeInstrumented) {
         assert.ok(finalLifecycle.wakeLive <= 1, `Wake-lock sentinels accumulated: ${JSON.stringify(finalLifecycle)}`);
+        assert.equal(
+            finalLifecycle.wakeAcquired - finalLifecycle.wakeReleased,
+            finalLifecycle.wakeLive,
+            `Wake-lock acquisition/release accounting is unbalanced: ${JSON.stringify(finalLifecycle)}`
+        );
+        assert.ok(finalLifecycle.wakeReleased <= finalLifecycle.wakeAcquired, `Wake-lock releases exceeded acquisitions: ${JSON.stringify(finalLifecycle)}`);
     }
 
     const finalCacheKeys = await page.evaluate(async () => (await caches.keys()).sort());
@@ -234,6 +241,15 @@ try {
         await browser.close();
     }
     await new Promise((resolveClose) => server.close(resolveClose));
+}
+
+async function disableFullscreenIfAvailable(page) {
+    const fullscreenSwitch = page.locator("#fullscreen-switch-button").first();
+    await fullscreenSwitch.waitFor({ state: "visible" });
+    if ((await fullscreenSwitch.isEnabled()) && (await fullscreenSwitch.getAttribute("aria-pressed")) === "true") {
+        await fullscreenSwitch.click();
+        assert.equal(await fullscreenSwitch.getAttribute("aria-pressed"), "false");
+    }
 }
 
 async function openLiveMenu(page, label = "cycle") {

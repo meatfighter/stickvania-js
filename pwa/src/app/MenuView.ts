@@ -1,4 +1,5 @@
 import { DISPLAY_MODE_DEFINITIONS, isDisplayModePreference, type DisplayModePreference } from "../DisplayThemes.js";
+import { getBrowserRumbleCapability } from "../rumble/BrowserHaptics.js";
 import type { StickvaniaScalingPreference } from "../stickvania/StickvaniaBufferedGame.js";
 
 export type MenuState = {
@@ -9,12 +10,15 @@ export type MenuState = {
     displayMode: DisplayModePreference;
     scaling: StickvaniaScalingPreference;
     rumbleEnabled: boolean;
+    fullscreen: boolean;
+    fullscreenUnavailable: boolean;
 };
 
 export type MenuCallbacks = {
     onDisplayModeChange(value: DisplayModePreference): boolean;
     onScalingChange(value: StickvaniaScalingPreference): boolean;
     onRumbleChange(value: boolean): boolean;
+    onFullscreenChange(value: boolean): boolean;
     onVolumeInput(value: number): void;
     onVolumeCommit(value: number): boolean;
     onNewGame(): void;
@@ -37,6 +41,10 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
     let currentDisplayMode = state.displayMode;
     let currentScaling = state.scaling;
     let currentRumble = state.rumbleEnabled;
+    let currentFullscreen = state.fullscreen;
+    const rumbleUnavailable = getBrowserRumbleCapability() === "unavailable";
+    const rumblePresented = !rumbleUnavailable && currentRumble;
+    const fullscreenPresented = !state.fullscreenUnavailable && currentFullscreen;
     const menu = document.createElement("main");
     menu.className = state.overlay ? "menu-screen menu-overlay" : "menu-screen";
     menu.style.visibility = "hidden";
@@ -52,12 +60,18 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
                 </div>
                 <div class="setting-switch-row" role="group" aria-label="Rumble">
                     <span>Rumble</span>
-                    <button id="rumble-switch-button" class="menu-switch" type="button" aria-label="Toggle rumble" aria-pressed="${currentRumble}" data-enabled="${currentRumble}"><span></span></button>
+                    <button id="rumble-switch-button" class="menu-switch rumble-switch fullscreen-switch" type="button" aria-label="Toggle rumble" aria-pressed="${rumblePresented}" data-enabled="${rumblePresented}"${rumbleUnavailable ? ' disabled title="Rumble is unavailable in this browser"' : ""}><span></span></button>
                 </div>
             </div>
-            <div class="setting-scaling-row" role="group" aria-label="Scaling">
-                <span>Scaling</span>
-                ${scalingPickerHtml(currentScaling)}
+            <div class="settings-row settings-fullscreen-scaling-row">
+                <div class="setting-switch-row setting-fullscreen-row" role="group" aria-label="Fullscreen">
+                    <span>Fullscreen</span>
+                    <button id="fullscreen-switch-button" class="menu-switch fullscreen-switch" type="button" aria-label="Toggle fullscreen" aria-pressed="${fullscreenPresented}" data-enabled="${fullscreenPresented}"${state.fullscreenUnavailable ? ' disabled title="Fullscreen is unavailable in this browser"' : ""}><span></span></button>
+                </div>
+                <div class="setting-scaling-row" role="group" aria-label="Scaling">
+                    <span>Scaling</span>
+                    ${scalingPickerHtml(currentScaling)}
+                </div>
             </div>
             <label class="volume-row">
                 <span id="volume-icon" class="volume-icon" aria-hidden="true">${volumeIconSvg(currentVolume)}</span>
@@ -91,6 +105,7 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
     const scalingList = requiredElement<HTMLElement>(menu, "#scaling-list");
     const scalingOptions = Array.from(menu.querySelectorAll<HTMLButtonElement>("[data-scaling-mode]"));
     const rumbleSwitchButton = requiredElement<HTMLButtonElement>(menu, "#rumble-switch-button");
+    const fullscreenSwitchButton = requiredElement<HTMLButtonElement>(menu, "#fullscreen-switch-button");
     const newGameButton = requiredElement<HTMLButtonElement>(menu, "#new-game-button");
     const continueButton = requiredElement<HTMLButtonElement>(menu, "#continue-button");
     const resetButton = requiredElement<HTMLButtonElement>(menu, "#reset-button");
@@ -201,14 +216,28 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
     updateDisplayModeUi(displayModePicker, currentDisplayMode);
     updateScalingUi(scalingPicker, currentScaling);
     updateRumbleUi(rumbleSwitchButton, currentRumble);
+    updateFullscreenUi(fullscreenSwitchButton, currentFullscreen);
     updateVolumeUi(volumeInput, volumeValue, volumeIcon, currentVolume);
 
     rumbleSwitchButton.addEventListener("click", () => {
+        if (rumbleSwitchButton.disabled) {
+            return;
+        }
         currentRumble = !currentRumble;
         if (!callbacks.onRumbleChange(currentRumble)) {
             showPersistenceError(menu);
         }
         updateRumbleUi(rumbleSwitchButton, currentRumble);
+    });
+    fullscreenSwitchButton.addEventListener("click", () => {
+        if (fullscreenSwitchButton.disabled) {
+            return;
+        }
+        currentFullscreen = !currentFullscreen;
+        if (!callbacks.onFullscreenChange(currentFullscreen)) {
+            showPersistenceError(menu);
+        }
+        updateFullscreenUi(fullscreenSwitchButton, currentFullscreen);
     });
     volumeInput.addEventListener("input", () => {
         currentVolume = Number(volumeInput.value) / 100;
@@ -222,11 +251,9 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
         }
     });
     newGameButton.addEventListener("click", () => {
-        disableLaunchButtons(newGameButton, continueButton);
         callbacks.onNewGame();
     });
     continueButton.addEventListener("click", () => {
-        disableLaunchButtons(newGameButton, continueButton);
         callbacks.onContinue();
     });
     resetButton.addEventListener("click", callbacks.onReset);
@@ -296,8 +323,15 @@ function rgbToCssHex(rgb: readonly [number, number, number]): string {
 }
 
 function updateRumbleUi(button: HTMLButtonElement, enabled: boolean): void {
-    button.setAttribute("aria-pressed", String(enabled));
-    button.setAttribute("data-enabled", String(enabled));
+    const presented = !button.disabled && enabled;
+    button.setAttribute("aria-pressed", String(presented));
+    button.setAttribute("data-enabled", String(presented));
+}
+
+function updateFullscreenUi(button: HTMLButtonElement, enabled: boolean): void {
+    const presented = !button.disabled && enabled;
+    button.setAttribute("aria-pressed", String(presented));
+    button.setAttribute("data-enabled", String(presented));
 }
 
 function updateVolumeUi(input: HTMLInputElement, valueElement: HTMLElement, icon: HTMLElement, volume: number): void {
@@ -482,11 +516,6 @@ function horizontalSpacing(style: CSSStyleDeclaration, includeBorder: boolean): 
 function parseCssPixels(value: string): number {
     const pixels = Number.parseFloat(value);
     return Number.isFinite(pixels) ? pixels : 0;
-}
-
-function disableLaunchButtons(newGameButton: HTMLButtonElement, continueButton: HTMLButtonElement): void {
-    newGameButton.disabled = true;
-    continueButton.disabled = true;
 }
 
 function showPersistenceError(menu: HTMLElement): void {

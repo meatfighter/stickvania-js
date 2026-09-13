@@ -43,11 +43,11 @@
         "verify:desktop-release": "node scripts/verify-desktop-release.mjs",
         "verify:release-tooling": "node scripts/verify-release-tooling.mjs",
         "verify:dependencies": "npm audit --audit-level=high",
-        "verify": "node --test scripts/test-slick-install-cutover.mjs && node --test scripts/test-deployment-scope-cutover.mjs && node --test scripts/test-cutover-browser-script-syntax.mjs && node --test scripts/test-playback-session.mjs && node --test scripts/test-browser-haptics.mjs && npm run test:rumble-session && node --test scripts/test-service-worker-deadline.mjs && node --test scripts/test-pwa-manifest-identity.mjs && npm run test:session-ownership && npm run format:check && npm run lint && npm run check:resource-versions && npm run check:java-parity-metadata && npm run check:state-fields && npm run test:pwa-state-hardening && npm run test:pwa-machinery-hardening && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:typescript-tech-debt && npm run test:about-page && npm run test:about-html && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
+        "verify": "node --test scripts/test-slick-install-cutover.mjs && node --test scripts/test-deployment-scope-cutover.mjs && node --test scripts/test-cutover-browser-script-syntax.mjs && node --test scripts/test-playback-session.mjs && node --test scripts/test-browser-haptics.mjs && node --test scripts/test-browser-fullscreen-controls.mjs && node --test scripts/test-pwa-menu-touch-zoom.mjs && npm run test:rumble-session && node --test scripts/test-service-worker-deadline.mjs && node --test scripts/test-pwa-manifest-identity.mjs && npm run test:session-ownership && npm run format:check && npm run lint && npm run check:resource-versions && npm run check:java-parity-metadata && npm run check:state-fields && npm run test:pwa-state-hardening && npm run test:pwa-machinery-hardening && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:typescript-tech-debt && npm run test:about-page && npm run test:about-html && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
         "verify:browser": "node scripts/run-browser-verification.mjs && node scripts/run-offline-verification.mjs",
         "release": "npm run verify && npm run verify:dependencies && npm run build",
         "qualify": "node scripts/assert-clean-git.mjs && npm run release && npm run verify:browser && node scripts/assert-clean-git.mjs",
-        "qualify:browsers": "npm run verify:production-browser && npm run verify:activation-races && npm run verify:audio-interruption && npm run verify:lifecycle-events && npm run verify:ownership-transfer && npm run verify:persistence-failure && npm run verify:lifecycle-stress",
+        "qualify:browsers": "node scripts/run-browser-qualification-suite.mjs",
         "preview": "npm run preview:pwa",
         "preview:pwa": "vite preview --config pwa/vite.config.ts --host 127.0.0.1",
         "preview:dist": "vite preview --host 127.0.0.1 --outDir dist",
@@ -62,6 +62,10 @@
         "test:typescript-tech-debt": "node scripts/test-typescript-tech-debt-guardrails.mjs",
         "test:session-ownership": "node --test scripts/test-session-ownership.mjs",
         "test:rumble-session": "node --test scripts/test-rumble-session.mjs",
+        "verify:fullscreen": "node scripts/run-fullscreen-qualification.mjs",
+        "verify:fullscreen-timeout": "node scripts/run-fullscreen-timeout-qualification.mjs",
+        "verify:fullscreen-reentry": "node scripts/run-fullscreen-reentry-qualification.mjs",
+        "verify:fullscreen-settings": "node scripts/run-fullscreen-settings-qualification.mjs",
         "verify:production-browser": "node scripts/run-production-browser-qualification.mjs",
         "verify:activation-races": "node scripts/run-activation-race-qualification.mjs",
         "verify:audio-interruption": "node scripts/run-audio-interruption-qualification.mjs",
@@ -72,7 +76,7 @@
         "release:archive": "node scripts/archive-release.mjs"
     },
     "dependencies": {
-        "slick2d-ts": "https://codeload.github.com/meatfighter/slick2d-ts/tar.gz/bf52fb09bfc0516efd5d62cbb368c89547b124e0"
+        "slick2d-ts": "https://codeload.github.com/meatfighter/slick2d-ts/tar.gz/b82492294a20640fab7e0065e9348253bd56c4a9"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",

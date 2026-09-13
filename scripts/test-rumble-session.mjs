@@ -122,25 +122,61 @@ function fixture({ enabled = true, restore = true } = {}) {
     }
 
     class Viewport {
-        setHost() {}
-        createFullscreenController() {
-            return {};
+        gameShell = null;
+        gameHost = null;
+
+        getFullscreenCapability() {
+            return "unavailable";
         }
-        getResponsiveWindowedDisplayMode() {
+
+        createShell() {
+            this.gameShell = shell;
+            this.gameHost = host;
+            return host;
+        }
+
+        attach() {}
+
+        getResponsiveDisplayMode() {
             return { width: 640, height: 480 };
         }
-        start() {}
+
+        startResponsiveSizing(host) {
+            this.gameHost = host;
+        }
+
+        stopResponsiveSizing() {}
+
+        reconcileDisplayModeNow() {}
+
+        scheduleResize() {}
+
         focusCanvas() {
             runtimeControls.focus();
         }
-        isShellFullscreen() {
-            return false;
+
+        requestFullscreen() {
+            return Promise.resolve(false);
         }
-        exitFullscreen() {}
-        stop() {}
-        suspendCursor() {}
-        resumeCursor() {}
-        scheduleResize() {}
+
+        exitFullscreenForMenu() {
+            return Promise.resolve(true);
+        }
+
+        startHamburgerVisibilityMonitor() {}
+
+        stopHamburgerVisibilityMonitor() {}
+
+        hideHamburger() {}
+
+        startCursorAutoHide() {}
+
+        stopCursorAutoHide() {}
+
+        clear() {
+            this.gameShell = null;
+            this.gameHost = null;
+        }
     }
 
     class Main {
@@ -296,11 +332,13 @@ function fixture({ enabled = true, restore = true } = {}) {
             return imports[id];
         },
         testRoot: root,
+        testViewport: new Viewport(),
         testOwnership: { owned: true, epoch: 1, isCurrent: () => true }
     };
     const bridge = `
         app = globalThis.testRoot;
         ownership = globalThis.testOwnership;
+        viewport = globalThis.testViewport;
         pwaSessionState = "menu";
         globalThis.harness = {
             startGame, resetPwaState, showMenu, requestPwaMenu, resumeLiveGameFromMenu,
@@ -335,6 +373,7 @@ test("New Game after a live-menu transition reuses and unsuspends the page-lifet
     await f.startGame(false);
     const manager = f.getRumbleManager();
     f.requestPwaMenu("hamburger");
+    await new Promise((resolve) => setImmediate(resolve));
     assert.equal(f.state().phase, "menu");
     manager.play("test");
     assert.equal(f.events.pulses, 0);
@@ -350,6 +389,7 @@ test("Reset stays silent in MENU and permits haptics only after another accepted
     const manager = f.getRumbleManager();
 
     f.requestPwaMenu("hamburger");
+    await new Promise((resolve) => setImmediate(resolve));
     assert.equal(f.state().phase, "menu");
     manager.play("test");
     assert.equal(f.events.pulses, 0);
@@ -406,6 +446,7 @@ test("live Continue still resumes the retained session and its haptics", async (
     await f.startGame(false);
     const game = f.state().game;
     f.requestPwaMenu("hamburger");
+    await new Promise((resolve) => setImmediate(resolve));
     await f.resumeLiveGameFromMenu();
     assert.equal(f.state().phase, "running");
     assert.equal(f.state().game, game);

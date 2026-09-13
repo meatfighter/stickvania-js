@@ -1,59 +1,78 @@
 # Releasing
 
-This file contains the reproducible repository-local release procedure. Detailed maintainer rollout matrices, historical browser caveats, and cross-project deployment notes are intentionally kept outside the public source tree.
+Releases are built and qualified locally from a clean Git checkout.
 
 ## Prerequisites
 
-Use a Node.js version supported by [package.json](package.json), Git, and JDK 21 for the Java desktop build. Install dependencies from the lockfile:
+You need:
+
+- a Node.js version supported by [package.json](package.json)
+- Git
+- JDK 21 for the Java desktop build
+- the Playwright browsers used by the browser qualification scripts
+
+Install the project dependencies from the lockfile:
 
 ```sh
 npm ci
 ```
 
-Release from one reviewed commit with a clean working tree. Local qualification is the primary gate; GitHub Actions is optional and is not required for release.
+## 1. Start from a clean commit
 
-## Qualify the exact commit
-
-From the repository root:
+Before building a release, make sure all intended changes are committed:
 
 ```sh
 git status --short
+```
+
+The command should produce no output. The release scripts refuse to create a production release from a dirty checkout.
+
+## 2. Build and qualify the release
+
+Run:
+
+```sh
 npm run qualify
 ```
 
-`npm run qualify` runs the source checks, dependency audit, production build, Chromium/browser verification, and clean-tree checks defined by the repository scripts. It produces the complete release distribution in `dist/`.
+This runs the repository checks, dependency audit, production build, standard browser verification, offline verification, and clean-tree checks. If it succeeds, the complete deployable release is in `dist/`.
 
-For browser-facing changes, also run the extended browser qualification against the built PWA:
+If you make any source change after qualification, commit it and run `npm run qualify` again.
+
+## 3. Run extended browser qualification when needed
+
+For changes involving the PWA, audio, input, lifecycle handling, fullscreen behavior, persistence, rumble, or other browser-sensitive code, also run:
 
 ```sh
 npm run qualify:browsers
 ```
 
-Install the Playwright browser engines and platform dependencies required by that command. Automated browser checks do not replace appropriate real-device acceptance for material PWA, audio, input, lifecycle, controller-rumble, fullscreen, or offline changes.
+This command first builds a fresh temporary PWA and then runs the extended browser suite against `.release-components/pwa/pwa`. It does not replace the complete release in `dist/`.
 
-## Inspect and preview
+For changes that depend on real browser or device behavior, test the staged release on the relevant hardware as well. Automated browser tests are not a substitute for real-device testing.
 
-Confirm the working tree is still clean and inspect the generated distribution:
+## 4. Preview the release
+
+Preview the exact contents of `dist/`:
 
 ```sh
-git status --short
 npm run preview:dist
 ```
 
-Before production deployment, stage the exact qualified `dist/` bytes and perform a focused smoke test of the affected browser and Java desktop behavior. Do not rebuild after stage acceptance and substitute different bytes for deployment.
+Check the parts affected by the release, including the About page, browser game, saved-game behavior, input and rumble behavior, and Java desktop package when applicable.
 
-## Archive
+## 5. Deploy
 
-Archive an already-qualified distribution outside the repository:
+Deploy the **contents of `dist/`** as a unit. For browser-facing changes, deploy those files to the stage site first and perform a final smoke test there.
+
+Once the staged build is accepted, deploy the same `dist/` contents to production. Do not rebuild between stage acceptance and production deployment. If anything changes, qualify the new commit and stage it again.
+
+## Optional: archive a release
+
+To keep a copy of a qualified release outside the repository, run:
 
 ```sh
 node scripts/archive-release.mjs dist /absolute/path/outside/repository/release-artifacts
 ```
 
-Use a new output directory for each archive. Preserve and verify the generated release metadata/checksums after transfer. Keep the previous known-good archive available for rollback.
-
-## Tag
-
-After qualification and acceptance, create an annotated tag on the exact qualified commit. Use a new version tag and never move an existing release tag. Record the source commit, exact `slick2d-ts` dependency commit, archive/checksum information, and deployment time together.
-
-Creating a build, archive, or tag does not deploy it.
+Use a new output directory for each archived release and keep the previous known-good release available for rollback.
