@@ -19,6 +19,7 @@ const supplemental = [
 const unrelatedBrowserSuites = supplemental.slice(4).map(([, path]) => path);
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const suiteRunner = readFileSync("scripts/run-browser-qualification-suite.mjs", "utf8");
+const lifecycleStressSource = readFileSync("scripts/run-lifecycle-stress-qualification.mjs", "utf8");
 
 test("cutover browser qualification scripts are valid JavaScript", () => {
     for (const [, path] of supplemental) {
@@ -58,4 +59,11 @@ test("unrelated browser qualifiers explicitly disable the default-on Fullscreen 
         const occurrences = source.match(/disableFullscreenIfAvailable\s*\(/g) ?? [];
         assert.ok(occurrences.length >= 2, `${path} defines the helper but never calls it before exercising its original non-fullscreen contract`);
     }
+});
+
+test("lifecycle stress requires exact wake-lock acquisition and release accounting", () => {
+    assert.match(lifecycleStressSource, /finalLifecycle\.wakeAcquired\s*-\s*finalLifecycle\.wakeReleased/);
+    assert.match(lifecycleStressSource, /finalLifecycle\.wakeLive/);
+    assert.match(lifecycleStressSource, /Wake-lock acquisition\/release accounting is unbalanced/);
+    assert.match(lifecycleStressSource, /finalLifecycle\.wakeReleased\s*<=\s*finalLifecycle\.wakeAcquired/);
 });
