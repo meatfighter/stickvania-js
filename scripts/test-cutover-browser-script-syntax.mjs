@@ -15,6 +15,7 @@ const supplemental = [
     ["verify:persistence-failure", "scripts/run-persistence-failure-qualification.mjs"],
     ["verify:lifecycle-stress", "scripts/run-lifecycle-stress-qualification.mjs"]
 ];
+const unrelatedBrowserSuites = supplemental.slice(3).map(([, path]) => path);
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const suiteRunner = readFileSync("scripts/run-browser-qualification-suite.mjs", "utf8");
 
@@ -44,4 +45,13 @@ test("qualify:browsers rebuilds and tests the exact fresh Stickvania PWA", () =>
         previous = index;
     }
     assert.ok(suiteRunner.indexOf('runNpmScript("build:pwa")') < suiteRunner.indexOf('"verify:fullscreen"'), "fresh PWA build must happen before browser qualification");
+});
+
+test("unrelated browser qualifiers explicitly disable the default-on Fullscreen preference", () => {
+    for (const path of unrelatedBrowserSuites) {
+        const source = readFileSync(path, "utf8");
+        assert.match(source, /async function disableFullscreenIfAvailable\(page\)/, `${path} must define the audited Fullscreen-OFF helper`);
+        const occurrences = source.match(/disableFullscreenIfAvailable\s*\(/g) ?? [];
+        assert.ok(occurrences.length >= 2, `${path} defines the helper but never calls it before exercising its original non-fullscreen contract`);
+    }
 });
