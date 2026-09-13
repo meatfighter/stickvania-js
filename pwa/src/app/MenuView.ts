@@ -60,13 +60,15 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
                     <button id="rumble-switch-button" class="menu-switch" type="button" aria-label="Toggle rumble" aria-pressed="${currentRumble}" data-enabled="${currentRumble}"><span></span></button>
                 </div>
             </div>
-            <div class="setting-switch-row setting-fullscreen-row" role="group" aria-label="Fullscreen">
-                <span>Fullscreen</span>
-                <button id="fullscreen-switch-button" class="menu-switch fullscreen-switch" type="button" aria-label="Toggle fullscreen" aria-pressed="${fullscreenPresented}" data-enabled="${fullscreenPresented}"${state.fullscreenUnavailable ? ' disabled title="Fullscreen is unavailable in this browser"' : ""}><span></span></button>
-            </div>
-            <div class="setting-scaling-row" role="group" aria-label="Scaling">
-                <span>Scaling</span>
-                ${scalingPickerHtml(currentScaling)}
+            <div class="settings-row settings-fullscreen-scaling-row">
+                <div class="setting-switch-row setting-fullscreen-row" role="group" aria-label="Fullscreen">
+                    <span>Fullscreen</span>
+                    <button id="fullscreen-switch-button" class="menu-switch fullscreen-switch" type="button" aria-label="Toggle fullscreen" aria-pressed="${fullscreenPresented}" data-enabled="${fullscreenPresented}"${state.fullscreenUnavailable ? ' disabled title="Fullscreen is unavailable in this browser"' : ""}><span></span></button>
+                </div>
+                <div class="setting-scaling-row" role="group" aria-label="Scaling">
+                    <span>Scaling</span>
+                    ${scalingPickerHtml(currentScaling)}
+                </div>
             </div>
             <label class="volume-row">
                 <span id="volume-icon" class="volume-icon" aria-hidden="true">${volumeIconSvg(currentVolume)}</span>
