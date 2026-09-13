@@ -7,7 +7,7 @@ export class RumbleManager {
     private globalToken: number = 0;
     private readonly channelTokens: Map<RumbleChannel, number> = new Map();
     private readonly lastStarted: Map<RumbleEffectId, number> = new Map();
-    private readonly browserRumbleAvailable = getBrowserRumbleCapability() === "available";
+    private readonly browserRumbleAvailable = typeof getBrowserRumbleCapability !== "function" || getBrowserRumbleCapability() === "available";
 
     public constructor(enabled: boolean) {
         this.enabled = enabled && this.browserRumbleAvailable;
