@@ -65,6 +65,7 @@
         "verify:fullscreen": "node scripts/run-fullscreen-qualification.mjs",
         "verify:fullscreen-timeout": "node scripts/run-fullscreen-timeout-qualification.mjs",
         "verify:fullscreen-reentry": "node scripts/run-fullscreen-reentry-qualification.mjs",
+        "verify:fullscreen-settings": "node scripts/run-fullscreen-settings-qualification.mjs",
         "verify:production-browser": "node scripts/run-production-browser-qualification.mjs",
         "verify:activation-races": "node scripts/run-activation-race-qualification.mjs",
         "verify:audio-interruption": "node scripts/run-audio-interruption-qualification.mjs",
