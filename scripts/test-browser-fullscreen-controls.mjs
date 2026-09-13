@@ -25,10 +25,11 @@ test("Space is remappable while Escape remains browser-reserved", () => {
     assert.doesNotMatch(reservedHandler, /event\.code === "Space"|event\.key === " "/);
 });
 
-test("translated browser game no longer owns fullscreen or advertises the old shortcut", () => {
+test("translated browser game no longer owns fullscreen or legacy cursor fullscreen machinery", () => {
     assert.doesNotMatch(translatedMain, /BrowserFullscreenController|browserFullscreenController/);
     assert.doesNotMatch(translatedMain, /SPACE - FULL-SCREEN MODE/);
     assert.doesNotMatch(translatedMain, /requestFullscreen\(|exitFullscreen\(/);
+    assert.doesNotMatch(translatedMain, /nativeCursor|showMouseCursor|hideMouseCursor|CursorLoader|BufferUtils|Mouse\./);
 });
 
 test("fullscreen preference defaults on, presents unavailable as off, and is independent of rumble", () => {
