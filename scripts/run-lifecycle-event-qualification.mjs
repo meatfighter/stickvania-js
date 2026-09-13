@@ -81,6 +81,7 @@ try {
 
     await page.goto(url);
     await page.locator(newGameSelector).first().waitFor({ state: "visible" });
+    await disableFullscreenIfAvailable(page);
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 120_000 });
     await page.reload();
     await page.locator(newGameSelector).first().waitFor({ state: "visible" });
@@ -89,7 +90,6 @@ try {
 
     let audio = await readAudioCreates(page);
 
-    // Blur is an ordinary live departure. Foreground signals cannot undo it.
     await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await waitForLiveMenu(page, "blur");
     const afterBlur = await readAudioCreates(page);
@@ -103,22 +103,17 @@ try {
     await continueGame(page, "Continue after blur");
     audio = await expectOneFreshContext(page, audio, "Continue after blur");
 
-    // pagehide is also an ownership sleep boundary. It may first enter the live menu,
-    // but ownership relinquishment then performs the final save and destroys the retained game.
     const beforePageHide = await readAudioCreates(page);
     await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
     await waitForOwnershipDisposal(page, "pagehide");
     assert.equal((await readAudioCreates(page)).created, beforePageHide.created, "pagehide created replacement audio");
 
-    // pageshow reacquires ownership and returns to a cold menu only. It must not resume gameplay.
     await page.evaluate(() => window.dispatchEvent(new Event("pageshow")));
     await waitForColdMenu(page, "pageshow after pagehide");
     assert.equal((await readAudioCreates(page)).created, beforePageHide.created, "pageshow created audio without explicit activation");
     await continueGame(page, "cold Continue after pagehide");
     audio = await expectOneFreshContext(page, audio, "cold Continue after pagehide");
 
-    // Drive the actual AppGameContainer WebGL event handlers. Restoration may prepare rendering,
-    // but the shell must remain in MENU until explicit Continue.
     const graphicsCanvas = await page.locator("canvas").elementHandle();
     assert.ok(graphicsCanvas, "missing canvas before graphics-loss test");
     const beforeLoss = await readAudioCreates(page);
@@ -131,7 +126,6 @@ try {
     await continueGame(page, "Continue after graphics restoration");
     audio = await expectOneFreshContext(page, audio, "Continue after graphics restoration");
 
-    // A canvas retired by New Game must no longer have authority to route lifecycle events.
     const staleCanvas = await page.locator("canvas").elementHandle();
     assert.ok(staleCanvas, "missing canvas before replacement test");
     await openLiveMenu(page, "before New Game replacement");
@@ -158,6 +152,15 @@ try {
         await browser.close();
     }
     await new Promise((resolveClose) => server.close(resolveClose));
+}
+
+async function disableFullscreenIfAvailable(page) {
+    const fullscreenSwitch = page.locator("#fullscreen-switch-button").first();
+    await fullscreenSwitch.waitFor({ state: "visible" });
+    if ((await fullscreenSwitch.isEnabled()) && (await fullscreenSwitch.getAttribute("aria-pressed")) === "true") {
+        await fullscreenSwitch.click();
+        assert.equal(await fullscreenSwitch.getAttribute("aria-pressed"), "false");
+    }
 }
 
 async function openLiveMenu(page, label) {
