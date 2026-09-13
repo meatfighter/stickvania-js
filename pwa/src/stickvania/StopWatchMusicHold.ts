@@ -1,5 +1,6 @@
 import { Music } from "slick2d-ts";
 import { Main } from "./Main.js";
+import type { Song } from "./Song.js";
 
 let held = false;
 let heldMain: Main | null = null;
@@ -9,6 +10,23 @@ let classifyRestoredStandalone = false;
 
 function isSameLiveGame(main: Main): boolean {
     return heldMain === main && main.mode == Main.MODE_PLAYING && main.timeFrozen > 0;
+}
+
+function songBelongsToMain(main: Main, song: Song): boolean {
+    return (
+        main.boss_1 === song ||
+        main.boss_2 === song ||
+        main.ending === song ||
+        main.stage_1_1 === song ||
+        main.stage_1_2 === song ||
+        main.stage_2_1 === song ||
+        main.stage_3_1 === song ||
+        main.stage_4_1 === song ||
+        main.stage_4_2 === song ||
+        main.stage_5_1 === song ||
+        main.stage_6_1 === song ||
+        main.stage_6_2 === song
+    );
 }
 
 function shouldHold(main: Main): boolean {
@@ -36,8 +54,12 @@ export function resetStopWatchMusicHold(): void {
 }
 
 /** Song uses this to defer an owner selected while gameplay music is frozen. */
-export function isStopWatchMusicHeld(): boolean {
-    if (held && heldMain !== null && !isSameLiveGame(heldMain)) {
+export function isStopWatchMusicHeld(song: Song): boolean {
+    if (
+        held &&
+        heldMain !== null &&
+        (!isSameLiveGame(heldMain) || !songBelongsToMain(heldMain, song))
+    ) {
         abandonHold();
     }
     return held;
