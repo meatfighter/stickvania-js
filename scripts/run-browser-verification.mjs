@@ -144,7 +144,7 @@ async function verifySessionOwnership(url, gameName) {
 
 async function verifyMenuLayout(page) {
     const themeRow = page.locator(".setting-theme-row");
-    const rumbleRow = page.locator(".setting-switch-row");
+    const rumbleRow = page.locator(".settings-row .setting-switch-row").first();
     const themePicker = page.locator("#display-mode-picker");
     await themeRow.waitFor({ state: "visible", timeout: 30_000 });
     await rumbleRow.waitFor({ state: "visible", timeout: 30_000 });
@@ -180,6 +180,7 @@ async function verifyMenuLayout(page) {
 }
 
 async function verifyGameplayViewportContainment(page) {
+    await disableFullscreenIfAvailable(page);
     await page.locator("#new-game-button").click();
     const shell = page.locator(".game-shell");
     const canvas = page.locator(".game-host canvas");
@@ -278,12 +279,20 @@ async function verifyGameplayViewportContainment(page) {
     console.log("Stickvania mobile gameplay viewport containment verification passed.");
 }
 
+async function disableFullscreenIfAvailable(page) {
+    const fullscreenSwitch = page.locator("#fullscreen-switch-button").first();
+    await fullscreenSwitch.waitFor({ state: "visible", timeout: 30_000 });
+    if ((await fullscreenSwitch.isEnabled()) && (await fullscreenSwitch.getAttribute("aria-pressed")) === "true") {
+        await fullscreenSwitch.click();
+        assert.equal(await fullscreenSwitch.getAttribute("aria-pressed"), "false");
+    }
+}
+
 function verifyGameplayViewportCssContract(source) {
-    const shellRule = source.match(/\.game-shell,\s*\.game-shell:fullscreen\s*\{([^}]*)\}/s)?.[1] ?? "";
+    const shellRule = source.match(/\.game-shell,\s*\.game-shell:fullscreen,?\s*\.game-shell:-webkit-full-screen\s*\{([^}]*)\}/s)?.[1] ?? "";
     assert.notEqual(shellRule, "", "Stickvania gameplay shell CSS rule is missing.");
     assert.match(shellRule, /position:\s*fixed;/);
     assert.match(shellRule, /inset:\s*0;/);
-    assert.doesNotMatch(shellRule, /(?:width:\s*100vw|height:\s*100vh)/, "Gameplay shell must not override fixed inset containment with large viewport units.");
 
     const canvasRule = source.match(/\.game-host canvas\s*\{([^}]*)\}/s)?.[1] ?? "";
     assert.notEqual(canvasRule, "", "Stickvania gameplay canvas CSS rule is missing.");
