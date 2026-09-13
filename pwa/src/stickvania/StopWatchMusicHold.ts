@@ -30,6 +30,11 @@ function abandonHold(): void {
     classifyRestoredStandalone = false;
 }
 
+/** Clear runtime-only pause ownership before rebuilding a saved game. */
+export function resetStopWatchMusicHold(): void {
+    abandonHold();
+}
+
 /** Song uses this to defer an owner selected while gameplay music is frozen. */
 export function isStopWatchMusicHeld(): boolean {
     if (held && heldMain !== null && !isSameLiveGame(heldMain)) {
