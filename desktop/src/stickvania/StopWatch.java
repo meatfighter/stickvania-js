@@ -22,14 +22,31 @@ public class StopWatch extends Thing {
   public StopWatch(Main main) {
     super(main, 0, -10000, 32, 32);
     main.timeFrozen += 455;
+    StopWatchMusicHold.reconcile(main);
+  }
+
+  private boolean isTerminalGameplayState() {
+    return main.playerPower == 0 || main.simon.dead != 0 || main.beatStage;
   }
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
 
+    // Region Things have already completed for this tick. Ending the watch here
+    // keeps the lethal/stage-complete frame internally consistent while other
+    // already-thrown sub-weapons continue through the normal weapon pass.
+    if (isTerminalGameplayState()) {
+      cancel();
+      return false;
+    }
+
     if (lifeTime > 0) {
       lifeTime--;
       main.timeFrozen--;
+      if (main.timeFrozen < 0) {
+        main.timeFrozen = 0;
+      }
+      StopWatchMusicHold.reconcile(main);
     } else {
       return false;
     }
@@ -50,13 +67,12 @@ public class StopWatch extends Thing {
     sx1 = x + 16f * (float)FastTrig.cos(angle + ANGLE1);
     sy1 = y + 16f * (float)FastTrig.sin(angle + ANGLE1);
     sx2 = x + 16f * (float)FastTrig.cos(angle + ANGLE2);
-    sy2 = y + 16f * (float)FastTrig.sin(angle + ANGLE2);  
+    sy2 = y + 16f * (float)FastTrig.sin(angle + ANGLE2);
 
     return true;
   }
 
-  @Override
-  public void onDiscarded() {
+  public void cancel() {
     if (lifeTime <= 0) {
       return;
     }
@@ -65,6 +81,12 @@ public class StopWatch extends Thing {
       main.timeFrozen = 0;
     }
     lifeTime = 0;
+    StopWatchMusicHold.reconcile(main);
+  }
+
+  @Override
+  public void onDiscarded() {
+    cancel();
   }
 
   @Override
