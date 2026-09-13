@@ -49,6 +49,7 @@ try {
     first.on("pageerror", (error) => errors.push(`first tab: ${error.message}`));
     await first.goto(url);
     await first.locator(newGameSelector).first().waitFor({ state: "visible" });
+    await disableFullscreenIfAvailable(first);
     await first.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 120_000 });
     await first.reload();
     await first.locator(newGameSelector).first().waitFor({ state: "visible" });
@@ -62,8 +63,6 @@ try {
     await continueHere.waitFor({ state: "visible" });
     assert.equal(await second.locator("canvas").count(), 0, "second tab started gameplay without writer ownership");
 
-    // The takeover request must cause the old tab's synchronous relinquish callback to save
-    // and fully dispose before the native writer lock is transferred.
     await continueHere.click();
     const coldContinue = second.locator(continueSelector).first();
     await coldContinue.waitFor({ state: "visible" });
@@ -74,13 +73,10 @@ try {
     assert.equal(await first.locator(menuButtonSelector).count(), 0, "first tab retained active gameplay controls after ownership transfer");
     await first.locator(".session-ownership-message").waitFor({ state: "visible" });
 
-    // Explicit cold Continue in the new owner is the only path back to RUNNING.
     await coldContinue.click();
     await coldContinue.waitFor({ state: "hidden" });
     await waitForRunning(second, "second tab after takeover Continue");
 
-    // A stale wake signal in the old tab may retry acquisition, but it cannot steal the held lock
-    // or restart its disposed game while the new owner is running.
     await first.evaluate(() => window.dispatchEvent(new Event("pageshow")));
     await first.waitForTimeout(100);
     assert.equal(await first.locator("canvas").count(), 0, "old tab restarted gameplay after stale pageshow");
@@ -96,6 +92,15 @@ try {
         await browser.close();
     }
     await new Promise((resolveClose) => server.close(resolveClose));
+}
+
+async function disableFullscreenIfAvailable(page) {
+    const fullscreenSwitch = page.locator("#fullscreen-switch-button").first();
+    await fullscreenSwitch.waitFor({ state: "visible" });
+    if ((await fullscreenSwitch.isEnabled()) && (await fullscreenSwitch.getAttribute("aria-pressed")) === "true") {
+        await fullscreenSwitch.click();
+        assert.equal(await fullscreenSwitch.getAttribute("aria-pressed"), "false");
+    }
 }
 
 async function waitForRunning(page, label) {
