@@ -80,7 +80,11 @@ public final class StopWatchMusicHold {
         if (main.currentSong.isStopWatchPendingStart()) {
           main.currentSong.releaseStopWatchHold();
         } else if (main.currentSong == oldPausedSong) {
-          SoundStore.get().restartLoop();
+          // isMusicPlaying() treats the PAUSED source as active but is false if
+          // an intro physically ended before Slick polled Music.playing().
+          if (SoundStore.get().isMusicPlaying()) {
+            SoundStore.get().restartLoop();
+          }
           main.currentSong.releaseStopWatchHold();
         } else {
           main.currentSong.releaseStopWatchHold();
@@ -93,7 +97,8 @@ public final class StopWatchMusicHold {
 
     Music playingStandalone = findPlayingStandaloneMusic(main);
     if (playingStandalone != null) {
-      if (playingStandalone == oldPausedStandalone) {
+      if (playingStandalone == oldPausedStandalone
+          && SoundStore.get().isMusicPlaying()) {
         SoundStore.get().restartLoop();
       }
       return;
@@ -123,7 +128,8 @@ public final class StopWatchMusicHold {
       pendingStandalone = null;
       pausedStandalone = null;
       if (main.currentSong == main.requestedSong
-          && main.currentSong.holdForStopWatch()) {
+          && main.currentSong.holdForStopWatch()
+          && SoundStore.get().isMusicPlaying()) {
         if (pausedSong != main.currentSong) {
           SoundStore.get().pauseLoop();
           pausedSong = main.currentSong;
@@ -137,7 +143,8 @@ public final class StopWatchMusicHold {
     if (standalone == null || standalone == pendingStandalone) {
       return;
     }
-    if (standalone != pausedStandalone) {
+    if (standalone != pausedStandalone
+        && SoundStore.get().isMusicPlaying()) {
       SoundStore.get().pauseLoop();
       pausedStandalone = standalone;
       pendingStandalone = null;
