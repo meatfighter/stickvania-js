@@ -5,6 +5,7 @@ let held = false;
 let heldMain: Main | null = null;
 let pausedStandalone: Music | null = null;
 let pendingStandalone: Music | null = null;
+let classifyRestoredStandalone = false;
 
 function isSameLiveGame(main: Main): boolean {
     return heldMain === main && main.mode == Main.MODE_PLAYING && main.timeFrozen > 0;
@@ -26,6 +27,7 @@ function abandonHold(): void {
     heldMain = null;
     pausedStandalone = null;
     pendingStandalone = null;
+    classifyRestoredStandalone = false;
 }
 
 /** Song uses this to defer an owner selected while gameplay music is frozen. */
@@ -49,6 +51,7 @@ export function prepareStopWatchMusicHoldAfterRestore(main: Main): void {
     heldMain = main;
     pausedStandalone = null;
     pendingStandalone = null;
+    classifyRestoredStandalone = true;
 }
 
 function releaseHold(main: Main): void {
@@ -59,6 +62,7 @@ function releaseHold(main: Main): void {
     heldMain = null;
     pausedStandalone = null;
     pendingStandalone = null;
+    classifyRestoredStandalone = false;
 
     const currentSong = main.currentSong;
     if (currentSong !== null) {
@@ -98,6 +102,7 @@ export function reconcileStopWatchMusic(main: Main): void {
 
     const currentSong = main.currentSong;
     if (currentSong !== null) {
+        classifyRestoredStandalone = false;
         if (currentSong === main.requestedSong) {
             currentSong.holdForStopWatch();
         }
@@ -112,6 +117,17 @@ export function reconcileStopWatchMusic(main: Main): void {
     }
 
     const state = currentMusic.getTransportState();
+    if (state === "stopped" && classifyRestoredStandalone) {
+        // A pending standalone owner is represented durably as currentMusic with
+        // a stopped transport. Only infer that meaning during state restoration;
+        // an ordinarily ended one-shot must not be restarted by a later watch.
+        classifyRestoredStandalone = false;
+        pausedStandalone = null;
+        pendingStandalone = currentMusic;
+        return;
+    }
+
+    classifyRestoredStandalone = false;
     if (state === "playing") {
         currentMusic.pause();
     }
@@ -145,4 +161,5 @@ export function requestStopWatchAwareGameplayMusic(main: Main, music: Music): vo
     main.currentMusic = music;
     pausedStandalone = null;
     pendingStandalone = music;
+    classifyRestoredStandalone = false;
 }
