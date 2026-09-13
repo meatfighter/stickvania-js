@@ -8,16 +8,26 @@ let mainSource = readFileSync(mainPath, "utf8");
 let stateTestSource = readFileSync(stateTestPath, "utf8");
 let mainStatePolicySource = readFileSync(mainStatePolicyPath, "utf8");
 
+for (const [pattern, label] of [
+    [/    BufferUtils,\n/, "BufferUtils import"],
+    [/    Cursor,\n/, "Cursor import"],
+    [/    CursorLoader,\n/, "CursorLoader import"],
+    [/    Mouse,\n/, "Mouse import"]
+]) {
+    mainSource = replaceExactlyOnce(mainSource, pattern, "", label);
+}
+
 mainSource = replaceExactlyOnce(
     mainSource,
     /\ntype BrowserFullscreenController = \{\n    isFullscreen\(\): boolean;\n    enterFullscreen\(\): void;\n    exitFullscreen\(\): void;\n\};\n/,
     "\n",
     "BrowserFullscreenController type"
 );
+mainSource = replaceExactlyOnce(mainSource, /\n    private nativeCursor: Cursor \| null = null;/, "", "nativeCursor field");
 mainSource = replaceExactlyOnce(
     mainSource,
-    /\n    public browserFullscreenController: BrowserFullscreenController \| null = null;\n/,
-    "\n",
+    /\n    public browserFullscreenController: BrowserFullscreenController \| null = null;/,
+    "",
     "browserFullscreenController field"
 );
 mainSource = replaceExactlyOnce(
@@ -32,8 +42,24 @@ mainSource = replaceExactlyOnce(
     "",
     "browser fullscreen title instruction"
 );
+mainSource = replaceExactlyOnce(
+    mainSource,
+    /\n    private showMouseCursor\(\): void \{[\s\S]*?\n    \}\n\n    private hideMouseCursor\(\): void \{[\s\S]*?\n    \}\n(?=\n    (?:public|private|protected) )/,
+    "\n",
+    "translated cursor fullscreen helpers"
+);
 
-for (const forbidden of ["BrowserFullscreenController", "browserFullscreenController", "SPACE - FULL-SCREEN MODE"]) {
+for (const forbidden of [
+    "BrowserFullscreenController",
+    "browserFullscreenController",
+    "SPACE - FULL-SCREEN MODE",
+    "showMouseCursor",
+    "hideMouseCursor",
+    "BufferUtils",
+    "CursorLoader",
+    "Mouse.",
+    "nativeCursor"
+]) {
     if (mainSource.includes(forbidden)) {
         throw new Error(`Cleanup incomplete: ${forbidden} still exists in ${mainPath}`);
     }
@@ -49,14 +75,16 @@ if (/\bcreatePotentialSnapshot\(9\)/.test(stateTestSource)) {
     throw new Error(`Old development save fixture still exists in ${stateTestPath}`);
 }
 
-mainStatePolicySource = replaceExactlyOnce(
-    mainStatePolicySource,
-    /\n    browserFullscreenController: "runtime",/,
-    "",
-    "browserFullscreenController state-field policy entry"
-);
-if (mainStatePolicySource.includes("browserFullscreenController")) {
-    throw new Error(`Obsolete fullscreen state-field policy still exists in ${mainStatePolicyPath}`);
+for (const [pattern, label] of [
+    [/\n    nativeCursor: "runtime",/, "nativeCursor state-field policy entry"],
+    [/\n    browserFullscreenController: "runtime",/, "browserFullscreenController state-field policy entry"]
+]) {
+    mainStatePolicySource = replaceExactlyOnce(mainStatePolicySource, pattern, "", label);
+}
+for (const forbidden of ["nativeCursor", "browserFullscreenController"]) {
+    if (mainStatePolicySource.includes(forbidden)) {
+        throw new Error(`Obsolete fullscreen state-field policy ${forbidden} still exists in ${mainStatePolicyPath}`);
+    }
 }
 
 writeFileSync(mainPath, mainSource);
@@ -64,7 +92,7 @@ writeFileSync(stateTestPath, stateTestSource);
 writeFileSync(mainStatePolicyPath, mainStatePolicySource);
 unlinkSync(fileURLToPath(import.meta.url));
 console.log(
-    "Removed obsolete Stickvania browser fullscreen machinery, pre-release save-schema fixture, and stale state-field policy entry; cleanup helper deleted itself. Regenerate StateFieldRegistry.generated.ts with npm run generate:state-fields before qualification."
+    "Removed obsolete Stickvania browser fullscreen/cursor machinery, pre-release save-schema fixture, and stale state-field policy entries; cleanup helper deleted itself. Regenerate StateFieldRegistry.generated.ts with npm run generate:state-fields before qualification."
 );
 
 function replaceExactlyOnce(text, pattern, replacement, label) {
