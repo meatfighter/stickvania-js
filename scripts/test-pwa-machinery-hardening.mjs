@@ -18,13 +18,17 @@ test("new game requires prepared resources and destroys the old session before f
     const runtimePrepared = startGame.indexOf("const runtime = runtimeLoader.getPreparedRuntime();");
     const destroyOldSession = startGame.indexOf("if (!destroyGame())");
     const beginSession = startGame.indexOf("const session = sessions.begin();");
+    const shell = startGame.indexOf("viewport.createShell(session)");
     const beginAudio = startGame.indexOf("const audio = beginGameAudio();");
+    const fullscreen = startGame.indexOf("requestPreferredFullscreen();");
+    const firstAwait = startGame.indexOf("await audio.ready");
     assert.match(startGame, /if \(!destroyGame\(\)\) \{\s*return;\s*\}/);
     assert.ok(destroyOldSession > runtimePrepared, "old-session cleanup must happen after prepared-resource validation");
     assert.ok(beginSession > destroyOldSession, "a new session must not begin until old-session cleanup succeeds");
-    assert.ok(beginAudio > beginSession, "fresh playback activation must follow the new session identity");
-    assert.ok(startGame.indexOf('pwaSessionState = "starting";') < startGame.indexOf("const audio = beginGameAudio();"));
-    assert.match(startGame, /await audio\.ready/);
+    assert.ok(shell > beginSession, "game shell must be owned by the new session");
+    assert.ok(beginAudio > shell, "fresh playback activation must follow shell creation");
+    assert.ok(fullscreen > beginAudio && firstAwait > fullscreen, "fullscreen request must stay inside the original activation before the first await");
+    assert.ok(startGame.indexOf('pwaSessionState = "starting";') < beginAudio);
     assert.doesNotMatch(startGame, /unlockAudio|ensurePrepared|showBoot/);
 });
 
@@ -55,12 +59,16 @@ test("live-menu transition freezes rumble/gameplay and retires playback before s
     assert.match(suspend, /releaseGameAudio\(\)/);
 });
 
-test("failed persistence keeps the initialized live game continuable", () => {
+test("live-menu presentation exits fullscreen before publishing recoverable save state", () => {
     const liveMenu = mainSource.slice(mainSource.indexOf("function showLiveMenuOverlay"), mainSource.indexOf("async function resumeLiveGameFromMenu"));
     assert.match(liveMenu, /const saved = sessionCleanup\.trySave\(saveCurrentGameState\)/);
     assert.match(liveMenu, /Progress could not be saved\. Continue still preserves this live game\./);
-    assert.match(liveMenu, /pwaSessionState = "menu";/);
-    assert.doesNotMatch(liveMenu, /destroyGame\(/);
+    const exitIndex = liveMenu.indexOf("await viewport.exitFullscreenForMenu()");
+    const renderIndex = liveMenu.indexOf("menuOverlay = renderMenuForParent");
+    const publishIndex = liveMenu.indexOf('pwaSessionState = "menu";');
+    assert.ok(exitIndex >= 0 && renderIndex > exitIndex && publishIndex > renderIndex);
+    const destroyIndex = liveMenu.indexOf("destroyGame();");
+    assert.ok(destroyIndex < 0 || destroyIndex < exitIndex || destroyIndex > renderIndex, "ordinary save failure must not destroy the retained game");
 });
 
 test("ownership relinquishment performs the final save before destructive cleanup", () => {
@@ -85,16 +93,18 @@ test("Stickvania Main no longer owns browser audio preferences or recovery", () 
     assert.doesNotMatch(suspension, /setMusicOn|setSoundOn|resume|Music|Song/);
 });
 
-test("playback activation is attempt-scoped for live Continue", () => {
+test("playback and fullscreen activation are attempt-scoped for live Continue", () => {
     const resume = mainSource.slice(mainSource.indexOf("async function resumeLiveGameFromMenu"), mainSource.indexOf("function removeMenuOverlay"));
     assert.match(resume, /const audio = beginGameAudio\(\)/);
+    assert.match(resume, /requestPreferredFullscreen\(\)/);
+    assert.ok(resume.indexOf("requestPreferredFullscreen()") < resume.indexOf("await audio.ready"));
     assert.match(resume, /commitGameAudio\(audio\)/);
     assert.match(resume, /isGameAudioLatest\(audio\)/);
     assert.equal((resume.match(/isGameAudioLatest\(audio\)/g) ?? []).length, 2, "Continue catch and finally must both reject stale attempts.");
     assert.match(resume, /isStartingGameSession\(session, audio\)/);
 });
 
-test("synchronous post-commit UI hooks are rechecked before RUNNING", () => {
+test("synchronous post-commit viewport hooks are rechecked before RUNNING", () => {
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("function refreshVisibleBootProgress"));
     const launchFocus = launch.indexOf("viewport.focusCanvas();");
     const launchGuard = launch.indexOf("if (!isStartingGameSession(session, audio) || game !== mainGame || container !== appContainer)", launchFocus);
@@ -102,10 +112,12 @@ test("synchronous post-commit UI hooks are rechecked before RUNNING", () => {
     assert.ok(launchFocus >= 0 && launchGuard > launchFocus && launchRunning > launchGuard);
 
     const resume = mainSource.slice(mainSource.indexOf("async function resumeLiveGameFromMenu"), mainSource.indexOf("function removeMenuOverlay"));
+    const reconcile = resume.indexOf("viewport.reconcileDisplayModeNow();");
     const resumeFocus = resume.indexOf("viewport.focusCanvas();");
+    const inputResume = resume.indexOf("liveContainer.getInput().resume();");
     const resumeGuard = resume.indexOf("if (!isStartingGameSession(session, audio))", resumeFocus);
     const resumeRunning = resume.indexOf('pwaSessionState = "running";', resumeFocus);
-    assert.ok(resumeFocus >= 0 && resumeGuard > resumeFocus && resumeRunning > resumeGuard);
+    assert.ok(reconcile >= 0 && resumeFocus > reconcile && inputResume > resumeFocus && resumeGuard > inputResume && resumeRunning > resumeGuard);
 });
 
 test("stale container retirement uses the shared cleanup latch", () => {
