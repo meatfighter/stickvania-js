@@ -49,7 +49,7 @@ public class Song {
     }
     stop();
     playing = true;
-    if (StopWatchMusicHold.isHeld()) {
+    if (StopWatchMusicHold.isHeld(this)) {
       stopWatchPendingStart = true;
       return;
     }
@@ -59,7 +59,7 @@ public class Song {
   }
 
   public void update() {
-    if (StopWatchMusicHold.isHeld() || stopWatchPendingStart || !playing) {
+    if (StopWatchMusicHold.isHeld(this) || stopWatchPendingStart || !playing) {
       return;
     }
     if ((intro == null || !intro.playing())
