@@ -2,7 +2,7 @@
 
 _Stickvania_ is a stick-figure demake of Konami's original _Castlevania_ for the Nintendo Entertainment System. The game reduces the castle, enemies, objects, and Simon Belmont himself to simple line drawings that look like they were scribbled with a Sharpie.
 
-Press the **Play** button below to launch the browser version of _Stickvania_.
+Press the **Play** button below to launch the desktop browser version of _Stickvania_.
 
 [Play](__PWA_URL__)
 
