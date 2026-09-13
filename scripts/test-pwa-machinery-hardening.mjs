@@ -167,7 +167,11 @@ test("service worker treats HTTP failures like network failures", () => {
     assert.doesNotMatch(serviceWorkerSource, /event\.respondWith\(fetch\(request\)\.catch\(/);
 });
 
-test("theme and rumble settings wrap instead of compressing the measured theme picker", () => {
+test("settings rows wrap instead of compressing measured controls", () => {
+    assert.match(menuViewSource, /class="settings-row settings-fullscreen-scaling-row"[\s\S]*?setting-fullscreen-row[\s\S]*?setting-scaling-row/);
     assert.match(stylesSource, /\.settings-row\s*\{[^}]*flex-wrap:\s*wrap;/s);
-    assert.match(stylesSource, /\.settings-row\s*>\s*\.setting-theme-row,\s*\.settings-row\s*>\s*\.setting-switch-row\s*\{[^}]*flex:\s*0\s+0\s+auto;/s);
+    assert.match(
+        stylesSource,
+        /\.settings-row\s*>\s*\.setting-theme-row,\s*\.settings-row\s*>\s*\.setting-scaling-row,\s*\.settings-row\s*>\s*\.setting-switch-row\s*\{[^}]*flex:\s*0\s+0\s+auto;/s
+    );
 });
