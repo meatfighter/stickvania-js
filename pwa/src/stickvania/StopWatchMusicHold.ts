@@ -1,5 +1,5 @@
 import { Music } from "slick2d-ts";
-import type { Main } from "./Main.js";
+import { Main } from "./Main.js";
 
 let held = false;
 let heldMain: Main | null = null;
