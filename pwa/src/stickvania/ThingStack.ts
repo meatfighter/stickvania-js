@@ -28,7 +28,10 @@ export class ThingStack {
     }
 
     public clear(): void {
-        while (this.pop() !== null) {}
+        let thing: Thing | null;
+        while ((thing = this.pop()) !== null) {
+            thing.onDiscarded();
+        }
     }
 
     public moveAll(thingStack: ThingStack): void {

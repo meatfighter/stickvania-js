@@ -38,6 +38,9 @@ export abstract class Thing {
 
     public abstract render(gc: GameContainer, g: Graphics): void;
     public abstract update(gc: GameContainer): boolean;
+
+    public onDiscarded(): void {}
+
     public moveY(dy: number): boolean {
         dy = javaFloat(dy);
         this.supported = false;

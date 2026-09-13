@@ -40,6 +40,9 @@ public abstract class Thing {
       GameContainer gc, Graphics g) throws SlickException;
   public abstract boolean update(GameContainer gc) throws SlickException;
 
+  public void onDiscarded() {
+  }
+
   public boolean moveY(float dy) {
     supported = false;
 

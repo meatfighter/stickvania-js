@@ -52,6 +52,14 @@ export class StopWatch extends Thing {
         return true;
     }
 
+    public override onDiscarded(): void {
+        if (this.lifeTime <= 0) {
+            return;
+        }
+        this.main.timeFrozen = Math.max(0, this.main.timeFrozen - this.lifeTime);
+        this.lifeTime = 0;
+    }
+
     public override render(gc: GameContainer, g: Graphics): void {
         if (this.lifeTime > 90) {
             this.main.draw(this.main.dropItems[DropItem.TYPE_STOP_WATCH], this.x, this.y);

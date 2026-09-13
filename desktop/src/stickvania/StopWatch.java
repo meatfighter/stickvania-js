@@ -56,6 +56,18 @@ public class StopWatch extends Thing {
   }
 
   @Override
+  public void onDiscarded() {
+    if (lifeTime <= 0) {
+      return;
+    }
+    main.timeFrozen -= lifeTime;
+    if (main.timeFrozen < 0) {
+      main.timeFrozen = 0;
+    }
+    lifeTime = 0;
+  }
+
+  @Override
   public void render(GameContainer gc, Graphics g) throws SlickException {
     if (lifeTime > 90) {
       main.draw(main.dropItems[DropItem.TYPE_STOP_WATCH], x, y);

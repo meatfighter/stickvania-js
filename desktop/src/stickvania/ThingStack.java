@@ -25,9 +25,11 @@ public class ThingStack {
     return thing;
   }
 
-  @SuppressWarnings("empty-statement")
   public void clear() {
-    while(pop() != null);
+    Thing thing;
+    while((thing = pop()) != null) {
+      thing.onDiscarded();
+    }
   }
 
   public void moveAll(ThingStack thingStack) {
