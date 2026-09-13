@@ -294,6 +294,13 @@ export class Simon extends Thing {
     public override update(gc: GameContainer): boolean {
         this.applyGravityWithPlatforms();
 
+        // A delayed sub-weapon throw must not materialize after a lethal hit.
+        // Leave the whip animation alone; its actual damage path already rejects
+        // playerPower == 0.
+        if (this.main.playerPower == 0) {
+            this.throwing = false;
+        }
+
         if (this.main.playerPower == 0 && this.supported) {
             if (this.dead == 0) {
                 this.main.requestMusic(this.main.simon_killed);
