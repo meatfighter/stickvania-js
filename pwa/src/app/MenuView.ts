@@ -1,4 +1,5 @@
 import { DISPLAY_MODE_DEFINITIONS, isDisplayModePreference, type DisplayModePreference } from "../DisplayThemes.js";
+import { getBrowserRumbleCapability } from "../rumble/BrowserHaptics.js";
 import type { StickvaniaScalingPreference } from "../stickvania/StickvaniaBufferedGame.js";
 
 export type MenuState = {
@@ -41,6 +42,8 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
     let currentScaling = state.scaling;
     let currentRumble = state.rumbleEnabled;
     let currentFullscreen = state.fullscreen;
+    const rumbleUnavailable = getBrowserRumbleCapability() === "unavailable";
+    const rumblePresented = !rumbleUnavailable && currentRumble;
     const fullscreenPresented = !state.fullscreenUnavailable && currentFullscreen;
     const menu = document.createElement("main");
     menu.className = state.overlay ? "menu-screen menu-overlay" : "menu-screen";
@@ -57,7 +60,7 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
                 </div>
                 <div class="setting-switch-row" role="group" aria-label="Rumble">
                     <span>Rumble</span>
-                    <button id="rumble-switch-button" class="menu-switch" type="button" aria-label="Toggle rumble" aria-pressed="${currentRumble}" data-enabled="${currentRumble}"><span></span></button>
+                    <button id="rumble-switch-button" class="menu-switch rumble-switch" type="button" aria-label="Toggle rumble" aria-pressed="${rumblePresented}" data-enabled="${rumblePresented}"${rumbleUnavailable ? ' disabled title="Rumble is unavailable in this browser"' : ""}><span></span></button>
                 </div>
             </div>
             <div class="settings-row settings-fullscreen-scaling-row">
@@ -217,6 +220,9 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
     updateVolumeUi(volumeInput, volumeValue, volumeIcon, currentVolume);
 
     rumbleSwitchButton.addEventListener("click", () => {
+        if (rumbleSwitchButton.disabled) {
+            return;
+        }
         currentRumble = !currentRumble;
         if (!callbacks.onRumbleChange(currentRumble)) {
             showPersistenceError(menu);
@@ -317,8 +323,9 @@ function rgbToCssHex(rgb: readonly [number, number, number]): string {
 }
 
 function updateRumbleUi(button: HTMLButtonElement, enabled: boolean): void {
-    button.setAttribute("aria-pressed", String(enabled));
-    button.setAttribute("data-enabled", String(enabled));
+    const presented = !button.disabled && enabled;
+    button.setAttribute("aria-pressed", String(presented));
+    button.setAttribute("data-enabled", String(presented));
 }
 
 function updateFullscreenUi(button: HTMLButtonElement, enabled: boolean): void {
