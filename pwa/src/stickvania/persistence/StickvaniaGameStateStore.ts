@@ -1,5 +1,6 @@
 import type { GameContainer } from "slick2d-ts";
 import type { Main } from "../Main.js";
+import { reconcileStopWatchMusic } from "../StopWatchMusicHold.js";
 import type { StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isReasonableStickvaniaGameStateSnapshot } from "./GameStateSanity.js";
 import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
@@ -39,6 +40,10 @@ export class StickvaniaGameStateStore {
                 return false;
             }
             this.serializer.restoreSnapshot(main, gc, snapshot);
+            // Audio restoration is intentionally transport-only. Reconcile once
+            // after both gameplay Things and Music have been restored so an
+            // active stopwatch is silent before the first resumed simulation tick.
+            reconcileStopWatchMusic(main);
             return true;
         } catch (error) {
             console.warn("Unable to restore Stickvania game state.", error);
