@@ -52,7 +52,7 @@ export class Song {
         }
         this.stop();
         this.playing = true;
-        if (isStopWatchMusicHeld()) {
+        if (isStopWatchMusicHeld(this)) {
             this.stopWatchPendingStart = true;
             return;
         }
@@ -62,7 +62,7 @@ export class Song {
     }
 
     public update(): void {
-        if (isStopWatchMusicHeld() || this.stopWatchPendingStart || !this.playing || this.intro?.isTransportActive()) {
+        if (isStopWatchMusicHeld(this) || this.stopWatchPendingStart || !this.playing || this.intro?.isTransportActive()) {
             return;
         }
         if (this.loop !== null) {
@@ -156,6 +156,6 @@ export class Song {
     public setPlayingForState(playing: boolean): void {
         this.playing = playing;
         this.stopWatchPausedPart = null;
-        this.stopWatchPendingStart = playing && isStopWatchMusicHeld();
+        this.stopWatchPendingStart = playing && isStopWatchMusicHeld(this);
     }
 }
