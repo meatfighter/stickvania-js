@@ -7,7 +7,16 @@ import { chromium } from "playwright";
 
 const root = resolve(process.env.PWA_ROOT ?? "dist/pwa");
 assert(existsSync(resolve(root, "index.html")), `Missing production PWA: ${root}`);
-const mime = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".svg": "image/svg+xml", ".ogg": "audio/ogg" };
+const mime = {
+    ".html": "text/html",
+    ".js": "text/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".webmanifest": "application/manifest+json",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".ogg": "audio/ogg"
+};
 const server = createServer((request, response) => {
     const requestUrl = new URL(request.url, "http://localhost");
     const file = resolve(root, "." + decodeURIComponent(requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname));
@@ -50,7 +59,9 @@ try {
     assert.equal(await retainedCanvas.evaluate((canvas) => canvas.isConnected), true);
     assert.equal(await page.evaluate(() => globalThis.__reentrantFullscreenHarness.requestCount()), 2, "post-reentry Continue stacked another native request");
     await page.evaluate(() => globalThis.__reentrantFullscreenHarness.resolvePending());
-    await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector("#app")?.style.visibility !== "hidden", undefined, { timeout: 5_000 });
+    await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector("#app")?.style.visibility !== "hidden", undefined, {
+        timeout: 5_000
+    });
     await waitForWindowedRunning(page);
     assert.equal(await page.locator("#continue-button").count(), 0, "late reentrant success returned the running game to MENU");
     await page.locator("#hamburger-button").click();

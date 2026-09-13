@@ -114,10 +114,20 @@ test("synchronous post-commit viewport hooks are rechecked before RUNNING", () =
     const resume = mainSource.slice(mainSource.indexOf("async function resumeLiveGameFromMenu"), mainSource.indexOf("function removeMenuOverlay"));
     const reconcile = resume.indexOf("viewport.reconcileDisplayModeNow();");
     const resumeFocus = resume.indexOf("viewport.focusCanvas();");
+    const focusGuard = resume.indexOf("if (!isStartingGameSession(session, audio))", resumeFocus);
     const inputResume = resume.indexOf("liveContainer.getInput().resume();");
-    const resumeGuard = resume.indexOf("if (!isStartingGameSession(session, audio))", resumeFocus);
-    const resumeRunning = resume.indexOf('pwaSessionState = "running";', resumeFocus);
-    assert.ok(reconcile >= 0 && resumeFocus > reconcile && inputResume > resumeFocus && resumeGuard > inputResume && resumeRunning > resumeGuard);
+    const clearInput = resume.indexOf("liveGame.clearInputPressedRecords();", inputResume);
+    const inputGuard = resume.indexOf("if (!isStartingGameSession(session, audio))", clearInput);
+    const resumeRunning = resume.indexOf('pwaSessionState = "running";', clearInput);
+    assert.ok(
+        reconcile >= 0 &&
+            resumeFocus > reconcile &&
+            focusGuard > resumeFocus &&
+            inputResume > focusGuard &&
+            clearInput > inputResume &&
+            inputGuard > clearInput &&
+            resumeRunning > inputGuard
+    );
 });
 
 test("stale container retirement uses the shared cleanup latch", () => {

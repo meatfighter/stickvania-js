@@ -53,7 +53,8 @@ test("New Game and retained Continue request fullscreen before the first await",
     const coldAwait = coldStart.indexOf("await audio.ready");
     assert.ok(coldShell >= 0 && coldAudio > coldShell && coldFullscreen > coldAudio && coldAwait > coldFullscreen);
 
-    const liveContinue = webApp.match(/async function resumeLiveGameFromMenu\([\s\S]*?\n}\n\nasync function restoreExistingLiveMenuAfterInterruptedResume/)?.[0] ?? "";
+    const liveContinue =
+        webApp.match(/async function resumeLiveGameFromMenu\([\s\S]*?\n}\n\nasync function restoreExistingLiveMenuAfterInterruptedResume/)?.[0] ?? "";
     const liveAudio = liveContinue.indexOf("const audio = beginGameAudio();");
     const liveFullscreen = liveContinue.indexOf("requestPreferredFullscreen();");
     const liveAwait = liveContinue.indexOf("await audio.ready");
@@ -102,7 +103,8 @@ test("late or retired fullscreen entry is hidden and exact-shell retired", () =>
 });
 
 test("retained Continue reconciles presentation before input and loop resume", () => {
-    const liveContinue = webApp.match(/async function resumeLiveGameFromMenu\([\s\S]*?\n}\n\nasync function restoreExistingLiveMenuAfterInterruptedResume/)?.[0] ?? "";
+    const liveContinue =
+        webApp.match(/async function resumeLiveGameFromMenu\([\s\S]*?\n}\n\nasync function restoreExistingLiveMenuAfterInterruptedResume/)?.[0] ?? "";
     const reconcile = liveContinue.indexOf("viewport.reconcileDisplayModeNow();");
     const inputResume = liveContinue.indexOf("liveContainer.getInput().resume();");
     const loopResume = liveContinue.indexOf("liveContainer.setLoopSuspended(false);");

@@ -44,7 +44,10 @@ test("qualify:browsers rebuilds and tests the exact fresh Stickvania PWA", () =>
         assert.ok(index > previous, `${token} is missing or out of order in the browser qualification suite`);
         previous = index;
     }
-    assert.ok(suiteRunner.indexOf('runNpmScript("build:pwa")') < suiteRunner.indexOf('"verify:fullscreen"'), "fresh PWA build must happen before browser qualification");
+    assert.ok(
+        suiteRunner.indexOf('runNpmScript("build:pwa")') < suiteRunner.indexOf("for (const script of qualificationScripts)"),
+        "fresh PWA build must happen before browser qualification"
+    );
 });
 
 test("unrelated browser qualifiers explicitly disable the default-on Fullscreen preference", () => {

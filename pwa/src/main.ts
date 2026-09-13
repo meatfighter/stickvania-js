@@ -517,14 +517,7 @@ async function showLiveMenuOverlay(): Promise<void> {
 }
 
 async function resumeLiveGameFromMenu(): Promise<void> {
-    if (
-        !canActivateFromMenu() ||
-        !hasLiveSuspendedGame() ||
-        game === null ||
-        container === null ||
-        menuOverlay === null ||
-        container.isGraphicsContextLost()
-    ) {
+    if (!canActivateFromMenu() || !hasLiveSuspendedGame() || game === null || container === null || menuOverlay === null || container.isGraphicsContextLost()) {
         return;
     }
     const liveGame = game;
@@ -601,14 +594,7 @@ async function restoreExistingLiveMenuAfterInterruptedResume(session: number): P
     if (!(await viewport.exitFullscreenForMenu())) {
         return;
     }
-    if (
-        !isCurrentGameSession(session) ||
-        pwaSessionState !== "stopping" ||
-        !liveMenuOpen ||
-        menuOverlay === null ||
-        game === null ||
-        container === null
-    ) {
+    if (!isCurrentGameSession(session) || pwaSessionState !== "stopping" || !liveMenuOpen || menuOverlay === null || game === null || container === null) {
         return;
     }
     pwaSessionState = "menu";

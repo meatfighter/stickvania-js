@@ -80,7 +80,11 @@ async function qualifySupportedTouchFullscreenAndContinue(browser, url) {
         await page.locator("#continue-button").click();
         await waitForFullscreenRunning(page, true);
         assert.equal(await originalCanvas.evaluate((canvas) => canvas.isConnected), true, "live Continue replaced the retained game canvas");
-        assert.equal(await page.evaluate(() => globalThis.__fullscreenHarness.requestCount()), 2, "New Game + live Continue did not issue exactly two requests");
+        assert.equal(
+            await page.evaluate(() => globalThis.__fullscreenHarness.requestCount()),
+            2,
+            "New Game + live Continue did not issue exactly two requests"
+        );
         assert.deepEqual(errors, [], "supported fullscreen qualification produced uncaught browser errors");
     } finally {
         await context.close();
@@ -190,7 +194,11 @@ async function qualifyMissingFullscreenMethod(browser, url) {
         assert.equal(await fullscreenSwitchStateFromStorage(page), null, "missing-method fallback rewrote the stored default preference");
         await page.locator("#new-game-button").click();
         await waitForWindowedRunning(page);
-        assert.equal(await page.evaluate(() => globalThis.__fullscreenHarness.requestCount()), 0, "missing request method should fall back without a native call");
+        assert.equal(
+            await page.evaluate(() => globalThis.__fullscreenHarness.requestCount()),
+            0,
+            "missing request method should fall back without a native call"
+        );
         await page.locator("#hamburger-button").click();
         await page.locator("#continue-button").waitFor({ state: "visible" });
         assert.equal(await fullscreenSwitchState(page), "false", "missing-method control should remain presented OFF");
@@ -281,7 +289,11 @@ async function qualifyNeverSettlingRetainedRequest(browser, url) {
         await page.locator("#continue-button").waitFor({ state: "visible", timeout: 10_000 });
         await page.locator("#continue-button").click();
         await waitForWindowedRunning(page);
-        assert.equal(await page.evaluate(() => globalThis.__fullscreenHarness.requestCount()), 2, "suppressed retained presentation made a third fullscreen request");
+        assert.equal(
+            await page.evaluate(() => globalThis.__fullscreenHarness.requestCount()),
+            2,
+            "suppressed retained presentation made a third fullscreen request"
+        );
         await page.evaluate(() => globalThis.__fullscreenHarness.resolvePending());
         await page.waitForFunction(() => document.fullscreenElement === null);
         await waitForWindowedRunning(page);

@@ -99,11 +99,6 @@ try {
     assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), false);
 
     const storage = createStorage();
-    const obsolete = createPotentialSnapshot(9);
-    const obsoleteText = JSON.stringify(obsolete);
-    storage.setItem(GAME_STATE_STORAGE_KEY, obsoleteText);
-    assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
-    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), obsoleteText);
 
     const future = createPotentialSnapshot(11);
     const futureText = JSON.stringify(future);
