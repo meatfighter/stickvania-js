@@ -22,8 +22,6 @@ const mime = {
 let generation = "A";
 let originUnavailable = false;
 const workerSource = readFileSync(resolve(root, "sw.js"), "utf8");
-// Exercise two real cache generations of this candidate with identical game assets.
-// This deliberately changes the worker's cache identity, not the saved-game schema.
 const versionMatch = workerSource.match(/const (VERSION|BUILD_STAMP) = ("[^"]*"|'[^']*');/);
 assert(versionMatch !== null, "Could not locate the production worker cache version");
 const originalVersion = versionMatch[2].slice(1, -1);
@@ -73,9 +71,6 @@ try {
         const context = await browser.newContext();
         context.setDefaultTimeout(60_000);
         const setOffline = async (value) => {
-            // WebKit's emulated offline mode prevents service-worker navigation:
-            // https://github.com/microsoft/playwright/issues/34402
-            // Drop real origin connections instead; no network bytes can satisfy the PWA.
             if (name === "webkit") originUnavailable = value;
             else await context.setOffline(value);
         };
@@ -87,16 +82,14 @@ try {
             first.on("pageerror", (error) => errors.push(error.message));
             await first.goto(url);
             await first.locator(newGame).waitFor();
+            await disableFullscreenIfAvailable(first);
             await first.waitForFunction(() => navigator.serviceWorker.controller !== null);
             await prepared(first);
             await first.reload();
             await prepared(first);
             await first.locator(newGame).click();
             await first.locator("canvas").waitFor();
-            // The shell hides the menu button until Main has completed initialization.
-            await first.waitForFunction(() =>
-                [...document.querySelectorAll("button")].some((button) => /menu/i.test(button.getAttribute("aria-label") ?? "") && !button.hidden)
-            );
+            await waitForWindowedMenuButton(first);
             const second = await context.newPage();
             await second.goto(url);
             await second.getByRole("button", { name: "Continue Here", exact: true }).click();
@@ -110,17 +103,14 @@ try {
             await prepared(second);
             await second.locator(continueGame).click();
             await second.locator("canvas").waitFor();
-            await second.waitForFunction(() =>
-                [...document.querySelectorAll("button")].some((button) => /menu/i.test(button.getAttribute("aria-label") ?? "") && !button.hidden)
-            );
-            // Keep an old game open while the next worker installs and waits.
+            await waitForWindowedMenuButton(second);
             generation = "B";
             await second.evaluate(async () => {
                 const registration = await navigator.serviceWorker.getRegistration();
                 await registration.update();
             });
             await second.waitForFunction(async () => (await navigator.serviceWorker.getRegistration()).waiting !== null);
-            await second.close(); // Graceful pagehide saves and releases the old session.
+            await second.close();
             const upgraded = await context.newPage();
             await upgraded.goto(url);
             await upgraded.waitForFunction(async () => (await caches.keys()).some((key) => key.includes("qualification-B")));
@@ -134,10 +124,7 @@ try {
             await prepared(upgraded);
             await upgraded.locator(continueGame).click();
             await upgraded.locator("canvas").waitFor();
-            await upgraded.waitForFunction(() =>
-                [...document.querySelectorAll("button")].some((button) => /menu/i.test(button.getAttribute("aria-label") ?? "") && !button.hidden)
-            );
-            // Finish by protecting a future public save against an older client.
+            await waitForWindowedMenuButton(upgraded);
             await setOffline(false);
             await upgraded.reload();
             await prepared(upgraded);
@@ -173,4 +160,19 @@ try {
     }
 } finally {
     await new Promise((resolveClose) => server.close(resolveClose));
+}
+
+async function disableFullscreenIfAvailable(page) {
+    const fullscreenSwitch = page.locator("#fullscreen-switch-button").first();
+    await fullscreenSwitch.waitFor({ state: "visible" });
+    if ((await fullscreenSwitch.isEnabled()) && (await fullscreenSwitch.getAttribute("aria-pressed")) === "true") {
+        await fullscreenSwitch.click();
+        assert.equal(await fullscreenSwitch.getAttribute("aria-pressed"), "false");
+    }
+}
+
+async function waitForWindowedMenuButton(page) {
+    await page.waitForFunction(() =>
+        [...document.querySelectorAll("button")].some((button) => /menu/i.test(button.getAttribute("aria-label") ?? "") && !button.hidden)
+    );
 }
