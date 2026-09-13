@@ -79,6 +79,17 @@ function releaseHold(main: Main): void {
         return;
     }
 
+    // A requested Song already owns the next music state even though Main does
+    // not install it until the next frame. Never resurrect a paused standalone
+    // owner for one tick while that replacement is pending.
+    if (main.requestedSong !== null) {
+        const obsoleteMusic = main.currentMusic;
+        if (obsoleteMusic !== null && obsoleteMusic.getTransportState() !== "stopped") {
+            obsoleteMusic.stop();
+        }
+        return;
+    }
+
     const currentMusic = main.currentMusic;
     if (currentMusic === null) {
         return;
