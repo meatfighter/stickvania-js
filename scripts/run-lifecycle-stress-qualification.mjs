@@ -196,6 +196,12 @@ try {
     }
     if (finalLifecycle.wakeInstrumented) {
         assert.ok(finalLifecycle.wakeLive <= 1, `Wake-lock sentinels accumulated: ${JSON.stringify(finalLifecycle)}`);
+        assert.equal(
+            finalLifecycle.wakeAcquired - finalLifecycle.wakeReleased,
+            finalLifecycle.wakeLive,
+            `Wake-lock acquisition/release accounting is unbalanced: ${JSON.stringify(finalLifecycle)}`
+        );
+        assert.ok(finalLifecycle.wakeReleased <= finalLifecycle.wakeAcquired, `Wake-lock releases exceeded acquisitions: ${JSON.stringify(finalLifecycle)}`);
     }
 
     const finalCacheKeys = await page.evaluate(async () => (await caches.keys()).sort());
