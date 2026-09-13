@@ -21,14 +21,7 @@ _Stickvania_ supports both keyboard and gamepad input. The default controls are:
 
 Press **Attack** to use the whip. Hold **Up** and press **Attack** to use your current sub-weapon.
 
-You can change the button mapping by selecting **Options → Input** from the in-game menu.
-
-_Stickvania_ reserves two keyboard controls that cannot be remapped:
-
-| Key   | Action            |
-| ----- | ----------------- |
-| Space | Toggle fullscreen |
-| Esc   | Exit fullscreen   |
+You can change the button mapping by selecting **Options → Input** from the in-game menu. In the browser version, **Esc** returns to the browser menu and cannot be remapped. **Space** is available as a normal remappable key.
 
 ## Browser Menu
 
@@ -36,17 +29,18 @@ _Stickvania_ opens with a browser menu that provides **New Game** and **Continue
 
 **New Game** starts a new game. **Continue** resumes your previous game. _Stickvania_ saves your progress so you can close the tab—or even close the browser entirely—and return later to continue playing.
 
-While playing outside fullscreen mode, a hamburger button appears in the upper-left corner of the game. Pressing it pauses the game and returns you to the browser menu.
+A hamburger button returns to the browser menu during windowed play and on touch devices in fullscreen. On desktop browsers, **Esc** returns to the menu while the game is fullscreen.
 
 The browser menu also provides:
 
 - **Theme** — Selects the game's color scheme.
 - **Rumble** — Switches vibration on or off for compatible gamepads.
+- **Fullscreen** — Makes the game fill the entire screen.
 - **Scaling** — Controls how the game is resized to fit the display.
 - **Volume** — Adjusts the game volume.
 - **Reset** — Erases saved state and restores settings to their defaults.
 
-_Stickvania_ automatically pauses when the browser loses focus and resumes when the browser regains focus.
+If the browser loses focus, _Stickvania_ returns to the browser menu. Press **Continue** to resume the game.
 
 ## In-Game Menu
 
