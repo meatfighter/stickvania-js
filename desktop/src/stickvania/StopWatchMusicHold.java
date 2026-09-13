@@ -95,6 +95,16 @@ public final class StopWatchMusicHold {
       return;
     }
 
+    // requestedSong is the next logical owner even though Main installs it at
+    // the beginning of the following frame. Never restart an obsolete paused
+    // standalone source while that handoff is pending.
+    if (main.requestedSong != null) {
+      if (oldPausedStandalone != null && oldPausedStandalone.playing()) {
+        oldPausedStandalone.stop();
+      }
+      return;
+    }
+
     Music playingStandalone = findPlayingStandaloneMusic(main);
     if (playingStandalone != null) {
       if (playingStandalone == oldPausedStandalone
@@ -104,7 +114,7 @@ public final class StopWatchMusicHold {
       return;
     }
 
-    if (oldPendingStandalone != null && main.requestedSong == null) {
+    if (oldPendingStandalone != null) {
       oldPendingStandalone.play();
     }
   }
