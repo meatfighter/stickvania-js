@@ -75,14 +75,13 @@ try {
 
     await page.goto(url);
     await page.locator(newGameSelector).first().waitFor({ state: "visible" });
+    await disableFullscreenIfAvailable(page);
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 120_000 });
     await page.reload();
     await page.locator(newGameSelector).first().waitFor({ state: "visible" });
     await page.locator(newGameSelector).first().click();
     await waitForRunning(page, "initial New Game");
 
-    // The first trusted click reaches the production listener first and publishes STARTING.
-    // Our later listener then issues one reentrant second click in the same activation stack.
     await openLiveMenu(page, "double Continue");
     let before = await readAudioCreates(page);
     await armReentrantSecondClick(page, continueSelector);
@@ -91,7 +90,6 @@ try {
     await waitForRunning(page, "double Continue");
     let after = await expectOneFreshContext(page, before, "double Continue");
 
-    // Any sequence containing pagehide crosses the ownership boundary: final save + full disposal.
     before = after;
     await page.evaluate(() => {
         window.dispatchEvent(new Event("blur"));
@@ -120,7 +118,6 @@ try {
     await waitForRunning(page, "cold Continue after pagehide/blur");
     after = await expectOneFreshContext(page, before, "cold Continue after pagehide/blur");
 
-    // Apply the same deterministic reentrant-click pattern to New Game from a retained live menu.
     await openLiveMenu(page, "double New Game");
     before = await readAudioCreates(page);
     await armReentrantSecondClick(page, newGameSelector);
@@ -139,6 +136,15 @@ try {
         await browser.close();
     }
     await new Promise((resolveClose) => server.close(resolveClose));
+}
+
+async function disableFullscreenIfAvailable(page) {
+    const fullscreenSwitch = page.locator("#fullscreen-switch-button").first();
+    await fullscreenSwitch.waitFor({ state: "visible" });
+    if ((await fullscreenSwitch.isEnabled()) && (await fullscreenSwitch.getAttribute("aria-pressed")) === "true") {
+        await fullscreenSwitch.click();
+        assert.equal(await fullscreenSwitch.getAttribute("aria-pressed"), "false");
+    }
 }
 
 async function armReentrantSecondClick(page, selector) {
