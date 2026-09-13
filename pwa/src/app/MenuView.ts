@@ -335,10 +335,10 @@ function updateFullscreenUi(button: HTMLButtonElement, enabled: boolean): void {
 }
 
 function updateVolumeUi(input: HTMLInputElement, valueElement: HTMLElement, icon: HTMLElement, volume: number): void {
-    const percent = Math.round(value * 100);
+    const percent = Math.round(volume * 100);
     input.style.setProperty("--thumb-position", `${percent}%`);
     valueElement.textContent = String(percent);
-    icon.innerHTML = volumeIconSvg(value);
+    icon.innerHTML = volumeIconSvg(volume);
 }
 
 function volumeIconSvg(value: number): string {
