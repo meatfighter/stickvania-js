@@ -41,6 +41,9 @@ public class StopWatch extends Thing {
     }
 
     if (lifeTime > 0) {
+      // Adopt a music-owner change made earlier in this simulation tick before
+      // this watch consumes its final contribution.
+      StopWatchMusicHold.reconcile(main);
       lifeTime--;
       main.timeFrozen--;
       if (main.timeFrozen < 0) {
