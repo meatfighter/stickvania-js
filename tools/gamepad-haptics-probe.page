@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stickvania Gamepad Haptics Probe</title>
+<style>
+body { font: 14px/1.45 system-ui, sans-serif; margin: 24px; max-width: 1100px; }
+h1, h2 { line-height: 1.2; }
+section { margin: 24px 0; }
+button, select { font: inherit; margin: 4px 6px 4px 0; padding: 6px 10px; }
+pre { background: #111; color: #eee; padding: 12px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.good { color: #087b28; font-weight: 700; }
+.warn { color: #a35d00; font-weight: 700; }
+.bad { color: #b00020; font-weight: 700; }
+.small { color: #555; }
+.grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; align-items: start; }
+.grid > div:nth-child(odd) { font-weight: 700; }
+</style>
+</head>
+<body>
+<h1>Stickvania Gamepad Haptics Probe</h1>
+<p>This page is for diagnostics only. It is not part of the production PWA.</p>
+<p><strong>Firefox note:</strong> if no controller appears, focus this page and press a button or move an axis on the controller. Firefox may not expose a connected gamepad until the user interacts with it while the page is visible.</p>
+
+<section>
+<h2>Browser API surface</h2>
+<div id="browser-summary"></div>
+<pre id="browser-report"></pre>
+</section>
+
+<section>
+<h2>Connected gamepads</h2>
+<button id="refresh">Refresh</button>
+<select id="gamepad-select" aria-label="Gamepad"></select>
+<div id="pad-summary"></div>
+<pre id="pad-report"></pre>
+</section>
+
+<section>
+<h2>Manual haptics tests</h2>
+<p class="small">Each button invokes only the named API path, except “Stickvania fallback,” which mirrors the current game logic: vibrationActuator first, then hapticActuators, playEffect before pulse.</p>
+<button id="test-stickvania">Stickvania fallback</button>
+<button id="test-vibration-play">vibrationActuator.playEffect</button>
+<button id="test-vibration-pulse">vibrationActuator.pulse</button>
+<button id="test-legacy-play">hapticActuators[].playEffect</button>
+<button id="test-legacy-pulse">hapticActuators[].pulse</button>
+<button id="stop">Stop/reset haptics</button>
+<pre id="log"></pre>
+</section>
+
+<section>
+<h2>Shareable report</h2>
+<button id="copy-report">Copy report to clipboard</button>
+<p id="copy-status"></p>
+<pre id="json-report"></pre>
+</section>
+
+<script>
+(() => {
+    const browserSummary = document.querySelector("#browser-summary");
+    const browserReport = document.querySelector("#browser-report");
+    const padSummary = document.querySelector("#pad-summary");
+    const padReport = document.querySelector("#pad-report");
+    const gamepadSelect = document.querySelector("#gamepad-select");
+    const logElement = document.querySelector("#log");
+    const jsonReport = document.querySelector("#json-report");
+    const copyStatus = document.querySelector("#copy-status");
+    const logLines = [];
+
+    function safeRead(label, fn) {
+        try {
+            return { ok: true, value: fn() };
+        } catch (error) {
+            return { ok: false, error: formatError(error), label };
+        }
+    }
+
+    function formatError(error) {
+        if (error instanceof Error || error instanceof DOMException) {
+            return `${error.name}: ${error.message}`;
+        }
+        return String(error);
+    }
+
+    function hasFunction(value, name) {
+        return value !== null && value !== undefined && typeof value[name] === "function";
+    }
+
+    function describePrototype(name, value, properties) {
+        if (value === null || value === undefined) {
+            return { available: false };
+        }
+        const result = { available: true, ownPropertyNames: Object.getOwnPropertyNames(value) };
+        for (const property of properties) {
+            result[property] = property in value;
+            const descriptor = safeRead(property, () => Object.getOwnPropertyDescriptor(value, property));
+            if (descriptor.ok && descriptor.value !== undefined) {
+                result[`${property}Descriptor`] = descriptor.value;
+            } else if (!descriptor.ok) {
+                result[`${property}DescriptorError`] = descriptor.error;
+            }
+        }
+        return result;
+    }
+
+    function browserSnapshot() {
+        const gamepadPrototype = typeof Gamepad === "function" ? Gamepad.prototype : null;
+        const hapticPrototype = typeof GamepadHapticActuator === "function" ? GamepadHapticActuator.prototype : null;
+        return {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            secureContext: globalThis.isSecureContext,
+            getGamepads: typeof navigator.getGamepads,
+            gamepadEvents: {
+                gamepadconnected: "ongamepadconnected" in window,
+                gamepaddisconnected: "ongamepaddisconnected" in window
+            },
+            Gamepad: {
+                constructorType: typeof globalThis.Gamepad,
+                prototype: describePrototype("Gamepad", gamepadPrototype, ["vibrationActuator", "hapticActuators"])
+            },
+            GamepadHapticActuator: {
+                constructorType: typeof globalThis.GamepadHapticActuator,
+                prototype: describePrototype("GamepadHapticActuator", hapticPrototype, ["effects", "type", "playEffect", "pulse", "reset"])
+            }
+        };
+    }
+
+    function browserSurfaceVerdict(snapshot) {
+        if (snapshot.getGamepads !== "function") {
+            return { css: "bad", text: "navigator.getGamepads() is unavailable." };
+        }
+        const gp = snapshot.Gamepad.prototype;
+        const hp = snapshot.GamepadHapticActuator.prototype;
+        const gamepadAccessors = gp.available && (gp.vibrationActuator || gp.hapticActuators);
+        const actuatorMethods = hp.available && (hp.playEffect || hp.pulse || hp.reset);
+        if (gamepadAccessors || actuatorMethods) {
+            return { css: "good", text: "Some browser-level gamepad haptics API surface is exposed." };
+        }
+        return {
+            css: "warn",
+            text: "No haptics members are visible on the browser prototypes. This is useful evidence, but the connected Gamepad instances below are still the decisive diagnostic."
+        };
+    }
+
+    function actuatorSnapshot(actuator) {
+        if (actuator === null || actuator === undefined) {
+            return null;
+        }
+        const effects = safeRead("effects", () => (actuator.effects === undefined ? undefined : Array.from(actuator.effects)));
+        const type = safeRead("type", () => actuator.type);
+        return {
+            constructorName: actuator.constructor?.name ?? null,
+            effects: effects.ok ? effects.value : { error: effects.error },
+            type: type.ok ? type.value : { error: type.error },
+            methods: {
+                playEffect: typeof actuator.playEffect,
+                pulse: typeof actuator.pulse,
+                reset: typeof actuator.reset
+            },
+            ownPropertyNames: safeRead("ownPropertyNames", () => Object.getOwnPropertyNames(actuator)).value ?? []
+        };
+    }
+
+    function getPads() {
+        if (typeof navigator.getGamepads !== "function") {
+            return [];
+        }
+        return Array.from(navigator.getGamepads()).filter((pad) => pad !== null);
+    }
+
+    function gamepadSnapshot(pad) {
+        const vibration = safeRead("vibrationActuator", () => pad.vibrationActuator);
+        const legacy = safeRead("hapticActuators", () => (pad.hapticActuators === undefined ? undefined : Array.from(pad.hapticActuators)));
+        return {
+            index: pad.index,
+            id: pad.id,
+            mapping: pad.mapping,
+            connected: pad.connected,
+            buttons: pad.buttons.length,
+            axes: pad.axes.length,
+            timestamp: pad.timestamp,
+            propertyPresence: {
+                vibrationActuator: "vibrationActuator" in pad,
+                hapticActuators: "hapticActuators" in pad
+            },
+            vibrationActuator: vibration.ok ? actuatorSnapshot(vibration.value) : { error: vibration.error },
+            hapticActuators: legacy.ok
+                ? legacy.value === undefined
+                    ? undefined
+                    : legacy.value.map((actuator) => actuatorSnapshot(actuator))
+                : { error: legacy.error }
+        };
+    }
+
+    function selectedPad() {
+        const index = Number.parseInt(gamepadSelect.value, 10);
+        return getPads().find((pad) => pad.index === index) ?? null;
+    }
+
+    function distinctActuators(pad) {
+        const result = [];
+        const vibration = safeRead("vibrationActuator", () => pad.vibrationActuator);
+        if (vibration.ok && vibration.value !== null && vibration.value !== undefined) {
+            result.push({ label: "vibrationActuator", actuator: vibration.value });
+        }
+        const legacy = safeRead("hapticActuators", () => (pad.hapticActuators === undefined ? [] : Array.from(pad.hapticActuators)));
+        if (legacy.ok) {
+            legacy.value.forEach((actuator, index) => {
+                if (actuator !== null && actuator !== undefined && !result.some((candidate) => candidate.actuator === actuator)) {
+                    result.push({ label: `hapticActuators[${index}]`, actuator });
+                }
+            });
+        }
+        return result;
+    }
+
+    function log(message) {
+        const timestamp = new Date().toISOString();
+        logLines.push(`${timestamp}  ${message}`);
+        logElement.textContent = logLines.join("\n");
+        logElement.scrollTop = logElement.scrollHeight;
+        updateReport();
+    }
+
+    async function callAndLog(label, fn) {
+        try {
+            const result = await fn();
+            log(`${label} -> resolved: ${String(result)}`);
+            return { ok: true, result };
+        } catch (error) {
+            log(`${label} -> rejected/threw: ${formatError(error)}`);
+            return { ok: false, error };
+        }
+    }
+
+    async function testPlayEffect(actuator, label) {
+        if (!hasFunction(actuator, "playEffect")) {
+            log(`${label}.playEffect -> unavailable`);
+            return false;
+        }
+        const effects = safeRead("effects", () => (actuator.effects === undefined ? [] : Array.from(actuator.effects)));
+        log(`${label}.effects -> ${effects.ok ? JSON.stringify(effects.value) : effects.error}`);
+        const outcome = await callAndLog(`${label}.playEffect(dual-rumble)`, () =>
+            actuator.playEffect("dual-rumble", {
+                startDelay: 0,
+                duration: 500,
+                strongMagnitude: 1,
+                weakMagnitude: 1
+            })
+        );
+        return outcome.ok;
+    }
+
+    async function testPulse(actuator, label) {
+        if (!hasFunction(actuator, "pulse")) {
+            log(`${label}.pulse -> unavailable`);
+            return false;
+        }
+        const outcome = await callAndLog(`${label}.pulse(1, 500)`, () => actuator.pulse(1, 500));
+        return outcome.ok && outcome.result !== false;
+    }
+
+    async function testStickvaniaFallback() {
+        const pad = selectedPad();
+        if (pad === null) {
+            log("Stickvania fallback -> no selected gamepad");
+            return;
+        }
+        const candidates = distinctActuators(pad);
+        log(`Stickvania fallback -> ${candidates.length} distinct actuator candidate(s)`);
+        for (const { label, actuator } of candidates) {
+            if (hasFunction(actuator, "playEffect")) {
+                const effects = safeRead("effects", () => (actuator.effects === undefined ? [] : Array.from(actuator.effects)));
+                const supportedEffects = effects.ok ? effects.value : [];
+                const supportsDualRumble = supportedEffects.length === 0 || supportedEffects.includes("dual-rumble");
+                log(`${label}: playEffect=${typeof actuator.playEffect}, effects=${JSON.stringify(supportedEffects)}, dual-rumble candidate=${supportsDualRumble}`);
+                if (supportsDualRumble) {
+                    const outcome = await callAndLog(`${label}.playEffect(dual-rumble)`, () =>
+                        actuator.playEffect("dual-rumble", {
+                            startDelay: 0,
+                            duration: 500,
+                            strongMagnitude: 1,
+                            weakMagnitude: 1
+                        })
+                    );
+                    if (outcome.ok) {
+                        log(`Stickvania fallback -> handled by ${label}.playEffect`);
+                        return;
+                    }
+                }
+            }
+            if (await testPulse(actuator, label)) {
+                log(`Stickvania fallback -> handled by ${label}.pulse`);
+                return;
+            }
+        }
+        log("Stickvania fallback -> no actuator path succeeded");
+    }
+
+    async function stopHaptics() {
+        const pad = selectedPad();
+        if (pad === null) {
+            log("Stop/reset -> no selected gamepad");
+            return;
+        }
+        for (const { label, actuator } of distinctActuators(pad)) {
+            if (hasFunction(actuator, "reset")) {
+                const outcome = await callAndLog(`${label}.reset()`, () => actuator.reset());
+                if (outcome.ok) {
+                    continue;
+                }
+            }
+            if (hasFunction(actuator, "playEffect")) {
+                const outcome = await callAndLog(`${label}.playEffect(dual-rumble zero)`, () =>
+                    actuator.playEffect("dual-rumble", {
+                        startDelay: 0,
+                        duration: 1,
+                        strongMagnitude: 0,
+                        weakMagnitude: 0
+                    })
+                );
+                if (outcome.ok) {
+                    continue;
+                }
+            }
+            if (hasFunction(actuator, "pulse")) {
+                await callAndLog(`${label}.pulse(0, 1)`, () => actuator.pulse(0, 1));
+            }
+        }
+    }
+
+    function updateBrowser() {
+        const snapshot = browserSnapshot();
+        const verdict = browserSurfaceVerdict(snapshot);
+        browserSummary.innerHTML = `<p class="${verdict.css}">${escapeHtml(verdict.text)}</p>`;
+        browserReport.textContent = JSON.stringify(snapshot, null, 2);
+    }
+
+    function updatePads() {
+        const previous = gamepadSelect.value;
+        const pads = getPads();
+        gamepadSelect.replaceChildren();
+        for (const pad of pads) {
+            const option = document.createElement("option");
+            option.value = String(pad.index);
+            option.textContent = `[${pad.index}] ${pad.id || "Unnamed gamepad"}`;
+            gamepadSelect.appendChild(option);
+        }
+        if (pads.length === 0) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No exposed gamepads";
+            gamepadSelect.appendChild(option);
+            gamepadSelect.disabled = true;
+            padSummary.innerHTML = '<p class="warn">No gamepad is currently exposed to this page.</p>';
+            padReport.textContent = "[]";
+        } else {
+            gamepadSelect.disabled = false;
+            if (pads.some((pad) => String(pad.index) === previous)) {
+                gamepadSelect.value = previous;
+            }
+            const selected = selectedPad() ?? pads[0];
+            gamepadSelect.value = String(selected.index);
+            const snapshot = gamepadSnapshot(selected);
+            const actuators = distinctActuators(selected);
+            const usable = actuators.some(({ actuator }) => hasFunction(actuator, "playEffect") || hasFunction(actuator, "pulse"));
+            padSummary.innerHTML = `<p class="${usable ? "good" : "warn"}">${usable ? "This exposed controller has at least one callable haptics method." : "This exposed controller has no callable playEffect() or pulse() method."}</p>`;
+            padReport.textContent = JSON.stringify(snapshot, null, 2);
+        }
+        updateReport();
+    }
+
+    function currentReport() {
+        return {
+            capturedAt: new Date().toISOString(),
+            browser: browserSnapshot(),
+            gamepads: getPads().map((pad) => gamepadSnapshot(pad)),
+            log: [...logLines]
+        };
+    }
+
+    function updateReport() {
+        jsonReport.textContent = JSON.stringify(currentReport(), null, 2);
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]);
+    }
+
+    document.querySelector("#refresh").addEventListener("click", updatePads);
+    gamepadSelect.addEventListener("change", updatePads);
+    document.querySelector("#test-stickvania").addEventListener("click", () => void testStickvaniaFallback());
+    document.querySelector("#test-vibration-play").addEventListener("click", () => {
+        const pad = selectedPad();
+        if (pad === null) return log("vibrationActuator.playEffect -> no selected gamepad");
+        const read = safeRead("vibrationActuator", () => pad.vibrationActuator);
+        if (!read.ok || read.value === null || read.value === undefined) return log(`vibrationActuator -> ${read.ok ? "unavailable" : read.error}`);
+        void testPlayEffect(read.value, "vibrationActuator");
+    });
+    document.querySelector("#test-vibration-pulse").addEventListener("click", () => {
+        const pad = selectedPad();
+        if (pad === null) return log("vibrationActuator.pulse -> no selected gamepad");
+        const read = safeRead("vibrationActuator", () => pad.vibrationActuator);
+        if (!read.ok || read.value === null || read.value === undefined) return log(`vibrationActuator -> ${read.ok ? "unavailable" : read.error}`);
+        void testPulse(read.value, "vibrationActuator");
+    });
+    document.querySelector("#test-legacy-play").addEventListener("click", () => {
+        const pad = selectedPad();
+        if (pad === null) return log("hapticActuators[].playEffect -> no selected gamepad");
+        const actuators = safeRead("hapticActuators", () => (pad.hapticActuators === undefined ? [] : Array.from(pad.hapticActuators)));
+        if (!actuators.ok) return log(`hapticActuators -> ${actuators.error}`);
+        actuators.value.forEach((actuator, index) => {
+            if (actuator !== null && actuator !== undefined) void testPlayEffect(actuator, `hapticActuators[${index}]`);
+        });
+        if (actuators.value.length === 0) log("hapticActuators[].playEffect -> no actuators exposed");
+    });
+    document.querySelector("#test-legacy-pulse").addEventListener("click", () => {
+        const pad = selectedPad();
+        if (pad === null) return log("hapticActuators[].pulse -> no selected gamepad");
+        const actuators = safeRead("hapticActuators", () => (pad.hapticActuators === undefined ? [] : Array.from(pad.hapticActuators)));
+        if (!actuators.ok) return log(`hapticActuators -> ${actuators.error}`);
+        actuators.value.forEach((actuator, index) => {
+            if (actuator !== null && actuator !== undefined) void testPulse(actuator, `hapticActuators[${index}]`);
+        });
+        if (actuators.value.length === 0) log("hapticActuators[].pulse -> no actuators exposed");
+    });
+    document.querySelector("#stop").addEventListener("click", () => void stopHaptics());
+    document.querySelector("#copy-report").addEventListener("click", async () => {
+        try {
+            const text = JSON.stringify(currentReport(), null, 2);
+            await navigator.clipboard.writeText(text);
+            copyStatus.textContent = "Copied. Paste the report into ChatGPT.";
+        } catch (error) {
+            copyStatus.textContent = `Copy failed: ${formatError(error)}. Select the JSON below manually.`;
+        }
+    });
+
+    window.addEventListener("gamepadconnected", (event) => {
+        log(`gamepadconnected: index=${event.gamepad.index}, id=${event.gamepad.id}`);
+        updatePads();
+    });
+    window.addEventListener("gamepaddisconnected", (event) => {
+        log(`gamepaddisconnected: index=${event.gamepad.index}, id=${event.gamepad.id}`);
+        updatePads();
+    });
+
+    updateBrowser();
+    updatePads();
+    window.setInterval(updatePads, 1000);
+})();
+</script>
+</body>
+</html>
