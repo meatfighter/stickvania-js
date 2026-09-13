@@ -171,6 +171,13 @@ public class Simon extends Thing {
 
     applyGravityWithPlatforms();
 
+    // A delayed sub-weapon throw must not materialize after a lethal hit.
+    // Leave the whip animation alone; its actual damage path already rejects
+    // playerPower == 0.
+    if (main.playerPower == 0) {
+      throwing = false;
+    }
+
     if (main.playerPower == 0 && supported) {
       if (dead == 0) {
         main.requestMusic(main.simon_killed);
