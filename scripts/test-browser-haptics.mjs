@@ -4,10 +4,11 @@ import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
 
-function loadBrowserHaptics() {
+function loadBrowserHaptics(globals = {}) {
     const context = {
         exports: {},
         console,
+        ...globals,
         require: () => ({})
     };
     const source = readFileSync("pwa/src/rumble/BrowserHaptics.ts", "utf8");
@@ -19,6 +20,45 @@ function loadBrowserHaptics() {
     );
     return context.exports;
 }
+
+function chromeLikeBrowser() {
+    function Gamepad() {}
+    Object.defineProperty(Gamepad.prototype, "vibrationActuator", { configurable: true, get: () => undefined });
+    function GamepadHapticActuator() {}
+    GamepadHapticActuator.prototype.playEffect = function () {};
+    return {
+        navigator: { getGamepads: () => [] },
+        Gamepad,
+        GamepadHapticActuator
+    };
+}
+
+function firefoxLegacyBrowser() {
+    function Gamepad() {}
+    Object.defineProperty(Gamepad.prototype, "hapticActuators", { configurable: true, get: () => [] });
+    function GamepadHapticActuator() {}
+    GamepadHapticActuator.prototype.pulse = function () {};
+    return {
+        navigator: { getGamepads: () => [] },
+        Gamepad,
+        GamepadHapticActuator
+    };
+}
+
+test("modern browser rumble capability is available without any connected controller", () => {
+    const { getBrowserRumbleCapability } = loadBrowserHaptics(chromeLikeBrowser());
+    assert.equal(getBrowserRumbleCapability(), "available");
+});
+
+test("Firefox-155-like legacy haptics surface is unavailable for the PWA menu", () => {
+    const { getBrowserRumbleCapability } = loadBrowserHaptics(firefoxLegacyBrowser());
+    assert.equal(getBrowserRumbleCapability(), "unavailable");
+});
+
+test("missing browser Gamepad API is unavailable for rumble", () => {
+    const { getBrowserRumbleCapability } = loadBrowserHaptics({ navigator: {} });
+    assert.equal(getBrowserRumbleCapability(), "unavailable");
+});
 
 test("browser haptics prefers dual-rumble and preserves strong/weak magnitudes", async () => {
     const { playPulseOnGamepad } = loadBrowserHaptics();
