@@ -272,7 +272,7 @@ public class Dracula extends Thing {
         } else {
           if (hits == 0) {
             state = STATE_DYING;
-            StopWatchMusicHold.requestGameplayMusic(main, main.dracula_dead);
+            main.requestMusic(main.dracula_dead);
           } else {
             firingDelay = 0;
             state = STATE_FIRING;
