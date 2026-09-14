@@ -30,6 +30,11 @@ public final class StopWatchMusicHold {
         && !(main.stageIndex == 5 && main.enemyPower == 0);
   }
 
+  /** A new stopwatch may start only when no existing stopwatch owns time. */
+  static boolean canStartStopWatch(Main main) {
+    return canStopWatchRun(main) && main.timeFrozen == 0;
+  }
+
   private static boolean shouldHold(Main main) {
     return main.mode == Main.MODE_PLAYING
         && canStopWatchRun(main)
