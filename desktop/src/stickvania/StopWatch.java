@@ -22,7 +22,7 @@ public class StopWatch extends Thing {
   public StopWatch(Main main) {
     super(main, 0, -10000, 32, 32);
 
-    if (!StopWatchMusicHold.canStopWatchRun(main)) {
+    if (!StopWatchMusicHold.canStartStopWatch(main)) {
       // Main.throwWeapon() charges five hearts immediately after construction.
       // Pre-refund without clamping so the following removeHearts(5) restores
       // the exact original value, including the 99-heart cap case.
