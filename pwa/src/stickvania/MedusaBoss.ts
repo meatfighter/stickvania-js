@@ -36,26 +36,33 @@ export class MedusaBoss extends Thing {
     }
 
     public override update(gc: GameContainer): boolean {
-        if (this.state == MedusaBoss.STATE_HOVERING || this.state == MedusaBoss.STATE_ATTACKING) {
-            if (--this.spriteIndexIncrementor == 0) {
-                this.spriteIndexIncrementor = 40;
-                if (++this.spriteIndex == 2) {
-                    this.spriteIndex = 0;
+        const timeAdvances = this.main.timeFrozen == 0;
+        const active = this.state == MedusaBoss.STATE_HOVERING || this.state == MedusaBoss.STATE_ATTACKING;
+
+        if (active) {
+            // Castlevania's StopWatch freezes the first two bosses only. Pause
+            // Medusa's active motion/AI clocks while keeping combat live.
+            if (timeAdvances) {
+                if (--this.spriteIndexIncrementor == 0) {
+                    this.spriteIndexIncrementor = 40;
+                    if (++this.spriteIndex == 2) {
+                        this.spriteIndex = 0;
+                    }
                 }
-            }
 
-            if (this.moveY(javaFloat(0.5 * javaFloat(FastTrig.cos(this.angle))))) {
-                this.angle = javaFloat(this.angle + 0.03);
-            }
-            if (this.y < 0) {
-                this.y = javaFloat(0);
-            }
+                if (this.moveY(javaFloat(0.5 * javaFloat(FastTrig.cos(this.angle))))) {
+                    this.angle = javaFloat(this.angle + 0.03);
+                }
+                if (this.y < 0) {
+                    this.y = javaFloat(0);
+                }
 
-            if (this.spawnDelay == 0) {
-                this.spawnDelay = 91 + this.main.random.nextInt(455);
-                this.main.pushThing(new Snakes(this.main, javaFloat(this.x + 12), javaFloat(this.y + 20), this.main.random.nextBoolean() ? 1 : -1, -4));
-            } else {
-                this.spawnDelay--;
+                if (this.spawnDelay == 0) {
+                    this.spawnDelay = 91 + this.main.random.nextInt(455);
+                    this.main.pushThing(new Snakes(this.main, javaFloat(this.x + 12), javaFloat(this.y + 20), this.main.random.nextBoolean() ? 1 : -1, -4));
+                } else {
+                    this.spawnDelay--;
+                }
             }
 
             if (this.stunned == 0) {
@@ -128,6 +135,8 @@ export class MedusaBoss extends Thing {
                 }
                 break;
             case MedusaBoss.STATE_FADE_IN:
+                // Boss introduction/setup is intentionally not frozen; once the
+                // fade completes, active Medusa AI waits for the StopWatch to end.
                 if (this.fadeIn < 91) {
                     this.fadeIn++;
                 } else {
@@ -135,6 +144,9 @@ export class MedusaBoss extends Thing {
                 }
                 break;
             case MedusaBoss.STATE_HOVERING:
+                if (!timeAdvances) {
+                    break;
+                }
                 if (this.hoveringPause > 0) {
                     this.hoveringPause--;
                 } else {
@@ -163,6 +175,9 @@ export class MedusaBoss extends Thing {
                 }
                 break;
             case MedusaBoss.STATE_ATTACKING:
+                if (!timeAdvances) {
+                    break;
+                }
                 this.applyGravity();
 
                 if (this.y < 0) {

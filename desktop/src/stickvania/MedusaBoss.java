@@ -36,27 +36,34 @@ public class MedusaBoss extends Thing {
   @Override
   public boolean update(GameContainer gc) throws SlickException {
 
-    if (state == STATE_HOVERING || state == STATE_ATTACKING) {
-      if (--spriteIndexIncrementor == 0) {
-        spriteIndexIncrementor = 40;
-        if (++spriteIndex == 2) {
-          spriteIndex = 0;
+    boolean timeAdvances = main.timeFrozen == 0;
+    boolean active = state == STATE_HOVERING || state == STATE_ATTACKING;
+
+    if (active) {
+      // Castlevania's StopWatch freezes the first two bosses only. Pause
+      // Medusa's active motion/AI clocks while keeping combat live.
+      if (timeAdvances) {
+        if (--spriteIndexIncrementor == 0) {
+          spriteIndexIncrementor = 40;
+          if (++spriteIndex == 2) {
+            spriteIndex = 0;
+          }
         }
-      }
 
-      if (moveY(0.5f * (float)FastTrig.cos(angle))) {
-        angle += 0.03f;
-      }
-      if (y < 0) {
-        y = 0;
-      }      
+        if (moveY(0.5f * (float)FastTrig.cos(angle))) {
+          angle += 0.03f;
+        }
+        if (y < 0) {
+          y = 0;
+        }
 
-      if (spawnDelay == 0) {
-        spawnDelay = 91 + main.random.nextInt(455);
-        main.pushThing(new Snakes(main, x + 12, y + 20,
-            main.random.nextBoolean() ? 1 : -1, -4f));
-      } else {
-        spawnDelay--;
+        if (spawnDelay == 0) {
+          spawnDelay = 91 + main.random.nextInt(455);
+          main.pushThing(new Snakes(main, x + 12, y + 20,
+              main.random.nextBoolean() ? 1 : -1, -4f));
+        } else {
+          spawnDelay--;
+        }
       }
 
       if (stunned == 0) {
@@ -142,6 +149,8 @@ public class MedusaBoss extends Thing {
         }
         break;
       case STATE_FADE_IN:
+        // Boss introduction/setup is intentionally not frozen; once the fade
+        // completes, active Medusa AI waits for the StopWatch to end.
         if (fadeIn < 91) {
           fadeIn++;
         } else {
@@ -149,6 +158,9 @@ public class MedusaBoss extends Thing {
         }
         break;
       case STATE_HOVERING:
+        if (!timeAdvances) {
+          break;
+        }
         if (hoveringPause > 0) {
           hoveringPause--;
         } else {
@@ -177,7 +189,9 @@ public class MedusaBoss extends Thing {
         }
         break;
       case STATE_ATTACKING:
-
+        if (!timeAdvances) {
+          break;
+        }
         applyGravity();
 
         if (y < 0) {

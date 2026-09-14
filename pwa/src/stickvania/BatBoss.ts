@@ -31,26 +31,33 @@ export class BatBoss extends Thing {
     }
 
     public override update(gc: GameContainer): boolean {
-        if (this.state == BatBoss.STATE_HOVERING || this.state == BatBoss.STATE_ATTACKING) {
-            if (--this.spriteIndexIncrementor == 0) {
-                this.spriteIndexIncrementor = 40;
-                this.main.playSound(this.main.wing_flaps);
-                if (++this.spriteIndex == 3) {
-                    this.spriteIndex = 1;
-                }
-            }
+        const timeAdvances = this.main.timeFrozen == 0;
+        const active = this.state == BatBoss.STATE_HOVERING || this.state == BatBoss.STATE_ATTACKING;
 
-            if (this.spawnDelay == 0) {
-                this.spawnDelay = 546;
-                if (this.main.simon!.direction == Main.RIGHT) {
-                    this.main.pushThing(new Bat(this.main, this.main.camera + 520, javaFloat(this.main.simon!.y + 8), Main.LEFT));
-                    this.main.pushThing(new Bat(this.main, this.main.camera - 40, this.main.random.nextInt(320), Main.RIGHT));
-                } else {
-                    this.main.pushThing(new Bat(this.main, this.main.camera + 520, this.main.random.nextInt(320), Main.LEFT));
-                    this.main.pushThing(new Bat(this.main, this.main.camera - 40, javaFloat(this.main.simon!.y + 8), Main.RIGHT));
+        if (active) {
+            // Castlevania's StopWatch freezes the first two bosses only. Pause
+            // the Giant Bat's motion/AI clocks while keeping combat live.
+            if (timeAdvances) {
+                if (--this.spriteIndexIncrementor == 0) {
+                    this.spriteIndexIncrementor = 40;
+                    this.main.playSound(this.main.wing_flaps);
+                    if (++this.spriteIndex == 3) {
+                        this.spriteIndex = 1;
+                    }
                 }
-            } else {
-                this.spawnDelay--;
+
+                if (this.spawnDelay == 0) {
+                    this.spawnDelay = 546;
+                    if (this.main.simon!.direction == Main.RIGHT) {
+                        this.main.pushThing(new Bat(this.main, this.main.camera + 520, javaFloat(this.main.simon!.y + 8), Main.LEFT));
+                        this.main.pushThing(new Bat(this.main, this.main.camera - 40, this.main.random.nextInt(320), Main.RIGHT));
+                    } else {
+                        this.main.pushThing(new Bat(this.main, this.main.camera + 520, this.main.random.nextInt(320), Main.LEFT));
+                        this.main.pushThing(new Bat(this.main, this.main.camera - 40, javaFloat(this.main.simon!.y + 8), Main.RIGHT));
+                    }
+                } else {
+                    this.spawnDelay--;
+                }
             }
 
             if (this.stunned == 0) {
@@ -123,6 +130,9 @@ export class BatBoss extends Thing {
                 }
                 break;
             case BatBoss.STATE_HOVERING:
+                if (!timeAdvances) {
+                    break;
+                }
                 if (this.hoveringPause > 0) {
                     this.hoveringPause--;
                 } else {
@@ -150,6 +160,9 @@ export class BatBoss extends Thing {
                 }
                 break;
             case BatBoss.STATE_ATTACKING:
+                if (!timeAdvances) {
+                    break;
+                }
                 this.applyGravity();
 
                 if (this.y < 0) {

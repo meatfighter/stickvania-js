@@ -30,31 +30,38 @@ public class BatBoss extends Thing {
   @Override
   public boolean update(GameContainer gc) throws SlickException {
 
-    if (state == STATE_HOVERING || state == STATE_ATTACKING) {
+    boolean timeAdvances = main.timeFrozen == 0;
+    boolean active = state == STATE_HOVERING || state == STATE_ATTACKING;
 
-      if (--spriteIndexIncrementor == 0) {
-        spriteIndexIncrementor = 40;
-        main.playSound(main.wing_flaps);
-        if (++spriteIndex == 3) {
-          spriteIndex = 1;
+    if (active) {
+
+      // Castlevania's StopWatch freezes the first two bosses only. Pause
+      // the Giant Bat's motion/AI clocks while keeping combat live.
+      if (timeAdvances) {
+        if (--spriteIndexIncrementor == 0) {
+          spriteIndexIncrementor = 40;
+          main.playSound(main.wing_flaps);
+          if (++spriteIndex == 3) {
+            spriteIndex = 1;
+          }
         }
-      }
 
-      if (spawnDelay == 0) {
-        spawnDelay = 546;
-        if (main.simon.direction == Main.RIGHT) {
-          main.pushThing(new Bat(main,
-              main.camera + 520, main.simon.y + 8, Main.LEFT));
-          main.pushThing(new Bat(main,
-              main.camera - 40, main.random.nextInt(320), Main.RIGHT));
+        if (spawnDelay == 0) {
+          spawnDelay = 546;
+          if (main.simon.direction == Main.RIGHT) {
+            main.pushThing(new Bat(main,
+                main.camera + 520, main.simon.y + 8, Main.LEFT));
+            main.pushThing(new Bat(main,
+                main.camera - 40, main.random.nextInt(320), Main.RIGHT));
+          } else {
+            main.pushThing(new Bat(main,
+                main.camera + 520, main.random.nextInt(320), Main.LEFT));
+            main.pushThing(new Bat(main,
+                main.camera - 40, main.simon.y + 8, Main.RIGHT));
+          }
         } else {
-          main.pushThing(new Bat(main,
-              main.camera + 520, main.random.nextInt(320), Main.LEFT));
-          main.pushThing(new Bat(main,
-              main.camera - 40, main.simon.y + 8, Main.RIGHT));
+          spawnDelay--;
         }
-      } else {
-        spawnDelay--;
       }
 
       if (stunned == 0) {
@@ -140,6 +147,9 @@ public class BatBoss extends Thing {
         }
         break;
       case STATE_HOVERING:
+        if (!timeAdvances) {
+          break;
+        }
         if (hoveringPause > 0) {
           hoveringPause--;
         } else {
@@ -163,11 +173,13 @@ public class BatBoss extends Thing {
               state = STATE_ATTACKING;
               break;
             }
-          } 
+          }
         }
         break;
       case STATE_ATTACKING:
-        
+        if (!timeAdvances) {
+          break;
+        }
         applyGravity();
 
         if (y < 0) {
