@@ -1,6 +1,7 @@
 import { Input } from "slick2d-ts";
 import { ButtonMapping } from "./ButtonMapping.js";
 import { ControllerSupport } from "./ControllerSupport.js";
+import { isStopWatchActivationInputBlocked } from "./StopWatchMusicHold.js";
 
 type InputState = {
     up: boolean;
@@ -51,6 +52,7 @@ function createEmptyState(): InputState {
 export class StickvaniaInput {
     private previous: InputState = createEmptyState();
     private current: InputState = createEmptyState();
+    private stopWatchAttackReleaseRequired = false;
 
     public constructor(
         private readonly input: Input,
@@ -70,6 +72,7 @@ export class StickvaniaInput {
     public clearPressedState(): void {
         this.readStateInto(this.current);
         this.copyState(this.previous, this.current);
+        this.stopWatchAttackReleaseRequired = false;
     }
 
     public isUp(): boolean {
@@ -93,7 +96,14 @@ export class StickvaniaInput {
     }
 
     public isAttack(): boolean {
-        return this.current.attack;
+        if (!this.current.attack) {
+            this.stopWatchAttackReleaseRequired = false;
+            return false;
+        }
+        if (this.current.up && isStopWatchActivationInputBlocked()) {
+            this.stopWatchAttackReleaseRequired = true;
+        }
+        return !this.stopWatchAttackReleaseRequired;
     }
 
     public isMenuUpPressed(): boolean {
