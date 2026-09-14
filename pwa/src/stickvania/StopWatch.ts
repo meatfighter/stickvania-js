@@ -79,21 +79,26 @@ export class StopWatch extends Thing {
         reconcileStopWatchMusic(this.main);
     }
 
-    private recomputeRestoredTimeFrozen(): void {
-        let total = 0;
-        for (const stack of [this.main.weaponsStack, this.main.weaponsStackSwap]) {
+    public static recomputeRestoredTimeFrozen(main: Main): void {
+        const watches = new Set<StopWatch>();
+        for (const stack of [main.weaponsStack, main.weaponsStackSwap]) {
             for (let i = 0; i <= stack.top; i++) {
                 const thing = stack.things[i];
                 if (thing instanceof StopWatch && thing.lifeTime > 0) {
-                    total += thing.lifeTime;
+                    watches.add(thing);
                 }
             }
         }
-        this.main.timeFrozen = total;
+
+        let total = 0;
+        for (const watch of watches) {
+            total += watch.lifeTime;
+        }
+        main.timeFrozen = total;
     }
 
     public restoreRuntimeStateAfterStateLoad(): void {
-        this.recomputeRestoredTimeFrozen();
+        StopWatch.recomputeRestoredTimeFrozen(this.main);
         if (this.isTerminalGameplayState()) {
             this.cancel();
         } else if (this.lifeTime > 0) {
