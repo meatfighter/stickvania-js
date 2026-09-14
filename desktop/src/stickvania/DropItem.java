@@ -149,6 +149,12 @@ public class DropItem extends Thing {
       main.playSound(main.got_double);
       return;
     }
+    if (weaponRepeats < main.weaponRepeats) {
+      // Preserve pickup feedback for a stale lower-tier item without allowing
+      // it to downgrade a newer repeat upgrade.
+      main.playSound(main.got_double);
+      return;
+    }
     main.setWeaponRepeats(weaponRepeats);
   }
 
