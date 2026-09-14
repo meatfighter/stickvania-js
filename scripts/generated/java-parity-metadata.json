@@ -398,7 +398,7 @@
             "className": "StopWatch",
             "baseClass": "Thing",
             "floatFields": ["angle", "sx0", "sx1", "sx2", "sy0", "sy1", "sy2"],
-            "publicMethods": ["render", "update"]
+            "publicMethods": ["cancel", "onDiscarded", "render", "update"]
         },
         {
             "file": "SwoopingBat.java",
@@ -412,7 +412,7 @@
             "className": "Thing",
             "baseClass": null,
             "floatFields": ["G", "vx", "vy", "x", "y"],
-            "publicMethods": ["applyGravity", "applyGravityWithPlatforms", "moveX", "moveY"]
+            "publicMethods": ["applyGravity", "applyGravityWithPlatforms", "moveX", "moveY", "onDiscarded"]
         },
         {
             "file": "Torch.java",
