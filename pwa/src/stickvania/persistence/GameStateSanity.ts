@@ -19,6 +19,7 @@ const MAX_INPUT_CONFIG_STEP_INDEX = 6;
 const MAX_INPUT_CONFIG_DONE_DELAY = 30;
 const MAX_INPUT_CONFIG_ARM_DELAY = 8;
 const MAX_STOP_WATCH_LIFETIME = 455;
+const MAX_TIME_INCREMENTOR = 90;
 
 const EXPECTED_SONG_IDS = new Set<string>(SONG_FIELD_NAMES);
 const EXPECTED_MUSIC_IDS = new Set<string>([
@@ -386,6 +387,9 @@ function isReasonableNumber(value: number, key: string): boolean {
     }
     if (key === "score") {
         return Number.isInteger(value) && value >= JAVA_INT_MIN && value <= JAVA_INT_MAX;
+    }
+    if (key === "timeIncrementor") {
+        return Number.isInteger(value) && value >= 0 && value <= MAX_TIME_INCREMENTOR;
     }
     if (key === "vx" || key === "vy" || key === "G") {
         return Math.abs(value) <= MAX_VELOCITY_MAGNITUDE;

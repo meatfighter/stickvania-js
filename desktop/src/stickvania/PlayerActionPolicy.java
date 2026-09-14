@@ -1,18 +1,67 @@
 package stickvania;
 
-/** Shared terminal-state policy for Simon's delayed whip/sub-weapon actions. */
+/** Shared input-side frame and delayed-action policy for live gameplay. */
 public final class PlayerActionPolicy {
 
   private static final float STAIR_TOP_TRANSITION_Y = -62;
   private static final float STAIR_BOTTOM_TRANSITION_Y = 285;
+  private static final int LAST_DEATH_SIMULATION_TICK = 473;
   private static Main registeredMain;
 
   private PlayerActionPolicy() {
   }
 
-  /** Register the live game instance used by input-side action checks. */
+  /** Register the live game instance used by input-side frame/action checks. */
   public static void registerPlayerActionMain(Main main) {
     registeredMain = main;
+  }
+
+  /**
+   * Return whether Main will reach its ordinary gameplay countdown check after
+   * StickvaniaInput.update() returns. Demo uses the same gameplay simulation.
+   * Credits are deliberately excluded because their pause decision happens later
+   * in Main.update(), and Main.playSound() does not emit gameplay SFX there.
+   */
+  private static boolean willReachCountdownCheck(Main main) {
+    Simon simon = main.simon;
+    if (simon == null) {
+      return false;
+    }
+
+    boolean fadeAllowsGameplay = main.fadeState == Main.FADE_DONE
+        || (main.fadeState == Main.FADE_IN && main.fade == 0);
+    return fadeAllowsGameplay
+        && (main.mode == Main.MODE_PLAYING || main.mode == Main.MODE_DEMO)
+        && !main.beatStage
+        && simon.dead <= LAST_DEATH_SIMULATION_TICK
+        && simon.flashing == 0
+        && main.door == null;
+  }
+
+  /**
+   * Preflight Main's countdown immediately before Main evaluates it.
+   *
+   * Main intentionally owns the actual countdown and StopWatch short-circuit.
+   * This helper adds the NES low-time cue for an imminent real decrement and
+   * compensates the historical expression ordering where ++timeIncrementor
+   * precedes the playerPower/floorBreaking guards. A temporary -1 phase at an
+   * original phase of zero exists only until Main's immediate ++; it is never a
+   * stable/rendered/saved state.
+   */
+  public static void prepareRegisteredCountdownTimer() {
+    Main main = registeredMain;
+    if (main == null || !willReachCountdownCheck(main) || main.timeFrozen != 0) {
+      return;
+    }
+
+    if (main.playerPower <= 0 || main.floorBreaking) {
+      main.timeIncrementor--;
+      return;
+    }
+
+    if (main.timeIncrementor == 90 && main.time > 1 && main.time <= 31) {
+      main.playSound(main.twang);
+    }
   }
 
   /**

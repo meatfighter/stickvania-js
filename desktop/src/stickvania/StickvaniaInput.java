@@ -41,6 +41,9 @@ public class StickvaniaInput {
   public void update() {
     previous = current;
     current = readState();
+    // Main evaluates its stage countdown immediately after input/frame-state
+    // early exits. Preflight the imminent countdown before those checks run.
+    PlayerActionPolicy.prepareRegisteredCountdownTimer();
     // Catch terminal/control-loss state that was already true at frame start,
     // including pit/death/hurt paths that return before Main reads Attack.
     PlayerActionPolicy.reconcileRegisteredSimonActionBeforeAttackRead();

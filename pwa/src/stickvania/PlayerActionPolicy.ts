@@ -4,14 +4,65 @@ const MODE_DEMO = 1;
 const MODE_PLAYING = 4;
 const MODE_CREDITS = 8;
 const FADE_DONE = 0;
+const FADE_IN = 2;
 const STAIR_TOP_TRANSITION_Y = -62;
 const STAIR_BOTTOM_TRANSITION_Y = 285;
+const LAST_DEATH_SIMULATION_TICK = 473;
 
 let registeredMain: Main | null = null;
 
-/** Register the live game instance used by input-side action checks. */
+/** Register the live game instance used by input-side frame/action checks. */
 export function registerPlayerActionMain(main: Main): void {
     registeredMain = main;
+}
+
+/**
+ * Return whether Main will reach its ordinary gameplay countdown check after
+ * StickvaniaInput.update() returns. Demo uses the same gameplay simulation.
+ * Credits are deliberately excluded because their pause decision happens later
+ * in Main.updateFrame(), and Main.playSound() does not emit gameplay SFX there.
+ */
+function willReachCountdownCheck(main: Main): boolean {
+    const simon = main.simon;
+    if (simon === null) {
+        return false;
+    }
+
+    const fadeAllowsGameplay = main.fadeState == FADE_DONE || (main.fadeState == FADE_IN && main.fade == 0);
+    return (
+        fadeAllowsGameplay &&
+        (main.mode == MODE_PLAYING || main.mode == MODE_DEMO) &&
+        !main.beatStageFlag &&
+        simon.dead <= LAST_DEATH_SIMULATION_TICK &&
+        simon.flashing == 0 &&
+        main.door === null
+    );
+}
+
+/**
+ * Preflight Main's countdown immediately before Main evaluates it.
+ *
+ * Main intentionally owns the actual countdown and StopWatch short-circuit. This
+ * helper adds the NES low-time cue for an imminent real decrement and compensates
+ * the historical expression ordering where ++timeIncrementor precedes the
+ * playerPower/floorBreaking guards. The temporary -1 phase at an original phase
+ * of zero exists only between this call and Main's immediate ++; it is never a
+ * stable/rendered/saved state.
+ */
+export function prepareRegisteredCountdownTimer(): void {
+    const main = registeredMain;
+    if (main === null || !willReachCountdownCheck(main) || main.timeFrozen != 0) {
+        return;
+    }
+
+    if (main.playerPower <= 0 || main.floorBreaking) {
+        main.timeIncrementor--;
+        return;
+    }
+
+    if (main.timeIncrementor == 90 && main.time > 1 && main.time <= 31) {
+        main.playSound(main.twang);
+    }
 }
 
 /**

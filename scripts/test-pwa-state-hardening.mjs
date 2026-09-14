@@ -56,6 +56,17 @@ try {
     const snapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     assert.equal(isReasonableStickvaniaGameStateSnapshot(snapshot), true);
 
+    for (const timeIncrementor of [0, 90]) {
+        const timerPhase = clone(snapshot);
+        timerPhase.mainFields.timeIncrementor = timeIncrementor;
+        assert.equal(isReasonableStickvaniaGameStateSnapshot(timerPhase), true, `timeIncrementor=${timeIncrementor} must remain valid`);
+    }
+    for (const timeIncrementor of [-1, 91, 0.5]) {
+        const timerPhase = clone(snapshot);
+        timerPhase.mainFields.timeIncrementor = timeIncrementor;
+        assert.equal(isReasonableStickvaniaGameStateSnapshot(timerPhase), false, `timeIncrementor=${timeIncrementor} must be rejected`);
+    }
+
     const mismatchedStage = clone(snapshot);
     mismatchedStage.stage.stageIndex = 1;
     assert.equal(isReasonableStickvaniaGameStateSnapshot(mismatchedStage), false);
@@ -256,6 +267,7 @@ function createSnapshot(songIds, version) {
             stageIndex: 0,
             score: 0,
             time: 300,
+            timeIncrementor: 0,
             timeFrozen: 0,
             playerPower: 16,
             enemyPower: 16,
