@@ -43,8 +43,8 @@ try {
     );
     const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
 
-    assert.equal(GAME_STATE_VERSION, 10);
-    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v10$/);
+    assert.equal(GAME_STATE_VERSION, 11);
+    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v11$/);
 
     const serializer = new StickvaniaGameStateSerializer();
     assert.equal(serializer.isThingIdArray([null, 0], 1), true);
@@ -53,7 +53,7 @@ try {
     assert.equal(serializer.isThingIdArray([0.5], 1), false);
     assert.equal(serializer.isThingIdArray([Number.NaN], 1), false);
 
-    const snapshot = createSnapshot(SONG_FIELD_NAMES);
+    const snapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     assert.equal(isReasonableStickvaniaGameStateSnapshot(snapshot), true);
 
     const mismatchedStage = clone(snapshot);
@@ -92,7 +92,28 @@ try {
     };
     assert.equal(isReasonableStickvaniaGameStateSnapshot(unsafeVolume), false);
 
-    const inputSnapshot = createSnapshot(SONG_FIELD_NAMES);
+    const maxStopWatchLifetime = clone(snapshot);
+    maxStopWatchLifetime.things.push({ id: 0, type: "StopWatch", fields: { lifeTime: 455 } });
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(maxStopWatchLifetime), true);
+
+    const excessiveStopWatchLifetime = clone(snapshot);
+    excessiveStopWatchLifetime.things.push({ id: 0, type: "StopWatch", fields: { lifeTime: 456 } });
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(excessiveStopWatchLifetime), false);
+
+    const negativeStopWatchLifetime = clone(snapshot);
+    negativeStopWatchLifetime.things.push({ id: 0, type: "StopWatch", fields: { lifeTime: -1 } });
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(negativeStopWatchLifetime), false);
+
+    const validStopWatchAggregate = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(validStopWatchAggregate), true);
+
+    const staleStopWatchAggregate = createStopWatchAggregateSnapshot(snapshot, 455, [], []);
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(staleStopWatchAggregate), false);
+
+    const duplicateStopWatchReference = createStopWatchAggregateSnapshot(snapshot, 455, [0], [0]);
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(duplicateStopWatchReference), false);
+
+    const inputSnapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     inputSnapshot.inputConfigMode = createInputConfigSnapshot();
     assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), true);
     inputSnapshot.inputConfigMode.stepIndex = 99;
@@ -100,7 +121,7 @@ try {
 
     const storage = createStorage();
 
-    const future = createPotentialSnapshot(11);
+    const future = createPotentialSnapshot(GAME_STATE_VERSION + 1);
     const futureText = JSON.stringify(future);
     storage.setItem(GAME_STATE_STORAGE_KEY, futureText);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
@@ -144,9 +165,9 @@ try {
     await server.close();
 }
 
-function createSnapshot(songIds) {
+function createSnapshot(songIds, version) {
     return {
-        version: 10,
+        version,
         appVersion: "test-version",
         savedAt: new Date(0).toISOString(),
         mode: 4,
@@ -167,6 +188,24 @@ function createSnapshot(songIds) {
                 intro: createSongPart(id, "intro"),
                 loop: createSongPart(id, "loop")
             }))
+        }
+    };
+}
+
+function createStopWatchAggregateSnapshot(base, timeFrozen, weapons, weaponsSwap) {
+    const snapshot = clone(base);
+    snapshot.mainFields.timeFrozen = timeFrozen;
+    snapshot.things = [{ id: 0, type: "StopWatch", fields: { lifeTime: 455 } }];
+    snapshot.stage.weaponsStack = createThingStack(weapons);
+    snapshot.stage.weaponsStackSwap = createThingStack(weaponsSwap);
+    return snapshot;
+}
+
+function createThingStack(things) {
+    return {
+        $stack: {
+            capacity: things.length,
+            things
         }
     };
 }
