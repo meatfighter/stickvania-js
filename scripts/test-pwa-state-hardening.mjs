@@ -102,6 +102,28 @@ try {
     const deferredCurrentSongStart = createSongOwnershipSnapshot(createStopWatchAggregateSnapshot(snapshot, 455, [0], []), "boss_1", "boss_1", "boss_1");
     assert.equal(isReasonableStickvaniaGameStateSnapshot(deferredCurrentSongStart), true);
 
+    const pausedSongWithoutWatch = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", "boss_1");
+    pausedSongWithoutWatch.audio.songs.find((song) => song.id === "boss_1").intro.playback.transport = "paused";
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(pausedSongWithoutWatch), false);
+
+    const pausedSongWithWatch = createSongOwnershipSnapshot(createStopWatchAggregateSnapshot(snapshot, 455, [0], []), "boss_1", "boss_1", "boss_1");
+    pausedSongWithWatch.audio.songs.find((song) => song.id === "boss_1").intro.playback.transport = "paused";
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(pausedSongWithWatch), true);
+
+    const pausedStandaloneWithoutWatch = clone(snapshot);
+    pausedStandaloneWithoutWatch.audio.currentMusic = {
+        id: "dracula_dead",
+        playback: createPlayback({ transport: "paused" })
+    };
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(pausedStandaloneWithoutWatch), false);
+
+    const pausedStandaloneWithWatch = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
+    pausedStandaloneWithWatch.audio.currentMusic = {
+        id: "dracula_dead",
+        playback: createPlayback({ transport: "paused" })
+    };
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(pausedStandaloneWithWatch), true);
+
     const mismatchedSongPart = clone(snapshot);
     mismatchedSongPart.audio.songs.find((song) => song.id === "boss_1").intro.id = "boss_2.intro";
     assert.equal(isReasonableStickvaniaGameStateSnapshot(mismatchedSongPart), false);
