@@ -8,7 +8,6 @@ import { javaFloat, makeArray, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
 import { Orb } from "./Orb.js";
 import { Spark } from "./Spark.js";
-import { requestStopWatchAwareGameplayMusic } from "./StopWatchMusicHold.js";
 import { Thing } from "./Thing.js";
 
 export class Dracula extends Thing {
@@ -288,7 +287,7 @@ export class Dracula extends Thing {
                 } else {
                     if (this.hits == 0) {
                         this.state = Dracula.STATE_DYING;
-                        requestStopWatchAwareGameplayMusic(this.main, this.main.dracula_dead);
+                        this.main.requestMusic(this.main.dracula_dead);
                     } else {
                         this.firingDelay = 0;
                         this.state = Dracula.STATE_FIRING;
