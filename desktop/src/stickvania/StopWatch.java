@@ -21,38 +21,44 @@ public class StopWatch extends Thing {
 
   public StopWatch(Main main) {
     super(main, 0, -10000, 32, 32);
+
+    if (!StopWatchMusicHold.canStopWatchRun(main)) {
+      // Main.throwWeapon() charges five hearts immediately after construction.
+      // Pre-refund without clamping so the following removeHearts(5) restores
+      // the exact original value, including the 99-heart cap case.
+      lifeTime = 0;
+      main.hearts += 5;
+      return;
+    }
+
     main.timeFrozen += 455;
     StopWatchMusicHold.reconcile(main);
-  }
-
-  private boolean isTerminalGameplayState() {
-    return main.playerPower == 0 || main.simon.dead != 0 || main.beatStage;
   }
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
 
+    if (lifeTime <= 0) {
+      return false;
+    }
+
     // Region Things have already completed for this tick. Ending the watch here
-    // keeps the lethal/stage-complete frame internally consistent while other
+    // keeps lethal/stage/cinematic transitions internally consistent while other
     // already-thrown sub-weapons continue through the normal weapon pass.
-    if (isTerminalGameplayState()) {
+    if (!StopWatchMusicHold.canStopWatchRun(main)) {
       cancel();
       return false;
     }
 
-    if (lifeTime > 0) {
-      // Adopt a music-owner change made earlier in this simulation tick before
-      // this watch consumes its final contribution.
-      StopWatchMusicHold.reconcile(main);
-      lifeTime--;
-      main.timeFrozen--;
-      if (main.timeFrozen < 0) {
-        main.timeFrozen = 0;
-      }
-      StopWatchMusicHold.reconcile(main);
-    } else {
-      return false;
+    // Adopt a music-owner change made earlier in this simulation tick before
+    // this watch consumes its final contribution.
+    StopWatchMusicHold.reconcile(main);
+    lifeTime--;
+    main.timeFrozen--;
+    if (main.timeFrozen < 0) {
+      main.timeFrozen = 0;
     }
+    StopWatchMusicHold.reconcile(main);
 
     if (soundDelay > 0) {
       soundDelay--;
