@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 
@@ -22,7 +22,11 @@ try {
     const live = createMainState();
     assert.equal(canStopWatchRun(live), true);
     assert.equal(canStartStopWatch(live), true);
-    assert.equal(canStopWatchRun(createMainState({ timeFrozen: 455 })), true, "an existing valid stopwatch may continue while it owns time");
+    assert.equal(
+        canStopWatchRun(createMainState({ timeFrozen: 455 })),
+        true,
+        "an existing valid stopwatch may continue while it owns time"
+    );
     assert.equal(canStartStopWatch(createMainState({ timeFrozen: 455 })), false, "a second stopwatch may not start while time is already frozen");
     assert.equal(canStopWatchRun(createMainState({ mode: 1 })), true, "demo recordings retain stopwatch simulation behavior");
     assert.equal(canStopWatchRun(createMainState({ mode: 8 })), true, "credits recordings retain stopwatch simulation behavior");
@@ -82,6 +86,8 @@ try {
     const javaMain = read("desktop/src/stickvania/Main.java");
     const tsStore = read("pwa/src/stickvania/persistence/StickvaniaGameStateStore.ts");
     const tsRepeatPolicy = read("pwa/src/stickvania/persistence/StopWatchRepeatStatePolicy.ts");
+    const allTypeScript = collectSourceTree(resolve(rootDir, "pwa", "src", "stickvania"), ".ts");
+    const allJava = collectSourceTree(resolve(rootDir, "desktop", "src", "stickvania"), ".java");
 
     assert.doesNotMatch(tsHold, /pausedStandalone|requestStopWatchAwareGameplayMusic|currentMusic/);
     assert.doesNotMatch(javaHold, /pausedStandalone|pendingStandalone|requestGameplayMusic|findPlayingStandaloneMusic|Music\[\]/);
@@ -121,12 +127,13 @@ try {
         javaDropItem,
         /collectRepeatUpgrade[\s\S]*?WEAPON_TYPE_STOP_WATCH[\s\S]*?weaponRepeats = Main\.WEAPON_REPEATS_SINGLE;[\s\S]*?repeatsFlashing = 0;[\s\S]*?playSound\(main\.got_double\)[\s\S]*?return;/
     );
-    assert.equal((tsDropItem.match(/this\.main\.setWeaponRepeats\(/g) ?? []).length, 1);
-    assert.equal((javaDropItem.match(/main\.setWeaponRepeats\(/g) ?? []).length, 1);
 
-    assert.equal((tsMain.match(/new StopWatch\(this\)/g) ?? []).length, 1);
+    assert.equal((allTypeScript.match(/\.setWeaponRepeats\(/g) ?? []).length, 1, "TypeScript repeat mutation must stay centralized through DropItem");
+    assert.equal((allJava.match(/\.setWeaponRepeats\(/g) ?? []).length, 1, "Java repeat mutation must stay centralized through DropItem");
+    assert.equal((allTypeScript.match(/new StopWatch\(/g) ?? []).length, 1, "TypeScript must keep one normal StopWatch construction path");
+    assert.equal((allJava.match(/new StopWatch\(/g) ?? []).length, 1, "Java must keep one normal StopWatch construction path");
+
     assert.match(tsMain, /this\.pushWeapon\(new StopWatch\(this\)\);\s*this\.removeHearts\(5\);/);
-    assert.equal((javaMain.match(/new StopWatch\(this\)/g) ?? []).length, 1);
     assert.match(javaMain, /pushWeapon\(new StopWatch\(this\)\);\s*removeHearts\(5\);/);
     assert.match(tsMain, /if \(this\.weaponType != weaponType\)[\s\S]*?this\.weaponRepeats = Main\.WEAPON_TYPE_NONE;/);
     assert.match(javaMain, /if \(this\.weaponType != weaponType\)[\s\S]*?this\.weaponRepeats = WEAPON_TYPE_NONE;/);
@@ -176,6 +183,19 @@ function createPotentialSave(version, transport, mainFieldOverrides = {}) {
             currentMusic: { playback: { transport } }
         }
     };
+}
+
+function collectSourceTree(directory, extension) {
+    let text = "";
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) {
+            text += collectSourceTree(path, extension);
+        } else if (entry.isFile() && entry.name.endsWith(extension)) {
+            text += `\n${readFileSync(path, "utf8")}`;
+        }
+    }
+    return text;
 }
 
 function read(path) {
