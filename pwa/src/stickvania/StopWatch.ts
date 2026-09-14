@@ -3,7 +3,7 @@ import { DropItem } from "./DropItem.js";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
-import { canStopWatchRun, prepareStopWatchMusicHoldAfterRestore, reconcileStopWatchMusic } from "./StopWatchMusicHold.js";
+import { canStartStopWatch, canStopWatchRun, prepareStopWatchMusicHoldAfterRestore, reconcileStopWatchMusic } from "./StopWatchMusicHold.js";
 
 export class StopWatch extends Thing {
     public static readonly FRACTION: number = javaFloat(1 / 91);
@@ -21,7 +21,7 @@ export class StopWatch extends Thing {
     public constructor(main: Main) {
         super(main, 0, -10000, 32, 32);
 
-        if (!canStopWatchRun(main)) {
+        if (!canStartStopWatch(main)) {
             // Main.throwWeapon() charges five hearts immediately after construction.
             // Pre-refund the rejected construction without clamping so the following
             // removeHearts(5) restores the exact original value, including 99 hearts.
