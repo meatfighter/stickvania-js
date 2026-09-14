@@ -3,7 +3,7 @@ import { DropItem } from "./DropItem.js";
 import { Main } from "./Main.js";
 import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
-import { prepareStopWatchMusicHoldAfterRestore, reconcileStopWatchMusic } from "./StopWatchMusicHold.js";
+import { canStopWatchRun, prepareStopWatchMusicHoldAfterRestore, reconcileStopWatchMusic } from "./StopWatchMusicHold.js";
 
 export class StopWatch extends Thing {
     public static readonly FRACTION: number = javaFloat(1 / 91);
@@ -20,33 +20,39 @@ export class StopWatch extends Thing {
     private soundDelay: number = 0;
     public constructor(main: Main) {
         super(main, 0, -10000, 32, 32);
+
+        if (!canStopWatchRun(main)) {
+            // Main.throwWeapon() charges five hearts immediately after construction.
+            // Pre-refund the rejected construction without clamping so the following
+            // removeHearts(5) restores the exact original value, including 99 hearts.
+            this.lifeTime = 0;
+            main.hearts += 5;
+            return;
+        }
+
         main.timeFrozen += 455;
         reconcileStopWatchMusic(main);
     }
 
-    private isTerminalGameplayState(): boolean {
-        return this.main.playerPower == 0 || this.main.simon?.dead != 0 || this.main.beatStageFlag;
-    }
-
     public override update(gc: GameContainer): boolean {
+        if (this.lifeTime <= 0) {
+            return false;
+        }
+
         // Region Things have already completed for this tick. Ending the watch
-        // here keeps the lethal/stage-complete frame internally consistent while
-        // allowing unrelated sub-weapons to continue through the weapon pass.
-        if (this.isTerminalGameplayState()) {
+        // here keeps lethal/stage/cinematic transitions internally consistent
+        // while unrelated sub-weapons continue through the weapon pass.
+        if (!canStopWatchRun(this.main)) {
             this.cancel();
             return false;
         }
 
-        if (this.lifeTime > 0) {
-            // Adopt any music-owner change made earlier in this simulation tick
-            // before this watch consumes its final contribution.
-            reconcileStopWatchMusic(this.main);
-            this.lifeTime--;
-            this.main.timeFrozen = Math.max(0, this.main.timeFrozen - 1);
-            reconcileStopWatchMusic(this.main);
-        } else {
-            return false;
-        }
+        // Adopt any music-owner change made earlier in this simulation tick
+        // before this watch consumes its final contribution.
+        reconcileStopWatchMusic(this.main);
+        this.lifeTime--;
+        this.main.timeFrozen = Math.max(0, this.main.timeFrozen - 1);
+        reconcileStopWatchMusic(this.main);
 
         if (this.soundDelay > 0) {
             this.soundDelay--;
@@ -99,7 +105,7 @@ export class StopWatch extends Thing {
 
     public restoreRuntimeStateAfterStateLoad(): void {
         StopWatch.recomputeRestoredTimeFrozen(this.main);
-        if (this.isTerminalGameplayState()) {
+        if (!canStopWatchRun(this.main)) {
             this.cancel();
         } else if (this.lifeTime > 0) {
             prepareStopWatchMusicHoldAfterRestore(this.main);
