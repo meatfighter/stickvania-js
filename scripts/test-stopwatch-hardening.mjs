@@ -38,6 +38,18 @@ try {
         false,
         "obsolete v12 paused standalone saves must not offer Continue"
     );
+    assert.equal(
+        isPotentialStickvaniaGameStateSnapshot(createPotentialSave(GAME_STATE_VERSION, "playing", { timeFrozen: 455, time: 0 })),
+        false,
+        "obsolete v12 zero-time stopwatch saves must not offer Continue"
+    );
+    assert.equal(
+        isPotentialStickvaniaGameStateSnapshot(
+            createPotentialSave(GAME_STATE_VERSION, "playing", { timeFrozen: 455, stageIndex: 5, enemyPower: 0 })
+        ),
+        false,
+        "obsolete v12 Dracula-terminal stopwatch saves must not offer Continue"
+    );
 
     const tsHold = read("pwa/src/stickvania/StopWatchMusicHold.ts");
     const javaHold = read("desktop/src/stickvania/StopWatchMusicHold.java");
@@ -95,13 +107,14 @@ function createMainState(overrides = {}) {
     };
 }
 
-function createPotentialSave(version, transport) {
+function createPotentialSave(version, transport, mainFieldOverrides = {}) {
+    const mainFields = { mode: 4, ...mainFieldOverrides };
     return {
         version,
         mode: 4,
         things: [],
-        stage: { stageIndex: 0, segments: [] },
-        mainFields: { mode: 4 },
+        stage: { stageIndex: mainFields.stageIndex ?? 0, segments: [] },
+        mainFields,
         inputConfigMode: null,
         random: {},
         audio: {
