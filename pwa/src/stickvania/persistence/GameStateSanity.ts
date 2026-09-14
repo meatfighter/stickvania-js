@@ -106,9 +106,7 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
         snapshot.mode === 4 &&
         typeof snapshot.mainFields.timeFrozen === "number" &&
         snapshot.mainFields.timeFrozen > 0 &&
-        typeof snapshot.mainFields.playerPower === "number" &&
-        snapshot.mainFields.playerPower > 0 &&
-        snapshot.mainFields.beatStageFlag === false;
+        !isTerminalStopWatchState(snapshot.mainFields);
     if (!isReasonableAudio(snapshot.audio, stopWatchHoldAllowed)) {
         return false;
     }
@@ -159,10 +157,24 @@ function isReasonableStopWatchState(snapshot: StickvaniaGameStateSnapshot): bool
         derivedTimeFrozen += lifeTime;
     }
 
+    if (derivedTimeFrozen > 0 && isTerminalStopWatchState(snapshot.mainFields)) {
+        return false;
+    }
+
     if (!Object.hasOwn(snapshot.mainFields, "timeFrozen")) {
         return true;
     }
     return snapshot.mainFields.timeFrozen === derivedTimeFrozen;
+}
+
+function isTerminalStopWatchState(mainFields: Record<string, unknown>): boolean {
+    return (
+        (typeof mainFields.playerPower === "number" && mainFields.playerPower <= 0) ||
+        mainFields.beatStageFlag === true ||
+        mainFields.floorBreaking === true ||
+        (typeof mainFields.time === "number" && mainFields.time <= 0) ||
+        (mainFields.stageIndex === 5 && mainFields.enemyPower === 0)
+    );
 }
 
 function readStackThingIds(value: unknown): number[] | null {
@@ -271,7 +283,9 @@ function isReasonableAudio(snapshot: AudioSnapshot, stopWatchHoldAllowed: boolea
     }
 
     if (snapshot.currentMusic !== null) {
-        if (!isReasonableMusic(snapshot.currentMusic)) {
+        if (!isReasonableMusic(snapshot.currentMusic) || snapshot.currentMusic.playback.transport === "paused") {
+            // Standalone Music is scripted transition/death/presentation audio;
+            // the stopwatch never pauses it.
             return false;
         }
         const existing = music.get(snapshot.currentMusic.id);
@@ -288,8 +302,8 @@ function isReasonableAudio(snapshot: AudioSnapshot, stopWatchHoldAllowed: boolea
     if (activeTransportCount > 1) {
         return false;
     }
-    // Stickvania has no independent Music pause feature. A paused transport is
-    // therefore meaningful only while a live gameplay StopWatch owns the hold.
+    // Only Song parts may be stopwatch-paused. currentMusic was rejected above
+    // if paused, so any remaining paused transport belongs to a Song snapshot.
     if (musicStates.some((part) => part.playback.transport === "paused") && !stopWatchHoldAllowed) {
         return false;
     }
