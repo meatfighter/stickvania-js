@@ -31,16 +31,21 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
     const stageRequired = isStageRequiredGameStateMode(snapshot.mode);
     const mainFieldsValue = snapshot.mainFields;
     const hasStageShape = isRecord(stageValue) && typeof stageValue.stageIndex === "number" && Array.isArray(stageValue.segments);
+    const audioValue = snapshot.audio;
+    const currentMusicValue = isRecord(audioValue) ? audioValue.currentMusic : null;
+    const currentMusicPlayback = isRecord(currentMusicValue) && isRecord(currentMusicValue.playback) ? currentMusicValue.playback : null;
+    const hasObsoletePausedStandalone = isRecord(currentMusicPlayback) && currentMusicPlayback.transport === "paused";
     return (
         (stageRequired ? hasStageShape : stageValue === null && snapshot.things.length === 0) &&
         (isInputConfigGameStateMode(snapshot.mode) ? snapshot.inputConfigMode != null : snapshot.inputConfigMode == null) &&
         isRecord(mainFieldsValue) &&
         mainFieldsValue.mode === snapshot.mode &&
         isRecord(snapshot.random) &&
-        isRecord(snapshot.audio) &&
-        typeof snapshot.audio.musicOn === "boolean" &&
-        typeof snapshot.audio.soundOn === "boolean" &&
-        Array.isArray(snapshot.audio.songs)
+        isRecord(audioValue) &&
+        typeof audioValue.musicOn === "boolean" &&
+        typeof audioValue.soundOn === "boolean" &&
+        Array.isArray(audioValue.songs) &&
+        !hasObsoletePausedStandalone
     );
 }
 
