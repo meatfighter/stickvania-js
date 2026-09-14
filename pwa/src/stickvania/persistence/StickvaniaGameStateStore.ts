@@ -1,5 +1,6 @@
 import type { GameContainer } from "slick2d-ts";
 import type { Main } from "../Main.js";
+import { StopWatch } from "../StopWatch.js";
 import { reconcileStopWatchMusic, resetStopWatchMusicHold } from "../StopWatchMusicHold.js";
 import type { StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isReasonableStickvaniaGameStateSnapshot } from "./GameStateSanity.js";
@@ -41,6 +42,11 @@ export class StickvaniaGameStateStore {
             }
             resetStopWatchMusicHold();
             this.serializer.restoreSnapshot(main, gc, snapshot);
+            // timeFrozen is derived from the live StopWatch objects. Recompute
+            // once after the complete object graph is restored so a contradictory
+            // saved scalar, including a stale nonzero value with no watches,
+            // cannot survive restoration.
+            StopWatch.recomputeRestoredTimeFrozen(main);
             // Audio restoration is intentionally transport-only. Reconcile once
             // after both gameplay Things and Music have been restored so an
             // active stopwatch is silent before the first resumed simulation tick.
