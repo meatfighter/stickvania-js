@@ -235,6 +235,8 @@ function createSongOwnershipSnapshot(base, currentSong, requestedSong, playingSo
 function createStopWatchAggregateSnapshot(base, timeFrozen, weapons, weaponsSwap) {
     const snapshot = clone(base);
     snapshot.mainFields.timeFrozen = timeFrozen;
+    snapshot.mainFields.playerPower = 16;
+    snapshot.mainFields.beatStageFlag = false;
     snapshot.things = [{ id: 0, type: "StopWatch", fields: { lifeTime: 455 } }];
     snapshot.stage.weaponsStack = createThingStack(weapons);
     snapshot.stage.weaponsStackSwap = createThingStack(weaponsSwap);
