@@ -195,8 +195,7 @@ for (const { id, className } of thingTypeMappings) {
 }
 for (const id of requiredRehydrators)
     if (!rehydratorIds.has(id)) throw new Error(`Thing type ${id} owns runtime resource fields and requires an explicit state rehydrator.`);
-for (const id of rehydratorIds)
-    if (!knownThingIds.has(id)) throw new Error(`THING_REHYDRATOR_TYPE_IDS contains unknown Thing type ${id}.`);
+for (const id of rehydratorIds) if (!knownThingIds.has(id)) throw new Error(`THING_REHYDRATOR_TYPE_IDS contains unknown Thing type ${id}.`);
 const generated = await formatGeneratedSource(mainFields, persistedMainFields, thingFields, persistedThingFields);
 if (checkOnly) {
     if (!existsSync(registryPath) || readFileSync(registryPath, "utf8") !== generated)
