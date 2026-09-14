@@ -102,7 +102,8 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
     if (!isReasonableInputConfig(snapshot.inputConfigMode)) {
         return false;
     }
-    if (!isReasonableAudio(snapshot.audio)) {
+    const deferredSongStartAllowed = snapshot.mode === 4 && typeof snapshot.mainFields.timeFrozen === "number" && snapshot.mainFields.timeFrozen > 0;
+    if (!isReasonableAudio(snapshot.audio, deferredSongStartAllowed)) {
         return false;
     }
     return true;
@@ -199,7 +200,7 @@ function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): bool
     );
 }
 
-function isReasonableAudio(snapshot: AudioSnapshot): boolean {
+function isReasonableAudio(snapshot: AudioSnapshot, deferredSongStartAllowed: boolean): boolean {
     if (
         !isRecord(snapshot) ||
         !hasExactFields(snapshot, AUDIO_FIELDS) ||
@@ -276,7 +277,17 @@ function isReasonableAudio(snapshot: AudioSnapshot): boolean {
 
     // Slick owns one logical Music transport. More than one active transport is
     // contradictory and restore order must never decide which one wins.
-    return Array.from(music.values()).filter((part) => part.playback.transport !== "stopped").length <= 1;
+    const activeTransportCount = Array.from(music.values()).filter((part) => part.playback.transport !== "stopped").length;
+    if (activeTransportCount > 1) {
+        return false;
+    }
+    // Song.play() establishes a transport immediately unless a stopwatch owns
+    // the hold. Without that freeze, a playing Song with no active part would
+    // restore by skipping its intro and allowing Song.update() to start the loop.
+    if (playingSong !== null && activeTransportCount === 0 && !deferredSongStartAllowed) {
+        return false;
+    }
+    return true;
 }
 
 function isReasonableSongPart(songId: SongId, suffix: "intro" | "loop", snapshot: MusicSnapshot | null): boolean {
