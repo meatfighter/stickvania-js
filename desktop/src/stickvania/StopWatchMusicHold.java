@@ -35,6 +35,16 @@ public final class StopWatchMusicHold {
     return canStopWatchRun(main) && main.timeFrozen == 0;
   }
 
+  /**
+   * Suppress a real player's Up+Attack while an already-running StopWatch is the
+   * equipped sub-weapon. Demo/credits input is intentionally unaffected.
+   */
+  static boolean isStopWatchActivationInputBlocked() {
+    return held && heldMain != null
+        && heldMain.weaponType == Main.WEAPON_TYPE_STOP_WATCH
+        && shouldHold(heldMain);
+  }
+
   private static boolean shouldHold(Main main) {
     return main.mode == Main.MODE_PLAYING
         && canStopWatchRun(main)
