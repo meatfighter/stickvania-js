@@ -891,7 +891,7 @@ test("PWA browser storage keys are scoped to the deployed path", async () => {
     const productionCacheBustUrl = "https://example.test/stickvania/?v=two";
     const stagingUrl = "https://example.test/stickvania-staging/?v=one";
     const productionIndexUrl = "https://example.test/stickvania/index.html?v=one";
-    const names = ["game-state-v10", "volume", "display-mode", "scaling", "rumble", "difficulty", "input-mapping"];
+    const names = ["game-state-v12", "volume", "display-mode", "scaling", "rumble", "difficulty", "input-mapping"];
 
     assert.equal(getBrowserStorageScopePath(productionUrl), "/stickvania/");
     assert.equal(getBrowserStorageScopePath(productionIndexUrl), "/stickvania/");
@@ -934,7 +934,7 @@ test("PWA browser storage source uses scoped keys for saves and preferences", ()
     assert.match(sourceText, /getBrowserStorageKey\("rumble"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("input-mapping"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("difficulty"\)/);
-    assert.match(sourceText, /getBrowserStorageKey\("game-state-v10"\)/);
+    assert.match(sourceText, /getBrowserStorageKey\("game-state-v12"\)/);
 });
 
 test("PWA game-state Thing type IDs are stable through production minification", () => {
@@ -945,8 +945,8 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const mainSource = readFileSync(mainSourcePath, "utf8");
     const builtSource = builtJavaScript();
 
-    assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state-v10"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 10;/);
+    assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state-v12"\);/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 12;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);
@@ -1028,8 +1028,8 @@ test("PWA Continue launch failures preserve saved games", () => {
 test("PWA root-menu preflight scopes reads without mutating deployment saves", async () => {
     const { GAME_STATE_VERSION, hasPotentialStoredStickvaniaGameState } = await importGameStatePreflight();
     const storage = createLocalStorageMock();
-    const stagingStorageKey = expectedBrowserStorageKey("game-state-v10", "https://example.test/stickvania-staging/");
-    const productionStorageKey = expectedBrowserStorageKey("game-state-v10", "https://example.test/stickvania/");
+    const stagingStorageKey = expectedBrowserStorageKey("game-state-v12", "https://example.test/stickvania-staging/");
+    const productionStorageKey = expectedBrowserStorageKey("game-state-v12", "https://example.test/stickvania/");
 
     storage.setItem(stagingStorageKey, "{");
     storage.setItem(productionStorageKey, JSON.stringify(validPotentialGameStateSnapshot(GAME_STATE_VERSION)));
