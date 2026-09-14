@@ -102,14 +102,14 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
     if (!isReasonableInputConfig(snapshot.inputConfigMode)) {
         return false;
     }
-    const deferredSongStartAllowed =
+    const stopWatchHoldAllowed =
         snapshot.mode === 4 &&
         typeof snapshot.mainFields.timeFrozen === "number" &&
         snapshot.mainFields.timeFrozen > 0 &&
         typeof snapshot.mainFields.playerPower === "number" &&
         snapshot.mainFields.playerPower > 0 &&
         snapshot.mainFields.beatStageFlag === false;
-    if (!isReasonableAudio(snapshot.audio, deferredSongStartAllowed)) {
+    if (!isReasonableAudio(snapshot.audio, stopWatchHoldAllowed)) {
         return false;
     }
     return true;
@@ -206,7 +206,7 @@ function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): bool
     );
 }
 
-function isReasonableAudio(snapshot: AudioSnapshot, deferredSongStartAllowed: boolean): boolean {
+function isReasonableAudio(snapshot: AudioSnapshot, stopWatchHoldAllowed: boolean): boolean {
     if (
         !isRecord(snapshot) ||
         !hasExactFields(snapshot, AUDIO_FIELDS) ||
@@ -281,16 +281,22 @@ function isReasonableAudio(snapshot: AudioSnapshot, deferredSongStartAllowed: bo
         music.set(snapshot.currentMusic.id, snapshot.currentMusic);
     }
 
+    const musicStates = Array.from(music.values());
     // Slick owns one logical Music transport. More than one active transport is
     // contradictory and restore order must never decide which one wins.
-    const activeTransportCount = Array.from(music.values()).filter((part) => part.playback.transport !== "stopped").length;
+    const activeTransportCount = musicStates.filter((part) => part.playback.transport !== "stopped").length;
     if (activeTransportCount > 1) {
+        return false;
+    }
+    // Stickvania has no independent Music pause feature. A paused transport is
+    // therefore meaningful only while a live gameplay StopWatch owns the hold.
+    if (musicStates.some((part) => part.playback.transport === "paused") && !stopWatchHoldAllowed) {
         return false;
     }
     // Song.play() establishes a transport immediately unless a stopwatch owns
     // the hold. Without that freeze, a playing Song with no active part would
     // restore by skipping its intro and allowing Song.update() to start the loop.
-    if (playingSong !== null && activeTransportCount === 0 && !deferredSongStartAllowed) {
+    if (playingSong !== null && activeTransportCount === 0 && !stopWatchHoldAllowed) {
         return false;
     }
     return true;
