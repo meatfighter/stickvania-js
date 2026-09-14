@@ -8,6 +8,7 @@ public class StickvaniaInput {
   private final ButtonMapping mapping;
   private InputState previous = new InputState();
   private InputState current = new InputState();
+  private boolean stopWatchAttackReleaseRequired;
 
   private static final class InputState {
     boolean up;
@@ -47,6 +48,7 @@ public class StickvaniaInput {
 
     current = readState();
     previous = copy(current);
+    stopWatchAttackReleaseRequired = false;
   }
 
   public boolean isUp() {
@@ -70,7 +72,14 @@ public class StickvaniaInput {
   }
 
   public boolean isAttack() {
-    return current.attack;
+    if (!current.attack) {
+      stopWatchAttackReleaseRequired = false;
+      return false;
+    }
+    if (current.up && StopWatchMusicHold.isStopWatchActivationInputBlocked()) {
+      stopWatchAttackReleaseRequired = true;
+    }
+    return !stopWatchAttackReleaseRequired;
   }
 
   public boolean isMenuUpPressed() {
