@@ -43,8 +43,8 @@ try {
     );
     const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
 
-    assert.equal(GAME_STATE_VERSION, 13);
-    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v13$/);
+    assert.equal(GAME_STATE_VERSION, 12);
+    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v12$/);
 
     const serializer = new StickvaniaGameStateSerializer();
     assert.equal(serializer.isThingIdArray([null, 0], 1), true);
