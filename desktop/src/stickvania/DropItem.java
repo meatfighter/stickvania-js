@@ -144,6 +144,8 @@ public class DropItem extends Thing {
       // This repeat item existed before StopWatch was equipped. Consume it
       // normally and preserve pickup feedback, but never expose repeat state
       // that has no useful StopWatch meaning.
+      main.weaponRepeats = Main.WEAPON_REPEATS_SINGLE;
+      main.repeatsFlashing = 0;
       main.playSound(main.got_double);
       return;
     }
