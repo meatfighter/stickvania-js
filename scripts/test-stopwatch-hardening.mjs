@@ -74,6 +74,8 @@ try {
 
     const tsHold = read("pwa/src/stickvania/StopWatchMusicHold.ts");
     const javaHold = read("desktop/src/stickvania/StopWatchMusicHold.java");
+    const tsInput = read("pwa/src/stickvania/StickvaniaInput.ts");
+    const javaInput = read("desktop/src/stickvania/StickvaniaInput.java");
     const tsDracula = read("pwa/src/stickvania/Dracula.ts");
     const javaDracula = read("desktop/src/stickvania/Dracula.java");
     const tsSimon = read("pwa/src/stickvania/Simon.ts");
@@ -95,6 +97,25 @@ try {
     assert.match(javaHold, /SoundStore\.get\(\)\.restartLoop\(\)/);
     assert.match(tsHold, /canStartStopWatch[\s\S]*?canStopWatchRun\(main\) && main\.timeFrozen == 0/);
     assert.match(javaHold, /canStartStopWatch[\s\S]*?canStopWatchRun\(main\) && main\.timeFrozen == 0/);
+    assert.match(
+        tsHold,
+        /isStopWatchActivationInputBlocked[\s\S]*?heldMain\.weaponType == WEAPON_TYPE_STOP_WATCH[\s\S]*?shouldHold\(heldMain\)/
+    );
+    assert.match(
+        javaHold,
+        /isStopWatchActivationInputBlocked[\s\S]*?heldMain\.weaponType == Main\.WEAPON_TYPE_STOP_WATCH[\s\S]*?shouldHold\(heldMain\)/
+    );
+
+    assert.match(tsInput, /isStopWatchActivationInputBlocked/);
+    assert.match(
+        tsInput,
+        /if \(!this\.current\.attack\)[\s\S]*?stopWatchAttackReleaseRequired = false;[\s\S]*?if \(this\.current\.up && isStopWatchActivationInputBlocked\(\)\)[\s\S]*?stopWatchAttackReleaseRequired = true;[\s\S]*?return !this\.stopWatchAttackReleaseRequired;/
+    );
+    assert.match(javaInput, /StopWatchMusicHold\.isStopWatchActivationInputBlocked\(\)/);
+    assert.match(
+        javaInput,
+        /if \(!current\.attack\)[\s\S]*?stopWatchAttackReleaseRequired = false;[\s\S]*?if \(current\.up && StopWatchMusicHold\.isStopWatchActivationInputBlocked\(\)\)[\s\S]*?stopWatchAttackReleaseRequired = true;[\s\S]*?return !stopWatchAttackReleaseRequired;/
+    );
 
     assert.match(tsDracula, /this\.main\.requestMusic\(this\.main\.dracula_dead\)/);
     assert.doesNotMatch(tsDracula, /requestStopWatchAwareGameplayMusic/);
@@ -135,6 +156,8 @@ try {
         javaDropItem,
         /collectRepeatUpgrade[\s\S]*?WEAPON_TYPE_STOP_WATCH[\s\S]*?weaponRepeats = Main\.WEAPON_REPEATS_SINGLE;[\s\S]*?repeatsFlashing = 0;[\s\S]*?playSound\(main\.got_double\)[\s\S]*?return;/
     );
+    assert.match(tsDropItem, /if \(weaponRepeats < this\.main\.weaponRepeats\)[\s\S]*?playSound\(this\.main\.got_double\)[\s\S]*?return;/);
+    assert.match(javaDropItem, /if \(weaponRepeats < main\.weaponRepeats\)[\s\S]*?playSound\(main\.got_double\)[\s\S]*?return;/);
 
     assert.equal((allTypeScript.match(/\.setWeaponRepeats\(/g) ?? []).length, 1, "TypeScript repeat mutation must stay centralized through DropItem");
     assert.equal((allJava.match(/\.setWeaponRepeats\(/g) ?? []).length, 1, "Java repeat mutation must stay centralized through DropItem");
