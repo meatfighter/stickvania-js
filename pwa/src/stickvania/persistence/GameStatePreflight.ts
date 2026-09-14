@@ -1,6 +1,8 @@
 import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
 import { isInputConfigGameStateMode, isRestorableGameStateMode, isStageRequiredGameStateMode } from "./GameStatePolicy.js";
-import { isStopWatchRepeatStateValid } from "./StopWatchRepeatStatePolicy.js";
+
+const WEAPON_TYPE_STOP_WATCH = 5;
+const WEAPON_REPEATS_SINGLE = 0;
 
 type GameStateStorage = {
     getItem(key: string): string | null;
@@ -41,19 +43,23 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         typeof mainFieldsValue.timeFrozen === "number" &&
         mainFieldsValue.timeFrozen > 0 &&
         isTerminalStopWatchState(mainFieldsValue);
+    const hasInvalidStopWatchRepeatState =
+        isRecord(mainFieldsValue) &&
+        mainFieldsValue.weaponType === WEAPON_TYPE_STOP_WATCH &&
+        mainFieldsValue.weaponRepeats !== WEAPON_REPEATS_SINGLE;
     return (
         (stageRequired ? hasStageShape : stageValue === null && snapshot.things.length === 0) &&
         (isInputConfigGameStateMode(snapshot.mode) ? snapshot.inputConfigMode != null : snapshot.inputConfigMode == null) &&
         isRecord(mainFieldsValue) &&
         mainFieldsValue.mode === snapshot.mode &&
-        isStopWatchRepeatStateValid(mainFieldsValue) &&
         isRecord(snapshot.random) &&
         isRecord(audioValue) &&
         typeof audioValue.musicOn === "boolean" &&
         typeof audioValue.soundOn === "boolean" &&
         Array.isArray(audioValue.songs) &&
         !hasObsoletePausedStandalone &&
-        !hasObsoleteTerminalStopWatch
+        !hasObsoleteTerminalStopWatch &&
+        !hasInvalidStopWatchRepeatState
     );
 }
 
