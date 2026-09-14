@@ -90,12 +90,16 @@ try {
     assert.equal(isReasonableStickvaniaGameStateSnapshot(songAndStandaloneBothOwned), false);
 
     const pendingSongHandoff = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_2", "boss_1");
+    pendingSongHandoff.audio.songs.find((song) => song.id === "boss_1").intro.playback.transport = "playing";
     assert.equal(isReasonableStickvaniaGameStateSnapshot(pendingSongHandoff), true);
 
     const requestedSongWithoutCurrent = createSongOwnershipSnapshot(snapshot, null, "boss_2", null);
     assert.equal(isReasonableStickvaniaGameStateSnapshot(requestedSongWithoutCurrent), true);
 
-    const deferredCurrentSongStart = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", "boss_1");
+    const impossibleDeferredSongStart = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", "boss_1");
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(impossibleDeferredSongStart), false);
+
+    const deferredCurrentSongStart = createSongOwnershipSnapshot(createStopWatchAggregateSnapshot(snapshot, 455, [0], []), "boss_1", "boss_1", "boss_1");
     assert.equal(isReasonableStickvaniaGameStateSnapshot(deferredCurrentSongStart), true);
 
     const mismatchedSongPart = clone(snapshot);
