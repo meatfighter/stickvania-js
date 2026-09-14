@@ -1,6 +1,7 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { javaFloat, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
+import { canStopWatchRun } from "./StopWatchMusicHold.js";
 import { Thing } from "./Thing.js";
 
 export class Simon extends Thing {
@@ -294,10 +295,15 @@ export class Simon extends Thing {
     public override update(gc: GameContainer): boolean {
         this.applyGravityWithPlatforms();
 
-        // A delayed sub-weapon throw must not materialize after a lethal hit.
-        // Leave the whip animation alone; its actual damage path already rejects
-        // playerPower == 0.
-        if (this.main.playerPower == 0) {
+        // A delayed sub-weapon throw must not materialize after death. Also clear
+        // a queued stopwatch as soon as gameplay enters a scripted/terminal state
+        // such as time zero, stage completion, floor breaking, or Dracula's final
+        // death sequence. Leave whip animation state alone; its damage path has
+        // independent liveness checks.
+        if (
+            this.main.playerPower == 0 ||
+            (this.main.weaponType == Main.WEAPON_TYPE_STOP_WATCH && !canStopWatchRun(this.main))
+        ) {
             this.throwing = false;
         }
 
