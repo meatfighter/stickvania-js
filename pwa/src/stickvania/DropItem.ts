@@ -28,7 +28,10 @@ export class DropItem extends Thing {
         super(main, 32, 32);
         this.x = javaFloat(x);
         this.y = javaFloat(y);
-        this.type = type;
+        this.type =
+            main.weaponType == Main.WEAPON_TYPE_STOP_WATCH && (type == DropItem.TYPE_DOUBLE || type == DropItem.TYPE_TRIPLE)
+                ? DropItem.TYPE_LARGE_HEART
+                : type;
     }
 
     public override update(gc: GameContainer): boolean {
@@ -89,7 +92,7 @@ export class DropItem extends Thing {
                     this.main.setWeapon(Main.WEAPON_TYPE_DAGGER);
                     break;
                 case DropItem.TYPE_DOUBLE:
-                    this.main.setWeaponRepeats(Main.WEAPON_REPEATS_DOUBLE);
+                    this.collectRepeatUpgrade(Main.WEAPON_REPEATS_DOUBLE);
                     break;
                 case DropItem.TYPE_HOLY_WATER:
                     this.main.setWeapon(Main.WEAPON_TYPE_HOLY_WATER);
@@ -120,7 +123,7 @@ export class DropItem extends Thing {
                     this.main.setWeapon(Main.WEAPON_TYPE_STOP_WATCH);
                     break;
                 case DropItem.TYPE_TRIPLE:
-                    this.main.setWeaponRepeats(Main.WEAPON_REPEATS_TRIPLE);
+                    this.collectRepeatUpgrade(Main.WEAPON_REPEATS_TRIPLE);
                     break;
                 case DropItem.TYPE_WHIP:
                     this.main.advanceWhip();
@@ -138,6 +141,17 @@ export class DropItem extends Thing {
         }
 
         return true;
+    }
+
+    private collectRepeatUpgrade(weaponRepeats: number): void {
+        if (this.main.weaponType == Main.WEAPON_TYPE_STOP_WATCH) {
+            // This repeat item existed before StopWatch was equipped. Consume it
+            // normally and preserve pickup feedback, but never expose repeat state
+            // that has no useful StopWatch meaning.
+            this.main.playSound(this.main.got_double);
+            return;
+        }
+        this.main.setWeaponRepeats(weaponRepeats);
     }
 
     private isMajorRumbleItem(): boolean {
