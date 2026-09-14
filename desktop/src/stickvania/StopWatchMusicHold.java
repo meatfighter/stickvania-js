@@ -13,12 +13,14 @@ public final class StopWatchMusicHold {
   }
 
   /**
-   * Return whether the stopwatch is still a valid gameplay effect. The result is
-   * derived from canonical gameplay state so there is no separate flag to drift
-   * across stage transitions or save/restore in the browser version.
+   * Return whether the stopwatch is still a valid simulation effect. Demo and
+   * credits recordings historically run the gameplay simulation and may use the
+   * stopwatch, but only real MODE_PLAYING gameplay is allowed to hold BGM.
    */
   public static boolean canStopWatchRun(Main main) {
-    return main.mode == Main.MODE_PLAYING
+    return (main.mode == Main.MODE_PLAYING
+            || main.mode == Main.MODE_DEMO
+            || main.mode == Main.MODE_CREDITS)
         && main.playerPower > 0
         && main.simon != null
         && main.simon.dead == 0
@@ -29,7 +31,9 @@ public final class StopWatchMusicHold {
   }
 
   private static boolean shouldHold(Main main) {
-    return canStopWatchRun(main) && main.timeFrozen > 0;
+    return main.mode == Main.MODE_PLAYING
+        && canStopWatchRun(main)
+        && main.timeFrozen > 0;
   }
 
   private static boolean songBelongsToMain(Main main, Song song) {
