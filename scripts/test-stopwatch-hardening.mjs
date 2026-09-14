@@ -44,9 +44,7 @@ try {
         "obsolete v12 zero-time stopwatch saves must not offer Continue"
     );
     assert.equal(
-        isPotentialStickvaniaGameStateSnapshot(
-            createPotentialSave(GAME_STATE_VERSION, "playing", { timeFrozen: 455, stageIndex: 5, enemyPower: 0 })
-        ),
+        isPotentialStickvaniaGameStateSnapshot(createPotentialSave(GAME_STATE_VERSION, "playing", { timeFrozen: 455, stageIndex: 5, enemyPower: 0 })),
         false,
         "obsolete v12 Dracula-terminal stopwatch saves must not offer Continue"
     );
