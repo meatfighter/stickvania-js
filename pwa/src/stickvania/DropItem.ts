@@ -148,6 +148,8 @@ export class DropItem extends Thing {
             // This repeat item existed before StopWatch was equipped. Consume it
             // normally and preserve pickup feedback, but never expose repeat state
             // that has no useful StopWatch meaning.
+            this.main.weaponRepeats = Main.WEAPON_REPEATS_SINGLE;
+            this.main.repeatsFlashing = 0;
             this.main.playSound(this.main.got_double);
             return;
         }
