@@ -80,6 +80,8 @@ try {
     const javaDropItem = read("desktop/src/stickvania/DropItem.java");
     const tsMain = read("pwa/src/stickvania/Main.ts");
     const javaMain = read("desktop/src/stickvania/Main.java");
+    const tsStore = read("pwa/src/stickvania/persistence/StickvaniaGameStateStore.ts");
+    const tsRepeatPolicy = read("pwa/src/stickvania/persistence/StopWatchRepeatStatePolicy.ts");
 
     assert.doesNotMatch(tsHold, /pausedStandalone|requestStopWatchAwareGameplayMusic|currentMusic/);
     assert.doesNotMatch(javaHold, /pausedStandalone|pendingStandalone|requestGameplayMusic|findPlayingStandaloneMusic|Music\[\]/);
@@ -111,8 +113,14 @@ try {
         javaDropItem,
         /main\.weaponType == Main\.WEAPON_TYPE_STOP_WATCH[\s\S]*?\(type == TYPE_DOUBLE \|\| type == TYPE_TRIPLE\)[\s\S]*?TYPE_LARGE_HEART/
     );
-    assert.match(tsDropItem, /collectRepeatUpgrade[\s\S]*?WEAPON_TYPE_STOP_WATCH[\s\S]*?playSound\(this\.main\.got_double\)[\s\S]*?return;/);
-    assert.match(javaDropItem, /collectRepeatUpgrade[\s\S]*?WEAPON_TYPE_STOP_WATCH[\s\S]*?playSound\(main\.got_double\)[\s\S]*?return;/);
+    assert.match(
+        tsDropItem,
+        /collectRepeatUpgrade[\s\S]*?WEAPON_TYPE_STOP_WATCH[\s\S]*?weaponRepeats = Main\.WEAPON_REPEATS_SINGLE;[\s\S]*?repeatsFlashing = 0;[\s\S]*?playSound\(this\.main\.got_double\)[\s\S]*?return;/
+    );
+    assert.match(
+        javaDropItem,
+        /collectRepeatUpgrade[\s\S]*?WEAPON_TYPE_STOP_WATCH[\s\S]*?weaponRepeats = Main\.WEAPON_REPEATS_SINGLE;[\s\S]*?repeatsFlashing = 0;[\s\S]*?playSound\(main\.got_double\)[\s\S]*?return;/
+    );
     assert.equal((tsDropItem.match(/this\.main\.setWeaponRepeats\(/g) ?? []).length, 1);
     assert.equal((javaDropItem.match(/main\.setWeaponRepeats\(/g) ?? []).length, 1);
 
@@ -121,7 +129,15 @@ try {
     assert.equal((javaMain.match(/new StopWatch\(this\)/g) ?? []).length, 1);
     assert.match(javaMain, /pushWeapon\(new StopWatch\(this\)\);\s*removeHearts\(5\);/);
     assert.match(tsMain, /if \(this\.weaponType != weaponType\)[\s\S]*?this\.weaponRepeats = Main\.WEAPON_TYPE_NONE;/);
-    assert.match(javaMain, /if \(weaponType != this\.weaponType\)[\s\S]*?weaponRepeats = WEAPON_TYPE_NONE;/);
+    assert.match(javaMain, /if \(this\.weaponType != weaponType\)[\s\S]*?this\.weaponRepeats = WEAPON_TYPE_NONE;/);
+    assert.match(tsMain, /WEAPON_TYPE_STOP_WATCH: number = 5;/);
+    assert.match(tsMain, /WEAPON_REPEATS_SINGLE: number = 0;/);
+    assert.match(javaMain, /WEAPON_TYPE_STOP_WATCH = 5;/);
+    assert.match(javaMain, /WEAPON_REPEATS_SINGLE = 0;/);
+
+    assert.match(tsRepeatPolicy, /WEAPON_TYPE_STOP_WATCH = 5;/);
+    assert.match(tsRepeatPolicy, /WEAPON_REPEATS_SINGLE = 0;/);
+    assert.equal((tsStore.match(/isStopWatchRepeatStateValid\(/g) ?? []).length, 2);
 
     console.log("Stickvania stopwatch cinematic/audio/timeout/repeat hardening checks passed.");
 } finally {
