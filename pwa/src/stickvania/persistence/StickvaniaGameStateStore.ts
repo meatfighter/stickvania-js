@@ -6,6 +6,7 @@ import type { StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isReasonableStickvaniaGameStateSnapshot } from "./GameStateSanity.js";
 import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
 import { StickvaniaGameStateSerializer } from "./StickvaniaGameStateSerializer.js";
+import { isStopWatchRepeatStateValid } from "./StopWatchRepeatStatePolicy.js";
 
 export class StickvaniaGameStateStore {
     private readonly serializer = new StickvaniaGameStateSerializer();
@@ -18,7 +19,11 @@ export class StickvaniaGameStateStore {
         }
         try {
             const snapshot = this.serializer.createSnapshot(main, this.appVersion);
-            if (!this.serializer.isSupportedSnapshot(snapshot) || !isReasonableStickvaniaGameStateSnapshot(snapshot)) {
+            if (
+                !this.serializer.isSupportedSnapshot(snapshot) ||
+                !isReasonableStickvaniaGameStateSnapshot(snapshot) ||
+                !isStopWatchRepeatStateValid(snapshot.mainFields)
+            ) {
                 return false;
             }
             const text = JSON.stringify(snapshot);
@@ -94,7 +99,8 @@ export class StickvaniaGameStateStore {
         if (
             typedSnapshot.version !== GAME_STATE_VERSION ||
             !this.serializer.isSupportedSnapshot(typedSnapshot) ||
-            !isReasonableStickvaniaGameStateSnapshot(typedSnapshot)
+            !isReasonableStickvaniaGameStateSnapshot(typedSnapshot) ||
+            !isStopWatchRepeatStateValid(typedSnapshot.mainFields)
         ) {
             return null;
         }
