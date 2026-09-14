@@ -1,5 +1,6 @@
 import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
 import { isInputConfigGameStateMode, isRestorableGameStateMode, isStageRequiredGameStateMode } from "./GameStatePolicy.js";
+import { isStopWatchRepeatStateValid } from "./StopWatchRepeatStatePolicy.js";
 
 type GameStateStorage = {
     getItem(key: string): string | null;
@@ -45,6 +46,7 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         (isInputConfigGameStateMode(snapshot.mode) ? snapshot.inputConfigMode != null : snapshot.inputConfigMode == null) &&
         isRecord(mainFieldsValue) &&
         mainFieldsValue.mode === snapshot.mode &&
+        isStopWatchRepeatStateValid(mainFieldsValue) &&
         isRecord(snapshot.random) &&
         isRecord(audioValue) &&
         typeof audioValue.musicOn === "boolean" &&
