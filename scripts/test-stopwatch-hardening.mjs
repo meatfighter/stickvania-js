@@ -108,8 +108,16 @@ try {
 
     assert.match(tsStopWatch, /if \(!canStartStopWatch\(main\)\)[\s\S]*?this\.lifeTime = 0;[\s\S]*?main\.hearts \+= 5;/);
     assert.match(tsStopWatch, /if \(!canStopWatchRun\(this\.main\)\)[\s\S]*?this\.cancel\(\);/);
+    assert.match(
+        tsStopWatch,
+        /weaponType == Main\.WEAPON_TYPE_STOP_WATCH[\s\S]*?weaponRepeats = Main\.WEAPON_REPEATS_SINGLE;[\s\S]*?repeatsFlashing = 0;/
+    );
     assert.match(javaStopWatch, /if \(!StopWatchMusicHold\.canStartStopWatch\(main\)\)[\s\S]*?lifeTime = 0;[\s\S]*?main\.hearts \+= 5;/);
     assert.match(javaStopWatch, /if \(!StopWatchMusicHold\.canStopWatchRun\(main\)\)[\s\S]*?cancel\(\);/);
+    assert.match(
+        javaStopWatch,
+        /weaponType == Main\.WEAPON_TYPE_STOP_WATCH[\s\S]*?weaponRepeats = Main\.WEAPON_REPEATS_SINGLE;[\s\S]*?repeatsFlashing = 0;/
+    );
 
     assert.match(
         tsDropItem,
