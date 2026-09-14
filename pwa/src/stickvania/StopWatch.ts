@@ -30,6 +30,13 @@ export class StopWatch extends Thing {
             return;
         }
 
+        if (main.weaponType == Main.WEAPON_TYPE_STOP_WATCH) {
+            // Normal gameplay already starts the StopWatch at Single. Reassert
+            // that invariant here so debug/corrupt repeat state cannot open a
+            // second generic weapon-stack slot while this watch is active.
+            main.weaponRepeats = Main.WEAPON_REPEATS_SINGLE;
+            main.repeatsFlashing = 0;
+        }
         main.timeFrozen += 455;
         reconcileStopWatchMusic(main);
     }
