@@ -26,6 +26,11 @@ export function canStopWatchRun(main: Main): boolean {
     );
 }
 
+/** A new stopwatch may start only when no existing stopwatch owns time. */
+export function canStartStopWatch(main: Main): boolean {
+    return canStopWatchRun(main) && main.timeFrozen == 0;
+}
+
 function shouldHold(main: Main): boolean {
     return main.mode == MODE_PLAYING && canStopWatchRun(main) && main.timeFrozen > 0;
 }
