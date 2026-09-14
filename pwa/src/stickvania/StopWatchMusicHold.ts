@@ -1,17 +1,21 @@
-import { Main } from "./Main.js";
+import type { Main } from "./Main.js";
 import type { Song } from "./Song.js";
+
+const MODE_DEMO = 1;
+const MODE_PLAYING = 4;
+const MODE_CREDITS = 8;
 
 let held = false;
 let heldMain: Main | null = null;
 
 /**
- * Return whether the stopwatch is still a valid gameplay effect. This is
- * derived entirely from canonical gameplay state so save/restore cannot drift
- * from a separate runtime flag.
+ * Return whether the stopwatch is still a valid simulation effect. Demo and
+ * credits recordings historically run the gameplay simulation and may use the
+ * stopwatch, but only real MODE_PLAYING gameplay is allowed to hold BGM.
  */
 export function canStopWatchRun(main: Main): boolean {
     return (
-        main.mode == Main.MODE_PLAYING &&
+        (main.mode == MODE_PLAYING || main.mode == MODE_DEMO || main.mode == MODE_CREDITS) &&
         main.playerPower > 0 &&
         main.simon !== null &&
         main.simon.dead == 0 &&
@@ -23,7 +27,7 @@ export function canStopWatchRun(main: Main): boolean {
 }
 
 function shouldHold(main: Main): boolean {
-    return canStopWatchRun(main) && main.timeFrozen > 0;
+    return main.mode == MODE_PLAYING && canStopWatchRun(main) && main.timeFrozen > 0;
 }
 
 function songBelongsToMain(main: Main, song: Song): boolean {
