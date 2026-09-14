@@ -171,15 +171,20 @@ public class Simon extends Thing {
 
     applyGravityWithPlatforms();
 
-    // A delayed sub-weapon throw must not materialize after death. Also clear a
-    // queued stopwatch when gameplay has entered a scripted/terminal state such
-    // as time zero, stage completion, floor breaking, or Dracula's final death
-    // sequence. Leave whip state alone; its damage path has separate liveness
-    // checks.
-    if (main.playerPower == 0
-        || (main.weaponType == Main.WEAPON_TYPE_STOP_WATCH
-            && !StopWatchMusicHold.canStopWatchRun(main))) {
+    // Preserve the legacy death rule: a queued sub-weapon cannot materialize
+    // after playerPower reaches zero, but an existing whip animation may run out
+    // harmlessly because collision rejects a dead player.
+    if (main.playerPower == 0) {
       throwing = false;
+    } else if (throwing
+        && main.weaponType == Main.WEAPON_TYPE_STOP_WATCH
+        && !StopWatchMusicHold.canStopWatchRun(main)) {
+      // A stopwatch rejected by a scripted/terminal transition must vanish, not
+      // turn into a real whip merely because throwing became false.
+      throwing = false;
+      whipping = false;
+      whipIncrementor = 0;
+      whipIndex = 0;
     }
 
     if (main.playerPower == 0 && supported) {
