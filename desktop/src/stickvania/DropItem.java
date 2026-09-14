@@ -31,7 +31,10 @@ public class DropItem extends Thing {
     super(main, 32, 32);
     this.x = x;
     this.y = y;
-    this.type = type;
+    this.type = main.weaponType == Main.WEAPON_TYPE_STOP_WATCH
+        && (type == TYPE_DOUBLE || type == TYPE_TRIPLE)
+            ? TYPE_LARGE_HEART
+            : type;
   }
 
   @Override
@@ -57,7 +60,7 @@ public class DropItem extends Thing {
           main.playSound(main.kill_all_sfx);
           break;
         case TYPE_DOUBLE:
-        case TYPE_TRIPLE:                  
+        case TYPE_TRIPLE:
           break;
         case TYPE_AXE:
         case TYPE_BOOMERANG:
@@ -87,7 +90,7 @@ public class DropItem extends Thing {
           main.setWeapon(Main.WEAPON_TYPE_DAGGER);
           break;
         case TYPE_DOUBLE:
-          main.setWeaponRepeats(Main.WEAPON_REPEATS_DOUBLE);
+          collectRepeatUpgrade(Main.WEAPON_REPEATS_DOUBLE);
           break;
         case TYPE_HOLY_WATER:
           main.setWeapon(Main.WEAPON_TYPE_HOLY_WATER);
@@ -116,7 +119,7 @@ public class DropItem extends Thing {
           main.setWeapon(Main.WEAPON_TYPE_STOP_WATCH);
           break;
         case TYPE_TRIPLE:
-          main.setWeaponRepeats(Main.WEAPON_REPEATS_TRIPLE);
+          collectRepeatUpgrade(Main.WEAPON_REPEATS_TRIPLE);
           break;
         case TYPE_WHIP:
           main.advanceWhip();
@@ -134,6 +137,17 @@ public class DropItem extends Thing {
     }
 
     return true;
+  }
+
+  private void collectRepeatUpgrade(int weaponRepeats) {
+    if (main.weaponType == Main.WEAPON_TYPE_STOP_WATCH) {
+      // This repeat item existed before StopWatch was equipped. Consume it
+      // normally and preserve pickup feedback, but never expose repeat state
+      // that has no useful StopWatch meaning.
+      main.playSound(main.got_double);
+      return;
+    }
+    main.setWeaponRepeats(weaponRepeats);
   }
 
   @Override
