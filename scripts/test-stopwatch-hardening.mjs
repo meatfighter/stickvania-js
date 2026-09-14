@@ -15,6 +15,8 @@ const server = await createServer({
 
 try {
     const { canStopWatchRun } = await server.ssrLoadModule("/src/stickvania/StopWatchMusicHold.ts");
+    const { isPotentialStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
+    const { GAME_STATE_VERSION } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSchema.ts");
 
     const live = createMainState();
     assert.equal(canStopWatchRun(live), true);
@@ -29,6 +31,13 @@ try {
     assert.equal(canStopWatchRun(createMainState({ time: 0 })), false);
     assert.equal(canStopWatchRun(createMainState({ stageIndex: 5, enemyPower: 0 })), false);
     assert.equal(canStopWatchRun(createMainState({ stageIndex: 5, enemyPower: 1 })), true);
+
+    assert.equal(isPotentialStickvaniaGameStateSnapshot(createPotentialSave(GAME_STATE_VERSION, "playing")), true);
+    assert.equal(
+        isPotentialStickvaniaGameStateSnapshot(createPotentialSave(GAME_STATE_VERSION, "paused")),
+        false,
+        "obsolete v12 paused standalone saves must not offer Continue"
+    );
 
     const tsHold = read("pwa/src/stickvania/StopWatchMusicHold.ts");
     const javaHold = read("desktop/src/stickvania/StopWatchMusicHold.java");
@@ -76,6 +85,24 @@ function createMainState(overrides = {}) {
         enemyPower: 16,
         timeFrozen: 0,
         ...overrides
+    };
+}
+
+function createPotentialSave(version, transport) {
+    return {
+        version,
+        mode: 4,
+        things: [],
+        stage: { stageIndex: 0, segments: [] },
+        mainFields: { mode: 4 },
+        inputConfigMode: null,
+        random: {},
+        audio: {
+            musicOn: true,
+            soundOn: true,
+            songs: [],
+            currentMusic: { playback: { transport } }
+        }
     };
 }
 
