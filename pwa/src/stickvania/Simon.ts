@@ -300,11 +300,7 @@ export class Simon extends Thing {
         // out harmlessly because collision rejects a dead player.
         if (this.main.playerPower == 0) {
             this.throwing = false;
-        } else if (
-            this.throwing &&
-            this.main.weaponType == Main.WEAPON_TYPE_STOP_WATCH &&
-            !canStopWatchRun(this.main)
-        ) {
+        } else if (this.throwing && this.main.weaponType == Main.WEAPON_TYPE_STOP_WATCH && !canStopWatchRun(this.main)) {
             // A stopwatch rejected by a scripted/terminal transition must vanish,
             // not turn into a real whip merely because throwing became false.
             this.throwing = false;
