@@ -85,7 +85,7 @@ try {
     const songAndStandaloneBothOwned = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", "boss_1");
     songAndStandaloneBothOwned.audio.currentMusic = {
         id: "dracula_dead",
-        playback: createPlayback({ transport: "paused" })
+        playback: createPlayback({ transport: "playing" })
     };
     assert.equal(isReasonableStickvaniaGameStateSnapshot(songAndStandaloneBothOwned), false);
 
@@ -122,7 +122,7 @@ try {
         id: "dracula_dead",
         playback: createPlayback({ transport: "paused" })
     };
-    assert.equal(isReasonableStickvaniaGameStateSnapshot(pausedStandaloneWithWatch), true);
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(pausedStandaloneWithWatch), false);
 
     const mismatchedSongPart = clone(snapshot);
     mismatchedSongPart.audio.songs.find((song) => song.id === "boss_1").intro.id = "boss_2.intro";
@@ -164,6 +164,34 @@ try {
 
     const duplicateStopWatchReference = createStopWatchAggregateSnapshot(snapshot, 455, [0], [0]);
     assert.equal(isReasonableStickvaniaGameStateSnapshot(duplicateStopWatchReference), false);
+
+    const deadPlayerWithWatch = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
+    deadPlayerWithWatch.mainFields.playerPower = 0;
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(deadPlayerWithWatch), false);
+
+    const stageCompleteWithWatch = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
+    stageCompleteWithWatch.mainFields.beatStageFlag = true;
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(stageCompleteWithWatch), false);
+
+    const floorBreakingWithWatch = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
+    floorBreakingWithWatch.mainFields.floorBreaking = true;
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(floorBreakingWithWatch), false);
+
+    const zeroTimeWithWatch = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
+    zeroTimeWithWatch.mainFields.time = 0;
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(zeroTimeWithWatch), false);
+
+    const draculaDeadWithWatch = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
+    draculaDeadWithWatch.mainFields.stageIndex = 5;
+    draculaDeadWithWatch.stage.stageIndex = 5;
+    draculaDeadWithWatch.mainFields.enemyPower = 0;
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(draculaDeadWithWatch), false);
+
+    const finalStageOneHpWithWatch = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
+    finalStageOneHpWithWatch.mainFields.stageIndex = 5;
+    finalStageOneHpWithWatch.stage.stageIndex = 5;
+    finalStageOneHpWithWatch.mainFields.enemyPower = 1;
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(finalStageOneHpWithWatch), true);
 
     const inputSnapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     inputSnapshot.inputConfigMode = createInputConfigSnapshot();
@@ -223,7 +251,17 @@ function createSnapshot(songIds, version) {
         appVersion: "test-version",
         savedAt: new Date(0).toISOString(),
         mode: 4,
-        mainFields: { mode: 4, stageIndex: 0, score: 0 },
+        mainFields: {
+            mode: 4,
+            stageIndex: 0,
+            score: 0,
+            time: 300,
+            timeFrozen: 0,
+            playerPower: 16,
+            enemyPower: 16,
+            beatStageFlag: false,
+            floorBreaking: false
+        },
         inputConfigMode: null,
         random: { seed0: 1, seed1: 2, seed2: 3 },
         stage: { stageIndex: 0 },
@@ -257,8 +295,6 @@ function createSongOwnershipSnapshot(base, currentSong, requestedSong, playingSo
 function createStopWatchAggregateSnapshot(base, timeFrozen, weapons, weaponsSwap) {
     const snapshot = clone(base);
     snapshot.mainFields.timeFrozen = timeFrozen;
-    snapshot.mainFields.playerPower = 16;
-    snapshot.mainFields.beatStageFlag = false;
     snapshot.things = [{ id: 0, type: "StopWatch", fields: { lifeTime: 455 } }];
     snapshot.stage.weaponsStack = createThingStack(weapons);
     snapshot.stage.weaponsStackSwap = createThingStack(weaponsSwap);
