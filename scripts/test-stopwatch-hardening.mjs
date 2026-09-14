@@ -47,6 +47,8 @@ try {
     const javaSimon = read("desktop/src/stickvania/Simon.java");
     const tsStopWatch = read("pwa/src/stickvania/StopWatch.ts");
     const javaStopWatch = read("desktop/src/stickvania/StopWatch.java");
+    const tsMain = read("pwa/src/stickvania/Main.ts");
+    const javaMain = read("desktop/src/stickvania/Main.java");
 
     assert.doesNotMatch(tsHold, /pausedStandalone|requestStopWatchAwareGameplayMusic|currentMusic/);
     assert.doesNotMatch(javaHold, /pausedStandalone|pendingStandalone|requestGameplayMusic|findPlayingStandaloneMusic|Music\[\]/);
@@ -67,6 +69,11 @@ try {
     assert.match(tsStopWatch, /if \(!canStopWatchRun\(this\.main\)\)[\s\S]*?this\.cancel\(\);/);
     assert.match(javaStopWatch, /if \(!StopWatchMusicHold\.canStopWatchRun\(main\)\)[\s\S]*?lifeTime = 0;[\s\S]*?main\.hearts \+= 5;/);
     assert.match(javaStopWatch, /if \(!StopWatchMusicHold\.canStopWatchRun\(main\)\)[\s\S]*?cancel\(\);/);
+
+    assert.equal((tsMain.match(/new StopWatch\(this\)/g) ?? []).length, 1);
+    assert.match(tsMain, /this\.pushWeapon\(new StopWatch\(this\)\);\s*this\.removeHearts\(5\);/);
+    assert.equal((javaMain.match(/new StopWatch\(this\)/g) ?? []).length, 1);
+    assert.match(javaMain, /pushWeapon\(new StopWatch\(this\)\);\s*removeHearts\(5\);/);
 
     console.log("Stickvania stopwatch cinematic/audio/timeout hardening checks passed.");
 } finally {
