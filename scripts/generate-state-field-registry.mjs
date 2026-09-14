@@ -179,10 +179,12 @@ for (const field of mainFields)
 for (const field of mainPolicy.keys()) if (!mainFields.includes(field)) throw new Error(`MAIN_STATE_FIELD_POLICY contains stale field ${field}.`);
 const persistedMainFields = mainFields.filter((field) => mainPolicy.get(field) === "persisted");
 const rehydratorIds = readRehydratorIds();
+const thingTypeMappings = readThingTypeMappings();
+const knownThingIds = new Set(thingTypeMappings.map(({ id }) => id));
 const thingFields = {};
 const persistedThingFields = {};
 const requiredRehydrators = new Set();
-for (const { id, className } of readThingTypeMappings()) {
+for (const { id, className } of thingTypeMappings) {
     const info = classes.get(className);
     if (!info) throw new Error(`THING_TYPES refers to missing TypeScript class: ${className}`);
     const fields = inheritedFieldInfo(classes, className);
@@ -193,7 +195,8 @@ for (const { id, className } of readThingTypeMappings()) {
 }
 for (const id of requiredRehydrators)
     if (!rehydratorIds.has(id)) throw new Error(`Thing type ${id} owns runtime resource fields and requires an explicit state rehydrator.`);
-for (const id of rehydratorIds) if (!requiredRehydrators.has(id)) throw new Error(`THING_REHYDRATOR_TYPE_IDS contains stale entry ${id}.`);
+for (const id of rehydratorIds)
+    if (!knownThingIds.has(id)) throw new Error(`THING_REHYDRATOR_TYPE_IDS contains unknown Thing type ${id}.`);
 const generated = await formatGeneratedSource(mainFields, persistedMainFields, thingFields, persistedThingFields);
 if (checkOnly) {
     if (!existsSync(registryPath) || readFileSync(registryPath, "utf8") !== generated)
