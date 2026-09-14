@@ -1,5 +1,6 @@
 import type { GameContainer } from "slick2d-ts";
 import type { Main } from "../Main.js";
+import { registerPlayerActionMain } from "../PlayerActionPolicy.js";
 import { StopWatch } from "../StopWatch.js";
 import { reconcileStopWatchMusic, resetStopWatchMusicHold } from "../StopWatchMusicHold.js";
 import type { StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
@@ -47,6 +48,9 @@ export class StickvaniaGameStateStore {
             }
             resetStopWatchMusicHold();
             this.serializer.restoreSnapshot(main, gc, snapshot);
+            // Thing restoration can rebuild Simon without running his constructor,
+            // so re-register the live Main before resumed input/action processing.
+            registerPlayerActionMain(main);
             // timeFrozen is derived from the live StopWatch objects. Recompute
             // once after the complete object graph is restored so a contradictory
             // saved scalar, including a stale nonzero value with no watches,

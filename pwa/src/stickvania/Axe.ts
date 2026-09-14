@@ -1,7 +1,8 @@
 import { GameContainer, Graphics } from "slick2d-ts";
-import { Main } from "./Main.js";
-import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
+import { Main } from "./Main.js";
+import { cancelSimonAction, canSimonActionContinue } from "./PlayerActionPolicy.js";
+import { Thing } from "./Thing.js";
 
 export class Axe extends Thing {
     public angle: number = javaFloat(0);
@@ -13,12 +14,25 @@ export class Axe extends Thing {
         super(main, 32, 32);
         this.x = javaFloat(x);
         this.y = javaFloat(y);
+        if (!canSimonActionContinue(main)) {
+            // Main.throwWeapon() performs the one-heart debit immediately after
+            // construction. Keep this rejected object inert and pre-refund it.
+            this.kill = true;
+            this.x = javaFloat(main.camera - 10000);
+            this.y = javaFloat(10000);
+            main.hearts += 1;
+            cancelSimonAction(main);
+            return;
+        }
         this.vx = javaFloat(direction == Main.RIGHT ? 3 : -3);
         this.vAngle = javaFloat(direction == Main.RIGHT ? 6 : -6);
         this.vy = javaFloat(-6.5);
     }
 
     public override update(gc: GameContainer): boolean {
+        if (this.kill) {
+            return false;
+        }
         if (this.soundDelay > 0) {
             this.soundDelay--;
         } else {

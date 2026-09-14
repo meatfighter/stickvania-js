@@ -75,25 +75,25 @@ public class DropItem extends Thing {
 
       switch(type) {
         case TYPE_AXE:
-          main.setWeapon(Main.WEAPON_TYPE_AXE);
+          collectWeapon(Main.WEAPON_TYPE_AXE);
           break;
         case TYPE_CHEST:
           main.addPoints(this);
           break;
         case TYPE_BOOMERANG:
-          main.setWeapon(Main.WEAPON_TYPE_BOOMERANG);
+          collectWeapon(Main.WEAPON_TYPE_BOOMERANG);
           break;
         case TYPE_CROWN:
           main.addPoints(this);
           break;
         case TYPE_DAGGER:
-          main.setWeapon(Main.WEAPON_TYPE_DAGGER);
+          collectWeapon(Main.WEAPON_TYPE_DAGGER);
           break;
         case TYPE_DOUBLE:
           collectRepeatUpgrade(Main.WEAPON_REPEATS_DOUBLE);
           break;
         case TYPE_HOLY_WATER:
-          main.setWeapon(Main.WEAPON_TYPE_HOLY_WATER);
+          collectWeapon(Main.WEAPON_TYPE_HOLY_WATER);
           break;
         case TYPE_KILL_ALL:
           main.fireSparks(x, y);
@@ -116,12 +116,15 @@ public class DropItem extends Thing {
           main.simon.drankPotion = true;
           break;
         case TYPE_STOP_WATCH:
-          main.setWeapon(Main.WEAPON_TYPE_STOP_WATCH);
+          collectWeapon(Main.WEAPON_TYPE_STOP_WATCH);
           break;
         case TYPE_TRIPLE:
           collectRepeatUpgrade(Main.WEAPON_REPEATS_TRIPLE);
           break;
         case TYPE_WHIP:
+          // Whip-upgrade flashing bypasses normal Simon updates temporarily;
+          // never resume a pre-upgrade windup after that presentation state.
+          PlayerActionPolicy.cancelSimonAction(main);
           main.advanceWhip();
           break;
       }
@@ -137,6 +140,17 @@ public class DropItem extends Thing {
     }
 
     return true;
+  }
+
+  private void collectWeapon(int weaponType) {
+    // If a different weapon is collected before frame 20 of a queued throw,
+    // cancel instead of silently morphing the pending throw into the new weapon.
+    if (main.simon.throwing
+        && main.simon.whipIncrementor < 20
+        && main.weaponType != weaponType) {
+      PlayerActionPolicy.cancelSimonAction(main);
+    }
+    main.setWeapon(weaponType);
   }
 
   private void collectRepeatUpgrade(int weaponRepeats) {

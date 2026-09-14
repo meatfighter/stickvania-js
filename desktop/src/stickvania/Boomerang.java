@@ -21,6 +21,16 @@ public class Boomerang extends Thing {
     this.y = y;
     this.direction = direction;
     this.state = STATE_FOWARD;
+    if (!PlayerActionPolicy.canSimonActionContinue(main)) {
+      // Main.throwWeapon() performs the one-heart debit immediately after
+      // construction. Keep this rejected object inert and pre-refund it.
+      kill = true;
+      this.x = main.camera - 10000;
+      this.y = 10000;
+      main.hearts++;
+      PlayerActionPolicy.cancelSimonAction(main);
+      return;
+    }
     this.vx = direction == Main.RIGHT ? 3 : -3;
     this.g = direction == Main.RIGHT ? G : -G;
   }
@@ -28,6 +38,9 @@ public class Boomerang extends Thing {
   @Override
   public boolean update(GameContainer gc) throws SlickException {
 
+    if (kill) {
+      return false;
+    }
     if (soundDelay > 0) {
       soundDelay--;
     } else {
@@ -36,7 +49,7 @@ public class Boomerang extends Thing {
     }
 
     switch(state) {
-      case STATE_FOWARD:        
+      case STATE_FOWARD:
         if (direction == Main.RIGHT) {
           x += 3;
           angle += 3;
@@ -59,7 +72,7 @@ public class Boomerang extends Thing {
           state = STATE_REVERSE;
         }
         break;
-      case STATE_REVERSE:        
+      case STATE_REVERSE:
         if (direction == Main.RIGHT) {
           x -= 3;
           angle -= 3;

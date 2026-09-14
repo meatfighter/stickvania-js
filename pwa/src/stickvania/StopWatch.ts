@@ -1,6 +1,7 @@
 import { FastTrig, GameContainer, Graphics } from "slick2d-ts";
 import { DropItem } from "./DropItem.js";
 import { Main } from "./Main.js";
+import { cancelSimonAction } from "./PlayerActionPolicy.js";
 import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
 import { canStartStopWatch, canStopWatchRun, prepareStopWatchMusicHoldAfterRestore, reconcileStopWatchMusic } from "./StopWatchMusicHold.js";
@@ -27,6 +28,7 @@ export class StopWatch extends Thing {
             // removeHearts(5) restores the exact original value, including 99 hearts.
             this.lifeTime = 0;
             main.hearts += 5;
+            cancelSimonAction(main);
             return;
         }
 

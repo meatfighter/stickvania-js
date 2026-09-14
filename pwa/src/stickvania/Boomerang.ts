@@ -1,5 +1,6 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Main } from "./Main.js";
+import { cancelSimonAction, canSimonActionContinue } from "./PlayerActionPolicy.js";
 import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
 
@@ -21,11 +22,24 @@ export class Boomerang extends Thing {
         this.y = javaFloat(y);
         this.direction = direction;
         this.state = Boomerang.STATE_FOWARD;
+        if (!canSimonActionContinue(main)) {
+            // Main.throwWeapon() performs the one-heart debit immediately after
+            // construction. Keep this rejected object inert and pre-refund it.
+            this.kill = true;
+            this.x = javaFloat(main.camera - 10000);
+            this.y = javaFloat(10000);
+            main.hearts += 1;
+            cancelSimonAction(main);
+            return;
+        }
         this.vx = javaFloat(direction == Main.RIGHT ? 3 : -3);
         this.g = javaFloat(direction == Main.RIGHT ? Boomerang.G : -Boomerang.G);
     }
 
     public override update(gc: GameContainer): boolean {
+        if (this.kill) {
+            return false;
+        }
         if (this.soundDelay > 0) {
             this.soundDelay--;
         } else {

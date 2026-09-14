@@ -1,6 +1,7 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { javaFloat, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
+import { cancelSimonAction } from "./PlayerActionPolicy.js";
 import { Thing } from "./Thing.js";
 
 export class Door extends Thing {
@@ -41,6 +42,7 @@ export class Door extends Thing {
                         !this.main.simon!.hurt &&
                         this.main.playerPower > 0
                     ) {
+                        cancelSimonAction(this.main);
                         this.main.enterNextRegion(this);
                     }
                     break;
@@ -91,6 +93,7 @@ export class Door extends Thing {
                         !this.main.simon!.hurt &&
                         this.main.playerPower > 0
                     ) {
+                        cancelSimonAction(this.main);
                         this.main.enterNextRegion(this);
                     }
                     break;

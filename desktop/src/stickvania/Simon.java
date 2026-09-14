@@ -87,6 +87,7 @@ public class Simon extends Thing {
 
   public Simon(Main main) {
     super(main, 20, 4, 24, 60);
+    PlayerActionPolicy.registerPlayerActionMain(main);
   }
 
   private void changeWalkSprite() {
@@ -146,7 +147,7 @@ public class Simon extends Thing {
     onStairs = false;
     direction = Main.RIGHT;
     hurt = false;
-    dead = 0;    
+    dead = 0;
     main.playerPower = 16;
     main.hearts = 5;
     main.enemyPower = 16;
@@ -171,20 +172,18 @@ public class Simon extends Thing {
 
     applyGravityWithPlatforms();
 
-    // Preserve the legacy death rule: a queued sub-weapon cannot materialize
-    // after playerPower reaches zero, but an existing whip animation may run out
-    // harmlessly because collision rejects a dead player.
-    if (main.playerPower == 0) {
-      throwing = false;
+    // Whip and sub-weapon windups are delayed actions. If gameplay entered a
+    // terminal/control-loss state before resolution, discard the entire action
+    // rather than letting a stale whip or projectile appear later.
+    if ((whipping || throwing)
+        && !PlayerActionPolicy.canSimonActionContinue(main)) {
+      PlayerActionPolicy.cancelSimonAction(main);
     } else if (throwing
         && main.weaponType == Main.WEAPON_TYPE_STOP_WATCH
         && !StopWatchMusicHold.canStopWatchRun(main)) {
-      // A stopwatch rejected by a scripted/terminal transition must vanish, not
-      // turn into a real whip merely because throwing became false.
-      throwing = false;
-      whipping = false;
-      whipIncrementor = 0;
-      whipIndex = 0;
+      // StopWatch has one additional cinematic terminal boundary: Dracula's
+      // final hit. Other weapons retain their normal post-boss behavior.
+      PlayerActionPolicy.cancelSimonAction(main);
     }
 
     if (main.playerPower == 0 && supported) {

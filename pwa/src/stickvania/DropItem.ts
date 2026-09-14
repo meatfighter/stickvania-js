@@ -1,6 +1,7 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { javaFloat, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
+import { cancelSimonAction } from "./PlayerActionPolicy.js";
 import { Thing } from "./Thing.js";
 
 export class DropItem extends Thing {
@@ -77,25 +78,25 @@ export class DropItem extends Thing {
 
             switch (this.type) {
                 case DropItem.TYPE_AXE:
-                    this.main.setWeapon(Main.WEAPON_TYPE_AXE);
+                    this.collectWeapon(Main.WEAPON_TYPE_AXE);
                     break;
                 case DropItem.TYPE_CHEST:
                     this.main.addPoints(this);
                     break;
                 case DropItem.TYPE_BOOMERANG:
-                    this.main.setWeapon(Main.WEAPON_TYPE_BOOMERANG);
+                    this.collectWeapon(Main.WEAPON_TYPE_BOOMERANG);
                     break;
                 case DropItem.TYPE_CROWN:
                     this.main.addPoints(this);
                     break;
                 case DropItem.TYPE_DAGGER:
-                    this.main.setWeapon(Main.WEAPON_TYPE_DAGGER);
+                    this.collectWeapon(Main.WEAPON_TYPE_DAGGER);
                     break;
                 case DropItem.TYPE_DOUBLE:
                     this.collectRepeatUpgrade(Main.WEAPON_REPEATS_DOUBLE);
                     break;
                 case DropItem.TYPE_HOLY_WATER:
-                    this.main.setWeapon(Main.WEAPON_TYPE_HOLY_WATER);
+                    this.collectWeapon(Main.WEAPON_TYPE_HOLY_WATER);
                     break;
                 case DropItem.TYPE_KILL_ALL:
                     this.main.playRumble("rosary");
@@ -120,12 +121,15 @@ export class DropItem extends Thing {
                     this.main.simon!.drankPotion = true;
                     break;
                 case DropItem.TYPE_STOP_WATCH:
-                    this.main.setWeapon(Main.WEAPON_TYPE_STOP_WATCH);
+                    this.collectWeapon(Main.WEAPON_TYPE_STOP_WATCH);
                     break;
                 case DropItem.TYPE_TRIPLE:
                     this.collectRepeatUpgrade(Main.WEAPON_REPEATS_TRIPLE);
                     break;
                 case DropItem.TYPE_WHIP:
+                    // Whip-upgrade flashing temporarily bypasses normal Simon
+                    // updates, so do not let a pre-upgrade windup resume later.
+                    cancelSimonAction(this.main);
                     this.main.advanceWhip();
                     break;
             }
@@ -141,6 +145,16 @@ export class DropItem extends Thing {
         }
 
         return true;
+    }
+
+    private collectWeapon(weaponType: number): void {
+        // A sub-weapon windup represents the weapon that was selected when the
+        // action began. If a different weapon is collected before frame 20,
+        // cancel rather than silently morphing the pending throw into the new one.
+        if (this.main.simon!.throwing && this.main.simon!.whipIncrementor < 20 && this.main.weaponType != weaponType) {
+            cancelSimonAction(this.main);
+        }
+        this.main.setWeapon(weaponType);
     }
 
     private collectRepeatUpgrade(weaponRepeats: number): void {

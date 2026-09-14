@@ -1,10 +1,10 @@
 import type { Main } from "./Main.js";
+import { canSimonActionContinue } from "./PlayerActionPolicy.js";
 import type { Song } from "./Song.js";
 
 const MODE_DEMO = 1;
 const MODE_PLAYING = 4;
 const MODE_CREDITS = 8;
-const WEAPON_TYPE_STOP_WATCH = 5;
 
 let held = false;
 let heldMain: Main | null = null;
@@ -27,18 +27,9 @@ export function canStopWatchRun(main: Main): boolean {
     );
 }
 
-/** A new stopwatch may start only when no existing stopwatch owns time. */
+/** A new stopwatch may start only when the delayed action and stopwatch are both valid. */
 export function canStartStopWatch(main: Main): boolean {
-    return canStopWatchRun(main) && main.timeFrozen == 0;
-}
-
-/**
- * Suppress a real player's Up+Attack while an already-running StopWatch is the
- * equipped sub-weapon. This prevents the failed second activation from falling
- * through to a whip attack. Demo/credits input is intentionally unaffected.
- */
-export function isStopWatchActivationInputBlocked(): boolean {
-    return held && heldMain !== null && heldMain.weaponType == WEAPON_TYPE_STOP_WATCH && shouldHold(heldMain);
+    return canSimonActionContinue(main) && canStopWatchRun(main) && main.timeFrozen == 0;
 }
 
 function shouldHold(main: Main): boolean {

@@ -1,5 +1,6 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Main } from "./Main.js";
+import { cancelSimonAction, canSimonActionContinue } from "./PlayerActionPolicy.js";
 import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
 
@@ -21,10 +22,23 @@ export class HolyWater extends Thing {
         this.vy = javaFloat(-1.5);
         this.direction = direction;
         this.state = HolyWater.STATE_DROPPING;
+        if (!canSimonActionContinue(main)) {
+            // Main.throwWeapon() performs the one-heart debit immediately after
+            // construction. Keep this rejected object inert and pre-refund it.
+            this.kill = true;
+            this.x = javaFloat(main.camera - 10000);
+            this.y = javaFloat(10000);
+            main.hearts += 1;
+            cancelSimonAction(main);
+            return;
+        }
         main.playSound(main.threw_dagger);
     }
 
     public override update(gc: GameContainer): boolean {
+        if (this.kill) {
+            return false;
+        }
         if (this.state == HolyWater.STATE_DROPPING) {
             this.applyGravity();
             if (this.supported || !this.moveX(this.vx) || this.intersected) {

@@ -28,6 +28,7 @@ public class StopWatch extends Thing {
       // the exact original value, including the 99-heart cap case.
       lifeTime = 0;
       main.hearts += 5;
+      PlayerActionPolicy.cancelSimonAction(main);
       return;
     }
 

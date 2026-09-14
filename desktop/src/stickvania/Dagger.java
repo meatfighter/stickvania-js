@@ -11,11 +11,24 @@ public class Dagger extends Thing {
     this.x = x;
     this.y = y;
     this.direction = direction;
+    if (!PlayerActionPolicy.canSimonActionContinue(main)) {
+      // Main.throwWeapon() performs the one-heart debit immediately after
+      // construction. Keep this rejected object inert and pre-refund it.
+      kill = true;
+      this.x = main.camera - 10000;
+      this.y = 10000;
+      main.hearts++;
+      PlayerActionPolicy.cancelSimonAction(main);
+      return;
+    }
     main.playSound(main.threw_dagger);
   }
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
+    if (kill) {
+      return false;
+    }
     if (direction == Main.RIGHT) {
       x += 6;
     } else {

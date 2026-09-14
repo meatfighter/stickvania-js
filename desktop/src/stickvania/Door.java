@@ -42,6 +42,7 @@ public class Door extends Thing {
               && ((int)main.simon.y) - 32 == (int)y
               && ((int)Math.abs(main.simon.x - x + 24)) <= 32
               && !main.simon.hurt && main.playerPower > 0) {
+            PlayerActionPolicy.cancelSimonAction(main);
             main.enterNextRegion(this);
           }
           break;
@@ -88,6 +89,7 @@ public class Door extends Thing {
               && ((int)main.simon.y) - 32 == (int)y
               && ((int)Math.abs(main.simon.x - x + 24)) <= 32
               && !main.simon.hurt && main.playerPower > 0) {
+            PlayerActionPolicy.cancelSimonAction(main);
             main.enterNextRegion(this);
           }
           break;

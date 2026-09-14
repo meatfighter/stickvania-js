@@ -1,7 +1,7 @@
 import { Input } from "slick2d-ts";
 import { ButtonMapping } from "./ButtonMapping.js";
 import { ControllerSupport } from "./ControllerSupport.js";
-import { isStopWatchActivationInputBlocked } from "./StopWatchMusicHold.js";
+import { canRegisteredSimonActionStart, reconcileRegisteredSimonActionBeforeAttackRead } from "./PlayerActionPolicy.js";
 
 type InputState = {
     up: boolean;
@@ -52,7 +52,6 @@ function createEmptyState(): InputState {
 export class StickvaniaInput {
     private previous: InputState = createEmptyState();
     private current: InputState = createEmptyState();
-    private stopWatchAttackReleaseRequired = false;
 
     public constructor(
         private readonly input: Input,
@@ -67,12 +66,14 @@ export class StickvaniaInput {
         this.previous = this.current;
         this.current = next;
         this.readStateInto(this.current);
+        // Catch terminal/control-loss state that was already true at frame start,
+        // including pit/death/hurt paths that return before Main reads Attack.
+        reconcileRegisteredSimonActionBeforeAttackRead();
     }
 
     public clearPressedState(): void {
         this.readStateInto(this.current);
         this.copyState(this.previous, this.current);
-        this.stopWatchAttackReleaseRequired = false;
     }
 
     public isUp(): boolean {
@@ -96,14 +97,13 @@ export class StickvaniaInput {
     }
 
     public isAttack(): boolean {
-        if (!this.current.attack) {
-            this.stopWatchAttackReleaseRequired = false;
-            return false;
-        }
-        if (this.current.up && isStopWatchActivationInputBlocked()) {
-            this.stopWatchAttackReleaseRequired = true;
-        }
-        return !this.stopWatchAttackReleaseRequired;
+        // Main reads Attack immediately before advancing the whip/sub-weapon
+        // delay. Reconcile again because the stage timer can become terminal
+        // after input.update() but before this read. General terminal state can
+        // suppress a fresh action, but hearts/capacity/timeFrozen are not part of
+        // that policy, so unavailable Up+Attack still falls back to the whip.
+        reconcileRegisteredSimonActionBeforeAttackRead();
+        return this.current.attack && canRegisteredSimonActionStart();
     }
 
     public isMenuUpPressed(): boolean {

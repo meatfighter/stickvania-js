@@ -21,13 +21,26 @@ public class HolyWater extends Thing {
     this.vy = -1.5f;
     this.direction = direction;
     state = STATE_DROPPING;
+    if (!PlayerActionPolicy.canSimonActionContinue(main)) {
+      // Main.throwWeapon() performs the one-heart debit immediately after
+      // construction. Keep this rejected object inert and pre-refund it.
+      kill = true;
+      this.x = main.camera - 10000;
+      this.y = 10000;
+      main.hearts++;
+      PlayerActionPolicy.cancelSimonAction(main);
+      return;
+    }
     main.playSound(main.threw_dagger);
   }
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
+    if (kill) {
+      return false;
+    }
     if (state == STATE_DROPPING) {
-      applyGravity();      
+      applyGravity();
       if (supported || !moveX(vx) || intersected) {
         y -= 5;
         rx1 = 0;
@@ -54,7 +67,7 @@ public class HolyWater extends Thing {
     if (x < main.camera - 96 || x > main.camera + 576 || y > 352) {
       return false;
     }
-    
+
     return true;
   }
 

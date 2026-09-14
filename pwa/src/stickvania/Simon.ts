@@ -1,6 +1,7 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import { javaFloat, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
+import { canSimonActionContinue, cancelSimonAction, registerPlayerActionMain } from "./PlayerActionPolicy.js";
 import { canStopWatchRun } from "./StopWatchMusicHold.js";
 import { Thing } from "./Thing.js";
 
@@ -213,6 +214,7 @@ export class Simon extends Thing {
     public jumpVelocity: number = javaFloat(Main.SIMON_JUMP_VELOCITY);
     public constructor(main: Main) {
         super(main, 20, 4, 24, 60);
+        registerPlayerActionMain(main);
     }
 
     private changeWalkSprite(): void {
@@ -295,18 +297,15 @@ export class Simon extends Thing {
     public override update(gc: GameContainer): boolean {
         this.applyGravityWithPlatforms();
 
-        // Preserve the legacy death rule: a queued sub-weapon cannot materialize
-        // after playerPower reaches zero, but an existing whip animation may run
-        // out harmlessly because collision rejects a dead player.
-        if (this.main.playerPower == 0) {
-            this.throwing = false;
+        // Whip and sub-weapon windups are delayed actions. If gameplay entered a
+        // terminal/control-loss state before resolution, discard the entire action
+        // rather than letting a stale whip or projectile appear later.
+        if ((this.whipping || this.throwing) && !canSimonActionContinue(this.main)) {
+            cancelSimonAction(this.main);
         } else if (this.throwing && this.main.weaponType == Main.WEAPON_TYPE_STOP_WATCH && !canStopWatchRun(this.main)) {
-            // A stopwatch rejected by a scripted/terminal transition must vanish,
-            // not turn into a real whip merely because throwing became false.
-            this.throwing = false;
-            this.whipping = false;
-            this.whipIncrementor = 0;
-            this.whipIndex = 0;
+            // StopWatch has one additional cinematic terminal boundary: Dracula's
+            // final hit. Other weapons retain their normal post-boss behavior.
+            cancelSimonAction(this.main);
         }
 
         if (this.main.playerPower == 0 && this.supported) {

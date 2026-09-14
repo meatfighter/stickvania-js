@@ -30,19 +30,11 @@ public final class StopWatchMusicHold {
         && !(main.stageIndex == 5 && main.enemyPower == 0);
   }
 
-  /** A new stopwatch may start only when no existing stopwatch owns time. */
+  /** A new stopwatch may start only when the delayed action and stopwatch are both valid. */
   static boolean canStartStopWatch(Main main) {
-    return canStopWatchRun(main) && main.timeFrozen == 0;
-  }
-
-  /**
-   * Suppress a real player's Up+Attack while an already-running StopWatch is the
-   * equipped sub-weapon. Demo/credits input is intentionally unaffected.
-   */
-  static boolean isStopWatchActivationInputBlocked() {
-    return held && heldMain != null
-        && heldMain.weaponType == Main.WEAPON_TYPE_STOP_WATCH
-        && shouldHold(heldMain);
+    return PlayerActionPolicy.canSimonActionContinue(main)
+        && canStopWatchRun(main)
+        && main.timeFrozen == 0;
   }
 
   private static boolean shouldHold(Main main) {

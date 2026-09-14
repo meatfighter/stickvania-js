@@ -8,7 +8,6 @@ public class StickvaniaInput {
   private final ButtonMapping mapping;
   private InputState previous = new InputState();
   private InputState current = new InputState();
-  private boolean stopWatchAttackReleaseRequired;
 
   private static final class InputState {
     boolean up;
@@ -42,13 +41,15 @@ public class StickvaniaInput {
   public void update() {
     previous = current;
     current = readState();
+    // Catch terminal/control-loss state that was already true at frame start,
+    // including pit/death/hurt paths that return before Main reads Attack.
+    PlayerActionPolicy.reconcileRegisteredSimonActionBeforeAttackRead();
   }
 
   public void clearPressedState() {
 
     current = readState();
     previous = copy(current);
-    stopWatchAttackReleaseRequired = false;
   }
 
   public boolean isUp() {
@@ -72,14 +73,12 @@ public class StickvaniaInput {
   }
 
   public boolean isAttack() {
-    if (!current.attack) {
-      stopWatchAttackReleaseRequired = false;
-      return false;
-    }
-    if (current.up && StopWatchMusicHold.isStopWatchActivationInputBlocked()) {
-      stopWatchAttackReleaseRequired = true;
-    }
-    return !stopWatchAttackReleaseRequired;
+    // Main reads Attack immediately before advancing the delayed action. Reconcile
+    // again because the stage timer can become terminal after update() but before
+    // this read. General terminal state can suppress a fresh action, but hearts,
+    // capacity, weapon type, and timeFrozen are intentionally not part of it.
+    PlayerActionPolicy.reconcileRegisteredSimonActionBeforeAttackRead();
+    return current.attack && PlayerActionPolicy.canRegisteredSimonActionStart();
   }
 
   public boolean isMenuUpPressed() {
