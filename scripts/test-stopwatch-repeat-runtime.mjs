@@ -13,6 +13,7 @@ const server = await createServer({
 
 try {
     const { DropItem } = await server.ssrLoadModule("/src/stickvania/DropItem.ts");
+    const { StickvaniaInput } = await server.ssrLoadModule("/src/stickvania/StickvaniaInput.ts");
     const { isStopWatchActivationInputBlocked, reconcileStopWatchMusic, resetStopWatchMusicHold } = await server.ssrLoadModule(
         "/src/stickvania/StopWatchMusicHold.ts"
     );
@@ -54,12 +55,31 @@ try {
     const holdMain = createHoldMain();
     reconcileStopWatchMusic(holdMain);
     assert.equal(isStopWatchActivationInputBlocked(), true);
-    holdMain.weaponType = 1;
-    assert.equal(isStopWatchActivationInputBlocked(), false, "an active watch must not block another equipped weapon's Up+Attack");
-    holdMain.weaponType = 5;
+
+    const input = Object.create(StickvaniaInput.prototype);
+    input.current = { attack: true, up: true };
+    input.stopWatchAttackReleaseRequired = false;
+    assert.equal(input.isAttack(), false, "Up+Attack must be suppressed while the current StopWatch is active");
+
     holdMain.timeFrozen = 0;
     reconcileStopWatchMusic(holdMain);
     assert.equal(isStopWatchActivationInputBlocked(), false);
+    assert.equal(input.isAttack(), false, "holding Attack through expiry must not auto-chain another StopWatch");
+
+    input.current = { attack: false, up: true };
+    assert.equal(input.isAttack(), false);
+    input.current = { attack: true, up: true };
+    assert.equal(input.isAttack(), true, "a fresh Attack press after release may activate StopWatch again");
+
+    resetStopWatchMusicHold();
+    holdMain.timeFrozen = 455;
+    holdMain.weaponType = 5;
+    reconcileStopWatchMusic(holdMain);
+    holdMain.weaponType = 1;
+    assert.equal(isStopWatchActivationInputBlocked(), false, "an active watch must not block another equipped weapon's Up+Attack");
+    input.current = { attack: true, up: true };
+    input.stopWatchAttackReleaseRequired = false;
+    assert.equal(input.isAttack(), true, "another equipped weapon keeps its normal Up+Attack input while a watch runs");
 
     console.log("Stickvania stopwatch repeat runtime checks passed.");
 } finally {
