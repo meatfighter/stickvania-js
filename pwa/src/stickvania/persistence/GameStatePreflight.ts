@@ -35,6 +35,11 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
     const currentMusicValue = isRecord(audioValue) ? audioValue.currentMusic : null;
     const currentMusicPlayback = isRecord(currentMusicValue) && isRecord(currentMusicValue.playback) ? currentMusicValue.playback : null;
     const hasObsoletePausedStandalone = isRecord(currentMusicPlayback) && currentMusicPlayback.transport === "paused";
+    const hasObsoleteTerminalStopWatch =
+        isRecord(mainFieldsValue) &&
+        typeof mainFieldsValue.timeFrozen === "number" &&
+        mainFieldsValue.timeFrozen > 0 &&
+        isTerminalStopWatchState(mainFieldsValue);
     return (
         (stageRequired ? hasStageShape : stageValue === null && snapshot.things.length === 0) &&
         (isInputConfigGameStateMode(snapshot.mode) ? snapshot.inputConfigMode != null : snapshot.inputConfigMode == null) &&
@@ -45,7 +50,18 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         typeof audioValue.musicOn === "boolean" &&
         typeof audioValue.soundOn === "boolean" &&
         Array.isArray(audioValue.songs) &&
-        !hasObsoletePausedStandalone
+        !hasObsoletePausedStandalone &&
+        !hasObsoleteTerminalStopWatch
+    );
+}
+
+function isTerminalStopWatchState(mainFields: Record<string, unknown>): boolean {
+    return (
+        (typeof mainFields.playerPower === "number" && mainFields.playerPower <= 0) ||
+        mainFields.beatStageFlag === true ||
+        mainFields.floorBreaking === true ||
+        (typeof mainFields.time === "number" && mainFields.time <= 0) ||
+        (mainFields.stageIndex === 5 && mainFields.enemyPower === 0)
     );
 }
 
