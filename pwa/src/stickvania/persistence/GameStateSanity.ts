@@ -18,6 +18,7 @@ const MAX_INPUT_CONFIG_MESSAGE_LENGTH = 256;
 const MAX_INPUT_CONFIG_STEP_INDEX = 6;
 const MAX_INPUT_CONFIG_DONE_DELAY = 30;
 const MAX_INPUT_CONFIG_ARM_DELAY = 8;
+const MAX_STOP_WATCH_LIFETIME = 455;
 
 const EXPECTED_SONG_IDS = new Set<string>(SONG_FIELD_NAMES);
 const EXPECTED_MUSIC_IDS = new Set<string>([
@@ -95,6 +96,9 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
     if (snapshot.stage !== null && snapshot.mainFields.stageIndex !== snapshot.stage.stageIndex) {
         return false;
     }
+    if (!isReasonableStopWatchState(snapshot)) {
+        return false;
+    }
     if (!isReasonableInputConfig(snapshot.inputConfigMode)) {
         return false;
     }
@@ -102,6 +106,73 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
         return false;
     }
     return true;
+}
+
+function isReasonableStopWatchState(snapshot: StickvaniaGameStateSnapshot): boolean {
+    const watches = new Map<number, number>();
+    for (const thing of snapshot.things) {
+        if (!isRecord(thing) || thing.type !== "StopWatch") {
+            continue;
+        }
+        if (!Number.isInteger(thing.id) || !isRecord(thing.fields) || !isIntegerInRange(thing.fields.lifeTime, 0, MAX_STOP_WATCH_LIFETIME)) {
+            return false;
+        }
+        watches.set(thing.id, thing.fields.lifeTime as number);
+    }
+
+    if (snapshot.stage === null || !isRecord(snapshot.stage)) {
+        return watches.size === 0;
+    }
+
+    const weapons = readStackThingIds(snapshot.stage.weaponsStack);
+    const weaponsSwap = readStackThingIds(snapshot.stage.weaponsStackSwap);
+    // The serializer performs exact structural validation first. The partial
+    // shapes used by the standalone sanity unit tests intentionally omit both
+    // weapon stacks; only apply graph-level checks when those roots are present.
+    if (weapons === null && weaponsSwap === null) {
+        return true;
+    }
+    if (weapons === null || weaponsSwap === null) {
+        return false;
+    }
+
+    const weaponIds = new Set<number>();
+    for (const id of [...weapons, ...weaponsSwap]) {
+        if (weaponIds.has(id)) {
+            return false;
+        }
+        weaponIds.add(id);
+    }
+
+    let derivedTimeFrozen = 0;
+    for (const [id, lifeTime] of watches) {
+        if (!weaponIds.has(id)) {
+            return false;
+        }
+        derivedTimeFrozen += lifeTime;
+    }
+
+    if (!Object.hasOwn(snapshot.mainFields, "timeFrozen")) {
+        return true;
+    }
+    return snapshot.mainFields.timeFrozen === derivedTimeFrozen;
+}
+
+function readStackThingIds(value: unknown): number[] | null {
+    if (!isRecord(value) || !isRecord(value.$stack) || !Array.isArray(value.$stack.things)) {
+        return null;
+    }
+    const ids: number[] = [];
+    for (const id of value.$stack.things) {
+        if (id === null) {
+            continue;
+        }
+        if (typeof id !== "number" || !Number.isInteger(id)) {
+            return null;
+        }
+        ids.push(id);
+    }
+    return ids;
 }
 
 function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): boolean {
