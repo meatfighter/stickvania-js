@@ -215,6 +215,7 @@ function isReasonableAudio(snapshot: AudioSnapshot): boolean {
 
     const seenSongs = new Set<string>();
     const music = new Map<MusicId, MusicSnapshot>();
+    let playingSong: SongId | null = null;
     for (const song of snapshot.songs) {
         if (
             !isRecord(song) ||
@@ -227,6 +228,12 @@ function isReasonableAudio(snapshot: AudioSnapshot): boolean {
             return false;
         }
         seenSongs.add(song.id);
+        if (song.playing) {
+            if (playingSong !== null) {
+                return false;
+            }
+            playingSong = song.id as SongId;
+        }
         if (!isReasonableSongPart(song.id as SongId, "intro", song.intro) || !isReasonableSongPart(song.id as SongId, "loop", song.loop)) {
             return false;
         }
@@ -241,6 +248,18 @@ function isReasonableAudio(snapshot: AudioSnapshot): boolean {
         }
     }
     if (seenSongs.size !== EXPECTED_SONG_IDS.size) {
+        return false;
+    }
+
+    // Main's Song ownership has one stable current owner. A requested Song may
+    // differ for one frame while ownership is being transferred, but clearing
+    // requestedSong while leaving currentSong installed is impossible and would
+    // make Main assign null and then call play() on it on the next gameplay tick.
+    if (snapshot.currentSong === null) {
+        if (playingSong !== null) {
+            return false;
+        }
+    } else if (snapshot.requestedSong === null || playingSong !== snapshot.currentSong || snapshot.currentMusic !== null) {
         return false;
     }
 
