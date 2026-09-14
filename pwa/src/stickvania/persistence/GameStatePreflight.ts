@@ -44,9 +44,7 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         mainFieldsValue.timeFrozen > 0 &&
         isTerminalStopWatchState(mainFieldsValue);
     const hasInvalidStopWatchRepeatState =
-        isRecord(mainFieldsValue) &&
-        mainFieldsValue.weaponType === WEAPON_TYPE_STOP_WATCH &&
-        mainFieldsValue.weaponRepeats !== WEAPON_REPEATS_SINGLE;
+        isRecord(mainFieldsValue) && mainFieldsValue.weaponType === WEAPON_TYPE_STOP_WATCH && mainFieldsValue.weaponRepeats !== WEAPON_REPEATS_SINGLE;
     return (
         (stageRequired ? hasStageShape : stageValue === null && snapshot.things.length === 0) &&
         (isInputConfigGameStateMode(snapshot.mode) ? snapshot.inputConfigMode != null : snapshot.inputConfigMode == null) &&

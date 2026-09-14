@@ -328,6 +328,7 @@ async function importStickvaniaInput() {
     const browserStorageKeysOutputPath = join(outputDirectory, "BrowserStorageKeys.js");
     const buttonMappingOutputPath = join(outputDirectory, "ButtonMapping.js");
     const controllerSupportOutputPath = join(outputDirectory, "ControllerSupport.js");
+    const playerActionPolicyOutputPath = join(outputDirectory, "PlayerActionPolicy.js");
     const inputOutputPath = join(outputDirectory, "StickvaniaInput.mjs");
 
     rmSync(outputDirectory, { recursive: true, force: true });
@@ -335,6 +336,7 @@ async function importStickvaniaInput() {
     writeTranspiledModule(browserStorageKeysSourcePath, browserStorageKeysOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ButtonMapping.ts"), buttonMappingOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ControllerSupport.ts"), controllerSupportOutputPath);
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "PlayerActionPolicy.ts"), playerActionPolicyOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "StickvaniaInput.ts"), inputOutputPath);
 
     return import(`${pathToFileURL(inputOutputPath).href}?v=${Date.now()}`);

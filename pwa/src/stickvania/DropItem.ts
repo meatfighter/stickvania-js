@@ -30,9 +30,7 @@ export class DropItem extends Thing {
         this.x = javaFloat(x);
         this.y = javaFloat(y);
         this.type =
-            main.weaponType == Main.WEAPON_TYPE_STOP_WATCH && (type == DropItem.TYPE_DOUBLE || type == DropItem.TYPE_TRIPLE)
-                ? DropItem.TYPE_LARGE_HEART
-                : type;
+            main.weaponType == Main.WEAPON_TYPE_STOP_WATCH && (type == DropItem.TYPE_DOUBLE || type == DropItem.TYPE_TRIPLE) ? DropItem.TYPE_LARGE_HEART : type;
     }
 
     public override update(gc: GameContainer): boolean {
