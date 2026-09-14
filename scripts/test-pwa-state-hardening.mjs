@@ -72,6 +72,32 @@ try {
     invalidCurrentSong.audio.currentSong = "not-a-song";
     assert.equal(isReasonableStickvaniaGameStateSnapshot(invalidCurrentSong), false);
 
+    const orphanedCurrentSong = createSongOwnershipSnapshot(snapshot, "boss_1", null, "boss_1");
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(orphanedCurrentSong), false);
+
+    const currentSongNotPlaying = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", null);
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(currentSongNotPlaying), false);
+
+    const twoLogicalSongsPlaying = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", "boss_1");
+    twoLogicalSongsPlaying.audio.songs.find((song) => song.id === "boss_2").playing = true;
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(twoLogicalSongsPlaying), false);
+
+    const songAndStandaloneBothOwned = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", "boss_1");
+    songAndStandaloneBothOwned.audio.currentMusic = {
+        id: "dracula_dead",
+        playback: createPlayback({ transport: "paused" })
+    };
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(songAndStandaloneBothOwned), false);
+
+    const pendingSongHandoff = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_2", "boss_1");
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(pendingSongHandoff), true);
+
+    const requestedSongWithoutCurrent = createSongOwnershipSnapshot(snapshot, null, "boss_2", null);
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(requestedSongWithoutCurrent), true);
+
+    const deferredCurrentSongStart = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", "boss_1");
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(deferredCurrentSongStart), true);
+
     const mismatchedSongPart = clone(snapshot);
     mismatchedSongPart.audio.songs.find((song) => song.id === "boss_1").intro.id = "boss_2.intro";
     assert.equal(isReasonableStickvaniaGameStateSnapshot(mismatchedSongPart), false);
@@ -190,6 +216,16 @@ function createSnapshot(songIds, version) {
             }))
         }
     };
+}
+
+function createSongOwnershipSnapshot(base, currentSong, requestedSong, playingSong) {
+    const snapshot = clone(base);
+    snapshot.audio.currentSong = currentSong;
+    snapshot.audio.requestedSong = requestedSong;
+    if (playingSong !== null) {
+        snapshot.audio.songs.find((song) => song.id === playingSong).playing = true;
+    }
+    return snapshot;
 }
 
 function createStopWatchAggregateSnapshot(base, timeFrozen, weapons, weaponsSwap) {
