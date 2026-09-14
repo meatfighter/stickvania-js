@@ -153,6 +153,13 @@ export class DropItem extends Thing {
             this.main.playSound(this.main.got_double);
             return;
         }
+        if (weaponRepeats < this.main.weaponRepeats) {
+            // A stale lower-tier repeat item may still be on the floor after a
+            // newer upgrade was collected. Preserve pickup feedback but never
+            // downgrade Triple to Double (or any future higher repeat tier).
+            this.main.playSound(this.main.got_double);
+            return;
+        }
         this.main.setWeaponRepeats(weaponRepeats);
     }
 
