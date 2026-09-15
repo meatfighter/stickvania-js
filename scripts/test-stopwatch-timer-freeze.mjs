@@ -281,20 +281,17 @@ try {
 
     // The compensation policy is intentionally paired with this historical Main
     // operand order. If Main is ever reordered, this test forces a joint audit.
-    assert.match(
-        tsMain,
-        /this\.timeFrozen == 0\s*&&\s*\+\+this\.timeIncrementor == 91\s*&&\s*this\.playerPower > 0\s*&&\s*!this\.floorBreaking/
-    );
-    assert.match(
-        javaMain,
-        /timeFrozen == 0\s*&&\s*\+\+timeIncrementor == 91\s*&&\s*playerPower > 0\s*&&\s*!floorBreaking/
-    );
+    assert.match(tsMain, /this\.timeFrozen == 0\s*&&\s*\+\+this\.timeIncrementor == 91\s*&&\s*this\.playerPower > 0\s*&&\s*!this\.floorBreaking/);
+    assert.match(javaMain, /timeFrozen == 0\s*&&\s*\+\+timeIncrementor == 91\s*&&\s*playerPower > 0\s*&&\s*!floorBreaking/);
     assert.match(tsPolicy, /main\.playerPower <= 0 \|\| main\.floorBreaking[\s\S]*?main\.timeIncrementor--/);
     assert.match(javaPolicy, /main\.playerPower <= 0 \|\| main\.floorBreaking[\s\S]*?main\.timeIncrementor--/);
     assert.match(tsPolicy, /main\.timeIncrementor == 90 && main\.time > 1 && main\.time <= 31[\s\S]*?main\.playSound\(main\.twang\)/);
     assert.match(javaPolicy, /main\.timeIncrementor == 90 && main\.time > 1 && main\.time <= 31[\s\S]*?main\.playSound\(main\.twang\)/);
     assert.match(tsInput, /prepareRegisteredCountdownTimer\(\);[\s\S]*?reconcileRegisteredSimonActionBeforeAttackRead\(\);/);
-    assert.match(javaInput, /PlayerActionPolicy\.prepareRegisteredCountdownTimer\(\);[\s\S]*?PlayerActionPolicy\.reconcileRegisteredSimonActionBeforeAttackRead\(\);/);
+    assert.match(
+        javaInput,
+        /PlayerActionPolicy\.prepareRegisteredCountdownTimer\(\);[\s\S]*?PlayerActionPolicy\.reconcileRegisteredSimonActionBeforeAttackRead\(\);/
+    );
 
     console.log("StopWatch countdown freeze, timer-phase, and low-time warning checks passed.");
 } finally {
