@@ -107,7 +107,7 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
         snapshot.mode === 4 &&
         typeof snapshot.mainFields.timeFrozen === "number" &&
         snapshot.mainFields.timeFrozen > 0 &&
-        !isTerminalStopWatchState(snapshot.mainFields);
+        !isTerminalStopWatchState(snapshot);
     if (!isReasonableAudio(snapshot.audio, stopWatchHoldAllowed)) {
         return false;
     }
@@ -158,7 +158,7 @@ function isReasonableStopWatchState(snapshot: StickvaniaGameStateSnapshot): bool
         derivedTimeFrozen += lifeTime;
     }
 
-    if (derivedTimeFrozen > 0 && isTerminalStopWatchState(snapshot.mainFields)) {
+    if (derivedTimeFrozen > 0 && isTerminalStopWatchState(snapshot)) {
         return false;
     }
 
@@ -168,13 +168,20 @@ function isReasonableStopWatchState(snapshot: StickvaniaGameStateSnapshot): bool
     return snapshot.mainFields.timeFrozen === derivedTimeFrozen;
 }
 
-function isTerminalStopWatchState(mainFields: Record<string, unknown>): boolean {
+function hasVisibleFinalOrb(snapshot: StickvaniaGameStateSnapshot): boolean {
+    return snapshot.things.some(
+        (thing) => isRecord(thing) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0
+    );
+}
+
+function isTerminalStopWatchState(snapshot: StickvaniaGameStateSnapshot): boolean {
+    const mainFields = snapshot.mainFields;
     return (
         (typeof mainFields.playerPower === "number" && mainFields.playerPower <= 0) ||
         mainFields.beatStageFlag === true ||
         mainFields.floorBreaking === true ||
         (typeof mainFields.time === "number" && mainFields.time <= 0) ||
-        (mainFields.stageIndex === 5 && mainFields.enemyPower === 0)
+        (mainFields.stageIndex === 5 && mainFields.enemyPower === 0 && !hasVisibleFinalOrb(snapshot))
     );
 }
 

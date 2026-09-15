@@ -1,4 +1,5 @@
 import type { Main } from "./Main.js";
+import { Orb } from "./Orb.js";
 import { canSimonActionContinue } from "./PlayerActionPolicy.js";
 import type { Song } from "./Song.js";
 
@@ -8,6 +9,27 @@ const MODE_CREDITS = 8;
 
 let held = false;
 let heldMain: Main | null = null;
+
+function hasVisibleFinalOrb(main: Main): boolean {
+    for (const stack of [main.regionThingStack, main.regionStackSwap]) {
+        for (let i = 0; i <= stack.top; i++) {
+            const thing = stack.things[i];
+            if (thing instanceof Orb && thing.appearDelay == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Dracula's final hit disables only the StopWatch. The lock lasts through the
+ * death presentation and the final orb's hidden delay; once the orb is visible,
+ * StopWatch use is valid again until normal orb collection completes the stage.
+ */
+export function isDraculaDeathStopWatchLocked(main: Main): boolean {
+    return main.stageIndex == 5 && main.enemyPower == 0 && !hasVisibleFinalOrb(main);
+}
 
 /**
  * Return whether the stopwatch is still a valid simulation effect. Demo and
@@ -23,7 +45,7 @@ export function canStopWatchRun(main: Main): boolean {
         !main.beatStageFlag &&
         !main.floorBreaking &&
         main.time > 0 &&
-        !(main.stageIndex == 5 && main.enemyPower == 0)
+        !isDraculaDeathStopWatchLocked(main)
     );
 }
 

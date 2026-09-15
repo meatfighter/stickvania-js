@@ -1,5 +1,5 @@
 import { GameContainer, Graphics } from "slick2d-ts";
-import { Main } from "./Main.js";
+import type { Main } from "./Main.js";
 import { cancelSimonAction } from "./PlayerActionPolicy.js";
 import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";

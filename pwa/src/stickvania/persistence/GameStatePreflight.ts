@@ -42,7 +42,7 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         isRecord(mainFieldsValue) &&
         typeof mainFieldsValue.timeFrozen === "number" &&
         mainFieldsValue.timeFrozen > 0 &&
-        isTerminalStopWatchState(mainFieldsValue);
+        isTerminalStopWatchState(snapshot, mainFieldsValue);
     const hasInvalidStopWatchRepeatState =
         isRecord(mainFieldsValue) && mainFieldsValue.weaponType === WEAPON_TYPE_STOP_WATCH && mainFieldsValue.weaponRepeats !== WEAPON_REPEATS_SINGLE;
     return (
@@ -61,13 +61,22 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
     );
 }
 
-function isTerminalStopWatchState(mainFields: Record<string, unknown>): boolean {
+function hasVisibleFinalOrb(snapshot: Record<string, unknown>): boolean {
+    if (!Array.isArray(snapshot.things)) {
+        return false;
+    }
+    return snapshot.things.some(
+        (thing) => isRecord(thing) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0
+    );
+}
+
+function isTerminalStopWatchState(snapshot: Record<string, unknown>, mainFields: Record<string, unknown>): boolean {
     return (
         (typeof mainFields.playerPower === "number" && mainFields.playerPower <= 0) ||
         mainFields.beatStageFlag === true ||
         mainFields.floorBreaking === true ||
         (typeof mainFields.time === "number" && mainFields.time <= 0) ||
-        (mainFields.stageIndex === 5 && mainFields.enemyPower === 0)
+        (mainFields.stageIndex === 5 && mainFields.enemyPower === 0 && !hasVisibleFinalOrb(snapshot))
     );
 }
 

@@ -16,6 +16,7 @@ const server = await createServer({
 try {
     const { canStartStopWatch, canStopWatchRun } = await server.ssrLoadModule("/src/stickvania/StopWatchMusicHold.ts");
     const { canSimonActionContinue, cancelSimonAction } = await server.ssrLoadModule("/src/stickvania/PlayerActionPolicy.ts");
+    const { Orb } = await server.ssrLoadModule("/src/stickvania/Orb.ts");
     const { isPotentialStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
     const { GAME_STATE_VERSION } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSchema.ts");
     const { isStopWatchRepeatStateValid } = await server.ssrLoadModule("/src/stickvania/persistence/StopWatchRepeatStatePolicy.ts");
@@ -28,7 +29,11 @@ try {
     assert.equal(canSimonActionContinue(createMainState({ beatStageFlag: true })), false);
     assert.equal(canSimonActionContinue(createMainState({ floorBreaking: true })), false);
     assert.equal(canSimonActionContinue(createMainState({ door: {} })), false);
-    assert.equal(canSimonActionContinue(createMainState({ stageIndex: 5, enemyPower: 0 })), false);
+    assert.equal(
+        canSimonActionContinue(createMainState({ stageIndex: 5, enemyPower: 0 })),
+        true,
+        "Dracula's death presentation must keep whip and non-StopWatch actions available"
+    );
     assert.equal(canSimonActionContinue(createMainState({ simon: { dead: 0, hurt: true, flashing: 0, y: 100, onStairs: false } })), false);
     assert.equal(canSimonActionContinue(createMainState({ simon: { dead: 0, hurt: false, flashing: 1, y: 100, onStairs: false } })), false);
     assert.equal(canSimonActionContinue(createMainState({ simon: { dead: 0, hurt: false, flashing: 0, y: 417, onStairs: false } })), false);
@@ -83,7 +88,29 @@ try {
     assert.equal(canStopWatchRun(createMainState({ beatStageFlag: true })), false);
     assert.equal(canStopWatchRun(createMainState({ floorBreaking: true })), false);
     assert.equal(canStopWatchRun(createMainState({ time: 0 })), false);
-    assert.equal(canStopWatchRun(createMainState({ stageIndex: 5, enemyPower: 0 })), false);
+    assert.equal(canStopWatchRun(createMainState({ stageIndex: 5, enemyPower: 0 })), false, "Dracula's final death animation locks StopWatch");
+    const hiddenFinalOrb = createOrb(Orb, 1);
+    assert.equal(
+        canStopWatchRun(createMainState({ stageIndex: 5, enemyPower: 0, regionThingStack: createThingStack([hiddenFinalOrb]) })),
+        false,
+        "the final orb's hidden delay remains inside the StopWatch lock"
+    );
+    const visibleFinalOrb = createOrb(Orb, 0);
+    assert.equal(
+        canStopWatchRun(createMainState({ stageIndex: 5, enemyPower: 0, regionThingStack: createThingStack([visibleFinalOrb]) })),
+        true,
+        "StopWatch becomes valid when the final orb is visible"
+    );
+    assert.equal(
+        canStartStopWatch(createMainState({ stageIndex: 5, enemyPower: 0, regionThingStack: createThingStack([visibleFinalOrb]) })),
+        true,
+        "a new StopWatch may start after the final orb appears"
+    );
+    assert.equal(
+        canStopWatchRun(createMainState({ stageIndex: 5, enemyPower: 0, regionStackSwap: createThingStack([visibleFinalOrb]) })),
+        true,
+        "the visible-orb check must cover the region swap stack during updates"
+    );
     assert.equal(canStopWatchRun(createMainState({ stageIndex: 5, enemyPower: 1 })), true);
 
     assert.equal(isStopWatchRepeatStateValid({ weaponType: 5, weaponRepeats: 0 }), true);
@@ -105,7 +132,14 @@ try {
     assert.equal(
         isPotentialStickvaniaGameStateSnapshot(createPotentialSave(GAME_STATE_VERSION, "playing", { timeFrozen: 455, stageIndex: 5, enemyPower: 0 })),
         false,
-        "Dracula-terminal stopwatch saves must not offer Continue"
+        "a hidden final-orb StopWatch save must not offer Continue"
+    );
+    const visibleOrbSave = createPotentialSave(GAME_STATE_VERSION, "playing", { timeFrozen: 455, stageIndex: 5, enemyPower: 0 });
+    visibleOrbSave.things.push({ id: 0, type: "Orb", fields: { appearDelay: 0 } });
+    assert.equal(
+        isPotentialStickvaniaGameStateSnapshot(visibleOrbSave),
+        true,
+        "a visible final-orb StopWatch save remains eligible for Continue"
     );
     assert.equal(
         isPotentialStickvaniaGameStateSnapshot(createPotentialSave(GAME_STATE_VERSION, "playing", { weaponType: 5, weaponRepeats: 1 })),
@@ -161,6 +195,10 @@ try {
         javaHold,
         /canStartStopWatch[\s\S]*?PlayerActionPolicy\.canSimonActionContinue\(main\)[\s\S]*?canStopWatchRun\(main\)[\s\S]*?main\.timeFrozen == 0/
     );
+    assert.match(tsHold, /isDraculaDeathStopWatchLocked[\s\S]*?stageIndex == 5 && main\.enemyPower == 0[\s\S]*?!hasVisibleFinalOrb\(main\)/);
+    assert.match(javaHold, /isDraculaDeathStopWatchLocked[\s\S]*?stageIndex == 5 && main\.enemyPower == 0[\s\S]*?!hasVisibleFinalOrb\(main\)/);
+    assert.match(tsHold, /thing instanceof Orb && thing\.appearDelay == 0/);
+    assert.match(javaHold, /thing instanceof Orb && \(\(Orb\)thing\)\.appearDelay == 0/);
 
     // The three-case attack contract: Up+Attack chooses the sub-weapon only when
     // it is currently eligible; otherwise the exact same input becomes a whip.
@@ -181,12 +219,14 @@ try {
     assert.match(javaActionPolicy, /private static Main registeredMain/);
     assert.match(
         tsActionPolicy,
-        /fadeState == FADE_DONE[\s\S]*?playerPower > 0[\s\S]*?!simon\.hurt[\s\S]*?simon\.flashing == 0[\s\S]*?STAIR_TOP_TRANSITION_Y[\s\S]*?!main\.beatStageFlag[\s\S]*?!main\.floorBreaking[\s\S]*?main\.time > 0[\s\S]*?main\.door === null[\s\S]*?stageIndex == 5 && main\.enemyPower == 0/
+        /fadeState == FADE_DONE[\s\S]*?playerPower > 0[\s\S]*?!simon\.hurt[\s\S]*?simon\.flashing == 0[\s\S]*?STAIR_TOP_TRANSITION_Y[\s\S]*?!main\.beatStageFlag[\s\S]*?!main\.floorBreaking[\s\S]*?main\.time > 0[\s\S]*?main\.door === null/
     );
     assert.match(
         javaActionPolicy,
-        /fadeState == Main\.FADE_DONE[\s\S]*?playerPower > 0[\s\S]*?!simon\.hurt[\s\S]*?simon\.flashing == 0[\s\S]*?STAIR_TOP_TRANSITION_Y[\s\S]*?!main\.beatStage[\s\S]*?!main\.floorBreaking[\s\S]*?main\.time > 0[\s\S]*?main\.door == null[\s\S]*?stageIndex == 5 && main\.enemyPower == 0/
+        /fadeState == Main\.FADE_DONE[\s\S]*?playerPower > 0[\s\S]*?!simon\.hurt[\s\S]*?simon\.flashing == 0[\s\S]*?STAIR_TOP_TRANSITION_Y[\s\S]*?!main\.beatStage[\s\S]*?!main\.floorBreaking[\s\S]*?main\.time > 0[\s\S]*?main\.door == null/
     );
+    assert.doesNotMatch(tsActionPolicy, /canSimonActionContinue[\s\S]*?stageIndex == 5 && main\.enemyPower == 0[\s\S]*?canRegisteredSimonActionStart/);
+    assert.doesNotMatch(javaActionPolicy, /canSimonActionContinue[\s\S]*?stageIndex == 5 && main\.enemyPower == 0[\s\S]*?canRegisteredSimonActionStart/);
     assert.match(tsActionPolicy, /canRegisteredSimonActionStart[\s\S]*?return registeredMain === null \|\| canSimonActionContinue\(registeredMain\)/);
     assert.match(javaActionPolicy, /canRegisteredSimonActionStart[\s\S]*?return registeredMain == null \|\| canSimonActionContinue\(registeredMain\)/);
     assert.match(
@@ -346,6 +386,16 @@ try {
     await server.close();
 }
 
+function createThingStack(things = []) {
+    return { top: things.length - 1, things: [...things] };
+}
+
+function createOrb(Orb, appearDelay) {
+    const orb = Object.create(Orb.prototype);
+    orb.appearDelay = appearDelay;
+    return orb;
+}
+
 function createMainState(overrides = {}) {
     return {
         mode: 4,
@@ -358,6 +408,8 @@ function createMainState(overrides = {}) {
         stageIndex: 0,
         enemyPower: 16,
         timeFrozen: 0,
+        regionThingStack: createThingStack(),
+        regionStackSwap: createThingStack(),
         door: null,
         stoppedWeaponThrowRumble: 0,
         stopRumble(effect) {

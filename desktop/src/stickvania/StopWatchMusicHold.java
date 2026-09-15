@@ -12,6 +12,29 @@ public final class StopWatchMusicHold {
   private StopWatchMusicHold() {
   }
 
+  private static boolean hasVisibleFinalOrb(Main main) {
+    ThingStack[] stacks = { main.regionThingStack, main.regionStackSwap };
+    for(ThingStack stack : stacks) {
+      for(int i = 0; i <= stack.top; i++) {
+        Thing thing = stack.things[i];
+        if (thing instanceof Orb && ((Orb)thing).appearDelay == 0) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Dracula's final hit disables only the StopWatch. The lock lasts through the
+   * death presentation and the final orb's hidden delay; once the orb is visible,
+   * StopWatch use is valid again until normal orb collection completes the stage.
+   */
+  public static boolean isDraculaDeathStopWatchLocked(Main main) {
+    return main.stageIndex == 5 && main.enemyPower == 0
+        && !hasVisibleFinalOrb(main);
+  }
+
   /**
    * Return whether the stopwatch is still a valid simulation effect. Demo and
    * credits recordings historically run the gameplay simulation and may use the
@@ -27,7 +50,7 @@ public final class StopWatchMusicHold {
         && !main.beatStage
         && !main.floorBreaking
         && main.time > 0
-        && !(main.stageIndex == 5 && main.enemyPower == 0);
+        && !isDraculaDeathStopWatchLocked(main);
   }
 
   /** A new stopwatch may start only when the delayed action and stopwatch are both valid. */

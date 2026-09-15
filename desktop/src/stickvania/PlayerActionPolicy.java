@@ -67,6 +67,8 @@ public final class PlayerActionPolicy {
   /**
    * Return whether a delayed Simon attack may still resolve. Hearts and repeat
    * capacity remain separate sub-weapon checks in Main.canUseSubWeapon().
+   * Dracula's final death presentation is not terminal here: whip and non-
+   * StopWatch sub-weapons remain usable until the final orb is collected.
    */
   public static boolean canSimonActionContinue(Main main) {
     Simon simon = main.simon;
@@ -86,8 +88,7 @@ public final class PlayerActionPolicy {
         && !main.beatStage
         && !main.floorBreaking
         && main.time > 0
-        && main.door == null
-        && !(main.stageIndex == 5 && main.enemyPower == 0);
+        && main.door == null;
   }
 
   /**

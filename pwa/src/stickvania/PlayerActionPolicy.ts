@@ -69,6 +69,8 @@ export function prepareRegisteredCountdownTimer(): void {
  * Return whether a delayed Simon attack may still resolve. This is intentionally
  * broader than sub-weapon eligibility: it covers both whip and sub-weapon windup
  * and only describes terminal/control-loss state, not hearts or repeat capacity.
+ * Dracula's final death presentation is not terminal here: whip and non-StopWatch
+ * sub-weapons remain usable until the final orb is collected.
  */
 export function canSimonActionContinue(main: Main): boolean {
     const simon = main.simon;
@@ -85,8 +87,7 @@ export function canSimonActionContinue(main: Main): boolean {
         !main.beatStageFlag &&
         !main.floorBreaking &&
         main.time > 0 &&
-        main.door === null &&
-        !(main.stageIndex == 5 && main.enemyPower == 0)
+        main.door === null
     );
 }
 

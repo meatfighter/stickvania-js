@@ -69,7 +69,6 @@ try {
         { beatStageFlag: true },
         { floorBreaking: true },
         { door: {} },
-        { stageIndex: 5, enemyPower: 0 },
         { simon: createSimon({ hurt: true }) },
         { simon: createSimon({ flashing: 1 }) },
         { simon: createSimon({ y: 417 }) },
@@ -78,6 +77,11 @@ try {
     ]) {
         assert.equal(canSimonActionContinue(createActionMain(invalid)), false);
     }
+    assert.equal(
+        canSimonActionContinue(createActionMain({ stageIndex: 5, enemyPower: 0 })),
+        true,
+        "Dracula's final death presentation must not become a generic attack-terminal state"
+    );
 
     // Generic Attack gating deliberately ignores hearts, weapon capacity, weapon
     // type, and timeFrozen. An active StopWatch therefore still lets Main apply
@@ -212,6 +216,7 @@ try {
     sameWeaponMain.stopRumble = () => {};
     const daggerPickup = new DropItem(sameWeaponMain, 0, 0, DropItem.TYPE_DAGGER);
     daggerPickup.collectWeapon(3);
+    assert.equal(sameWeaponMain.weaponType, 3);
     assert.equal(sameWeaponMain.simon.whipping, true, "collecting the same equipped weapon must not cancel the queued throw");
     assert.equal(sameWeaponMain.simon.throwing, true);
 
@@ -241,6 +246,10 @@ function createSimon(overrides = {}) {
     };
 }
 
+function createThingStack(things = []) {
+    return { top: things.length - 1, things: [...things] };
+}
+
 function createActionMain(overrides = {}) {
     return {
         mode: 4,
@@ -253,6 +262,8 @@ function createActionMain(overrides = {}) {
         stageIndex: 0,
         enemyPower: 16,
         timeFrozen: 0,
+        regionThingStack: createThingStack(),
+        regionStackSwap: createThingStack(),
         door: null,
         weaponType: 1,
         weaponRepeats: 0,
