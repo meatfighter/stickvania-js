@@ -103,7 +103,8 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
     if (!isReasonableInputConfig(snapshot.inputConfigMode)) {
         return false;
     }
-    const stopWatchHoldAllowed = snapshot.mode === 4 && typeof snapshot.mainFields.timeFrozen === "number" && snapshot.mainFields.timeFrozen > 0 && !isTerminalStopWatchState(snapshot);
+    const stopWatchHoldAllowed =
+        snapshot.mode === 4 && typeof snapshot.mainFields.timeFrozen === "number" && snapshot.mainFields.timeFrozen > 0 && !isTerminalStopWatchState(snapshot);
     if (!isReasonableAudio(snapshot.audio, stopWatchHoldAllowed)) {
         return false;
     }
