@@ -1464,7 +1464,7 @@ public final class Main extends BasicGame {
     boolean keyDownJump = controlInput.isJump();
     boolean keyDownAttack = controlInput.isAttack();
     boolean wantsSubWeapon = keyDownAttack && keyDownUp;
-    boolean keyDownSubWeapon = wantsSubWeapon && canUseSubWeapon();
+    boolean keyDownSubWeapon = wantsSubWeapon && canSelectSubWeapon();
     boolean keyDownWhip = keyDownAttack && (!wantsSubWeapon || !keyDownSubWeapon);
 
     // -- RECORD KEY PRESSES HERE --------------------
@@ -1875,6 +1875,18 @@ public final class Main extends BasicGame {
     if (this.hearts < 0) {
       this.hearts = 0;
     }
+  }
+
+  /**
+   * Initial Up+Attack selection only. A blocked StopWatch falls back to the
+   * whip through Main's existing three-case input contract. The frame-20
+   * throwWeapon() recheck deliberately stays on canUseSubWeapon(), so a
+   * StopWatch that becomes invalid during the windup is simply suppressed.
+   */
+  private boolean canSelectSubWeapon() {
+    return canUseSubWeapon()
+        && (weaponType != WEAPON_TYPE_STOP_WATCH
+            || StopWatchMusicHold.canStartStopWatch(this));
   }
 
   private boolean canUseSubWeapon() {

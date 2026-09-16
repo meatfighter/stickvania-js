@@ -13,6 +13,7 @@ const server = await createServer({
 });
 
 try {
+    const { Main } = await server.ssrLoadModule("/src/stickvania/Main.ts");
     const { DropItem } = await server.ssrLoadModule("/src/stickvania/DropItem.ts");
     const { Axe } = await server.ssrLoadModule("/src/stickvania/Axe.ts");
     const { Boomerang } = await server.ssrLoadModule("/src/stickvania/Boomerang.ts");
@@ -82,6 +83,56 @@ try {
         true,
         "Dracula's final death presentation must not become a generic attack-terminal state"
     );
+
+    // Initial Attack+Up selection is universal: if the equipped sub-weapon
+    // cannot be used at that instant, Main's three-case input contract treats
+    // the same input as Attack alone and starts a whip.
+    const noWeapon = Object.assign(Object.create(Main.prototype), createActionMain({ weaponType: 0, hearts: 99 }));
+    assert.equal(noWeapon.canSelectSubWeapon(), false, "no equipped sub-weapon must fall back to whip");
+
+    for (const weaponType of [1, 2, 3, 4]) {
+        const funded = Object.assign(Object.create(Main.prototype), createActionMain({ weaponType, hearts: 1 }));
+        assert.equal(funded.canSelectSubWeapon(), true, `weapon ${weaponType} should be initially selectable with one heart`);
+
+        const emptyHearts = Object.assign(Object.create(Main.prototype), createActionMain({ weaponType, hearts: 0 }));
+        assert.equal(emptyHearts.canSelectSubWeapon(), false, `weapon ${weaponType} with zero hearts must fall back to whip`);
+    }
+
+    // Capacity gating is the same for every sub-weapon. When Single, Double,
+    // or Triple is already full, Attack+Up must be treated as plain Attack.
+    for (const weaponType of [1, 2, 3, 4, 5]) {
+        for (const weaponRepeats of [0, 1, 2]) {
+            const fullCount = weaponRepeats + 1;
+            const fullCapacity = Object.assign(
+                Object.create(Main.prototype),
+                createActionMain({
+                    weaponType,
+                    weaponRepeats,
+                    hearts: 99,
+                    weaponsStack: createThingStack(Array.from({ length: fullCount }, () => ({})))
+                })
+            );
+            assert.equal(fullCapacity.canSelectSubWeapon(), false, `weapon ${weaponType} at repeat tier ${weaponRepeats} full capacity must fall back to whip`);
+        }
+    }
+
+    const selectableWatch = Object.assign(Object.create(Main.prototype), createActionMain({ weaponType: 5, hearts: 5 }));
+    assert.equal(selectableWatch.canSelectSubWeapon(), true);
+
+    const underfundedWatch = Object.assign(Object.create(Main.prototype), createActionMain({ weaponType: 5, hearts: 4 }));
+    assert.equal(underfundedWatch.canSelectSubWeapon(), false, "StopWatch below five hearts must fall back to whip");
+
+    const draculaDeathWatch = Object.assign(Object.create(Main.prototype), createActionMain({ weaponType: 5, hearts: 5, stageIndex: 5, enemyPower: 0 }));
+    assert.equal(draculaDeathWatch.canSelectSubWeapon(), false, "blocked Dracula-death StopWatch must fall back to whip");
+
+    const activeWatchSelection = Object.assign(Object.create(Main.prototype), createActionMain({ weaponType: 5, hearts: 5, timeFrozen: 455 }));
+    assert.equal(activeWatchSelection.canSelectSubWeapon(), false, "second live StopWatch attempt must fall back to whip");
+
+    const floorBreakWatch = Object.assign(
+        Object.create(Main.prototype),
+        createActionMain({ weaponType: 5, hearts: 5, stageIndex: 2, floorBreaking: true, time: 0 })
+    );
+    assert.equal(floorBreakWatch.canSelectSubWeapon(), true, "stage-three brick breaking still permits a funded StopWatch");
 
     // Generic Attack gating deliberately ignores hearts, weapon capacity, weapon
     // type, and timeFrozen. An active StopWatch therefore still lets Main apply
@@ -264,6 +315,7 @@ function createActionMain(overrides = {}) {
         timeFrozen: 0,
         regionThingStack: createThingStack(),
         regionStackSwap: createThingStack(),
+        weaponsStack: createThingStack(),
         door: null,
         weaponType: 1,
         weaponRepeats: 0,

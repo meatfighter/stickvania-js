@@ -197,17 +197,28 @@ try {
     assert.match(javaHold, /thing instanceof Orb && \(\(Orb\)thing\)\.appearDelay == 0/);
 
     // The three-case attack contract: Up+Attack chooses the sub-weapon only when
-    // it is currently eligible; otherwise the exact same input becomes a whip.
+    // it is initially eligible; otherwise the exact same input becomes a whip.
+    // StopWatch adds its own start policy only at this selection point.
     assert.match(
         tsMain,
-        /const wantsSubWeapon: boolean = keyDownAttack && keyDownUp;\s*let keyDownSubWeapon: boolean = wantsSubWeapon && this\.canUseSubWeapon\(\);\s*let keyDownWhip: boolean = keyDownAttack && \(!wantsSubWeapon \|\| !keyDownSubWeapon\);/
+        /const wantsSubWeapon: boolean = keyDownAttack && keyDownUp;\s*let keyDownSubWeapon: boolean = wantsSubWeapon && this\.canSelectSubWeapon\(\);\s*let keyDownWhip: boolean = keyDownAttack && \(!wantsSubWeapon \|\| !keyDownSubWeapon\);/
     );
     assert.match(
         javaMain,
-        /boolean wantsSubWeapon = keyDownAttack && keyDownUp;\s*boolean keyDownSubWeapon = wantsSubWeapon && canUseSubWeapon\(\);\s*boolean keyDownWhip = keyDownAttack && \(!wantsSubWeapon \|\| !keyDownSubWeapon\);/
+        /boolean wantsSubWeapon = keyDownAttack && keyDownUp;\s*boolean keyDownSubWeapon = wantsSubWeapon && canSelectSubWeapon\(\);\s*boolean keyDownWhip = keyDownAttack && \(!wantsSubWeapon \|\| !keyDownSubWeapon\);/
+    );
+    assert.match(
+        tsMain,
+        /private canSelectSubWeapon\(\): boolean \{[\s\S]*?this\.canUseSubWeapon\(\)[\s\S]*?this\.weaponType != Main\.WEAPON_TYPE_STOP_WATCH \|\| canStartStopWatch\(this\)/
+    );
+    assert.match(
+        javaMain,
+        /private boolean canSelectSubWeapon\(\)[\s\S]*?canUseSubWeapon\(\)[\s\S]*?weaponType != WEAPON_TYPE_STOP_WATCH[\s\S]*?StopWatchMusicHold\.canStartStopWatch\(this\)/
     );
     assert.match(tsMain, /whipIncrementor == 20[\s\S]*?if \(this\.simon!\.throwing\)[\s\S]*?this\.throwWeapon\(\)/);
     assert.match(javaMain, /whipIncrementor == 20[\s\S]*?if \(simon\.throwing\)[\s\S]*?throwWeapon\(\)/);
+    // The delayed frame-20 recheck is prevention-only. It must never route
+    // back through initial selection and therefore can never synthesize a whip.
     assert.match(tsMain, /public throwWeapon\(\): void \{\s*if \(!this\.canUseSubWeapon\(\)\) \{\s*return;/);
     assert.match(javaMain, /public void throwWeapon\(\) \{\s*if \(!canUseSubWeapon\(\)\) \{\s*return;/);
 

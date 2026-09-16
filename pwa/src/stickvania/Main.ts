@@ -48,6 +48,7 @@ import { StageSegment } from "./StageSegment.js";
 import { StairsEntry } from "./StairsEntry.js";
 import { StickvaniaInput } from "./StickvaniaInput.js";
 import { StopWatch } from "./StopWatch.js";
+import { canStartStopWatch } from "./StopWatchMusicHold.js";
 import { SwoopingBat } from "./SwoopingBat.js";
 import { Thing } from "./Thing.js";
 import { ThingStack } from "./ThingStack.js";
@@ -1261,7 +1262,7 @@ export class Main extends BasicGame {
         let keyDownJump: boolean = this.controlInput!.isJump();
         const keyDownAttack: boolean = this.controlInput!.isAttack();
         const wantsSubWeapon: boolean = keyDownAttack && keyDownUp;
-        let keyDownSubWeapon: boolean = wantsSubWeapon && this.canUseSubWeapon();
+        let keyDownSubWeapon: boolean = wantsSubWeapon && this.canSelectSubWeapon();
         let keyDownWhip: boolean = keyDownAttack && (!wantsSubWeapon || !keyDownSubWeapon);
 
         if (this.mode == Main.MODE_DEMO || this.mode == Main.MODE_CREDITS) {
@@ -1630,6 +1631,16 @@ export class Main extends BasicGame {
                 this.removeHearts(5);
                 break;
         }
+    }
+
+    /**
+     * Initial Up+Attack selection only. A blocked StopWatch falls back to the
+     * whip through Main's existing three-case input contract. The frame-20
+     * throwWeapon() recheck deliberately stays on canUseSubWeapon(), so a
+     * StopWatch that becomes invalid during the windup is simply suppressed.
+     */
+    private canSelectSubWeapon(): boolean {
+        return this.canUseSubWeapon() && (this.weaponType != Main.WEAPON_TYPE_STOP_WATCH || canStartStopWatch(this));
     }
 
     private canUseSubWeapon(): boolean {
