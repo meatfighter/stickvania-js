@@ -39,7 +39,7 @@
         "test:pwa-release": "node scripts/run-stamped-release.mjs --dist .release-components/pwa-test --clean-dist _build:pwa:release _verify:pwa-release",
         "test:pwa-state-hardening": "node scripts/test-pwa-state-hardening.mjs",
         "test:pwa-machinery-hardening": "node scripts/test-pwa-machinery-hardening.mjs",
-        "test:stopwatch-hardening": "node scripts/test-stopwatch-hardening.mjs && node scripts/test-stopwatch-repeat-runtime.mjs && node scripts/test-stopwatch-boss-freeze.mjs && node scripts/test-stopwatch-timer-freeze.mjs && node scripts/test-dracula-post-death-stopwatch-state.mjs",
+        "test:stopwatch-hardening": "node scripts/test-stopwatch-hardening.mjs && node scripts/test-stopwatch-repeat-runtime.mjs && node scripts/test-stopwatch-boss-freeze.mjs && node scripts/test-stopwatch-timer-freeze.mjs && node scripts/test-dracula-post-death-stopwatch-state.mjs && node scripts/test-stage-three-floor-breaking-actions.mjs",
         "verify:desktop-source": "node scripts/verify-desktop-source.mjs",
         "verify:desktop-release": "node scripts/verify-desktop-release.mjs",
         "verify:release-tooling": "node scripts/verify-release-tooling.mjs",

@@ -16,6 +16,11 @@ public final class PlayerActionPolicy {
     registeredMain = main;
   }
 
+  /** The third-stage post-orb brick-break scene keeps player attacks live at TIME 0. */
+  public static boolean isStageThreeFloorBreaking(Main main) {
+    return main.stageIndex == 2 && main.floorBreaking;
+  }
+
   /**
    * Return whether Main will reach its ordinary gameplay countdown check after
    * StickvaniaInput.update() returns. Demo uses the same gameplay simulation.
@@ -67,11 +72,12 @@ public final class PlayerActionPolicy {
   /**
    * Return whether a delayed Simon attack may still resolve. Hearts and repeat
    * capacity remain separate sub-weapon checks in Main.canUseSubWeapon().
-   * Dracula's final death presentation is not terminal here: whip and non-
-   * StopWatch sub-weapons remain usable until the final orb is collected.
+   * Dracula's final death presentation and the third-stage post-orb brick-break
+   * scene are not terminal here: whip and eligible sub-weapons remain usable.
    */
   public static boolean canSimonActionContinue(Main main) {
     Simon simon = main.simon;
+    boolean stageThreeFloorBreaking = isStageThreeFloorBreaking(main);
     return (main.mode == Main.MODE_PLAYING
             || main.mode == Main.MODE_DEMO
             || main.mode == Main.MODE_CREDITS)
@@ -86,8 +92,8 @@ public final class PlayerActionPolicy {
             && (simon.y <= STAIR_TOP_TRANSITION_Y
                 || simon.y >= STAIR_BOTTOM_TRANSITION_Y))
         && !main.beatStage
-        && !main.floorBreaking
-        && main.time > 0
+        && (!main.floorBreaking || stageThreeFloorBreaking)
+        && (main.time > 0 || stageThreeFloorBreaking)
         && main.door == null;
   }
 

@@ -41,6 +41,8 @@ public final class StopWatchMusicHold {
    * stopwatch, but only real MODE_PLAYING gameplay is allowed to hold BGM.
    */
   public static boolean canStopWatchRun(Main main) {
+    boolean stageThreeFloorBreaking
+        = PlayerActionPolicy.isStageThreeFloorBreaking(main);
     return (main.mode == Main.MODE_PLAYING
             || main.mode == Main.MODE_DEMO
             || main.mode == Main.MODE_CREDITS)
@@ -48,8 +50,8 @@ public final class StopWatchMusicHold {
         && main.simon != null
         && main.simon.dead == 0
         && !main.beatStage
-        && !main.floorBreaking
-        && main.time > 0
+        && (!main.floorBreaking || stageThreeFloorBreaking)
+        && (main.time > 0 || stageThreeFloorBreaking)
         && !isDraculaDeathStopWatchLocked(main);
   }
 

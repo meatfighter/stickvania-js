@@ -16,6 +16,11 @@ export function registerPlayerActionMain(main: Main): void {
     registeredMain = main;
 }
 
+/** The third-stage post-orb brick-break scene keeps player attacks live at TIME 0. */
+export function isStageThreeFloorBreaking(main: Main): boolean {
+    return main.stageIndex == 2 && main.floorBreaking;
+}
+
 /**
  * Return whether Main will reach its ordinary gameplay countdown check after
  * StickvaniaInput.update() returns. Demo uses the same gameplay simulation.
@@ -69,11 +74,12 @@ export function prepareRegisteredCountdownTimer(): void {
  * Return whether a delayed Simon attack may still resolve. This is intentionally
  * broader than sub-weapon eligibility: it covers both whip and sub-weapon windup
  * and only describes terminal/control-loss state, not hearts or repeat capacity.
- * Dracula's final death presentation is not terminal here: whip and non-StopWatch
- * sub-weapons remain usable until the final orb is collected.
+ * Dracula's final death presentation and the third-stage post-orb brick-break
+ * scene are not terminal here: whip and eligible sub-weapons remain usable.
  */
 export function canSimonActionContinue(main: Main): boolean {
     const simon = main.simon;
+    const stageThreeFloorBreaking = isStageThreeFloorBreaking(main);
     return (
         (main.mode == MODE_PLAYING || main.mode == MODE_DEMO || main.mode == MODE_CREDITS) &&
         main.fadeState == FADE_DONE &&
@@ -85,8 +91,8 @@ export function canSimonActionContinue(main: Main): boolean {
         simon.y <= 416 &&
         !(simon.onStairs && (simon.y <= STAIR_TOP_TRANSITION_Y || simon.y >= STAIR_BOTTOM_TRANSITION_Y)) &&
         !main.beatStageFlag &&
-        !main.floorBreaking &&
-        main.time > 0 &&
+        (!main.floorBreaking || stageThreeFloorBreaking) &&
+        (main.time > 0 || stageThreeFloorBreaking) &&
         main.door === null
     );
 }

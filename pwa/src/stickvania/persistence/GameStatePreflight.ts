@@ -68,12 +68,17 @@ function hasVisibleFinalOrb(snapshot: Record<string, unknown>): boolean {
     return snapshot.things.some((thing) => isRecord(thing) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0);
 }
 
+function isStageThreeFloorBreaking(mainFields: Record<string, unknown>): boolean {
+    return mainFields.stageIndex === 2 && mainFields.floorBreaking === true;
+}
+
 function isTerminalStopWatchState(snapshot: Record<string, unknown>, mainFields: Record<string, unknown>): boolean {
+    const stageThreeFloorBreaking = isStageThreeFloorBreaking(mainFields);
     return (
         (typeof mainFields.playerPower === "number" && mainFields.playerPower <= 0) ||
         mainFields.beatStageFlag === true ||
-        mainFields.floorBreaking === true ||
-        (typeof mainFields.time === "number" && mainFields.time <= 0) ||
+        (mainFields.floorBreaking === true && !stageThreeFloorBreaking) ||
+        (typeof mainFields.time === "number" && mainFields.time <= 0 && !stageThreeFloorBreaking) ||
         (mainFields.stageIndex === 5 && mainFields.enemyPower === 0 && !hasVisibleFinalOrb(snapshot))
     );
 }

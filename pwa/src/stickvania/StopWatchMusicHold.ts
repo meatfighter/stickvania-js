@@ -1,6 +1,6 @@
 import type { Main } from "./Main.js";
 import { Orb } from "./Orb.js";
-import { canSimonActionContinue } from "./PlayerActionPolicy.js";
+import { canSimonActionContinue, isStageThreeFloorBreaking } from "./PlayerActionPolicy.js";
 import type { Song } from "./Song.js";
 
 const MODE_DEMO = 1;
@@ -37,14 +37,15 @@ export function isDraculaDeathStopWatchLocked(main: Main): boolean {
  * stopwatch, but only real MODE_PLAYING gameplay is allowed to hold BGM.
  */
 export function canStopWatchRun(main: Main): boolean {
+    const stageThreeFloorBreaking = isStageThreeFloorBreaking(main);
     return (
         (main.mode == MODE_PLAYING || main.mode == MODE_DEMO || main.mode == MODE_CREDITS) &&
         main.playerPower > 0 &&
         main.simon !== null &&
         main.simon.dead == 0 &&
         !main.beatStageFlag &&
-        !main.floorBreaking &&
-        main.time > 0 &&
+        (!main.floorBreaking || stageThreeFloorBreaking) &&
+        (main.time > 0 || stageThreeFloorBreaking) &&
         !isDraculaDeathStopWatchLocked(main)
     );
 }
