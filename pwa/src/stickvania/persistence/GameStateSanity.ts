@@ -103,11 +103,7 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
     if (!isReasonableInputConfig(snapshot.inputConfigMode)) {
         return false;
     }
-    const stopWatchHoldAllowed =
-        snapshot.mode === 4 &&
-        typeof snapshot.mainFields.timeFrozen === "number" &&
-        snapshot.mainFields.timeFrozen > 0 &&
-        !isTerminalStopWatchState(snapshot);
+    const stopWatchHoldAllowed = snapshot.mode === 4 && typeof snapshot.mainFields.timeFrozen === "number" && snapshot.mainFields.timeFrozen > 0 && !isTerminalStopWatchState(snapshot);
     if (!isReasonableAudio(snapshot.audio, stopWatchHoldAllowed)) {
         return false;
     }
@@ -169,9 +165,7 @@ function isReasonableStopWatchState(snapshot: StickvaniaGameStateSnapshot): bool
 }
 
 function hasVisibleFinalOrb(snapshot: StickvaniaGameStateSnapshot): boolean {
-    return snapshot.things.some(
-        (thing) => isRecord(thing) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0
-    );
+    return snapshot.things.some((thing) => isRecord(thing) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0);
 }
 
 function isTerminalStopWatchState(snapshot: StickvaniaGameStateSnapshot): boolean {
