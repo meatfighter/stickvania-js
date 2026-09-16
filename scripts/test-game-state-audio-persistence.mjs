@@ -155,7 +155,10 @@ try {
             isSoundEffectSnapshotsShape([
                 {
                     id: "heartbeat",
-                    playback: playback(new Array(MAX_PERSISTED_SOUND_EFFECT_VOICES + 1).fill(null).map(() => voice()), null)
+                    playback: playback(
+                        new Array(MAX_PERSISTED_SOUND_EFFECT_VOICES + 1).fill(null).map(() => voice()),
+                        null
+                    )
                 }
             ]),
             false

@@ -107,7 +107,10 @@ try {
     tooManySoundVoices.audio.sounds = [
         {
             id: "heartbeat",
-            playback: createSoundPlayback(new Array(MAX_TOTAL_SOUND_VOICES + 1).fill(null).map(() => createSoundVoice()), null)
+            playback: createSoundPlayback(
+                new Array(MAX_TOTAL_SOUND_VOICES + 1).fill(null).map(() => createSoundVoice()),
+                null
+            )
         }
     ];
     assert.equal(isReasonableStickvaniaGameStateSnapshot(tooManySoundVoices), false);

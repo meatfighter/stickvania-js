@@ -1037,9 +1037,7 @@ export class StickvaniaGameStateSerializer {
             }
             // Restore stopped parts first, then the sole active/paused/end-pending
             // transport. No play/seek timer, native source, or temporary unmute is used.
-            const ordered = Array.from(parts.values()).sort(
-                (a, b) => Number(a.playback.transport !== "stopped") - Number(b.playback.transport !== "stopped")
-            );
+            const ordered = Array.from(parts.values()).sort((a, b) => Number(a.playback.transport !== "stopped") - Number(b.playback.transport !== "stopped"));
             for (const part of ordered) {
                 const music = this.musicForId(main, part.id);
                 if (music === null) {
