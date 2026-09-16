@@ -65,9 +65,7 @@ function hasVisibleFinalOrb(snapshot: Record<string, unknown>): boolean {
     if (!Array.isArray(snapshot.things)) {
         return false;
     }
-    return snapshot.things.some(
-        (thing) => isRecord(thing) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0
-    );
+    return snapshot.things.some((thing) => isRecord(thing) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0);
 }
 
 function isTerminalStopWatchState(snapshot: Record<string, unknown>, mainFields: Record<string, unknown>): boolean {
