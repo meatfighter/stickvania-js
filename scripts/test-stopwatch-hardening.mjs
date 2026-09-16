@@ -136,11 +136,7 @@ try {
     );
     const visibleOrbSave = createPotentialSave(GAME_STATE_VERSION, "playing", { timeFrozen: 455, stageIndex: 5, enemyPower: 0 });
     visibleOrbSave.things.push({ id: 0, type: "Orb", fields: { appearDelay: 0 } });
-    assert.equal(
-        isPotentialStickvaniaGameStateSnapshot(visibleOrbSave),
-        true,
-        "a visible final-orb StopWatch save remains eligible for Continue"
-    );
+    assert.equal(isPotentialStickvaniaGameStateSnapshot(visibleOrbSave), true, "a visible final-orb StopWatch save remains eligible for Continue");
     assert.equal(
         isPotentialStickvaniaGameStateSnapshot(createPotentialSave(GAME_STATE_VERSION, "playing", { weaponType: 5, weaponRepeats: 1 })),
         false,
