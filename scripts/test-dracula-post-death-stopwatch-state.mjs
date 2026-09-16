@@ -40,11 +40,7 @@ try {
     const { GAME_STATE_VERSION } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSchema.ts");
 
     const hiddenOrb = createFinalStageWatchSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION, 1);
-    assert.equal(
-        isReasonableStickvaniaGameStateSnapshot(hiddenOrb),
-        false,
-        "an active StopWatch remains invalid while Dracula's final orb is hidden"
-    );
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(hiddenOrb), false, "an active StopWatch remains invalid while Dracula's final orb is hidden");
 
     const visibleOrb = createFinalStageWatchSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION, 0);
     assert.equal(
