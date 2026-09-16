@@ -170,7 +170,8 @@ function createFloorBreakingWatchSnapshot(songIds, version, overrides = {}) {
                 playing: false,
                 intro: createSongPart(id, "intro"),
                 loop: createSongPart(id, "loop")
-            }))
+            })),
+            sounds: []
         }
     };
 }

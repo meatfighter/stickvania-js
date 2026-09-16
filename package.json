@@ -38,13 +38,14 @@
         "verify:pwa-install-metadata": "node scripts/verify-pwa-install-metadata.mjs",
         "test:pwa-release": "node scripts/run-stamped-release.mjs --dist .release-components/pwa-test --clean-dist _build:pwa:release _verify:pwa-release",
         "test:pwa-state-hardening": "node scripts/test-pwa-state-hardening.mjs",
+        "test:pwa-audio-persistence": "node scripts/test-game-state-audio-persistence.mjs",
         "test:pwa-machinery-hardening": "node scripts/test-pwa-machinery-hardening.mjs",
         "test:stopwatch-hardening": "node scripts/test-stopwatch-hardening.mjs && node scripts/test-stopwatch-repeat-runtime.mjs && node scripts/test-stopwatch-boss-freeze.mjs && node scripts/test-stopwatch-timer-freeze.mjs && node scripts/test-dracula-post-death-stopwatch-state.mjs && node scripts/test-stage-three-floor-breaking-actions.mjs",
         "verify:desktop-source": "node scripts/verify-desktop-source.mjs",
         "verify:desktop-release": "node scripts/verify-desktop-release.mjs",
         "verify:release-tooling": "node scripts/verify-release-tooling.mjs",
         "verify:dependencies": "npm audit --audit-level=high",
-        "verify": "node --test scripts/test-slick-install-cutover.mjs && node --test scripts/test-deployment-scope-cutover.mjs && node --test scripts/test-cutover-browser-script-syntax.mjs && node --test scripts/test-playback-session.mjs && node --test scripts/test-browser-haptics.mjs && node --test scripts/test-browser-fullscreen-controls.mjs && node --test scripts/test-pwa-menu-touch-zoom.mjs && npm run test:rumble-session && node --test scripts/test-service-worker-deadline.mjs && node --test scripts/test-pwa-manifest-identity.mjs && npm run test:session-ownership && npm run format:check && npm run lint && npm run check:resource-versions && npm run check:java-parity-metadata && npm run check:state-fields && npm run test:pwa-state-hardening && npm run test:pwa-machinery-hardening && npm run test:stopwatch-hardening && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:typescript-tech-debt && npm run test:about-page && npm run test:about-html && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
+        "verify": "node --test scripts/test-slick-install-cutover.mjs && node --test scripts/test-deployment-scope-cutover.mjs && node --test scripts/test-cutover-browser-script-syntax.mjs && node --test scripts/test-playback-session.mjs && node --test scripts/test-browser-haptics.mjs && node --test scripts/test-browser-fullscreen-controls.mjs && node --test scripts/test-pwa-menu-touch-zoom.mjs && npm run test:rumble-session && node --test scripts/test-service-worker-deadline.mjs && node --test scripts/test-pwa-manifest-identity.mjs && npm run test:session-ownership && npm run format:check && npm run lint && npm run check:resource-versions && npm run check:java-parity-metadata && npm run check:state-fields && npm run test:pwa-state-hardening && npm run test:pwa-audio-persistence && npm run test:pwa-machinery-hardening && npm run test:stopwatch-hardening && npm run test:buffered-scaling-wiring && npm run test:java-parity && npm run test:typescript-tech-debt && npm run test:about-page && npm run test:about-html && npm run verify:release-tooling && npm run test:pwa-release && npm run verify:desktop-source && npm run build:desktop",
         "verify:browser": "node scripts/run-browser-verification.mjs && node scripts/run-offline-verification.mjs",
         "release": "npm run verify && npm run verify:dependencies && npm run build",
         "qualify": "node scripts/assert-clean-git.mjs && npm run release && npm run verify:browser && node scripts/assert-clean-git.mjs",
@@ -77,7 +78,7 @@
         "release:archive": "node scripts/archive-release.mjs"
     },
     "dependencies": {
-        "slick2d-ts": "https://codeload.github.com/meatfighter/slick2d-ts/tar.gz/b82492294a20640fab7e0065e9348253bd56c4a9"
+        "slick2d-ts": "https://codeload.github.com/meatfighter/slick2d-ts/tar.gz/c154ae6ff821179aaf9a19a5ad60683512a3d82b"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",

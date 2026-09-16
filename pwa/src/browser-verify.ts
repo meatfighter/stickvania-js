@@ -1,9 +1,10 @@
-import { AppGameContainer, Display, ResourceLoader, SoundStore } from "slick2d-ts";
+import { AppGameContainer, Display, ResourceLoader, SoundStore, type SoundPlaybackSnapshot } from "slick2d-ts";
 import { getStickvaniaResourceVersion } from "./ResourceVersions.generated.js";
 import { STICKVANIA_RESOURCE_REFS } from "./resources.js";
 import { Main } from "./stickvania/Main.js";
 import { StickvaniaBufferedGame } from "./stickvania/StickvaniaBufferedGame.js";
 import { StickvaniaGameStateSerializer } from "./stickvania/persistence/StickvaniaGameStateSerializer.js";
+import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
 import { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
 
 const result = document.querySelector<HTMLElement>("#result");
@@ -17,6 +18,28 @@ function assert(condition: unknown, message: string): asserts condition {
     if (!condition) {
         throw new Error(message);
     }
+}
+
+function soundPlaybackForRef(ref: string, fractions: number[], activeVoiceIndex: number | null): SoundPlaybackSnapshot {
+    const buffer = SoundStore.get().getDecodedAudioBuffer(ref);
+    assert(buffer !== null && Number.isFinite(buffer.duration) && buffer.duration > 0, `Missing decoded duration for ${ref}.`);
+    return {
+        voices: fractions.map((fraction) => {
+            assert(fraction > 0 && fraction < 1, `Invalid test offset fraction for ${ref}: ${fraction}`);
+            return {
+                looped: false,
+                playbackRate: 1,
+                positionSeconds: buffer.duration * fraction,
+                gain: 1,
+                spatialPosition: null
+            };
+        }),
+        activeVoiceIndex
+    };
+}
+
+function sameSnapshot(left: unknown, right: unknown): boolean {
+    return JSON.stringify(left) === JSON.stringify(right);
 }
 
 async function waitForTitle(main: Main): Promise<void> {
@@ -112,8 +135,25 @@ async function verify(): Promise<void> {
         assert(first.main.isStateSaveReady(), "Active stage must be saveable.");
         first.main.score = 123450;
         first.main.players = 3;
+
+        // Install physically valid nonzero logical offsets through the public
+        // Slick 1.7 API. Fractions of the decoded duration cannot accidentally
+        // place a one-shot at/past its real end on a short sample.
+        first.main.watch_tick.restorePlaybackState(soundPlaybackForRef("soundfx/watch_tick.ogg", [0.25], 0));
+        first.main.heartbeat.restorePlaybackState(soundPlaybackForRef("soundfx/heartbeat.ogg", [0.2, 0.1], null));
+
         assert(store.save(first.main), "Real browser Main did not save successfully.");
         assert(store.hasValidSave(), "Saved real browser Main did not validate.");
+        const storedText = localStorage.getItem(GAME_STATE_STORAGE_KEY);
+        assert(storedText !== null, "Saved v13 state was not written under the current storage key.");
+        const stored = JSON.parse(storedText) as ReturnType<StickvaniaGameStateSerializer["createSnapshot"]>;
+        const expectedWatchTick = stored.audio.sounds.find(({ id }) => id === "watch_tick")?.playback;
+        const expectedHeartbeat = stored.audio.sounds.find(({ id }) => id === "heartbeat")?.playback;
+        assert(expectedWatchTick !== undefined, "Saved state omitted active watch_tick Sound.");
+        assert(expectedHeartbeat !== undefined, "Saved state omitted active heartbeat Sound.");
+        assert(expectedHeartbeat.voices.length === 2 && expectedHeartbeat.activeVoiceIndex === null, "Saved state lost overlapping heartbeat voice semantics.");
+        assert(!stored.audio.sounds.some(({ id }) => id === "lands"), "Sparse Sound state included an inactive effect.");
+
         first.buffered.setScalingPreference("smooth");
         first.buffered.setScalingPreference("pixel-perfect");
         first.buffered.setScalingPreference("crisp");
@@ -126,7 +166,19 @@ async function verify(): Promise<void> {
         destroyMounted(first);
         first = null;
 
-        second = await mountMain((main, container) => store.restore(main, container));
+        second = await mountMain((main, container) => {
+            const restored = store.restore(main, container);
+            if (!restored) {
+                return false;
+            }
+            // Assert exact logical state inside the loading-complete restore hook,
+            // before resumed simulation or a replacement physical generation can
+            // advance any one-shot waveform.
+            assert(sameSnapshot(main.watch_tick.capturePlaybackState(), expectedWatchTick), "Fresh Main did not restore watch_tick at the exact saved offset.");
+            assert(sameSnapshot(main.heartbeat.capturePlaybackState(), expectedHeartbeat), "Fresh Main did not restore overlapping heartbeat voices exactly.");
+            assert(main.lands.capturePlaybackState().voices.length === 0, "Omitted Sound state did not restore lands as empty.");
+            return true;
+        });
         assert(second.main.isStateSaveReady(), "Restored browser Main is not save-state ready.");
         assert(second.main.score === 123450, "Fresh Stickvania Main did not restore score state.");
         assert(second.main.players === 3, "Fresh Stickvania Main did not restore player-count state.");

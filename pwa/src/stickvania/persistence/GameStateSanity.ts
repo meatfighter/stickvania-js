@@ -2,6 +2,7 @@ import { isMusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
 import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "../AudioRegistry.js";
 import type { InputConfigModeSnapshot } from "../InputConfigMode.js";
 import type { AudioSnapshot, MusicId, MusicSnapshot, SongId, StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
+import { isSoundEffectSnapshotsShape } from "./GameStateSoundEffects.js";
 
 const JAVA_INT_MIN = -2_147_483_648;
 const JAVA_INT_MAX = 2_147_483_647;
@@ -45,7 +46,7 @@ const EXPECTED_MUSIC_IDS = new Set<string>([
     "stage_6_2.loop"
 ]);
 const TOP_LEVEL_FIELDS = ["version", "appVersion", "savedAt", "mode", "mainFields", "inputConfigMode", "random", "stage", "things", "audio"] as const;
-const AUDIO_FIELDS = ["musicOn", "soundOn", "currentSong", "requestedSong", "currentMusic", "songs"] as const;
+const AUDIO_FIELDS = ["musicOn", "soundOn", "currentSong", "requestedSong", "currentMusic", "songs", "sounds"] as const;
 const SONG_FIELDS = ["id", "playing", "intro", "loop"] as const;
 const MUSIC_FIELDS = ["id", "playback"] as const;
 const INPUT_CONFIG_FIELDS = [
@@ -235,7 +236,8 @@ function isReasonableAudio(snapshot: AudioSnapshot, stopWatchHoldAllowed: boolea
         !isNullableSongId(snapshot.currentSong) ||
         !isNullableSongId(snapshot.requestedSong) ||
         !Array.isArray(snapshot.songs) ||
-        snapshot.songs.length !== SONG_FIELD_NAMES.length
+        snapshot.songs.length !== SONG_FIELD_NAMES.length ||
+        !isSoundEffectSnapshotsShape(snapshot.sounds)
     ) {
         return false;
     }

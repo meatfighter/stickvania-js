@@ -442,6 +442,7 @@ function createPotentialSave(version, transport, mainFieldOverrides = {}) {
             musicOn: true,
             soundOn: true,
             songs: [],
+            sounds: [],
             currentMusic: { playback: { transport } }
         }
     };

@@ -1,3 +1,6 @@
+import type { Sound } from "slick2d-ts";
+import type { Main } from "./Main.js";
+
 export const SONG_FIELD_NAMES = [
     "boss_1",
     "boss_2",
@@ -78,3 +81,44 @@ export const SOUND_EFFECT_FIELD_NAMES = [
     "dracula_to_bats",
     "lands"
 ] as const;
+
+// Slick's default 64-source pool reserves indices 0 and 63, leaving 62
+// simultaneous logical effect voices available to a game that does not call
+// setMaxSources(). Keep durable-state validation aligned with that real limit.
+export const MAX_PERSISTED_SOUND_EFFECT_VOICES = 62;
+
+export type SoundEffectFieldName = (typeof SOUND_EFFECT_FIELD_NAMES)[number];
+
+export type RegisteredSoundEffect = Readonly<{
+    id: SoundEffectFieldName;
+    sound: Sound;
+}>;
+
+const SOUND_EFFECT_FIELD_NAME_SET = new Set<string>(SOUND_EFFECT_FIELD_NAMES);
+
+export function isSoundEffectFieldName(value: unknown): value is SoundEffectFieldName {
+    return typeof value === "string" && SOUND_EFFECT_FIELD_NAME_SET.has(value);
+}
+
+export function registeredSoundEffects(main: Main): ReadonlyArray<RegisteredSoundEffect> {
+    const seen = new Set<Sound>();
+    return SOUND_EFFECT_FIELD_NAMES.map((id) => {
+        const sound = main[id];
+        if (sound == null) {
+            throw new Error(`Sound effect is not initialized: ${id}`);
+        }
+        if (seen.has(sound)) {
+            throw new Error(`Two Stickvania sound IDs reference the same Sound object: ${id}`);
+        }
+        seen.add(sound);
+        return { id, sound };
+    });
+}
+
+export function soundEffectForId(main: Main, id: SoundEffectFieldName): Sound {
+    const sound = main[id];
+    if (sound == null) {
+        throw new Error(`Sound effect is not initialized: ${id}`);
+    }
+    return sound;
+}

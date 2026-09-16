@@ -102,7 +102,8 @@ function createFinalStageWatchSnapshot(songIds, version, appearDelay) {
                 playing: false,
                 intro: createSongPart(id, "intro"),
                 loop: createSongPart(id, "loop")
-            }))
+            })),
+            sounds: []
         }
     };
 }

@@ -36,6 +36,7 @@ const MUSIC_IDS = new Set([
 
 try {
     const { SONG_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/AudioRegistry.ts");
+    const { MAX_TOTAL_SOUND_VOICES } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSoundEffects.ts");
     const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
     const { isReasonableStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSanity.ts");
     const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } = await server.ssrLoadModule(
@@ -43,8 +44,8 @@ try {
     );
     const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
 
-    assert.equal(GAME_STATE_VERSION, 12);
-    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v12$/);
+    assert.equal(GAME_STATE_VERSION, 13);
+    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v13$/);
 
     const serializer = new StickvaniaGameStateSerializer();
     assert.equal(serializer.isThingIdArray([null, 0], 1), true);
@@ -78,6 +79,42 @@ try {
     const missingSong = clone(snapshot);
     missingSong.audio.songs.pop();
     assert.equal(isReasonableStickvaniaGameStateSnapshot(missingSong), false);
+
+    const validSound = clone(snapshot);
+    validSound.audio.sounds = [{ id: "watch_tick", playback: createSoundPlayback([createSoundVoice(0.037)], 0) }];
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(validSound), true);
+
+    const missingSounds = clone(snapshot);
+    delete missingSounds.audio.sounds;
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(missingSounds), false);
+
+    const unknownSound = clone(snapshot);
+    unknownSound.audio.sounds = [{ id: "not-a-sound", playback: createSoundPlayback([createSoundVoice()], 0) }];
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(unknownSound), false);
+
+    const duplicateSound = clone(snapshot);
+    duplicateSound.audio.sounds = [
+        { id: "watch_tick", playback: createSoundPlayback([createSoundVoice(0.01)], 0) },
+        { id: "watch_tick", playback: createSoundPlayback([createSoundVoice(0.02)], 0) }
+    ];
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(duplicateSound), false);
+
+    const emptySparseSound = clone(snapshot);
+    emptySparseSound.audio.sounds = [{ id: "watch_tick", playback: createSoundPlayback([], null) }];
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(emptySparseSound), false);
+
+    const tooManySoundVoices = clone(snapshot);
+    tooManySoundVoices.audio.sounds = [
+        {
+            id: "heartbeat",
+            playback: createSoundPlayback(new Array(MAX_TOTAL_SOUND_VOICES + 1).fill(null).map(() => createSoundVoice()), null)
+        }
+    ];
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(tooManySoundVoices), false);
+
+    const excessiveSoundPosition = clone(snapshot);
+    excessiveSoundPosition.audio.sounds = [{ id: "watch_tick", playback: createSoundPlayback([createSoundVoice(86_401)], 0) }];
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(excessiveSoundPosition), false);
 
     const invalidCurrentSong = clone(snapshot);
     invalidCurrentSong.audio.currentSong = "not-a-song";
@@ -212,11 +249,24 @@ try {
 
     const storage = createStorage();
 
+    const obsolete = createPotentialSnapshot(GAME_STATE_VERSION - 1);
+    const obsoleteText = JSON.stringify(obsolete);
+    storage.setItem(GAME_STATE_STORAGE_KEY, obsoleteText);
+    assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
+    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), obsoleteText);
+
     const future = createPotentialSnapshot(GAME_STATE_VERSION + 1);
     const futureText = JSON.stringify(future);
     storage.setItem(GAME_STATE_STORAGE_KEY, futureText);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), futureText);
+
+    const missingPreflightSounds = createPotentialSnapshot(GAME_STATE_VERSION);
+    delete missingPreflightSounds.audio.sounds;
+    const missingPreflightText = JSON.stringify(missingPreflightSounds);
+    storage.setItem(GAME_STATE_STORAGE_KEY, missingPreflightText);
+    assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
+    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), missingPreflightText);
 
     const malformed = "{";
     storage.setItem(GAME_STATE_STORAGE_KEY, malformed);
@@ -289,7 +339,8 @@ function createSnapshot(songIds, version) {
                 playing: false,
                 intro: createSongPart(id, "intro"),
                 loop: createSongPart(id, "loop")
-            }))
+            })),
+            sounds: []
         }
     };
 }
@@ -344,6 +395,21 @@ function createPlayback(overrides = {}) {
     };
 }
 
+function createSoundVoice(positionSeconds = 0.01, overrides = {}) {
+    return {
+        looped: false,
+        playbackRate: 1,
+        positionSeconds,
+        gain: 1,
+        spatialPosition: null,
+        ...overrides
+    };
+}
+
+function createSoundPlayback(voices, activeVoiceIndex = voices.length === 0 ? null : voices.length - 1) {
+    return { voices, activeVoiceIndex };
+}
+
 function createInputConfigSnapshot() {
     return {
         stepIndex: 0,
@@ -384,7 +450,7 @@ function createPotentialSnapshot(version) {
         random: {},
         stage: null,
         things: [],
-        audio: { musicOn: true, soundOn: true, songs: [] }
+        audio: { musicOn: true, soundOn: true, songs: [], sounds: [] }
     };
 }
 

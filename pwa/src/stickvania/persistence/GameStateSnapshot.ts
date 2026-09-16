@@ -1,5 +1,6 @@
-import type { MusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
+import type { MusicPlaybackSnapshot, SoundPlaybackSnapshot } from "slick2d-ts";
 import type { InputConfigModeSnapshot } from "../InputConfigMode.js";
+import type { SoundEffectFieldName } from "../AudioRegistry.js";
 import type { ThingTypeId } from "./ThingTypeRegistry.js";
 
 export { GAME_STATE_VERSION } from "./GameStateSchema.js";
@@ -146,6 +147,11 @@ export type SongSnapshot = {
     loop: MusicSnapshot | null;
 };
 
+export type SoundEffectSnapshot = {
+    id: SoundEffectFieldName;
+    playback: SoundPlaybackSnapshot;
+};
+
 export type AudioSnapshot = {
     musicOn: boolean;
     soundOn: boolean;
@@ -153,6 +159,7 @@ export type AudioSnapshot = {
     requestedSong: SongId | null;
     currentMusic: MusicSnapshot | null;
     songs: SongSnapshot[];
+    sounds: SoundEffectSnapshot[];
 };
 
 export type StickvaniaGameStateSnapshot = {

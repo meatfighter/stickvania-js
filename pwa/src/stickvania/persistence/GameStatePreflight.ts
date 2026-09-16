@@ -1,8 +1,10 @@
+import { MAX_PERSISTED_SOUND_EFFECT_VOICES, SOUND_EFFECT_FIELD_NAMES } from "../AudioRegistry.js";
 import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
 import { isInputConfigGameStateMode, isRestorableGameStateMode, isStageRequiredGameStateMode } from "./GameStatePolicy.js";
 
 const WEAPON_TYPE_STOP_WATCH = 5;
 const WEAPON_REPEATS_SINGLE = 0;
+const SOUND_EFFECT_IDS = new Set<string>(SOUND_EFFECT_FIELD_NAMES);
 
 type GameStateStorage = {
     getItem(key: string): string | null;
@@ -55,10 +57,33 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         typeof audioValue.musicOn === "boolean" &&
         typeof audioValue.soundOn === "boolean" &&
         Array.isArray(audioValue.songs) &&
+        hasPotentialSoundEffects(audioValue.sounds) &&
         !hasObsoletePausedStandalone &&
         !hasObsoleteTerminalStopWatch &&
         !hasInvalidStopWatchRepeatState
     );
+}
+
+function hasPotentialSoundEffects(value: unknown): boolean {
+    if (!Array.isArray(value) || value.length > SOUND_EFFECT_FIELD_NAMES.length) {
+        return false;
+    }
+    const seen = new Set<string>();
+    let totalVoices = 0;
+    for (const entry of value) {
+        if (!isRecord(entry) || typeof entry.id !== "string" || !SOUND_EFFECT_IDS.has(entry.id) || seen.has(entry.id) || !isRecord(entry.playback)) {
+            return false;
+        }
+        if (!Array.isArray(entry.playback.voices) || entry.playback.voices.length === 0) {
+            return false;
+        }
+        totalVoices += entry.playback.voices.length;
+        if (totalVoices > MAX_PERSISTED_SOUND_EFFECT_VOICES) {
+            return false;
+        }
+        seen.add(entry.id);
+    }
+    return true;
 }
 
 function hasVisibleFinalOrb(snapshot: Record<string, unknown>): boolean {

@@ -27,6 +27,7 @@ import {
     type ThingStackSnapshot
 } from "./GameStateSnapshot.js";
 import { GAME_STATE_VERSION } from "./GameStateSchema.js";
+import { captureSoundEffects, isSoundEffectSnapshotsShape, restoreSoundEffects } from "./GameStateSoundEffects.js";
 import { MAIN_PERSISTED_STATE_FIELD_NAMES, THING_PERSISTED_STATE_FIELD_NAMES } from "./StateFieldRegistry.generated.js";
 import { getThingTypeId, isThingTypeId, THING_TYPES } from "./ThingTypeRegistry.js";
 import { rehydrateThingAfterStateRestore } from "./ThingRehydrationRegistry.js";
@@ -346,13 +347,14 @@ export class StickvaniaGameStateSerializer {
     private isAudioSnapshotShape(snapshot: unknown): snapshot is AudioSnapshot {
         if (
             !this.isPlainRecord(snapshot) ||
-            !this.areRecordFieldNamesExact(snapshot, ["musicOn", "soundOn", "currentSong", "requestedSong", "currentMusic", "songs"]) ||
+            !this.areRecordFieldNamesExact(snapshot, ["musicOn", "soundOn", "currentSong", "requestedSong", "currentMusic", "songs", "sounds"]) ||
             typeof snapshot.musicOn !== "boolean" ||
             typeof snapshot.soundOn !== "boolean" ||
             !this.isNullableSongId(snapshot.currentSong) ||
             !this.isNullableSongId(snapshot.requestedSong) ||
             !Array.isArray(snapshot.songs) ||
             snapshot.songs.length !== SONG_IDS.length ||
+            !isSoundEffectSnapshotsShape(snapshot.sounds) ||
             (snapshot.currentMusic !== null && !this.isMusicSnapshotShape(snapshot.currentMusic))
         ) {
             return false;
@@ -979,7 +981,8 @@ export class StickvaniaGameStateSerializer {
             currentSong: this.songIdForSong(main, main.currentSong),
             requestedSong: this.songIdForSong(main, main.requestedSong),
             currentMusic: main.currentMusic === null ? null : (songPart ?? this.captureMusic(main, main.currentMusic)),
-            songs
+            songs,
+            sounds: captureSoundEffects(main)
         };
     }
 
@@ -1009,38 +1012,51 @@ export class StickvaniaGameStateSerializer {
     private restoreAudio(context: RestoreContext, snapshot: AudioSnapshot): void {
         const main = context.main;
         main.stopAllSounds();
+        // Sound.stop() is intentionally latest-voice-only. Purge the complete
+        // logical effect pool before importing a durable snapshot.
+        SoundStore.get().stopSoundEffects();
         Music.resetPlaybackState();
-        context.gc.setMusicOn(snapshot.musicOn);
-        context.gc.setSoundOn(snapshot.soundOn);
-        const parts = new Map<MusicId, MusicSnapshot>();
-        for (const state of snapshot.songs) {
-            const song = this.songForId(main, state.id);
-            if (song === null) {
-                throw new Error(`Saved song is unavailable: ${state.id}`);
-            }
-            song.setPlayingForState(state.playing);
-            for (const part of [state.intro, state.loop]) {
-                if (part !== null) {
-                    parts.set(part.id, part);
+        try {
+            context.gc.setMusicOn(snapshot.musicOn);
+            context.gc.setSoundOn(snapshot.soundOn);
+            const parts = new Map<MusicId, MusicSnapshot>();
+            for (const state of snapshot.songs) {
+                const song = this.songForId(main, state.id);
+                if (song === null) {
+                    throw new Error(`Saved song is unavailable: ${state.id}`);
+                }
+                song.setPlayingForState(state.playing);
+                for (const part of [state.intro, state.loop]) {
+                    if (part !== null) {
+                        parts.set(part.id, part);
+                    }
                 }
             }
-        }
-        if (snapshot.currentMusic !== null) {
-            parts.set(snapshot.currentMusic.id, snapshot.currentMusic);
-        }
-        // Restore stopped parts first, then the sole active/paused/end-pending
-        // transport. No play/seek timer, native source, or temporary unmute is used.
-        const ordered = Array.from(parts.values()).sort((a, b) => Number(a.playback.transport !== "stopped") - Number(b.playback.transport !== "stopped"));
-        for (const part of ordered) {
-            const music = this.musicForId(main, part.id);
-            if (music === null) {
-                throw new Error(`Saved music is unavailable: ${part.id}`);
+            if (snapshot.currentMusic !== null) {
+                parts.set(snapshot.currentMusic.id, snapshot.currentMusic);
             }
-            music.restorePlaybackState(part.playback);
+            // Restore stopped parts first, then the sole active/paused/end-pending
+            // transport. No play/seek timer, native source, or temporary unmute is used.
+            const ordered = Array.from(parts.values()).sort(
+                (a, b) => Number(a.playback.transport !== "stopped") - Number(b.playback.transport !== "stopped")
+            );
+            for (const part of ordered) {
+                const music = this.musicForId(main, part.id);
+                if (music === null) {
+                    throw new Error(`Saved music is unavailable: ${part.id}`);
+                }
+                music.restorePlaybackState(part.playback);
+            }
+            main.currentSong = this.songForId(main, snapshot.currentSong);
+            main.requestedSong = this.songForId(main, snapshot.requestedSong);
+            main.currentMusic = snapshot.currentMusic === null ? null : this.musicForId(main, snapshot.currentMusic.id);
+            restoreSoundEffects(main, snapshot.sounds);
+        } catch (error) {
+            main.stopAllSounds();
+            SoundStore.get().stopSoundEffects();
+            Music.resetPlaybackState();
+            throw error;
         }
-        main.currentSong = this.songForId(main, snapshot.currentSong);
-        main.requestedSong = this.songForId(main, snapshot.requestedSong);
-        main.currentMusic = snapshot.currentMusic === null ? null : this.musicForId(main, snapshot.currentMusic.id);
     }
 
     private captureRandom(random: JavaRandom): RandomSnapshot {
