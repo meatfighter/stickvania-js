@@ -207,12 +207,8 @@ try {
     const { Candles } = await server.ssrLoadModule("/src/stickvania/Candles.ts");
     const { SmallHeart } = await server.ssrLoadModule("/src/stickvania/SmallHeart.ts");
     const { SONG_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/AudioRegistry.ts");
-    const {
-        canSimonActionContinue,
-        isStageThreeFloorBreaking,
-        prepareRegisteredCountdownTimer,
-        registerPlayerActionMain
-    } = await server.ssrLoadModule("/src/stickvania/PlayerActionPolicy.ts");
+    const { canSimonActionContinue, isStageThreeFloorBreaking, prepareRegisteredCountdownTimer, registerPlayerActionMain } =
+        await server.ssrLoadModule("/src/stickvania/PlayerActionPolicy.ts");
     const { canStartStopWatch, canStopWatchRun } = await server.ssrLoadModule("/src/stickvania/StopWatchMusicHold.ts");
     const { isPotentialStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
     const { isReasonableStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSanity.ts");
@@ -349,7 +345,11 @@ try {
     }
 
     const floorBreakingSave = createFloorBreakingWatchSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
-    assert.equal(isPotentialStickvaniaGameStateSnapshot(floorBreakingSave), true, "Continue preflight must accept an active StopWatch in the brick-break scene");
+    assert.equal(
+        isPotentialStickvaniaGameStateSnapshot(floorBreakingSave),
+        true,
+        "Continue preflight must accept an active StopWatch in the brick-break scene"
+    );
     assert.equal(isReasonableStickvaniaGameStateSnapshot(floorBreakingSave), true, "full save sanity must accept an active StopWatch in the brick-break scene");
 
     const wrongStageSave = createFloorBreakingWatchSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION, { stageIndex: 0 });
