@@ -204,7 +204,10 @@ try {
     assert.match(javaSimon, /time == 0[\s\S]*?hurt[\s\S]*?playerPower = 0/);
 
     assert.match(tsStopWatch, /if \(!canStartStopWatch\(main\)\)[\s\S]*?main\.hearts \+= 5[\s\S]*?cancelSimonAction\(main\)/);
-    assert.match(javaStopWatch, /if \(!StopWatchMusicHold\.canStartStopWatch\(main\)\)[\s\S]*?main\.hearts \+= 5[\s\S]*?PlayerActionPolicy\.cancelSimonAction\(main\)/);
+    assert.match(
+        javaStopWatch,
+        /if \(!StopWatchMusicHold\.canStartStopWatch\(main\)\)[\s\S]*?main\.hearts \+= 5[\s\S]*?PlayerActionPolicy\.cancelSimonAction\(main\)/
+    );
     assert.match(tsStopWatch, /if \(!canStopWatchRun\(this\.main\)\)[\s\S]*?this\.cancel\(\)/);
     assert.match(javaStopWatch, /if \(!StopWatchMusicHold\.canStopWatchRun\(main\)\)[\s\S]*?cancel\(\)/);
 

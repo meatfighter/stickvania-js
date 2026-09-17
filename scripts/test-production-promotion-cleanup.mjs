@@ -32,10 +32,9 @@ assert.doesNotMatch(packageJson, /verify:axe-knight-shield|qualify:axe-knight-sh
 assert.match(packageJson, /test:axe-knight-shield/);
 assert.match(packageJson, /test:gameplay-transition-hardening/);
 
-const productionSources = [
-    ...collectFiles(resolve(rootDir, "pwa/src")),
-    ...collectFiles(resolve(rootDir, "desktop/src"))
-].filter((path) => /\.(?:ts|java)$/.test(path));
+const productionSources = [...collectFiles(resolve(rootDir, "pwa/src")), ...collectFiles(resolve(rootDir, "desktop/src"))].filter((path) =>
+    /\.(?:ts|java)$/.test(path)
+);
 const combined = productionSources.map((path) => readFileSync(path, "utf8")).join("\n");
 assert.doesNotMatch(combined, /axeKnightTest|axeShieldDebug|PLAYTEST_AXE_KNIGHT|PLAYTEST_SIMON|mountCreditsRecordingForPlaytest/);
 assert.doesNotMatch(combined, /AxeKnightShieldPlaytestMain/);

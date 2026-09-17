@@ -179,12 +179,8 @@ try {
     const { Simon } = await server.ssrLoadModule("/src/stickvania/Simon.ts");
     const { Orb } = await server.ssrLoadModule("/src/stickvania/Orb.ts");
     const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
-    const {
-        canRegisteredSimonActionStart,
-        canSimonActionContinue,
-        registerPlayerActionMain,
-        reconcileRegisteredSimonActionBeforeAttackRead
-    } = await server.ssrLoadModule("/src/stickvania/PlayerActionPolicy.ts");
+    const { canRegisteredSimonActionStart, canSimonActionContinue, registerPlayerActionMain, reconcileRegisteredSimonActionBeforeAttackRead } =
+        await server.ssrLoadModule("/src/stickvania/PlayerActionPolicy.ts");
     const { THING_PERSISTED_STATE_FIELD_NAMES, MAIN_PERSISTED_STATE_FIELD_NAMES } = await server.ssrLoadModule(
         "/src/stickvania/persistence/StateFieldRegistry.generated.ts"
     );

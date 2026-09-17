@@ -160,9 +160,8 @@ function modelLegacyMainPitBranch(main) {
 try {
     const { Main } = await server.ssrLoadModule("/src/stickvania/Main.ts");
     const { Simon } = await server.ssrLoadModule("/src/stickvania/Simon.ts");
-    const { prepareRegisteredCountdownTimer, prepareRegisteredPitDeathPresentation, registerPlayerActionMain } = await server.ssrLoadModule(
-        "/src/stickvania/PlayerActionPolicy.ts"
-    );
+    const { prepareRegisteredCountdownTimer, prepareRegisteredPitDeathPresentation, registerPlayerActionMain } =
+        await server.ssrLoadModule("/src/stickvania/PlayerActionPolicy.ts");
 
     // Ordinary enemy damage still respects temporary invincibility. Timeout is
     // special only because countdown preflight removes protection on the exact
@@ -407,7 +406,10 @@ try {
 
     for (const source of [tsPolicy, javaPolicy]) {
         assert.match(source, /timeIncrementor == 90[\s\S]*?time == 1[\s\S]*?!.*hurt[\s\S]*?invincible > 0/);
-        assert.match(source, /prepareRegisteredPitDeathPresentation[\s\S]*?MODE_PLAYING[\s\S]*?dead != 0[\s\S]*?y <= 416[\s\S]*?simon_in_pit[\s\S]*?simon_killed/);
+        assert.match(
+            source,
+            /prepareRegisteredPitDeathPresentation[\s\S]*?MODE_PLAYING[\s\S]*?dead != 0[\s\S]*?y <= 416[\s\S]*?simon_in_pit[\s\S]*?simon_killed/
+        );
     }
     assert.match(tsInput, /prepareRegisteredPitDeathPresentation\(\);[\s\S]*?prepareRegisteredCountdownTimer\(\)/);
     assert.match(javaInput, /prepareRegisteredPitDeathPresentation\(\);[\s\S]*?prepareRegisteredCountdownTimer\(\)/);
