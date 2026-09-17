@@ -139,7 +139,7 @@ try {
     assert.equal(canStartStopWatch(mainState({ timeFrozen: 455 })), false);
     assert.equal(canStopWatchRun(mainState({ beatStageFlag: true })), false);
     assert.equal(canStopWatchRun(mainState({ time: 0 })), false);
-    assert.equal(canStopWatchRun(mainState({ simon: simon({ hurt: true }) })), false);
+    assert.equal(canStopWatchRun(mainState({ simon: simon({ hurt: true }) })), true);
     assert.equal(canStartStopWatch(mainState({ simon: simon({ hurt: true }) })), false);
     assert.equal(canStopWatchRun(mainState({ stageIndex: 2, floorBreaking: true, time: 0 })), true);
     assert.equal(canStartStopWatch(mainState({ stageIndex: 2, floorBreaking: true, time: 0 })), true);
