@@ -1,7 +1,12 @@
 import { Input } from "slick2d-ts";
 import { ButtonMapping } from "./ButtonMapping.js";
 import { ControllerSupport } from "./ControllerSupport.js";
-import { canRegisteredSimonActionStart, prepareRegisteredCountdownTimer, reconcileRegisteredSimonActionBeforeAttackRead } from "./PlayerActionPolicy.js";
+import {
+    canRegisteredSimonActionStart,
+    prepareRegisteredCountdownTimer,
+    prepareRegisteredPitDeathPresentation,
+    reconcileRegisteredSimonActionBeforeAttackRead
+} from "./PlayerActionPolicy.js";
 
 type InputState = {
     up: boolean;
@@ -66,6 +71,9 @@ export class StickvaniaInput {
         this.previous = this.current;
         this.current = next;
         this.readStateInto(this.current);
+        // Complete any first below-pit presentation before Main's legacy pit
+        // branch can return, including a cold-restored lethal trajectory.
+        prepareRegisteredPitDeathPresentation();
         // Main evaluates its stage countdown immediately after input/frame-state
         // early exits. Preflight the imminent countdown before those checks run.
         prepareRegisteredCountdownTimer();

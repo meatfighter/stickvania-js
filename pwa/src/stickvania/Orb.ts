@@ -1,6 +1,5 @@
 import { GameContainer, Graphics } from "slick2d-ts";
 import type { Main } from "./Main.js";
-import { cancelSimonAction } from "./PlayerActionPolicy.js";
 import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
 
@@ -36,10 +35,6 @@ export class Orb extends Thing {
             this.applyGravity();
 
             if (this.main.intersectsSimon(this)) {
-                // Stage completion wins over any delayed attack that had not yet
-                // resolved. Do this at the collection boundary because beatStage
-                // bypasses normal Simon updates on subsequent frames.
-                cancelSimonAction(this.main);
                 this.main.playRumble("orbCollect");
                 this.main.beatStage();
                 return false;

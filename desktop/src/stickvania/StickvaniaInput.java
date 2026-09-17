@@ -41,6 +41,9 @@ public class StickvaniaInput {
   public void update() {
     previous = current;
     current = readState();
+    // Complete any first below-pit presentation before Main's legacy pit
+    // branch can return, including a cold-restored lethal trajectory.
+    PlayerActionPolicy.prepareRegisteredPitDeathPresentation();
     // Main evaluates its stage countdown immediately after input/frame-state
     // early exits. Preflight the imminent countdown before those checks run.
     PlayerActionPolicy.prepareRegisteredCountdownTimer();

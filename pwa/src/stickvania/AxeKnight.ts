@@ -1,4 +1,5 @@
 import { GameContainer, Graphics } from "slick2d-ts";
+import { Boomerang } from "./Boomerang.js";
 import { BoomerangAxe } from "./BoomerangAxe.js";
 import { Flame } from "./Flame.js";
 import { javaFloat, cc, trunc } from "./JavaMath.js";
@@ -6,11 +7,26 @@ import { Main } from "./Main.js";
 import { Spark } from "./Spark.js";
 import { Thing } from "./Thing.js";
 
+type ShieldContact = {
+    boomerang: Boomerang;
+    x: number;
+    y: number;
+};
+
 export class AxeKnight extends Thing {
     private static readonly STATE_INACTIVE: number = 0;
     private static readonly STATE_WALKING: number = 1;
     private static readonly STATE_STANDING: number = 2;
+    private static readonly SHIELD_BOOMERANG_RADIUS: number = 13;
+    private static readonly SHIELD_LEFT_X: number = 5;
+    private static readonly SHIELD_RIGHT_X: number = 42;
+    // The shield occupies the full height of the 48x64 AxeKnight sprite. The
+    // source frames face left, with the shield plane 5px from the left edge;
+    // the right-facing frame mirrors that plane to local x=42.
+    private static readonly SHIELD_TOP: number = 0;
+    private static readonly SHIELD_BOTTOM: number = 63;
     public hits: number = 3;
+    public shieldReflectionsRemaining: number = 3;
     public stunned: number = 0;
     private direction: number = 0;
     private displayDirection: number = 0;
@@ -22,6 +38,7 @@ export class AxeKnight extends Thing {
     private throwDelay: number = 0;
     private hasAxe: boolean = true;
     public dead: boolean = false;
+
     public constructor(main: Main, x: number, y: number) {
         x = javaFloat(x);
         y = javaFloat(y);
@@ -30,6 +47,7 @@ export class AxeKnight extends Thing {
         this.y = javaFloat(y);
 
         this.hits = main.adjustEnemyHits(this.hits);
+        this.shieldReflectionsRemaining = main.adjustEnemyHits(this.shieldReflectionsRemaining);
         this.throwDelay = main.adjustEnemyCooldown(main.random.nextInt(273));
     }
 
@@ -38,15 +56,157 @@ export class AxeKnight extends Thing {
         this.throwDelay = this.main.adjustEnemyCooldown(this.main.random.nextInt(273));
     }
 
+    private updateDisplayDirection(): void {
+        if (javaFloat(this.main.simon!.x + 8) < this.x) {
+            this.displayDirection = Main.LEFT;
+        } else {
+            this.displayDirection = Main.RIGHT;
+        }
+    }
+
+    private shieldX(): number {
+        return javaFloat(this.x + (this.displayDirection == Main.LEFT ? AxeKnight.SHIELD_LEFT_X : AxeKnight.SHIELD_RIGHT_X));
+    }
+
+    private shieldTop(): number {
+        return javaFloat(this.y + AxeKnight.SHIELD_TOP);
+    }
+
+    private shieldBottom(): number {
+        return javaFloat(this.y + AxeKnight.SHIELD_BOTTOM);
+    }
+
+    private shieldOutwardDirection(): number {
+        return this.displayDirection == Main.LEFT ? -1 : 1;
+    }
+
+    private isBoomerangProtectedOnShieldApproach(boomerang: Boomerang): boolean {
+        if (this.kill || boomerang.kill || boomerang.shieldBlockedBy !== null) {
+            return false;
+        }
+
+        const vx = boomerang.getActualHorizontalVelocity();
+        const centerX = javaFloat(boomerang.x + 16);
+        const centerY = javaFloat(boomerang.y + 16);
+        const shieldX = this.shieldX();
+        const withinShieldHeight =
+            centerY >= this.shieldTop() - AxeKnight.SHIELD_BOOMERANG_RADIUS && centerY <= this.shieldBottom() + AxeKnight.SHIELD_BOOMERANG_RADIUS;
+        if (!withinShieldHeight) {
+            return false;
+        }
+
+        return this.displayDirection == Main.LEFT ? vx >= 0 && centerX <= shieldX : vx <= 0 && centerX >= shieldX;
+    }
+
+    private getShieldContactForBoomerang(boomerang: Boomerang, requireDurability: boolean = true): ShieldContact | null {
+        if (this.kill || (requireDurability && this.shieldReflectionsRemaining <= 0) || boomerang.kill || boomerang.shieldBlockedBy !== null) {
+            return null;
+        }
+
+        const shieldX = this.shieldX();
+        const shieldY1 = this.shieldTop();
+        const shieldY2 = this.shieldBottom();
+        const bodyCenterX = javaFloat(this.x + 24);
+        const vx = boomerang.getActualHorizontalVelocity();
+        const centerX = javaFloat(boomerang.x + 16);
+        const centerY = javaFloat(boomerang.y + 16);
+        const approachesFromFront = this.displayDirection == Main.LEFT ? vx >= 0 && centerX <= bodyCenterX : vx <= 0 && centerX >= bodyCenterX;
+        if (!approachesFromFront) {
+            return null;
+        }
+
+        const closestY = javaFloat(Math.max(shieldY1, Math.min(shieldY2, centerY)));
+        const dx = javaFloat(centerX - shieldX);
+        const dy = javaFloat(centerY - closestY);
+        if (javaFloat(javaFloat(dx * dx) + javaFloat(dy * dy)) > AxeKnight.SHIELD_BOOMERANG_RADIUS * AxeKnight.SHIELD_BOOMERANG_RADIUS) {
+            return null;
+        }
+
+        return { boomerang, x: shieldX, y: closestY };
+    }
+
+    private findShieldContact(): ShieldContact | null {
+        const weapons = this.main.weaponsStack.things;
+        for (let j: number = this.main.weaponsStack.top; j >= 0; j--) {
+            const weapon = weapons[j];
+            if (!(weapon instanceof Boomerang)) {
+                continue;
+            }
+            const contact = this.getShieldContactForBoomerang(weapon);
+            if (contact !== null) {
+                return contact;
+            }
+        }
+        return null;
+    }
+
+    private tryReflectBoomerang(): Boomerang | null {
+        const contact = this.findShieldContact();
+        if (contact === null || !contact.boomerang.reflectFromAxeKnight(this, this.shieldOutwardDirection())) {
+            return null;
+        }
+
+        this.shieldReflectionsRemaining--;
+        this.main.pushThing(new Spark(this.main, contact.x, contact.y, 1, 1));
+        this.main.playSound(this.main.ching);
+        this.main.playRumble("weaponImpactLight");
+        return contact.boomerang;
+    }
+
+    private intersectsDamageWeapon(reflectedBoomerang: Boomerang | null): boolean {
+        const weapons = this.main.weaponsStack.things;
+        for (let j: number = this.main.weaponsStack.top; j >= 0; j--) {
+            const weapon = weapons[j]!;
+            if (weapon instanceof Boomerang) {
+                // A shield reflection owns this projectile until it has fully
+                // separated from the reflector. During that unresolved contact,
+                // no AxeKnight may reinterpret the projectile as body damage.
+                // Also exclude the exact projectile reflected earlier in this
+                // update even if the lock is mutated before this scan.
+                if (weapon === reflectedBoomerang || weapon.shieldBlockedBy !== null) {
+                    continue;
+                }
+                // Ordinary Boomerang body collision is a forgiving 32x32 AABB,
+                // wider than the radius-13 circle used for the visible shield.
+                // Protect a frontal trajectory during that pre-contact overlap,
+                // then let the circle produce the actual reflection when it
+                // reaches the shield plane. This prevents body damage from
+                // occurring several ticks before the visible bounce.
+                if (
+                    (this.shieldReflectionsRemaining > 0 || reflectedBoomerang !== null) &&
+                    (this.isBoomerangProtectedOnShieldApproach(weapon) || this.getShieldContactForBoomerang(weapon, false) !== null)
+                ) {
+                    continue;
+                }
+            }
+            if (this.main.intersects(weapon, this)) {
+                this.main.playRumble("weaponImpactLight");
+                weapon.intersected = true;
+                return true;
+            }
+        }
+        return false;
+    }
+
     public override update(gc: GameContainer): boolean {
         if (this.kill) {
             this.hits = 0;
             this.stunned = 0;
         }
 
+        // The shield is tied to the side rendered this frame. During Stopwatch
+        // freeze, preserve the already frozen facing rather than tracking Simon.
+        if (this.main.timeFrozen == 0) {
+            this.updateDisplayDirection();
+        }
+
+        // Shielding is passive physical behavior. It remains active while the
+        // body is stunned and does not itself start/reset the 45-tick body stun.
+        const reflectedBoomerang = this.tryReflectBoomerang();
+
         if (this.stunned > 0) {
             this.stunned--;
-        } else if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
+        } else if (this.main.intersectsWhip(this) || this.intersectsDamageWeapon(reflectedBoomerang) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             if (--this.hits <= 0) {
                 if (this.main.random.nextBoolean()) {
@@ -69,12 +229,6 @@ export class AxeKnight extends Thing {
         }
 
         if (this.main.timeFrozen == 0) {
-            if (javaFloat(this.main.simon!.x + 8) < this.x) {
-                this.displayDirection = Main.LEFT;
-            } else {
-                this.displayDirection = Main.RIGHT;
-            }
-
             this.applyGravity();
 
             if (this.state != AxeKnight.STATE_INACTIVE && this.hasAxe) {

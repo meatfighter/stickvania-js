@@ -1,4 +1,5 @@
 import { MAX_PERSISTED_SOUND_EFFECT_VOICES, SOUND_EFFECT_FIELD_NAMES } from "../AudioRegistry.js";
+import { isAxeKnightShieldSnapshotStateValid } from "./AxeKnightShieldStatePolicy.js";
 import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
 import { isInputConfigGameStateMode, isRestorableGameStateMode, isStageRequiredGameStateMode } from "./GameStatePolicy.js";
 
@@ -60,7 +61,8 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         hasPotentialSoundEffects(audioValue.sounds) &&
         !hasObsoletePausedStandalone &&
         !hasObsoleteTerminalStopWatch &&
-        !hasInvalidStopWatchRepeatState
+        !hasInvalidStopWatchRepeatState &&
+        isAxeKnightShieldSnapshotStateValid(snapshot)
     );
 }
 

@@ -172,6 +172,17 @@ public class Simon extends Thing {
 
     applyGravityWithPlatforms();
 
+    // Main's ordinary hurt path intentionally ignores damage while Simon is
+    // already hurt. If TIME reached zero on this fixed tick, preserve the
+    // existing knockback vector but make that trajectory lethal immediately.
+    if (main.time == 0 && main.playerPower > 0 && hurt && !main.floorBreaking) {
+      invincible = 0;
+      drankPotion = false;
+      main.setSimonAlpha(1f);
+      main.playerPower = 0;
+      onStairs = false;
+    }
+
     // Whip and sub-weapon windups are delayed actions. If gameplay entered a
     // terminal/control-loss state before resolution, discard the entire action
     // rather than letting a stale whip or projectile appear later.

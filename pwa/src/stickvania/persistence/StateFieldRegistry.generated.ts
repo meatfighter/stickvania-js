@@ -338,6 +338,7 @@ export const THING_STATE_FIELD_NAMES = {
         "kill",
         "G",
         "hits",
+        "shieldReflectionsRemaining",
         "stunned",
         "direction",
         "displayDirection",
@@ -491,7 +492,8 @@ export const THING_STATE_FIELD_NAMES = {
         "state",
         "angle",
         "g",
-        "soundDelay"
+        "soundDelay",
+        "shieldBlockedBy"
     ],
     BoomerangAxe: [
         "main",
@@ -1258,6 +1260,7 @@ export const THING_PERSISTED_STATE_FIELD_NAMES = {
         "kill",
         "G",
         "hits",
+        "shieldReflectionsRemaining",
         "stunned",
         "direction",
         "displayDirection",
@@ -1352,7 +1355,26 @@ export const THING_PERSISTED_STATE_FIELD_NAMES = {
     ],
     BoneDragonVertebra: ["x", "y", "vx", "vy", "rx1", "ry1", "rx2", "ry2", "supported", "intersected", "kill", "G", "tx", "ty", "angle"],
     BonePillar: ["x", "y", "vx", "vy", "rx1", "ry1", "rx2", "ry2", "supported", "intersected", "kill", "G", "direction", "stunned", "hits", "delay", "bullets"],
-    Boomerang: ["x", "y", "vx", "vy", "rx1", "ry1", "rx2", "ry2", "supported", "intersected", "kill", "G", "direction", "state", "angle", "g", "soundDelay"],
+    Boomerang: [
+        "x",
+        "y",
+        "vx",
+        "vy",
+        "rx1",
+        "ry1",
+        "rx2",
+        "ry2",
+        "supported",
+        "intersected",
+        "kill",
+        "G",
+        "direction",
+        "state",
+        "angle",
+        "g",
+        "soundDelay",
+        "shieldBlockedBy"
+    ],
     BoomerangAxe: [
         "x",
         "y",

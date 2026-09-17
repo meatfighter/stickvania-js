@@ -3,6 +3,7 @@ import type { Main } from "../Main.js";
 import { registerPlayerActionMain } from "../PlayerActionPolicy.js";
 import { StopWatch } from "../StopWatch.js";
 import { reconcileStopWatchMusic, resetStopWatchMusicHold } from "../StopWatchMusicHold.js";
+import { isAxeKnightShieldSnapshotStateValid } from "./AxeKnightShieldStatePolicy.js";
 import type { StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isReasonableStickvaniaGameStateSnapshot } from "./GameStateSanity.js";
 import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
@@ -23,7 +24,8 @@ export class StickvaniaGameStateStore {
             if (
                 !this.serializer.isSupportedSnapshot(snapshot) ||
                 !isReasonableStickvaniaGameStateSnapshot(snapshot) ||
-                !isStopWatchRepeatStateValid(snapshot.mainFields)
+                !isStopWatchRepeatStateValid(snapshot.mainFields) ||
+                !isAxeKnightShieldSnapshotStateValid(snapshot)
             ) {
                 return false;
             }
@@ -104,7 +106,8 @@ export class StickvaniaGameStateStore {
             typedSnapshot.version !== GAME_STATE_VERSION ||
             !this.serializer.isSupportedSnapshot(typedSnapshot) ||
             !isReasonableStickvaniaGameStateSnapshot(typedSnapshot) ||
-            !isStopWatchRepeatStateValid(typedSnapshot.mainFields)
+            !isStopWatchRepeatStateValid(typedSnapshot.mainFields) ||
+            !isAxeKnightShieldSnapshotStateValid(typedSnapshot)
         ) {
             return null;
         }

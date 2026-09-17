@@ -45,14 +45,54 @@ function willReachCountdownCheck(main: Main): boolean {
 }
 
 /**
+ * Complete first pit entry before Main's legacy below-pit branch returns. The
+ * one-shot boundary is `dead == 0`, not remaining health, so a lethal knockback
+ * and a cold-restored lethal trajectory receive the same pit presentation. This
+ * preflight is intentionally limited to real PLAYING mode so recorded/cinematic
+ * mode ordering remains historically unchanged. Main increments `dead`
+ * immediately afterward, making the transition naturally one-shot.
+ */
+export function prepareRegisteredPitDeathPresentation(): void {
+    const main = registeredMain;
+    const simon = main?.simon ?? null;
+    if (main === null || simon === null) {
+        return;
+    }
+
+    const fadeAllowsGameplay = main.fadeState == FADE_DONE || (main.fadeState == FADE_IN && main.fade == 0);
+    if (
+        !fadeAllowsGameplay ||
+        main.mode != MODE_PLAYING ||
+        main.beatStageFlag ||
+        main.floorBreaking ||
+        main.door !== null ||
+        simon.dead != 0 ||
+        simon.y <= 416
+    ) {
+        return;
+    }
+
+    main.playSound(main.simon_in_pit);
+    main.requestMusic(main.simon_killed);
+    simon.invincible = 0;
+    simon.drankPotion = false;
+    main.setSimonAlpha(1);
+    main.playerPower = 0;
+}
+
+/**
  * Preflight Main's countdown immediately before Main evaluates it.
  *
  * Main intentionally owns the actual countdown and StopWatch short-circuit. This
- * helper adds the NES low-time cue for an imminent real decrement and compensates
- * the historical expression ordering where ++timeIncrementor precedes the
- * playerPower/floorBreaking guards. The temporary -1 phase at an original phase
- * of zero exists only between this call and Main's immediate ++; it is never a
- * stable/rendered/saved state.
+ * helper adds the NES low-time cue, compensates the historical expression order
+ * where ++timeIncrementor precedes the playerPower/floorBreaking guards, and
+ * removes temporary invincibility immediately before a real 1 -> 0 timeout so
+ * Main's existing lethal hurt path cannot be rejected by potion/post-hit state.
+ * An already-running hurt trajectory is left alone here; Simon.update() makes it
+ * lethal after TIME reaches zero without replacing its vx/vy.
+ *
+ * The temporary -1 phase at an original phase of zero exists only between this
+ * call and Main's immediate ++; it is never a stable/rendered/saved state.
  */
 export function prepareRegisteredCountdownTimer(): void {
     const main = registeredMain;
@@ -65,6 +105,12 @@ export function prepareRegisteredCountdownTimer(): void {
         return;
     }
 
+    if (main.timeIncrementor == 90 && main.time == 1 && !main.simon!.hurt && main.simon!.invincible > 0) {
+        main.simon!.invincible = 0;
+        main.simon!.drankPotion = false;
+        main.setSimonAlpha(1);
+    }
+
     if (main.timeIncrementor == 90 && main.time > 1 && main.time <= 31) {
         main.playSound(main.twang);
     }
@@ -74,6 +120,8 @@ export function prepareRegisteredCountdownTimer(): void {
  * Return whether a delayed Simon attack may still resolve. This is intentionally
  * broader than sub-weapon eligibility: it covers both whip and sub-weapon windup
  * and only describes terminal/control-loss state, not hearts or repeat capacity.
+ * Fades structurally freeze simulation in Main.updateFrame(), so an existing
+ * action remains valid and its visual pose is preserved while a fade is active.
  * Dracula's final death presentation and the third-stage post-orb brick-break
  * scene are not terminal here: whip and eligible sub-weapons remain usable.
  */
@@ -82,7 +130,6 @@ export function canSimonActionContinue(main: Main): boolean {
     const stageThreeFloorBreaking = isStageThreeFloorBreaking(main);
     return (
         (main.mode == MODE_PLAYING || main.mode == MODE_DEMO || main.mode == MODE_CREDITS) &&
-        main.fadeState == FADE_DONE &&
         main.playerPower > 0 &&
         simon !== null &&
         simon.dead == 0 &&
@@ -100,7 +147,8 @@ export function canSimonActionContinue(main: Main): boolean {
 /**
  * A fresh Attack may start only while general action state is valid. This does
  * not inspect hearts, repeat capacity, weapon type, or timeFrozen, so Main's
- * normal unavailable-subweapon -> whip fallback remains authoritative.
+ * normal unavailable-subweapon -> whip fallback remains authoritative. Main's
+ * fade early-return prevents a fresh attack from actually starting while fading.
  */
 export function canRegisteredSimonActionStart(): boolean {
     return registeredMain === null || canSimonActionContinue(registeredMain);
@@ -128,6 +176,8 @@ export function cancelSimonAction(main: Main): void {
  * Main reads Attack immediately before advancing the delayed action. Reconcile
  * here as well as in Simon.update() because on-stairs gameplay intentionally
  * skips Simon.update(), and timeout can become terminal earlier in the same tick.
+ * Stage-clear tally is different: Main suspends Simon before updateSimon(), so an
+ * already-active action must remain frozen exactly as it was at orb contact.
  */
 export function reconcileRegisteredSimonActionBeforeAttackRead(): void {
     const main = registeredMain;
@@ -136,6 +186,9 @@ export function reconcileRegisteredSimonActionBeforeAttackRead(): void {
     }
     const simon = main.simon;
     if (simon === null || (!simon.whipping && !simon.throwing)) {
+        return;
+    }
+    if (main.beatStageFlag) {
         return;
     }
     if (!canSimonActionContinue(main)) {

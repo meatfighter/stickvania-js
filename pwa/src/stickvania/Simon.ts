@@ -297,6 +297,18 @@ export class Simon extends Thing {
     public override update(gc: GameContainer): boolean {
         this.applyGravityWithPlatforms();
 
+        // Main's ordinary hurt path intentionally ignores damage while Simon is
+        // already hurt. If TIME reached zero on this same fixed tick, preserve the
+        // existing knockback vector but make that trajectory lethal immediately.
+        if (this.main.time == 0 && this.main.playerPower > 0 && this.hurt && !this.main.floorBreaking) {
+            this.invincible = 0;
+            this.drankPotion = false;
+            this.main.setSimonAlpha(1);
+            this.main.playerPower = 0;
+            this.onStairs = false;
+            this.main.playRumble("playerDeath");
+        }
+
         // Whip and sub-weapon windups are delayed actions. If gameplay entered a
         // terminal/control-loss state before resolution, discard the entire action
         // rather than letting a stale whip or projectile appear later.

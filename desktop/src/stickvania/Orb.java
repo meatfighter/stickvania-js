@@ -38,9 +38,6 @@ public class Orb extends Thing {
       applyGravity();
 
       if (main.intersectsSimon(this)) {
-        // Stage completion wins over any delayed attack that had not yet
-        // resolved. beatStage bypasses normal Simon updates afterward.
-        PlayerActionPolicy.cancelSimonAction(main);
         main.beatStage();
         return false;
       }

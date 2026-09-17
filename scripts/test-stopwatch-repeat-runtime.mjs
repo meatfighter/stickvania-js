@@ -64,7 +64,6 @@ try {
     const live = createActionMain();
     assert.equal(canSimonActionContinue(live), true);
     for (const invalid of [
-        { fadeState: 1 },
         { playerPower: 0 },
         { time: 0 },
         { beatStageFlag: true },
@@ -77,6 +76,9 @@ try {
         { simon: createSimon({ onStairs: true, y: 285 }) }
     ]) {
         assert.equal(canSimonActionContinue(createActionMain(invalid)), false);
+    }
+    for (const fadeState of [1, 2]) {
+        assert.equal(canSimonActionContinue(createActionMain({ fadeState })), true, `fade state ${fadeState} must preserve an otherwise-valid delayed action`);
     }
     assert.equal(
         canSimonActionContinue(createActionMain({ stageIndex: 5, enemyPower: 0 })),
@@ -159,8 +161,9 @@ try {
     assert.equal(idleCancelMain.simon.releasedWhip, true);
     assert.equal(idleCancelMain.stoppedRumbleCount, 0);
 
-    // Frame-start/pre-Attack reconciliation covers paths where Main returns
-    // before Simon.update(), including pit/death/hurt, stairs, and active fades.
+    // Frame-start/pre-Attack reconciliation covers terminal paths where Main can
+    // return before Simon.update(), including timeout, pit/death/hurt, and stairs.
+    // Fades themselves freeze simulation and must preserve the existing pose.
     const registeredStairTimeout = createActionMain({
         time: 0,
         simon: createSimon({ onStairs: true, whipping: true, throwing: false, whipIncrementor: 19, whipIndex: 1, releasedWhip: false })
@@ -187,14 +190,20 @@ try {
     assert.equal(registeredPitThrow.simon.whipping, false);
     assert.equal(registeredPitThrow.simon.throwing, false);
 
-    const registeredFadeThrow = createActionMain({
-        fadeState: 1,
-        simon: createSimon({ whipping: true, throwing: true, whipIncrementor: 12, releasedWhip: false })
-    });
-    registerPlayerActionMain(registeredFadeThrow);
-    reconcileRegisteredSimonActionBeforeAttackRead();
-    assert.equal(registeredFadeThrow.simon.whipping, false);
-    assert.equal(registeredFadeThrow.simon.throwing, false);
+    for (const fadeState of [1, 2]) {
+        const registeredFadeAction = createActionMain({
+            fadeState,
+            simon: createSimon({ whipping: true, throwing: true, whipIncrementor: 12, whipIndex: 1, releasedWhip: false })
+        });
+        registerPlayerActionMain(registeredFadeAction);
+        reconcileRegisteredSimonActionBeforeAttackRead();
+        assert.equal(registeredFadeAction.simon.whipping, true);
+        assert.equal(registeredFadeAction.simon.throwing, true);
+        assert.equal(registeredFadeAction.simon.whipIncrementor, 12);
+        assert.equal(registeredFadeAction.simon.whipIndex, 1);
+        assert.equal(registeredFadeAction.simon.releasedWhip, false);
+        assert.equal(registeredFadeAction.stoppedRumbleCount, 0);
+    }
 
     const registeredIdleTerminal = createActionMain({ time: 0, simon: createSimon({ releasedWhip: true }) });
     registerPlayerActionMain(registeredIdleTerminal);
