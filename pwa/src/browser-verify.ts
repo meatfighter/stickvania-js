@@ -145,7 +145,7 @@ async function verify(): Promise<void> {
         assert(store.save(first.main), "Real browser Main did not save successfully.");
         assert(store.hasValidSave(), "Saved real browser Main did not validate.");
         const storedText = localStorage.getItem(GAME_STATE_STORAGE_KEY);
-        assert(storedText !== null, "Saved v13 state was not written under the current storage key.");
+        assert(storedText !== null, "Saved state was not written under the current storage key.");
         const stored = JSON.parse(storedText) as ReturnType<StickvaniaGameStateSerializer["createSnapshot"]>;
         const expectedWatchTick = stored.audio.sounds.find(({ id }) => id === "watch_tick")?.playback;
         const expectedHeartbeat = stored.audio.sounds.find(({ id }) => id === "heartbeat")?.playback;
