@@ -21,7 +21,9 @@ function classInfo(source, file) {
     const className = declaration[1];
     const baseClass = declaration[2] ?? null;
     const floatFields = [];
-    const fieldPattern = /^\s*(?:public|protected|private)\s+(?!static\b)(?:final\s+)?float\s+(\w+)\b/gm;
+    // This metadata tracks fields only. Exclude float-returning methods such as
+    // `private float shieldX()` from the field scan.
+    const fieldPattern = /^\s*(?:public|protected|private)\s+(?!static\b)(?:final\s+)?float\s+(\w+)\b(?!\s*\()/gm;
     for (const match of source.matchAll(fieldPattern)) floatFields.push(match[1]);
     const publicMethods = [];
     const methodPattern = /^\s*(?:public|protected)\s+(?!static\b)(?:final\s+)?[\w<>\[\].?]+\s+(\w+)\s*\(/gm;
