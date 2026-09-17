@@ -91,6 +91,9 @@ function createMain(Main, Simon, overrides = {}) {
         setSimonAlpha(alpha) {
             this.alpha = alpha;
         },
+        getWall() {
+            return Main.WALL_EMPTY;
+        },
         isEmpty() {
             return true;
         },
