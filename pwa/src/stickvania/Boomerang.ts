@@ -54,10 +54,6 @@ export class Boomerang extends Thing {
         }
     }
 
-    public isShieldBlockedBy(axeKnight: AxeKnight): boolean {
-        return this.shieldBlockedBy === axeKnight;
-    }
-
     public reflectFromAxeKnight(axeKnight: AxeKnight, outwardDirection: number): boolean {
         if (this.kill || this.shieldBlockedBy !== null || (outwardDirection !== -1 && outwardDirection !== 1)) {
             return false;

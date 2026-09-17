@@ -51,10 +51,6 @@ public class Boomerang extends Thing {
     }
   }
 
-  boolean isShieldBlockedBy(AxeKnight axeKnight) {
-    return shieldBlockedBy == axeKnight;
-  }
-
   boolean reflectFromAxeKnight(
       AxeKnight axeKnight, int outwardDirection) {
     if (kill || shieldBlockedBy != null
