@@ -44,7 +44,7 @@ try {
     );
     const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
 
-    assert.equal(GAME_STATE_VERSION, 15);
+    assert.equal(GAME_STATE_VERSION, 16);
     assert.match(GAME_STATE_STORAGE_KEY, /game-state-v16$/);
 
     const serializer = new StickvaniaGameStateSerializer();
@@ -270,6 +270,14 @@ try {
     storage.setItem(GAME_STATE_STORAGE_KEY, missingPreflightText);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), missingPreflightText);
+
+    const obsoleteAudioPolicy = createPotentialSnapshot(GAME_STATE_VERSION);
+    obsoleteAudioPolicy.audio.musicOn = false;
+    obsoleteAudioPolicy.audio.soundOn = true;
+    const obsoleteAudioPolicyText = JSON.stringify(obsoleteAudioPolicy);
+    storage.setItem(GAME_STATE_STORAGE_KEY, obsoleteAudioPolicyText);
+    assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
+    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), obsoleteAudioPolicyText);
 
     const malformed = "{";
     storage.setItem(GAME_STATE_STORAGE_KEY, malformed);
