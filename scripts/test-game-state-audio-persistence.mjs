@@ -220,6 +220,25 @@ try {
         assert.match(source, /isSoundEffectSnapshotsShape\(snapshot\.sounds\)/);
         assert.match(source, /SoundStore\.get\(\)\.stopSoundEffects\(\)/);
         assert.match(source, /restoreSoundEffects\(main, snapshot\.sounds\)/);
+        assert.doesNotMatch(source, /\b(?:musicOn|soundOn|setMusicOn|setSoundOn)\b/);
+    });
+
+    test("PWA shell owns application audio policy before activation and on Reset", () => {
+        const source = readFileSync(resolve(rootDir, "pwa/src/main.ts"), "utf8");
+
+        const reset = functionSource(source, "function resetPwaState", "async function startGame");
+        assert.match(reset, /applyApplicationAudioPreferences\(\)/);
+
+        const start = functionSource(source, "async function startGame", "async function launchPreparedGame");
+        assert.ok(start.indexOf("applyApplicationAudioPreferences()") < start.indexOf("beginGameAudio()"));
+
+        const resume = functionSource(source, "async function resumeLiveGameFromMenu", "async function restoreExistingLiveMenuAfterInterruptedResume");
+        assert.ok(resume.indexOf("applyApplicationAudioPreferences()") < resume.indexOf("beginGameAudio()"));
+
+        const helper = functionSource(source, "function applyApplicationAudioPreferences", "function applyAudioVolume");
+        assert.match(helper, /setMusicOn\(true\)/);
+        assert.match(helper, /setSoundsOn\(true\)/);
+        assert.match(helper, /applyAudioVolume\(preferences\.volume\)/);
     });
 
     test("PWA lifecycle retires before save and commits Sound generation before simulation resumes", () => {
