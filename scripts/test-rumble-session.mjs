@@ -296,7 +296,17 @@ function fixture({ enabled = true, restore = true } = {}) {
         "./app/SessionCleanup.js": { SessionCleanup: Cleanup },
         "./app/PlaybackSession.js": playback,
         "./app/GameSessionOwnership.js": { GameSessionOwnership: class {} },
-        "slick2d-ts": { SoundStore: { get: () => ({ setMusicOn: noop, setSoundsOn: noop, setSoundVolume: noop, setMusicVolume: noop, stopAllPlayback: noop }) } },
+        "slick2d-ts": {
+            SoundStore: {
+                get: () => ({
+                    setMusicOn: noop,
+                    setSoundsOn: noop,
+                    setSoundVolume: noop,
+                    setMusicVolume: noop,
+                    stopAllPlayback: noop
+                })
+            }
+        },
         "./app/BrowserPreferences.js": { BrowserPreferences: Preferences },
         "./app/GameViewportController.js": { GameViewportController: Viewport },
         "./app/MenuView.js": { renderMenu: () => node() },
