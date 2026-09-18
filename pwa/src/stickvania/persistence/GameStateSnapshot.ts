@@ -153,8 +153,6 @@ export type SoundEffectSnapshot = {
 };
 
 export type AudioSnapshot = {
-    musicOn: boolean;
-    soundOn: boolean;
     currentSong: SongId | null;
     requestedSong: SongId | null;
     currentMusic: MusicSnapshot | null;
