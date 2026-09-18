@@ -55,8 +55,8 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         mainFieldsValue.mode === snapshot.mode &&
         isRecord(snapshot.random) &&
         isRecord(audioValue) &&
-        typeof audioValue.musicOn === "boolean" &&
-        typeof audioValue.soundOn === "boolean" &&
+        !Object.prototype.hasOwnProperty.call(audioValue, "musicOn") &&
+        !Object.prototype.hasOwnProperty.call(audioValue, "soundOn") &&
         Array.isArray(audioValue.songs) &&
         hasPotentialSoundEffects(audioValue.sounds) &&
         !hasObsoletePausedStandalone &&
