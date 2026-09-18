@@ -72,6 +72,29 @@ function collectSourceTree(directory) {
     return source;
 }
 
+function collectAudioPolicySetterCalls(directory, relative = "") {
+    const calls = [];
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) {
+            calls.push(...collectAudioPolicySetterCalls(path, childRelative));
+            continue;
+        }
+        if (!entry.isFile() || !entry.name.endsWith(".ts")) {
+            continue;
+        }
+        const source = readFileSync(path, "utf8");
+        for (const method of ["setMusicOn", "setSoundsOn", "setSoundOn"]) {
+            const matches = source.match(new RegExp(`\\.${method}\\s*\\(`, "g")) ?? [];
+            for (let i = 0; i < matches.length; i++) {
+                calls.push(`pwa/src/${childRelative}:${method}`);
+            }
+        }
+    }
+    return calls.sort();
+}
+
 function functionSource(source, startMarker, endMarker) {
     const start = source.indexOf(startMarker);
     const end = source.indexOf(endMarker, start);
@@ -221,6 +244,14 @@ try {
         assert.match(source, /SoundStore\.get\(\)\.stopSoundEffects\(\)/);
         assert.match(source, /restoreSoundEffects\(main, snapshot\.sounds\)/);
         assert.doesNotMatch(source, /\b(?:musicOn|soundOn|setMusicOn|setSoundOn)\b/);
+    });
+
+    test("only the PWA shell may mutate global Music/Sound enable policy", () => {
+        const calls = collectAudioPolicySetterCalls(resolve(rootDir, "pwa", "src"));
+        assert.deepEqual(calls, [
+            "pwa/src/main.ts:setMusicOn",
+            "pwa/src/main.ts:setSoundsOn"
+        ]);
     });
 
     test("PWA shell owns application audio policy before activation and on Reset", () => {
