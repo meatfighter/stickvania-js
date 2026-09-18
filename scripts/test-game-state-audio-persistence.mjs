@@ -283,11 +283,14 @@ try {
         }
     });
 
-    test("serializer integration owns full all-voice purge and logical sound import", () => {
+    test("serializer delegates full all-voice purge to Main before logical sound import", () => {
         const source = readFileSync(resolve(rootDir, "pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts"), "utf8");
+        const mainSource = readFileSync(resolve(rootDir, "pwa/src/stickvania/Main.ts"), "utf8");
         assert.match(source, /sounds:\s*captureSoundEffects\(main\)/);
         assert.match(source, /isSoundEffectSnapshotsShape\(snapshot\.sounds\)/);
-        assert.match(source, /SoundStore\.get\(\)\.stopSoundEffects\(\)/);
+        assert.match(source, /main\.stopAllSounds\(\)/);
+        assert.doesNotMatch(source, /SoundStore\.get\(\)\.stopSoundEffects\(\)/);
+        assert.match(mainSource, /public stopAllSoundEffects\(\): void \{\s*SoundStore\.get\(\)\.stopSoundEffects\(\);\s*\}/);
         assert.match(source, /restoreSoundEffects\(main, snapshot\.sounds\)/);
         assert.doesNotMatch(source, /\b(?:musicOn|soundOn|setMusicOn|setSoundOn)\b/);
     });
