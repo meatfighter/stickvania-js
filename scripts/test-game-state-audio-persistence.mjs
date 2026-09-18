@@ -294,10 +294,7 @@ try {
 
     test("only the PWA shell may mutate global Music/Sound enable policy", () => {
         const calls = collectAudioPolicySetterCalls(resolve(rootDir, "pwa", "src"));
-        assert.deepEqual(calls, [
-            "pwa/src/main.ts:setMusicOn",
-            "pwa/src/main.ts:setSoundsOn"
-        ]);
+        assert.deepEqual(calls, ["pwa/src/main.ts:setMusicOn", "pwa/src/main.ts:setSoundsOn"]);
     });
 
     test("PWA shell owns application audio policy before activation and on Reset", () => {
