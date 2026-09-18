@@ -92,8 +92,6 @@ function createFinalStageWatchSnapshot(songIds, version, appearDelay) {
             { id: 1, type: "Orb", fields: { appearDelay } }
         ],
         audio: {
-            musicOn: true,
-            soundOn: true,
             currentSong: null,
             requestedSong: null,
             currentMusic: null,
