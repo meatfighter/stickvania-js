@@ -1496,6 +1496,7 @@ public final class Main extends BasicGame {
       if (mode == MODE_DEMO) {
         if (recordingIndex == 2730
             || controlInput.isAnyNonDirectionalPressed()) {
+          stopAllSoundEffects();
           fadeState = FADE_OUT;
           fadeReason = FADE_REASON_SHOW_TITLE_SCREEN;
           return;
@@ -2825,6 +2826,60 @@ public final class Main extends BasicGame {
         || mode == MODE_TITLE_SCREEN) {
       sound.play();
     }
+  }
+
+  public void stopAllSoundEffects() {
+    advance_whip.stop();
+    bat_killed.stop();
+    bleep.stop();
+    boss_hurt.stop();
+    boss_killed_1.stop();
+    boss_killed_2.stop();
+    boss_killed_3.stop();
+    breaks_wall.stop();
+    crumble_sfx.stop();
+    dog_killed.stop();
+    door_opens_1.stop();
+    door_opens_2.stop();
+    gain_potion.stop();
+    got_money.stop();
+    heartbeat.stop();
+    hit_candle.stop();
+    killed_1.stop();
+    killed_2.stop();
+    killed_3.stop();
+    killed_4.stop();
+    killed_5.stop();
+    lose_potion.stop();
+    merman_spit.stop();
+    one_up.stop();
+    pressed_enter.stop();
+    simon_hurt.stop();
+    splash.stop();
+    torch_breaks.stop();
+    whip_1.stop();
+    whip_2.stop();
+    wing_flaps.stop();
+    zombie_killed.stop();
+    got_double.stop();
+    kill_all_sfx.stop();
+    simon_in_pit.stop();
+    threw_dagger.stop();
+    got_weapon.stop();
+    used_holy_water.stop();
+    spinning.stop();
+    raven_killed.stop();
+    ching.stop();
+    snuffed.stop();
+    medusa_head_killed.stop();
+    stunned.stop();
+    watch_tick.stop();
+    twang.stop();
+    large_bat_killed.stop();
+    thunder.stop();
+    fire_ball_shot.stop();
+    dracula_to_bats.stop();
+    lands.stop();
   }
 
   public void stopSong() {
