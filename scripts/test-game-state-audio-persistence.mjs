@@ -19,6 +19,8 @@ const audioRegistry = await server.ssrLoadModule("/src/stickvania/AudioRegistry.
 const soundState = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSoundEffects.ts");
 const stateFields = await server.ssrLoadModule("/src/stickvania/persistence/StateFieldRegistry.generated.ts");
 const { StopWatch } = await server.ssrLoadModule("/src/stickvania/StopWatch.ts");
+const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
+const { SoundStore } = await import("slick2d-ts");
 const { SOUND_EFFECT_FIELD_NAMES, MAX_PERSISTED_SOUND_EFFECT_VOICES, registeredSoundEffects } = audioRegistry;
 const { captureSoundEffects, restoreSoundEffects, isSoundEffectSnapshotsShape } = soundState;
 
@@ -235,6 +237,50 @@ try {
         assert.equal(Reflect.get(watch, "soundDelay"), 4);
         assert.deepEqual(played, [], "restored future-tick timer must not create a duplicate watch_tick immediately");
         watch.cancel();
+    });
+
+    test("failed audio restore cannot mutate application audio policy", () => {
+        const serializer = new StickvaniaGameStateSerializer();
+        const store = SoundStore.get();
+        store.setMusicOn(false);
+        store.setSoundsOn(true);
+
+        const main = {
+            boss_1: null,
+            currentSong: null,
+            requestedSong: null,
+            currentMusic: null,
+            stopCalls: 0,
+            stopAllSounds() {
+                this.stopCalls++;
+            }
+        };
+        const snapshot = {
+            currentSong: null,
+            requestedSong: null,
+            currentMusic: null,
+            songs: [
+                {
+                    id: "boss_1",
+                    playing: false,
+                    intro: null,
+                    loop: null
+                }
+            ],
+            sounds: []
+        };
+
+        try {
+            assert.throws(
+                () => serializer.restoreAudio({ main, gc: {}, stageSegments: [], thingById: new Map() }, snapshot),
+                /Saved song is unavailable: boss_1/
+            );
+            assert.equal(main.stopCalls, 2, "failed audio restore must clean up partial logical audio");
+            assert.equal(store.musicOn(), false, "failed restore changed application Music policy");
+            assert.equal(store.soundsOn(), true, "failed restore changed application Sound policy");
+        } finally {
+            store.destroy();
+        }
     });
 
     test("serializer integration owns full all-voice purge and logical sound import", () => {
