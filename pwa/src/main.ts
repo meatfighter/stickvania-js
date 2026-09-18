@@ -89,6 +89,13 @@ function setAudioVolume(value: number, persist = true): boolean {
     return saved;
 }
 
+function applyApplicationAudioPreferences(): void {
+    const store = SoundStore.get();
+    store.setMusicOn(true);
+    store.setSoundsOn(true);
+    applyAudioVolume(preferences.volume);
+}
+
 function applyAudioVolume(value: number): void {
     const clampedValue = BrowserPreferences.clampVolume(value);
     SoundStore.get().setSoundVolume(Math.sqrt(clampedValue));
@@ -235,7 +242,7 @@ function resetPwaState(): void {
     }
     pwaSessionState = "menu";
     const cleared = preferences.reset();
-    applyAudioVolume(preferences.volume);
+    applyApplicationAudioPreferences();
     const manager = getRumbleManager();
     manager.setEnabled(preferences.rumbleEnabled);
     manager.setSuspended(true);
@@ -254,6 +261,7 @@ async function startGame(restoreSavedGame: boolean): Promise<void> {
     if (!destroyGame()) {
         return;
     }
+    applyApplicationAudioPreferences();
     gameOwnershipEpoch = ownership.epoch;
     const session = sessions.begin();
     activeGameSession = session;
@@ -526,6 +534,7 @@ async function resumeLiveGameFromMenu(): Promise<void> {
     const liveHost = viewport.gameHost;
     const session = activeGameSession;
     pwaSessionState = "starting";
+    applyApplicationAudioPreferences();
     const audio = beginGameAudio();
     requestPreferredFullscreen();
     try {
@@ -690,7 +699,7 @@ function startPwaMenu(): void {
     }
     const request = ++menuRequestSerial;
     pwaSessionState = "booting";
-    applyAudioVolume(preferences.volume);
+    applyApplicationAudioPreferences();
     showBoot(runtimeLoader.getProgress());
     const serviceWorkerReady = registerStickvaniaServiceWorker(__CACHE_VERSION__).catch((error) => {
         console.warn("Service worker registration failed.", error);
