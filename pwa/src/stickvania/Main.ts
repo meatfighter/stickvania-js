@@ -1,5 +1,5 @@
-import { BasicGame, Color, FastTrig, GameContainer, Graphics, Image, Input, JavaRandom, Music, PackedSpriteSheet, Sound, Sys } from "slick2d-ts";
-import { SONG_FIELD_NAMES, SOUND_EFFECT_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "./AudioRegistry.js";
+import { BasicGame, Color, FastTrig, GameContainer, Graphics, Image, Input, JavaRandom, Music, PackedSpriteSheet, Sound, SoundStore, Sys } from "slick2d-ts";
+import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "./AudioRegistry.js";
 import { Axe } from "./Axe.js";
 import { AxeKnight } from "./AxeKnight.js";
 import { BatBoss } from "./BatBoss.js";
@@ -1268,6 +1268,7 @@ export class Main extends BasicGame {
         if (this.mode == Main.MODE_DEMO || this.mode == Main.MODE_CREDITS) {
             if (this.mode == Main.MODE_DEMO) {
                 if (this.recordingIndex == 2730 || this.controlInput!.isAnyNonDirectionalPressed()) {
+                    this.stopAllSoundEffects();
                     this.fadeState = Main.FADE_OUT;
                     this.fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
                     return;
@@ -2609,10 +2610,9 @@ export class Main extends BasicGame {
         this.requestedSong = song;
     }
 
+    /** Destroy every logical SFX voice without changing application Sound policy. */
     public stopAllSoundEffects(): void {
-        for (let i = 0; i < SOUND_EFFECT_FIELD_NAMES.length; i++) {
-            this[SOUND_EFFECT_FIELD_NAMES[i]].stop();
-        }
+        SoundStore.get().stopSoundEffects();
     }
 
     public stopAllSounds(): void {
