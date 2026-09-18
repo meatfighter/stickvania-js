@@ -160,8 +160,6 @@ function createFloorBreakingWatchSnapshot(songIds, version, overrides = {}) {
         },
         things: [{ id: 0, type: "StopWatch", fields: { lifeTime: 455 } }],
         audio: {
-            musicOn: true,
-            soundOn: true,
             currentSong: null,
             requestedSong: null,
             currentMusic: null,
