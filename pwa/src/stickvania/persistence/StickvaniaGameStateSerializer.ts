@@ -347,9 +347,7 @@ export class StickvaniaGameStateSerializer {
     private isAudioSnapshotShape(snapshot: unknown): snapshot is AudioSnapshot {
         if (
             !this.isPlainRecord(snapshot) ||
-            !this.areRecordFieldNamesExact(snapshot, ["musicOn", "soundOn", "currentSong", "requestedSong", "currentMusic", "songs", "sounds"]) ||
-            typeof snapshot.musicOn !== "boolean" ||
-            typeof snapshot.soundOn !== "boolean" ||
+            !this.areRecordFieldNamesExact(snapshot, ["currentSong", "requestedSong", "currentMusic", "songs", "sounds"]) ||
             !this.isNullableSongId(snapshot.currentSong) ||
             !this.isNullableSongId(snapshot.requestedSong) ||
             !Array.isArray(snapshot.songs) ||
@@ -976,8 +974,6 @@ export class StickvaniaGameStateSerializer {
         const currentMusicId = this.musicIdForMusic(main, main.currentMusic);
         const songPart = songs.flatMap((song) => [song.intro, song.loop]).find((part) => part !== null && part.id === currentMusicId);
         return {
-            musicOn: SoundStore.get().musicOn(),
-            soundOn: SoundStore.get().soundsOn(),
             currentSong: this.songIdForSong(main, main.currentSong),
             requestedSong: this.songIdForSong(main, main.requestedSong),
             currentMusic: main.currentMusic === null ? null : (songPart ?? this.captureMusic(main, main.currentMusic)),
@@ -1017,8 +1013,6 @@ export class StickvaniaGameStateSerializer {
         SoundStore.get().stopSoundEffects();
         Music.resetPlaybackState();
         try {
-            context.gc.setMusicOn(snapshot.musicOn);
-            context.gc.setSoundOn(snapshot.soundOn);
             const parts = new Map<MusicId, MusicSnapshot>();
             for (const state of snapshot.songs) {
                 const song = this.songForId(main, state.id);
