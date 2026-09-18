@@ -46,7 +46,7 @@ const EXPECTED_MUSIC_IDS = new Set<string>([
     "stage_6_2.loop"
 ]);
 const TOP_LEVEL_FIELDS = ["version", "appVersion", "savedAt", "mode", "mainFields", "inputConfigMode", "random", "stage", "things", "audio"] as const;
-const AUDIO_FIELDS = ["musicOn", "soundOn", "currentSong", "requestedSong", "currentMusic", "songs", "sounds"] as const;
+const AUDIO_FIELDS = ["currentSong", "requestedSong", "currentMusic", "songs", "sounds"] as const;
 const SONG_FIELDS = ["id", "playing", "intro", "loop"] as const;
 const MUSIC_FIELDS = ["id", "playback"] as const;
 const INPUT_CONFIG_FIELDS = [
@@ -231,8 +231,6 @@ function isReasonableAudio(snapshot: AudioSnapshot, stopWatchHoldAllowed: boolea
     if (
         !isRecord(snapshot) ||
         !hasExactFields(snapshot, AUDIO_FIELDS) ||
-        typeof snapshot.musicOn !== "boolean" ||
-        typeof snapshot.soundOn !== "boolean" ||
         !isNullableSongId(snapshot.currentSong) ||
         !isNullableSongId(snapshot.requestedSong) ||
         !Array.isArray(snapshot.songs) ||
