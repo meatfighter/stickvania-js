@@ -45,7 +45,7 @@ try {
     const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
 
     assert.equal(GAME_STATE_VERSION, 15);
-    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v15$/);
+    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v16$/);
 
     const serializer = new StickvaniaGameStateSerializer();
     assert.equal(serializer.isThingIdArray([null, 0], 1), true);
@@ -332,8 +332,6 @@ function createSnapshot(songIds, version) {
         stage: { stageIndex: 0 },
         things: [],
         audio: {
-            musicOn: true,
-            soundOn: true,
             currentSong: null,
             requestedSong: null,
             currentMusic: null,
@@ -453,7 +451,7 @@ function createPotentialSnapshot(version) {
         random: {},
         stage: null,
         things: [],
-        audio: { musicOn: true, soundOn: true, songs: [], sounds: [] }
+        audio: { songs: [], sounds: [] }
     };
 }
 
