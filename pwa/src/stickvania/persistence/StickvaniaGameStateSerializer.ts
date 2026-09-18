@@ -1,4 +1,4 @@
-import { GameContainer, JavaRandom, Music, SoundStore, isMusicPlaybackSnapshot } from "slick2d-ts";
+import { GameContainer, JavaRandom, Music, isMusicPlaybackSnapshot } from "slick2d-ts";
 import { Checkpoint } from "../Checkpoint.js";
 import { ButtonMapping } from "../ButtonMapping.js";
 import { Main } from "../Main.js";
@@ -1008,9 +1008,6 @@ export class StickvaniaGameStateSerializer {
     private restoreAudio(context: RestoreContext, snapshot: AudioSnapshot): void {
         const main = context.main;
         main.stopAllSounds();
-        // Sound.stop() is intentionally latest-voice-only. Purge the complete
-        // logical effect pool before importing a durable snapshot.
-        SoundStore.get().stopSoundEffects();
         Music.resetPlaybackState();
         try {
             const parts = new Map<MusicId, MusicSnapshot>();
@@ -1045,7 +1042,6 @@ export class StickvaniaGameStateSerializer {
             restoreSoundEffects(main, snapshot.sounds);
         } catch (error) {
             main.stopAllSounds();
-            SoundStore.get().stopSoundEffects();
             Music.resetPlaybackState();
             throw error;
         }
