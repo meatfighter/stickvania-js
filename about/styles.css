@@ -597,6 +597,7 @@ html[data-theme="dark"] .site-logo {
 .site-footer__links {
     display: block;
     flex: 0 0 auto;
+    align-self: center;
     flex-wrap: wrap;
     justify-content: flex-end;
     line-height: 1.6;

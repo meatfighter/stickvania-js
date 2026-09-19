@@ -7,7 +7,7 @@
         "type": "git",
         "url": "git+https://github.com/meatfighter/stickvania-js.git"
     },
-    "license": "GPL-3.0-or-later",
+    "license": "SEE LICENSE IN COPYRIGHT.md",
     "type": "module",
     "engines": {
         "node": "^20.19.0 || >=22.12.0"

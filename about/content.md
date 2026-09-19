@@ -110,6 +110,6 @@ _Stickvania_ borrows music and sound effects from _Super Castlevania IV_. The ga
 
 The only music borrowed from the original _Castlevania_ is **"Prologue,"** the short piece that plays during the opening sequence as Simon walks toward the castle gates. **Kinuyo Yamashita** composed that piece.
 
-_Stickvania_ is an unofficial fan-made project and tribute to the original games. It is not affiliated with, sponsored by, or endorsed by Konami or Nintendo. The original games, graphics, music, sound effects, characters, and other content remain the property of their respective rights holders.
+_Stickvania_ is an unofficial fan-made project and tribute to the original games. It is not affiliated with, sponsored by, or endorsed by the creators, publishers, trademark owners, or other rights holders of the games it references. Preexisting games, graphics, music, sound effects, characters, names, logos, trademarks, and other third-party content remain the property of their respective rights holders.
 
 I provide _Stickvania_ free of charge. It contains no advertising and generates no revenue.
