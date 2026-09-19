@@ -3864,8 +3864,8 @@ export class Main extends BasicGame {
                 break;
         }
 
-        const copyrightText = "@ 2010, 2026 MEATFIGHTER.COM";
-        this.drawString(copyrightText, this.centerTextX(copyrightText), 430);
+        const attributionText = "2010, 2026 MEATFIGHTER.COM";
+        this.drawString(attributionText, this.centerTextX(attributionText), 430);
     }
 
     private getTitleOptionCount(): number {

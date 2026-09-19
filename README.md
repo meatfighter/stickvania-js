@@ -80,4 +80,5 @@ The canonical URL and Open Graph page URL identify `https://meatfighter.com/stic
 - [desktop/README.md](desktop/README.md): Java build and runtime details.
 - [releases/README.md](releases/README.md): release tooling and local release state.
 - [LICENSE](LICENSE): source-code license, GPL-3.0-or-later.
+- [COPYRIGHT.md](COPYRIGHT.md): copyright scope and the boundary between original project material and third-party/preexisting game content.
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): third-party licenses and redistributed components.

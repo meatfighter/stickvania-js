@@ -24,6 +24,7 @@ const requiredEntries = [
     ...licenseEntries,
     ...thirdPartySourceEntries.map((artifact) => artifact.entry),
     `${distributionName}/LICENSE`,
+    `${distributionName}/COPYRIGHT.md`,
     `${distributionName}/THIRD_PARTY_NOTICES.md`,
     `${distributionName}/README.md`,
     `${distributionName}/RUNTIME_DEPENDENCIES.md`,

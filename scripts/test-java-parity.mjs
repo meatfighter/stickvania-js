@@ -175,6 +175,14 @@ assert.equal(Math.trunc(90 * 0.7), 62, "The old browser-double calculation shoul
 assert.equal(javaInt(Math.fround(90 * Math.fround(0.7))), 63, "Java float cooldown calculation must produce 63");
 
 const javaMainSource = readProjectFile("desktop", "src", "stickvania", "Main.java");
+assert.match(mainSource, /const attributionText = "2010, 2026 MEATFIGHTER\.COM";/);
+assert.match(mainSource, /this\.drawString\(attributionText, this\.centerTextX\(attributionText\), 430\);/);
+assert.doesNotMatch(mainSource, /@ 2010, 2026 MEATFIGHTER\.COM/);
+assert.doesNotMatch(mainSource, /\bcopyrightText\b/);
+assert.match(javaMainSource, /String attributionText = "2010, 2026 MEATFIGHTER\.COM";/);
+assert.match(javaMainSource, /drawString\(attributionText, centerTextX\(attributionText\), 430\);/);
+assert.doesNotMatch(javaMainSource, /@ 2010, 2026 MEATFIGHTER\.COM/);
+assert.doesNotMatch(javaMainSource, /\bcopyrightText\b/);
 assert.match(javaMainSource, /nextFrameTime \+= Sys\.getTimerResolution\(\) \/ 91;/);
 assert.match(mainSource, /nextFrameTime \+= idiv\(Sys\.getTimerResolution\(\), 91\);/);
 assert.equal(Math.trunc(1000 / 91), 10, "The historical Windows LWJGL timing expression must remain a 10 ms fixed step");

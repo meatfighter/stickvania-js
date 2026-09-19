@@ -7,6 +7,7 @@ import { rootDir } from "./build-utils.mjs";
 
 const aboutDir = join(rootDir, "about");
 const contentMarkdown = readFileSync(join(aboutDir, "content.md"), "utf8");
+const footerMarkdown = readFileSync(join(aboutDir, "footer.md"), "utf8");
 const indexTemplate = readFileSync(join(aboutDir, "index.html"), "utf8");
 const styles = readFileSync(join(aboutDir, "styles.css"), "utf8");
 const themeScript = readFileSync(join(aboutDir, "theme.js"), "utf8");
@@ -19,6 +20,10 @@ function renderedAboutFixture() {
             .replaceAll("__REPOSITORY_URL__", "https://github.com/meatfighter/stickvania-js")
             .replaceAll("__DESKTOP_ZIP__", "downloads/stickvania-desktop.zip?v=test-build")
     );
+}
+
+function renderedFooterFixture() {
+    return renderAboutMarkdown(footerMarkdown);
 }
 
 test("about Markdown content is the user-facing source of truth", () => {
@@ -38,6 +43,19 @@ test("about Markdown content is the user-facing source of truth", () => {
     assert.doesNotMatch(contentMarkdown, /java -jar/i);
     assert.doesNotMatch(contentMarkdown, /â|Å/);
     assert.doesNotMatch(contentMarkdown, /!\[.*stickvania-screenshot\.png/i);
+});
+
+test("about footer Markdown is a heading-free scoped legal source", () => {
+    assert.match(footerMarkdown, /© 2010, 2026 meatfighter\.com/);
+    assert.match(footerMarkdown, /Third-party and preexisting game content is excluded/);
+    assert.match(footerMarkdown, /\[CC BY-SA 4\.0\]\(https:\/\/creativecommons\.org\/licenses\/by-sa\/4\.0\/\)/);
+    assert.match(footerMarkdown, /does not apply to third-party or preexisting game content/);
+    assert.doesNotMatch(footerMarkdown, /^#{1,6}\s/m);
+    const rendered = renderedFooterFixture();
+    assert.match(rendered.articleHtml, /<p>Original code and original material created for this project © 2010, 2026 meatfighter\.com\./);
+    assert.match(rendered.articleHtml, /href="https:\/\/creativecommons\.org\/licenses\/by-sa\/4\.0\/" target="_blank" rel="noopener noreferrer">CC BY-SA 4\.0<\/a>/);
+    assert.equal(rendered.headings.length, 0);
+    assert.equal(rendered.tocHtml, "");
 });
 
 test("about Markdown renderer creates the expected article features", () => {
@@ -77,9 +95,10 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(indexTemplate, /height="__TITLE_IMAGE_HEIGHT__"/);
     assert.match(indexTemplate, /__TOC_HTML__/);
     assert.match(indexTemplate, /__ARTICLE_HTML__/);
-    assert.match(indexTemplate, /https:\/\/creativecommons\.org\/licenses\/by-sa\/4\.0\/\?ref=chooser-v1/);
-    assert.match(indexTemplate, /class="license-wrap"/);
-    assert.match(indexTemplate, /class="license-icons"/);
+    assert.match(indexTemplate, /__FOOTER_HTML__/);
+    assert.doesNotMatch(indexTemplate, /&copy; 2010, 2026 meatfighter\.com/);
+    assert.doesNotMatch(indexTemplate, /This content is licensed under/);
+    assert.doesNotMatch(indexTemplate, /license-wrap|license-icons|mirrors\.creativecommons\.org/);
     assert.match(indexTemplate, /<a href="__REPOSITORY_URL__" target="_blank" rel="noopener noreferrer">Source<\/a>/);
     assert.match(indexTemplate, /<a href="https:\/\/meatfighter\.com\/">Home<\/a>/);
     assert.match(indexTemplate, /<script src=".\/theme\.js\?v=__BUILD_STAMP_ENCODED__"><\/script>/);
@@ -107,9 +126,12 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /\.toc \{\s+margin: 0 0 2rem;/);
     assert.match(styles, /\.toc li:not\(:last-child\)::after \{[\s\S]*content: " \| ";/);
     assert.match(styles, /\.site-footer__inner \{[\s\S]*font-family: var\(--font-ui\);\s+line-height: 1\.6;/);
-    assert.match(styles, /\.site-footer__left \{\s+font-size: 0\.95rem;\s+\}/);
+    assert.match(styles, /\.site-footer__inner \{[\s\S]*align-items: flex-start;[\s\S]*gap: 1\.5rem;/);
+    assert.match(styles, /\.site-footer__left \{\s+min-width: 0;\s+flex: 1 1 auto;\s+font-size: 0\.95rem;\s+\}/);
     assert.match(styles, /\.site-footer__left p \+ p \{\s+margin-top: 0\.08rem;\s+\}/);
-    assert.match(styles, /\.site-footer__links \{[\s\S]*line-height: 1\.6;\s+text-align: right;/);
+    assert.match(styles, /\.site-footer__links \{[\s\S]*flex: 0 0 auto;[\s\S]*line-height: 1\.6;\s+text-align: right;/);
+    assert.doesNotMatch(styles, /\.license-wrap|\.license-icons/);
+    assert.match(styles, /@media \(max-width: 720px\) \{[\s\S]*\.site-footer__links \{\s+margin-top: 0\.65rem;\s+text-align: center;\s+\}/);
     assert.match(styles, /font-family: "Source Sans 3";/);
     assert.match(themeScript, /stickvania-about-theme/);
     assert.match(themeScript, /theme === "dark" \? "#000000" : "#fcfcfc"/);
@@ -117,7 +139,11 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
 
 test("about build uses constrained Markdown and SVG title assets", () => {
     assert.match(buildAboutSource, /content\.md/);
+    assert.match(buildAboutSource, /footer\.md/);
     assert.match(buildAboutSource, /renderAboutMarkdown/);
+    assert.match(buildAboutSource, /__FOOTER_HTML__/);
+    assert.match(buildAboutSource, /about\/footer\.md must not be empty/);
+    assert.match(buildAboutSource, /about\/footer\.md must not contain headings/);
     assert.match(buildAboutSource, /const titleImageWidth = 750;/);
     assert.match(buildAboutSource, /const titleImageHeight = 480;/);
     assert.match(buildAboutSource, /__TITLE_SVG_SRC__/);
@@ -128,6 +154,7 @@ test("about build uses constrained Markdown and SVG title assets", () => {
 
 test("about assets live with the about page source", () => {
     assert.equal(existsSync(join(aboutDir, "content.md")), true);
+    assert.equal(existsSync(join(aboutDir, "footer.md")), true);
     assert.equal(existsSync(join(aboutDir, "assets", "title.svg")), true);
     assert.equal(existsSync(join(aboutDir, "assets", "title.png")), false);
     assert.equal(existsSync(join(aboutDir, "assets", "stickvania-screenshot.png")), true);

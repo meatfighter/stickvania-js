@@ -40,6 +40,14 @@ await withReleaseOperationLock("build-about", async () => {
         "about Markdown content"
     );
     const renderedMarkdown = renderAboutMarkdown(contentMarkdown);
+    const footerMarkdown = readFileSync(join(aboutDir, "footer.md"), "utf8");
+    const renderedFooter = renderAboutMarkdown(footerMarkdown);
+    if (renderedFooter.articleHtml.trim() === "") {
+        throw new Error("about/footer.md must not be empty.");
+    }
+    if (renderedFooter.headings.length !== 0) {
+        throw new Error("about/footer.md must not contain headings.");
+    }
     const pageReplacements = {
         __APP_VERSION__: version.version,
         __ARTICLE_HTML__: prepareAboutArticleHtml(renderedMarkdown),
@@ -47,6 +55,7 @@ await withReleaseOperationLock("build-about", async () => {
         __BUILD_STAMP_ENCODED__: encodedBuildStamp,
         __CANONICAL_URL__: canonicalUrl,
         __DESCRIPTION__: description,
+        __FOOTER_HTML__: renderedFooter.articleHtml,
         __REPOSITORY_URL__: repositoryUrl,
         __SOCIAL_IMAGE_URL__: `${canonicalUrl}assets/stickvania-screenshot.png?v=${encodedBuildStamp}`,
         __TITLE_IMAGE_HEIGHT__: titleImageHeight,

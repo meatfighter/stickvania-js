@@ -302,6 +302,7 @@ function createDistribution() {
         copyFileSync(join(desktopDir, name), join(distributionDir, name));
     }
     copyFileSync(join(rootDir, "LICENSE"), join(distributionDir, "LICENSE"));
+    copyFileSync(join(rootDir, "COPYRIGHT.md"), join(distributionDir, "COPYRIGHT.md"));
     copyFileSync(join(rootDir, "THIRD_PARTY_NOTICES.md"), join(distributionDir, "THIRD_PARTY_NOTICES.md"));
 
     createStoredZipFromDirectory(distributionRoot, versionedZipPath, getDistributionZipEntryMode);

@@ -570,9 +570,9 @@ html[data-theme="dark"] .site-logo {
 
 .site-footer__inner {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 1.5rem;
     padding: 0.9rem 0 2rem;
     border-top: 1px solid var(--border);
     color: var(--text);
@@ -581,6 +581,8 @@ html[data-theme="dark"] .site-logo {
 }
 
 .site-footer__left {
+    min-width: 0;
+    flex: 1 1 auto;
     font-size: 0.95rem;
 }
 
@@ -594,6 +596,7 @@ html[data-theme="dark"] .site-logo {
 
 .site-footer__links {
     display: block;
+    flex: 0 0 auto;
     flex-wrap: wrap;
     justify-content: flex-end;
     line-height: 1.6;
@@ -602,24 +605,6 @@ html[data-theme="dark"] .site-logo {
 
 .site-footer__separator {
     color: var(--muted);
-}
-
-.license-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-}
-
-.license-icons {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.18rem;
-}
-
-.license-icons img {
-    width: 18px;
-    height: 18px;
 }
 
 @media (max-width: 720px) {

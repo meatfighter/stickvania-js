@@ -1,6 +1,6 @@
 /*
  * Stickvania
- * Copyright (C) 2010 meatfighter.com
+ * Copyright (C) 2010, 2026 meatfighter.com
  *
  * This file is part of Stickvania
  *
@@ -4073,8 +4073,8 @@ public final class Main extends BasicGame {
 
     String fullscreenText = "SPACE - FULL-SCREEN MODE";
     drawString(fullscreenText, centerTextX(fullscreenText), 400);
-    String copyrightText = "@ 2010, 2026 MEATFIGHTER.COM";
-    drawString(copyrightText, centerTextX(copyrightText), 430);
+    String attributionText = "2010, 2026 MEATFIGHTER.COM";
+    drawString(attributionText, centerTextX(attributionText), 430);
   }
 
   private int getTitleOptionCount() {
