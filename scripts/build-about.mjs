@@ -11,7 +11,7 @@ import {
     writeAtomicTextFile
 } from "./build-utils.mjs";
 import { finalizeAboutPageHtml, prepareAboutArticleHtml } from "./about-html.mjs";
-import { renderAboutMarkdown } from "./about-markdown.mjs";
+import { renderAboutFooterMarkdown, renderAboutMarkdown } from "./about-markdown.mjs";
 
 const packageJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
 const canonicalUrl = normalizeCanonicalUrl(packageJson.homepage ?? "https://meatfighter.com/stickvania/");
@@ -41,7 +41,7 @@ await withReleaseOperationLock("build-about", async () => {
     );
     const renderedMarkdown = renderAboutMarkdown(contentMarkdown);
     const footerMarkdown = readFileSync(join(aboutDir, "footer.md"), "utf8");
-    const renderedFooter = renderAboutMarkdown(footerMarkdown);
+    const renderedFooter = renderAboutFooterMarkdown(footerMarkdown);
     if (renderedFooter.articleHtml.trim() === "") {
         throw new Error("about/footer.md must not be empty.");
     }

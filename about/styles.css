@@ -594,6 +594,10 @@ html[data-theme="dark"] .site-logo {
     margin-top: 0.08rem;
 }
 
+.site-footer__license-link {
+    white-space: nowrap;
+}
+
 .site-footer__links {
     display: block;
     flex: 0 0 auto;
@@ -607,6 +611,12 @@ html[data-theme="dark"] .site-logo {
 
 .site-footer__separator {
     color: var(--muted);
+}
+
+@media (min-width: 721px) {
+    .site-footer__copyright {
+        white-space: nowrap;
+    }
 }
 
 @media (max-width: 720px) {

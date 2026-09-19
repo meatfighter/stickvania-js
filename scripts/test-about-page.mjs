@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { renderAboutMarkdown } from "./about-markdown.mjs";
+import { renderAboutFooterMarkdown, renderAboutMarkdown } from "./about-markdown.mjs";
 import { rootDir } from "./build-utils.mjs";
 
 const aboutDir = join(rootDir, "about");
@@ -23,7 +23,7 @@ function renderedAboutFixture() {
 }
 
 function renderedFooterFixture() {
-    return renderAboutMarkdown(footerMarkdown);
+    return renderAboutFooterMarkdown(footerMarkdown);
 }
 
 test("about Markdown content is the user-facing source of truth", () => {
@@ -50,15 +50,20 @@ test("about footer Markdown is a heading-free scoped legal source", () => {
     assert.match(footerMarkdown, /third-party and preexisting game content and trademarks remain\s+the property of their respective rights holders/);
     assert.match(footerMarkdown, /Original page text is licensed under \[CC BY-SA 4\.0\]\(https:\/\/creativecommons\.org\/licenses\/by-sa\/4\.0\/\)/);
     assert.doesNotMatch(footerMarkdown, /^#{1,6}\s/m);
+    assert.doesNotMatch(footerMarkdown, /<span\b|class=/);
+    assert.doesNotMatch(footerMarkdown, /\u00a0/);
     const rendered = renderedFooterFixture();
     assert.equal((rendered.articleHtml.match(/<p>/g) ?? []).length, 1);
-    assert.match(rendered.articleHtml, /<p>Original code, graphics, and other original material created for this project © 2010, 2026 meatfighter\.com/);
+    assert.match(rendered.articleHtml, /<span class="site-footer__copyright">© 2010, 2026 meatfighter\.com<\/span>/);
     assert.match(
         rendered.articleHtml,
-        /href="https:\/\/creativecommons\.org\/licenses\/by-sa\/4\.0\/" target="_blank" rel="noopener noreferrer">CC BY-SA 4\.0<\/a>/
+        /href="https:\/\/creativecommons\.org\/licenses\/by-sa\/4\.0\/" class="site-footer__license-link" target="_blank" rel="noopener noreferrer">CC BY-SA 4\.0<\/a>/
     );
     assert.equal(rendered.headings.length, 0);
     assert.equal(rendered.tocHtml, "");
+
+    const ordinary = renderAboutMarkdown("© 2010, 2026 meatfighter.com [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)");
+    assert.doesNotMatch(ordinary.articleHtml, /site-footer__/);
 });
 
 test("about Markdown renderer creates the expected article features", () => {
@@ -132,6 +137,8 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /\.site-footer__inner \{[\s\S]*align-items: flex-start;[\s\S]*gap: 1\.5rem;/);
     assert.match(styles, /\.site-footer__left \{\s+min-width: 0;\s+flex: 1 1 auto;\s+font-size: 0\.95rem;\s+\}/);
     assert.match(styles, /\.site-footer__left p \+ p \{\s+margin-top: 0\.08rem;\s+\}/);
+    assert.match(styles, /\.site-footer__license-link \{\s+white-space: nowrap;\s+\}/);
+    assert.match(styles, /@media \(min-width: 721px\) \{[\s\S]*\.site-footer__copyright \{\s+white-space: nowrap;\s+\}/);
     assert.match(styles, /\.site-footer__links \{[\s\S]*flex: 0 0 auto;[\s\S]*align-self: center;[\s\S]*line-height: 1\.6;\s+text-align: right;/);
     assert.match(styles, /\.site-footer__links \{[\s\S]*white-space: nowrap;/);
     assert.doesNotMatch(styles, /\.license-wrap|\.license-icons/);
@@ -145,6 +152,7 @@ test("about build uses constrained Markdown and SVG title assets", () => {
     assert.match(buildAboutSource, /content\.md/);
     assert.match(buildAboutSource, /footer\.md/);
     assert.match(buildAboutSource, /renderAboutMarkdown/);
+    assert.match(buildAboutSource, /renderAboutFooterMarkdown/);
     assert.match(buildAboutSource, /__FOOTER_HTML__/);
     assert.match(buildAboutSource, /about\/footer\.md must not be empty/);
     assert.match(buildAboutSource, /about\/footer\.md must not contain headings/);
