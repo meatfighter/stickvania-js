@@ -132,10 +132,7 @@ test("about page shell carries SEO, theme, footer, and generated-content placeho
     assert.match(styles, /\.site-footer__inner \{[\s\S]*align-items: flex-start;[\s\S]*gap: 1\.5rem;/);
     assert.match(styles, /\.site-footer__left \{\s+min-width: 0;\s+flex: 1 1 auto;\s+font-size: 0\.95rem;\s+\}/);
     assert.match(styles, /\.site-footer__left p \+ p \{\s+margin-top: 0\.08rem;\s+\}/);
-    assert.match(
-        styles,
-        /\.site-footer__links \{[\s\S]*flex: 0 0 auto;[\s\S]*align-self: center;[\s\S]*line-height: 1\.6;\s+text-align: right;/
-    );
+    assert.match(styles, /\.site-footer__links \{[\s\S]*flex: 0 0 auto;[\s\S]*align-self: center;[\s\S]*line-height: 1\.6;\s+text-align: right;/);
     assert.doesNotMatch(styles, /\.license-wrap|\.license-icons/);
     assert.match(styles, /@media \(max-width: 720px\) \{[\s\S]*\.site-footer__links \{\s+margin-top: 0\.65rem;\s+text-align: center;\s+\}/);
     assert.match(styles, /font-family: "Source Sans 3";/);
