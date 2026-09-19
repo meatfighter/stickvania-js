@@ -1,14 +1,14 @@
-import { ResourceLoader, SoundStore } from "slick2d-ts";
+import * as SlickRuntimeModule from "slick2d-ts";
 import { getStickvaniaResourceVersion } from "../ResourceVersions.generated.js";
 import { STICKVANIA_RESOURCE_REFS } from "../resources.js";
 
-type SlickRuntimeModule = typeof import("slick2d-ts");
+type SlickRuntime = typeof SlickRuntimeModule;
 type MainConstructor = typeof import("../stickvania/Main.js").Main;
 type StickvaniaBufferedGameConstructor = typeof import("../stickvania/StickvaniaBufferedGame.js").StickvaniaBufferedGame;
 type StickvaniaGameStateStoreConstructor = typeof import("../stickvania/persistence/StickvaniaGameStateStore.js").StickvaniaGameStateStore;
 
 export type PreparedRuntime = {
-    slick: SlickRuntimeModule;
+    slick: SlickRuntime;
     Main: MainConstructor;
     StickvaniaBufferedGame: StickvaniaBufferedGameConstructor;
     StickvaniaGameStateStore: StickvaniaGameStateStoreConstructor;
@@ -18,6 +18,7 @@ const RESOURCE_CACHE_RETRY_COUNT = 3;
 const RESOURCE_CACHE_RETRY_DELAY_MS = 250;
 const RESOURCE_PRELOAD_CONCURRENCY = 6;
 const AUDIO_PRELOAD_CONCURRENCY = 4;
+const { ResourceLoader, SoundStore } = SlickRuntimeModule;
 
 export class StickvaniaRuntimeLoader {
     private preparedRuntime: PreparedRuntime | null = null;
@@ -120,8 +121,7 @@ export class StickvaniaRuntimeLoader {
     }
 
     private async prepareRuntime(generation: number, signal: AbortSignal): Promise<PreparedRuntime> {
-        const [slick, mainModule, bufferedGameModule, gameStateStoreModule] = await Promise.all([
-            import("slick2d-ts"),
+        const [mainModule, bufferedGameModule, gameStateStoreModule] = await Promise.all([
             import("../stickvania/Main.js"),
             import("../stickvania/StickvaniaBufferedGame.js"),
             import("../stickvania/persistence/StickvaniaGameStateStore.js")
@@ -131,7 +131,7 @@ export class StickvaniaRuntimeLoader {
         }
         await this.preloadResources(STICKVANIA_RESOURCE_REFS, signal);
         return {
-            slick,
+            slick: SlickRuntimeModule,
             Main: mainModule.Main,
             StickvaniaBufferedGame: bufferedGameModule.StickvaniaBufferedGame,
             StickvaniaGameStateStore: gameStateStoreModule.StickvaniaGameStateStore
