@@ -598,6 +598,7 @@ html[data-theme="dark"] .site-logo {
     display: block;
     flex: 0 0 auto;
     align-self: center;
+    white-space: nowrap;
     flex-wrap: wrap;
     justify-content: flex-end;
     line-height: 1.6;
