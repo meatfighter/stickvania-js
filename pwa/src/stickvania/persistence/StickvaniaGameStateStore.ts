@@ -95,9 +95,6 @@ export class StickvaniaGameStateStore {
             const snapshot = stored.snapshot;
             resetStopWatchMusicHold();
             this.serializer.restoreSnapshot(main, gc, snapshot);
-            // Thing restoration can rebuild Simon without running his constructor,
-            // so re-register the live Main before resumed input/action processing.
-            registerPlayerActionMain(main);
             // timeFrozen is derived from the live StopWatch objects. Recompute
             // once after the complete object graph is restored so a contradictory
             // saved scalar, including a stale nonzero value with no watches,
@@ -107,6 +104,10 @@ export class StickvaniaGameStateStore {
             // after both gameplay Things and Music have been restored so an
             // active stopwatch is silent before the first resumed simulation tick.
             reconcileStopWatchMusic(main);
+            // Thing restoration can rebuild Simon without running his constructor.
+            // Publish this Main to input-side action policy only after every
+            // potentially-throwing restore/reconciliation step has succeeded.
+            registerPlayerActionMain(main);
             return true;
         } catch (error) {
             console.warn("Unable to restore Stickvania game state.", error);
