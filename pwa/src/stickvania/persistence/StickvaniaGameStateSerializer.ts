@@ -232,8 +232,10 @@ export class StickvaniaGameStateSerializer {
 
             let stairs = 0;
             const expectedRegionBounds: Array<{ min: number; max: number }> = [{ min: 0, max: width << 5 }];
-            for (let y = 0; y < loaded.stage.length; y++) {
-                for (let x = 0; x < width; x++) {
+            // Mirror convertStage(): columns are authoritative because a door
+            // finalizes the current Region as soon as that tile is encountered.
+            for (let x = 0; x < width; x++) {
+                for (let y = 0; y < loaded.stage.length; y++) {
                     const tile = loaded.stage[y]![x];
                     if (tile === Main.TILE_DOOR) {
                         if (effectiveDirection === Main.RIGHT) {
