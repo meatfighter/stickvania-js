@@ -11,6 +11,13 @@ function source(path) {
     return readFileSync(join(root, path), "utf8");
 }
 
+test("controller input hot path uses scalar state instead of transient result objects", () => {
+    const source = readFileSync(join(rootDir, "pwa", "src", "stickvania", "StickvaniaInput.ts"), "utf8");
+    assert.doesNotMatch(source, /type ControllerBindingState/);
+    assert.doesNotMatch(source, /type ControllerReadContext/);
+    assert.doesNotMatch(source, /return \{ down: anyDown, pressed: anyPressed \}/);
+});
+
 test("translated TypeScript cannot regain obsolete desktop/applet compatibility scaffolding", () => {
     const main = source("pwa/src/stickvania/Main.ts");
     const bootstrap = source("pwa/src/main.ts");
