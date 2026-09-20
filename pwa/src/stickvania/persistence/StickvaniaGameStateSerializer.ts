@@ -1,6 +1,7 @@
 import { GameContainer, JavaRandom, Music, isMusicPlaybackSnapshot } from "slick2d-ts";
 import { Checkpoint } from "../Checkpoint.js";
 import { ButtonMapping } from "../ButtonMapping.js";
+import { isInputConfigLogicalStateConsistent, type InputConfigModeSnapshot } from "../InputConfigMode.js";
 import { Main } from "../Main.js";
 import { Region } from "../Region.js";
 import { Song } from "../Song.js";
@@ -299,25 +300,55 @@ export class StickvaniaGameStateSerializer {
         return expected.every((field) => fieldSet.has(field));
     }
 
-    private isInputConfigSnapshotShape(snapshot: unknown): boolean {
-        if (!this.isPlainRecord(snapshot) || !this.isPlainRecord(snapshot.draft)) {
+    private isInputConfigSnapshotShape(snapshot: unknown): snapshot is InputConfigModeSnapshot {
+        if (
+            !this.isPlainRecord(snapshot) ||
+            !this.areRecordFieldNamesExact(snapshot, [
+                "stepIndex",
+                "doneDelay",
+                "armDelay",
+                "message",
+                "finished",
+                "draft",
+                "assignedKeys",
+                "assignedControllerButtons"
+            ]) ||
+            !this.isPlainRecord(snapshot.draft) ||
+            !this.areRecordFieldNamesExact(snapshot.draft, [
+                "keyJump",
+                "keyAttack",
+                "keyUp",
+                "keyDown",
+                "keyLeft",
+                "keyRight",
+                "controllerJump",
+                "controllerAttack",
+                "controllerUp",
+                "controllerDown",
+                "controllerLeft",
+                "controllerRight"
+            ])
+        ) {
             return false;
         }
         const keyFields = ["keyJump", "keyAttack", "keyUp", "keyDown", "keyLeft", "keyRight"] as const;
         const controllerActionFields = ["controllerJump", "controllerAttack"] as const;
         const controllerDirectionFields = ["controllerUp", "controllerDown", "controllerLeft", "controllerRight"] as const;
-        return (
-            this.isFiniteInteger(snapshot.stepIndex) &&
-            this.isFiniteInteger(snapshot.doneDelay) &&
-            this.isFiniteInteger(snapshot.armDelay) &&
-            typeof snapshot.message === "string" &&
-            typeof snapshot.finished === "boolean" &&
-            keyFields.every((field) => ButtonMapping.isValidKeyBinding((snapshot.draft as FieldBag)[field])) &&
-            controllerActionFields.every((field) => ButtonMapping.isValidControllerActionBinding((snapshot.draft as FieldBag)[field])) &&
-            controllerDirectionFields.every((field) => ButtonMapping.isValidControllerBinding((snapshot.draft as FieldBag)[field])) &&
-            this.isAssignedInputCodeArray(snapshot.assignedKeys, 6) &&
-            this.isAssignedControllerCodeArray(snapshot.assignedControllerButtons, 6)
-        );
+        if (
+            !this.isFiniteInteger(snapshot.stepIndex) ||
+            !this.isFiniteInteger(snapshot.doneDelay) ||
+            !this.isFiniteInteger(snapshot.armDelay) ||
+            typeof snapshot.message !== "string" ||
+            typeof snapshot.finished !== "boolean" ||
+            !keyFields.every((field) => ButtonMapping.isValidKeyBinding((snapshot.draft as FieldBag)[field])) ||
+            !controllerActionFields.every((field) => ButtonMapping.isValidControllerActionBinding((snapshot.draft as FieldBag)[field])) ||
+            !controllerDirectionFields.every((field) => ButtonMapping.isValidControllerBinding((snapshot.draft as FieldBag)[field])) ||
+            !this.isAssignedInputCodeArray(snapshot.assignedKeys, 6) ||
+            !this.isAssignedControllerCodeArray(snapshot.assignedControllerButtons, 6)
+        ) {
+            return false;
+        }
+        return isInputConfigLogicalStateConsistent(snapshot as unknown as InputConfigModeSnapshot);
     }
 
     private isRandomSnapshotShape(snapshot: unknown): snapshot is RandomSnapshot {
@@ -556,19 +587,25 @@ export class StickvaniaGameStateSerializer {
     }
 
     private isAssignedInputCodeArray(value: unknown, maxLength: number): value is number[] {
-        return Array.isArray(value) && value.length <= maxLength && value.every((item) => this.isFiniteInteger(item) && item >= 0);
+        return (
+            Array.isArray(value) &&
+            value.length <= maxLength &&
+            new Set(value).size === value.length &&
+            value.every((item) => this.isFiniteInteger(item) && item >= 0)
+        );
     }
 
     private isAssignedControllerCodeArray(value: unknown, maxLength: number): boolean {
         return (
             Array.isArray(value) &&
             value.length <= maxLength &&
+            new Set(value).size === value.length &&
             value.every(
                 (item) =>
                     typeof item === "number" &&
                     Number.isInteger(item) &&
                     item !== ButtonMapping.NO_BINDING &&
-                    (ButtonMapping.isControllerDirection(item) || item >= 0)
+                    (ButtonMapping.isControllerDirection(item) || ButtonMapping.isValidControllerActionBinding(item))
             )
         );
     }
