@@ -10,6 +10,9 @@ const MAX_VALUE_DEPTH = 64;
 const MAX_ARRAY_LENGTH = 4096;
 const MAX_RECORD_FIELDS = 512;
 const MAX_STRING_LENGTH = 4096;
+const MAX_TOTAL_SNAPSHOT_CONTAINERS = 65_536;
+const MAX_TOTAL_SNAPSHOT_CHILDREN = 524_288;
+const MAX_TOTAL_SNAPSHOT_STRING_CHARS = 1_500_000;
 const MAX_GENERAL_NUMBER_MAGNITUDE = 1_000_000;
 const MAX_POSITION_MAGNITUDE = 131_072;
 const MAX_VELOCITY_MAGNITUDE = 512;
@@ -75,6 +78,9 @@ const INPUT_DRAFT_FIELDS = [
 ] as const;
 
 export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGameStateSnapshot): boolean {
+    if (!isWithinStickvaniaGameStateValidationBudget(snapshot)) {
+        return false;
+    }
     if (!isRecord(snapshot) || !hasExactFields(snapshot, TOP_LEVEL_FIELDS)) {
         return false;
     }
@@ -103,6 +109,61 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
     if (!isReasonableAudio(snapshot.audio, stopWatchHoldAllowed)) {
         return false;
     }
+    return true;
+}
+
+export function isWithinStickvaniaGameStateValidationBudget(value: unknown): boolean {
+    const stack: unknown[] = [value];
+    const seen = new WeakSet<object>();
+    let containers = 0;
+    let children = 0;
+    let stringChars = 0;
+
+    while (stack.length > 0) {
+        const current = stack.pop();
+        if (typeof current === "string") {
+            stringChars += current.length;
+            if (stringChars > MAX_TOTAL_SNAPSHOT_STRING_CHARS) {
+                return false;
+            }
+            continue;
+        }
+        if (current === null || typeof current !== "object") {
+            continue;
+        }
+        if (seen.has(current)) {
+            return false;
+        }
+        seen.add(current);
+        if (++containers > MAX_TOTAL_SNAPSHOT_CONTAINERS) {
+            return false;
+        }
+
+        if (Array.isArray(current)) {
+            children += current.length;
+            if (children > MAX_TOTAL_SNAPSHOT_CHILDREN) {
+                return false;
+            }
+            for (const child of current) {
+                stack.push(child);
+            }
+            continue;
+        }
+
+        const entries = Object.entries(current);
+        children += entries.length;
+        if (children > MAX_TOTAL_SNAPSHOT_CHILDREN) {
+            return false;
+        }
+        for (const [key, child] of entries) {
+            stringChars += key.length;
+            if (stringChars > MAX_TOTAL_SNAPSHOT_STRING_CHARS) {
+                return false;
+            }
+            stack.push(child);
+        }
+    }
+
     return true;
 }
 
