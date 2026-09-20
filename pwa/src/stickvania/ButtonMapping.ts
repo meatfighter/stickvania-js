@@ -17,11 +17,9 @@ type ButtonMappingSnapshot = {
     controllerRight: number;
 };
 
-const CONTROLLER_BUTTON_INDEX_LIMIT = 64;
-
 export class ButtonMapping {
     private static readonly STORAGE_KEY = getBrowserStorageKey("input-mapping");
-    private static readonly VERSION = 6;
+    private static readonly VERSION = 7;
     public static readonly NO_BINDING = -1;
     public static readonly CONTROLLER_DIRECTION_UP = -2;
     public static readonly CONTROLLER_DIRECTION_DOWN = -3;
@@ -39,26 +37,6 @@ export class ButtonMapping {
     private static readonly DEFAULT_CONTROLLER_DOWN = ButtonMapping.CONTROLLER_DIRECTION_DOWN;
     private static readonly DEFAULT_CONTROLLER_LEFT = ButtonMapping.CONTROLLER_DIRECTION_LEFT;
     private static readonly DEFAULT_CONTROLLER_RIGHT = ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
-    private static readonly GAMEPAD_BUTTON_TEXT = [
-        "GP-A",
-        "GP-B",
-        "GP-X",
-        "GP-Y",
-        "GP-LB",
-        "GP-RB",
-        "GP-LT",
-        "GP-RT",
-        "GP-VIEW",
-        "GP-MENU",
-        "GP-LS",
-        "GP-RS",
-        "GP-UP",
-        "GP-DOWN",
-        "GP-LEFT",
-        "GP-RIGHT",
-        "GP-HOME"
-    ];
-
     private static readonly KEY_TEXT = new Map<number, string>([
         [Input.KEY_A, "A"],
         [Input.KEY_B, "B"],
@@ -299,10 +277,7 @@ export class ButtonMapping {
             case ButtonMapping.CONTROLLER_DIRECTION_RIGHT:
                 return "GP-RIGHT";
         }
-        if (button >= 0 && button < ButtonMapping.GAMEPAD_BUTTON_TEXT.length) {
-            return ButtonMapping.GAMEPAD_BUTTON_TEXT[button];
-        }
-        return "GP-" + button;
+        return button >= 0 ? "GP-BUTTON-" + (button + 1) : "GP-" + button;
     }
 
     public static isControllerDirection(value: number): boolean {
@@ -312,10 +287,6 @@ export class ButtonMapping {
             value === ButtonMapping.CONTROLLER_DIRECTION_LEFT ||
             value === ButtonMapping.CONTROLLER_DIRECTION_RIGHT
         );
-    }
-
-    public static isStandardGamepadDirectionButton(button: number): boolean {
-        return button >= 12 && button <= 15;
     }
 
     public static isValidKeyBinding(value: unknown): value is number {
@@ -333,7 +304,7 @@ export class ButtonMapping {
             Number.isInteger(value) &&
             (value === ButtonMapping.NO_BINDING ||
                 ButtonMapping.isControllerDirection(value) ||
-                (value >= 0 && value < CONTROLLER_BUTTON_INDEX_LIMIT))
+                (value >= 0 && value < Input.BROWSER_CONTROLLER_BUTTON_LIMIT))
         );
     }
 
@@ -341,10 +312,7 @@ export class ButtonMapping {
         return (
             typeof value === "number" &&
             Number.isInteger(value) &&
-            (value === ButtonMapping.NO_BINDING ||
-                (value >= 0 &&
-                    value < CONTROLLER_BUTTON_INDEX_LIMIT &&
-                    !ButtonMapping.isStandardGamepadDirectionButton(value)))
+            (value === ButtonMapping.NO_BINDING || (value >= 0 && value < Input.BROWSER_CONTROLLER_BUTTON_LIMIT))
         );
     }
 
