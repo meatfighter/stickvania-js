@@ -55,6 +55,24 @@ test("Firefox-155-like legacy haptics surface is unavailable for the PWA menu", 
     assert.equal(getBrowserRumbleCapability(), "unavailable");
 });
 
+test("browser rumble capability probing treats throwing native surfaces as unavailable", () => {
+    const throwingPrototype = new Proxy(
+        {},
+        {
+            has() {
+                throw new Error("native Gamepad prototype query failed");
+            }
+        }
+    );
+    const { getBrowserRumbleCapability } = loadBrowserHaptics({
+        navigator: { getGamepads: () => [] },
+        Gamepad: { prototype: throwingPrototype },
+        GamepadHapticActuator: { prototype: { playEffect() {} } }
+    });
+
+    assert.equal(getBrowserRumbleCapability(), "unavailable");
+});
+
 test("missing browser Gamepad API is unavailable for rumble", () => {
     const { getBrowserRumbleCapability } = loadBrowserHaptics({ navigator: {} });
     assert.equal(getBrowserRumbleCapability(), "unavailable");
@@ -272,6 +290,37 @@ test("silencing a legacy pulse-only actuator supersedes vibration with zero inte
 
     await silenceGamepads([gamepad]);
     assert.deepEqual(pulses, [{ value: 0, duration: 1 }]);
+});
+
+test("stale haptic shutdown does not issue fallback stop commands after a newer operation", async () => {
+    const { silenceGamepads } = loadBrowserHaptics();
+    let current = true;
+    let rejectReset;
+    const calls = [];
+    const resetPromise = new Promise((_, reject) => {
+        rejectReset = reject;
+    });
+    const actuator = {
+        reset() {
+            calls.push("reset");
+            return resetPromise;
+        },
+        async playEffect() {
+            calls.push("playEffect");
+            return "complete";
+        },
+        async pulse() {
+            calls.push("pulse");
+            return true;
+        }
+    };
+
+    const stopping = silenceGamepads([{ vibrationActuator: actuator }], () => current);
+    current = false;
+    rejectReset(new Error("stale reset rejected"));
+    await stopping;
+
+    assert.deepEqual(calls, ["reset"], "a stale stop must not issue playEffect/pulse fallbacks after ownership changes");
 });
 
 test("silencing falls through to pulse when newer stop APIs are exposed but rejected", async () => {
