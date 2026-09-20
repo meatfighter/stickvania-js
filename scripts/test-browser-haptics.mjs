@@ -8,6 +8,8 @@ function loadBrowserHaptics(globals = {}) {
     const context = {
         exports: {},
         console,
+        setTimeout,
+        clearTimeout,
         ...globals,
         require: () => ({})
     };
@@ -409,6 +411,120 @@ test("silencing falls through to pulse when newer stop APIs are exposed but reje
 
     await silenceGamepads([{ vibrationActuator: actuator, hapticActuators: [actuator] }]);
     assert.deepEqual(calls, ["reset", "playEffect", "pulse:0:1"], "the same actuator should be deduplicated and fall through all stop APIs");
+});
+
+test("retired positive haptic playback cannot fall back after a rejected native play", async () => {
+    const { playPulseOnGamepad } = loadBrowserHaptics();
+    let current = true;
+    let rejectPlay;
+    const calls = [];
+    const playPromise = new Promise((_, reject) => {
+        rejectPlay = reject;
+    });
+    const primary = {
+        effects: ["dual-rumble"],
+        playEffect() {
+            calls.push("primary-playEffect");
+            return playPromise;
+        },
+        async pulse() {
+            calls.push("primary-pulse");
+            return true;
+        }
+    };
+    const fallback = {
+        async pulse() {
+            calls.push("fallback-pulse");
+            return true;
+        }
+    };
+
+    const playing = playPulseOnGamepad(
+        { vibrationActuator: primary, hapticActuators: [fallback] },
+        { duration: 80, strong: 0.5, weak: 0.5 },
+        () => current
+    );
+    current = false;
+    rejectPlay(new Error("late native rejection"));
+
+    assert.equal(await playing, "retired");
+    assert.deepEqual(calls, ["primary-playEffect"], "retirement must prevent pulse and alternate-actuator fallbacks");
+});
+
+test("one nonsettling actuator cannot block cleanup of another actuator", async () => {
+    const timerCallbacks = [];
+    const { silenceGamepads } = loadBrowserHaptics({
+        setTimeout(callback) {
+            timerCallbacks.push(callback);
+            return timerCallbacks.length;
+        },
+        clearTimeout() {}
+    });
+    const calls = [];
+    const stuck = {
+        reset() {
+            calls.push("stuck-reset");
+            return new Promise(() => undefined);
+        }
+    };
+    const healthy = {
+        async pulse(value, duration) {
+            calls.push(`healthy-pulse:${value}:${duration}`);
+            return true;
+        }
+    };
+
+    const stopping = silenceGamepads([{ vibrationActuator: stuck, hapticActuators: [healthy] }]);
+    await Promise.resolve();
+    assert.deepEqual(calls, ["stuck-reset", "healthy-pulse:0:1"], "cleanup attempts must start concurrently");
+
+    for (const callback of timerCallbacks) {
+        callback();
+    }
+    await stopping;
+});
+
+test("timed-out cleanup cannot issue late fallback commands when its native reset rejects", async () => {
+    const timerCallbacks = [];
+    const { silenceGamepads } = loadBrowserHaptics({
+        setTimeout(callback) {
+            timerCallbacks.push(callback);
+            return timerCallbacks.length;
+        },
+        clearTimeout() {}
+    });
+    let rejectReset;
+    const calls = [];
+    const resetPromise = new Promise((_, reject) => {
+        rejectReset = reject;
+    });
+    const actuator = {
+        reset() {
+            calls.push("reset");
+            return resetPromise;
+        },
+        async playEffect() {
+            calls.push("playEffect");
+            return "complete";
+        },
+        async pulse() {
+            calls.push("pulse");
+            return true;
+        }
+    };
+
+    const stopping = silenceGamepads([{ vibrationActuator: actuator }]);
+    await Promise.resolve();
+    for (const callback of timerCallbacks) {
+        callback();
+    }
+    await stopping;
+
+    rejectReset(new Error("native reset rejected after cleanup timeout"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.deepEqual(calls, ["reset"], "retired cleanup must not issue a late stop fallback");
 });
 
 test("actuator descriptions distinguish missing browser functionality from exposed APIs", () => {
