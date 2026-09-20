@@ -42,7 +42,9 @@ try {
     const { ButtonMapping } = await server.ssrLoadModule("/src/stickvania/ButtonMapping.ts");
     const { getBrowserStorageKey } = await server.ssrLoadModule("/src/stickvania/BrowserStorageKeys.ts");
     const { InputConfigMode } = await server.ssrLoadModule("/src/stickvania/InputConfigMode.ts");
-    const { isReasonableStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSanity.ts");
+    const { isReasonableStickvaniaGameStateSnapshot, isWithinStickvaniaGameStateValidationBudget } = await server.ssrLoadModule(
+        "/src/stickvania/persistence/GameStateSanity.ts"
+    );
     const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } = await server.ssrLoadModule(
         "/src/stickvania/persistence/GameStateSchema.ts"
     );
@@ -62,6 +64,20 @@ try {
             `${field} must remain durable because demo/credits recorded-input continuation depends on it`
         );
     }
+
+    assert.equal(
+        isWithinStickvaniaGameStateValidationBudget({
+            version: GAME_STATE_VERSION,
+            fields: Array.from({ length: 128 }, (_, index) => ({ index, name: "thing-" + index }))
+        }),
+        true
+    );
+    const cyclicBudgetValue = {};
+    cyclicBudgetValue.self = cyclicBudgetValue;
+    assert.equal(isWithinStickvaniaGameStateValidationBudget(cyclicBudgetValue), false);
+    assert.equal(isWithinStickvaniaGameStateValidationBudget(Array.from({ length: 65_536 }, () => ({}))), false);
+    assert.equal(isWithinStickvaniaGameStateValidationBudget(new Array(524_289).fill(null)), false);
+    assert.equal(isWithinStickvaniaGameStateValidationBudget("x".repeat(1_500_001)), false);
 
     assert.equal(ButtonMapping.isValidControllerActionBinding(63), true);
     assert.equal(ButtonMapping.isValidControllerActionBinding(64), false);
