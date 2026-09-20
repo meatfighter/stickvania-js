@@ -227,19 +227,24 @@ function isReferenceValueValid(
             if (reference.$thing === null) return policy.nullable;
             return policy.targets.includes(thingTypes.get(reference.$thing) as ThingTypeId);
         }
-        case "thingArray":
-            return (
-                Array.isArray(value) &&
-                value.length === policy.length &&
-                value.every((entry) => {
-                    const reference = asThingReference(entry);
-                    return (
-                        reference !== null &&
-                        reference.$thing !== null &&
-                        policy.targets.includes(thingTypes.get(reference.$thing) as ThingTypeId)
-                    );
-                })
-            );
+        case "thingArray": {
+            if (!Array.isArray(value) || value.length !== policy.length) {
+                return false;
+            }
+            const ids: number[] = [];
+            for (const entry of value) {
+                const reference = asThingReference(entry);
+                if (
+                    reference === null ||
+                    reference.$thing === null ||
+                    !policy.targets.includes(thingTypes.get(reference.$thing) as ThingTypeId)
+                ) {
+                    return false;
+                }
+                ids.push(reference.$thing);
+            }
+            return new Set(ids).size === ids.length;
+        }
         case "segment": {
             const reference = asSegmentReference(value);
             if (reference === null) return false;
