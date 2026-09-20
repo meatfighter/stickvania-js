@@ -5,6 +5,10 @@ import type { Main } from "./Main.js";
 
 type BindingStep = "UP" | "DOWN" | "LEFT" | "RIGHT" | "JUMP" | "ATTACK";
 
+export const INPUT_CONFIG_STEP_COUNT = 6;
+export const INPUT_CONFIG_DONE_DELAY = 30;
+export const INPUT_CONFIG_ARM_DELAY = 8;
+
 export type MappingDraft = {
     keyJump: number;
     keyAttack: number;
@@ -33,8 +37,8 @@ export type InputConfigModeSnapshot = {
 
 export class InputConfigMode implements KeyListener {
     private static readonly STEPS: BindingStep[] = ["UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK"];
-    private static readonly DONE_DELAY = 30;
-    private static readonly ARM_DELAY = 8;
+    private static readonly DONE_DELAY = INPUT_CONFIG_DONE_DELAY;
+    private static readonly ARM_DELAY = INPUT_CONFIG_ARM_DELAY;
     private static readonly PROMPT_LINE_1 = "ON EITHER YOUR KEYBOARD";
     private static readonly PROMPT_LINE_2 = "OR GAMEPAD, PRESS:";
     private static readonly PROMPT_LINE_1_Y = 152;
@@ -92,12 +96,12 @@ export class InputConfigMode implements KeyListener {
         this.input = gc.getInput();
         ControllerSupport.configureInput(this.input);
         this.input.addKeyListener(this);
-        this.stepIndex = this.clampStepIndex(snapshot.stepIndex, snapshot.finished);
-        this.doneDelay = this.sanitizedDelay(snapshot.doneDelay);
-        this.armDelay = this.sanitizedDelay(snapshot.armDelay);
-        this.message = typeof snapshot.message === "string" ? snapshot.message : "";
-        this.finished = Boolean(snapshot.finished);
-        this.draft = this.cloneDraft(snapshot.draft ?? this.createDraft());
+        this.stepIndex = snapshot.stepIndex;
+        this.doneDelay = snapshot.doneDelay;
+        this.armDelay = snapshot.armDelay;
+        this.message = snapshot.message;
+        this.finished = snapshot.finished;
+        this.draft = this.cloneDraft(snapshot.draft);
         this.assignedKeys.clear();
         this.copyAssignedCodesIntoSet(this.assignedKeys, snapshot.assignedKeys, InputConfigMode.isAssignedKeyCode);
         this.assignedControllerButtons.clear();
@@ -360,18 +364,6 @@ export class InputConfigMode implements KeyListener {
 
     private sanitizedControllerActionBinding(value: unknown): number {
         return ButtonMapping.isValidControllerActionBinding(value) ? value : ButtonMapping.NO_BINDING;
-    }
-
-    private sanitizedDelay(value: unknown): number {
-        return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
-    }
-
-    private clampStepIndex(value: unknown, finished: unknown): number {
-        if (typeof value !== "number" || !Number.isFinite(value)) {
-            return 0;
-        }
-        const upper = finished ? InputConfigMode.STEPS.length : InputConfigMode.STEPS.length - 1;
-        return Math.max(0, Math.min(upper, Math.trunc(value)));
     }
 
     private copyAssignedCodesIntoSet(target: Set<number>, values: unknown, isValid: (value: unknown) => value is number): void {
