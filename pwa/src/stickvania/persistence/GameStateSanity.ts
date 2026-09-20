@@ -1,6 +1,7 @@
 import { isMusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
 import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "../AudioRegistry.js";
 import type { InputConfigModeSnapshot } from "../InputConfigMode.js";
+import { ControllerSupport } from "../ControllerSupport.js";
 import type { AudioSnapshot, MusicId, MusicSnapshot, SongId, StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isSoundEffectSnapshotsShape } from "./GameStateSoundEffects.js";
 
@@ -221,9 +222,15 @@ function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): bool
         isIntegerInRange(snapshot.armDelay, 0, MAX_INPUT_CONFIG_ARM_DELAY) &&
         typeof snapshot.message === "string" &&
         snapshot.message.length <= MAX_INPUT_CONFIG_MESSAGE_LENGTH &&
+        typeof snapshot.finished === "boolean" &&
         isReasonableValue(snapshot.draft, "draft", 0) &&
         isReasonableValue(snapshot.assignedKeys, "assignedKeys", 0) &&
-        isReasonableValue(snapshot.assignedControllerButtons, "assignedControllerButtons", 0)
+        isReasonableValue(snapshot.assignedControllerButtons, "assignedControllerButtons", 0) &&
+        ControllerSupport.isValidButtonDownSnapshot(snapshot.controllerButtonDown) &&
+        typeof snapshot.controllerUpDown === "boolean" &&
+        typeof snapshot.controllerDownDown === "boolean" &&
+        typeof snapshot.controllerLeftDown === "boolean" &&
+        typeof snapshot.controllerRightDown === "boolean"
     );
 }
 
