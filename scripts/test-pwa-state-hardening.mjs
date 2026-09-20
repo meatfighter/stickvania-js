@@ -783,6 +783,14 @@ try {
         }
         assert.equal(mappingStorage.getItem(mappingKey), unknownVersionText);
 
+        mapping.resetToDefaults();
+        assert.deepEqual(
+            mapping.save(() => true, true),
+            { saved: true },
+            "explicit user reset may replace protected mapping data"
+        );
+        assert.equal(JSON.parse(mappingStorage.getItem(mappingKey)).version, 7);
+
         const obsoletePrepublic = { ...sameVersionSnapshot, version: 6 };
         delete obsoletePrepublic.obsoleteField;
         mappingStorage.setItem(mappingKey, JSON.stringify(obsoletePrepublic));
