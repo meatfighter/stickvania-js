@@ -638,7 +638,7 @@ export class InputConfigMode implements KeyListener {
         if (this.stepIndex == InputConfigMode.STEPS.length) {
             this.finished = true;
             this.commitDraft();
-            this.message = this.main.buttonMapping.save() ? "SAVED" : "NOT SAVED";
+            this.message = this.main.notifyInputMappingChanged().saved ? "SAVED" : "NOT SAVED";
             this.main.controlInput?.clearPressedState();
             this.doneDelay = InputConfigMode.DONE_DELAY;
         }
