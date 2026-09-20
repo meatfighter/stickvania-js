@@ -291,6 +291,23 @@ try {
     assert.deepEqual(capturedRuntimeInputConfig.assignedControllerButtons, [0]);
     assert.equal(serializer.isInputConfigSnapshotShape(capturedRuntimeInputConfig), true, "a duplicate-button runtime snapshot must validate");
 
+    const restoredInputConfig = new InputConfigMode({
+        buttonMapping: new ButtonMapping(),
+        clearInputPressedRecords() {}
+    });
+    const restoredInput = {
+        setAdditionalControllerDirectionAxes() {},
+        addKeyListener() {},
+        removeKeyListener() {}
+    };
+    restoredInputConfig.restoreSnapshot({ getInput: () => restoredInput }, capturedRuntimeInputConfig);
+    const roundTrippedInputConfig = restoredInputConfig.createSnapshot();
+    assert.equal(roundTrippedInputConfig.controllerButtonDown.length, 17);
+    assert.equal(roundTrippedInputConfig.controllerButtonDown[0], true);
+    assert.equal(roundTrippedInputConfig.message, "ALREADY USED");
+    assert.deepEqual(roundTrippedInputConfig.assignedControllerButtons, [0]);
+    assert.equal(serializer.isInputConfigSnapshotShape(roundTrippedInputConfig), true, "restored runtime-sized input-config state must remain valid");
+
     const inputSnapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     inputSnapshot.inputConfigMode = createInputConfigSnapshot(17);
     inputSnapshot.inputConfigMode.message = "ALREADY USED";
