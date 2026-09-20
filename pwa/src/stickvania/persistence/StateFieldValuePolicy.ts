@@ -1,5 +1,6 @@
 import { Main } from "../Main.js";
 import type { EncodedRecord, EncodedValue, ThingSnapshot } from "./GameStateSnapshot.js";
+import { isRestorableGameStateMode } from "./GameStatePolicy.js";
 import { MAIN_PERSISTED_STATE_FIELD_NAMES, THING_PERSISTED_STATE_FIELD_NAMES } from "./StateFieldRegistry.generated.js";
 import { THING_TYPES, type ThingTypeId } from "./ThingTypeRegistry.js";
 
@@ -141,7 +142,7 @@ export function isPersistedThingFieldValuesValid(
 function isMainNumberValid(name: string, value: number): boolean {
     switch (name) {
         case "mode":
-            return Number.isInteger(value) && [0, 1, 2, 4, 5, 6, 7, 8, 10].includes(value);
+            return isRestorableGameStateMode(value);
         case "fadeState":
             return isIntegerInRange(value, Main.FADE_DONE, Main.FADE_IN);
         case "fade":
