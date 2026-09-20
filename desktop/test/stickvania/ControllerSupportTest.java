@@ -43,6 +43,15 @@ public final class ControllerSupportTest {
       check(ControllerSupport.isButtonDown(0), "Action button");
       check(!ControllerSupport.isDirectionalButton(12),
           "An unnamed raw button 12 must not be guessed to be a D-pad direction");
+      pad.button.value = 0;
+      pad.buttons[12].value = 1;
+      ControllerSupport.beginFrame();
+      check(ControllerSupport.isButtonDown(12), "Raw button 12 remains usable as an action button");
+      check(ControllerSupport.isNonDirectionalButtonDown(mapping),
+          "Raw button 12 remains a non-directional menu/action input");
+      pad.buttons[12].value = 0;
+      pad.button.value = 1;
+      ControllerSupport.beginFrame();
       check(ControllerSupport.isNonDirectionalButtonDown(mapping), "Menu button");
       for (int i = 0; i < 1000; i++) {
         ControllerSupport.isLeftDown();
