@@ -57,23 +57,23 @@ export class RumbleManager {
         this.lastStarted.set(id, now);
         if (effect.exclusive === true) {
             this.cancelAllSequences();
-            void silenceGamepads(getConnectedGamepads());
+            ignoreHapticFailure(silenceGamepads(getConnectedGamepads()));
         }
 
         const globalToken = this.globalToken;
         const channelToken = this.nextChannelToken(effect.channel);
-        void this.playSequence(effect, globalToken, channelToken, offsetMs);
+        ignoreHapticFailure(this.playSequence(effect, globalToken, channelToken, offsetMs));
     }
 
     public stop(effectId: RumbleEffectId): void {
         const effect = getRumbleEffect(effectId);
         this.nextChannelToken(effect.channel);
-        void silenceGamepads(getConnectedGamepads());
+        ignoreHapticFailure(silenceGamepads(getConnectedGamepads()));
     }
 
     public stopAll(): void {
         this.cancelAllSequences();
-        void silenceGamepads(getConnectedGamepads());
+        ignoreHapticFailure(silenceGamepads(getConnectedGamepads()));
     }
 
     private async playSequence(effect: RumbleEffect, globalToken: number, channelToken: number, offsetMs: number): Promise<void> {
@@ -117,6 +117,10 @@ export class RumbleManager {
     private isSequenceCurrent(channel: RumbleChannel, globalToken: number, channelToken: number): boolean {
         return this.enabled && !this.suspended && this.globalToken == globalToken && this.channelTokens.get(channel) == channelToken;
     }
+}
+
+function ignoreHapticFailure(promise: Promise<unknown>): void {
+    void promise.catch(() => {});
 }
 
 function sleep(milliseconds: number): Promise<void> {
