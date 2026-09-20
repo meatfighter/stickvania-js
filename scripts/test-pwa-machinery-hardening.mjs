@@ -87,6 +87,16 @@ test("live-menu presentation exits fullscreen before publishing recoverable save
     assert.ok(destroyIndex < 0 || destroyIndex < exitIndex || destroyIndex > renderIndex, "ordinary save failure must not destroy the retained game");
 });
 
+test("title default-mapping reset uses the same shell-owned persistence path", () => {
+    const selectTitle = gameMainSource.slice(
+        gameMainSource.indexOf("private selectTitleMenuOption"),
+        gameMainSource.indexOf("private setTitleMenu", gameMainSource.indexOf("private selectTitleMenuOption"))
+    );
+    assert.match(selectTitle, /this\.buttonMapping\.resetToDefaults\(\)/);
+    assert.match(selectTitle, /this\.notifyInputMappingChanged\(\)/);
+    assert.doesNotMatch(selectTitle, /this\.buttonMapping\.save\(/);
+});
+
 test("input mapping persistence is shell-owned and rechecks the current session at write time", () => {
     assert.match(inputConfigSource, /this\.main\.notifyInputMappingChanged\(\)\.saved/);
     assert.doesNotMatch(inputConfigSource, /buttonMapping\.save\(/);
