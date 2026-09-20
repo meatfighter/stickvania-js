@@ -345,7 +345,7 @@ export class InputConfigMode implements KeyListener {
             this.message = "ALREADY USED";
             return;
         }
-        this.advance(false);
+        this.advance();
     }
 
     public keyReleased(key: number, c: string): void {
@@ -369,17 +369,6 @@ export class InputConfigMode implements KeyListener {
 
     private canAcceptInput(): boolean {
         return !this.finished && this.armDelay == 0 && !this.captureEpochUsed;
-    }
-
-    private bindControllerDirection(binding: number): void {
-        if (!this.canAcceptInput() || this.isActionStep()) {
-            return;
-        }
-        if (!this.bindControllerButton(binding)) {
-            this.message = "ALREADY USED";
-            return;
-        }
-        this.advance();
     }
 
     private bindControllerInputPressed(): void {
@@ -411,7 +400,7 @@ export class InputConfigMode implements KeyListener {
             }
             this.captureEpochUsed = true;
             this.awaitingControllerNeutral = sample.anyDown;
-            this.advance(true);
+            this.advance();
             return;
         }
 
@@ -422,7 +411,7 @@ export class InputConfigMode implements KeyListener {
             }
             this.captureEpochUsed = true;
             this.awaitingControllerNeutral = sample.anyDown;
-            this.advance(true);
+            this.advance();
         }
     }
 
@@ -622,7 +611,7 @@ export class InputConfigMode implements KeyListener {
         mapping.controllerRight = this.draft!.controllerRight;
     }
 
-    private advance(_controllerCapture: boolean): void {
+    private advance(): void {
         this.main.playSound(this.main.pressed_enter);
         this.message = "";
         this.stepIndex++;
@@ -660,38 +649,6 @@ export class InputConfigMode implements KeyListener {
             this.draft!.controllerLeft === button ||
             this.draft!.controllerRight === button
         );
-    }
-
-    private isControllerUpPressed(): boolean {
-        const input = this.input!;
-        const down = ControllerSupport.isUpDown(input);
-        const pressed = down && !this.controllerUpDown;
-        this.controllerUpDown = down;
-        return pressed;
-    }
-
-    private isControllerDownPressed(): boolean {
-        const input = this.input!;
-        const down = ControllerSupport.isDownDown(input);
-        const pressed = down && !this.controllerDownDown;
-        this.controllerDownDown = down;
-        return pressed;
-    }
-
-    private isControllerLeftPressed(): boolean {
-        const input = this.input!;
-        const down = ControllerSupport.isLeftDown(input);
-        const pressed = down && !this.controllerLeftDown;
-        this.controllerLeftDown = down;
-        return pressed;
-    }
-
-    private isControllerRightPressed(): boolean {
-        const input = this.input!;
-        const down = ControllerSupport.isRightDown(input);
-        const pressed = down && !this.controllerRightDown;
-        this.controllerRightDown = down;
-        return pressed;
     }
 
     private resizeControllerButtonState(input: Input): void {
