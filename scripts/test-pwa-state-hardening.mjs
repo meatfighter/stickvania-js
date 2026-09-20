@@ -274,18 +274,18 @@ try {
     assert.equal(ControllerSupport.isValidButtonDownSnapshot(sparseControllerState.controllerButtonDown), false);
     assert.equal(serializer.isInputConfigSnapshotShape(sparseControllerState), false, "sparse controller edge state must be rejected");
 
-    let heldDirectionUp = false;
+    let heldControllerButtonForDuplicate = -1;
     const liveInput = {
         setAdditionalControllerDirectionAxes() {},
         addKeyListener() {},
         removeKeyListener() {},
         getControllerCount: () => 1,
         getButtonCount: () => 17,
-        isControllerUp: () => heldDirectionUp,
+        isControllerUp: () => false,
         isControllerDown: () => false,
         isControllerLeft: () => false,
         isControllerRight: () => false,
-        isButtonPressed: () => false,
+        isButtonPressed: (button) => button === heldControllerButtonForDuplicate,
         clearKeyPressedRecord() {},
         clearControlPressedRecord() {}
     };
@@ -297,24 +297,26 @@ try {
     };
     const liveInputConfig = new InputConfigMode(liveMain);
     liveInputConfig.init({ getInput: () => liveInput });
+    liveInputConfig.stepIndex = 4; // JUMP
     liveInputConfig.armDelay = 0;
 
-    heldDirectionUp = true;
+    heldControllerButtonForDuplicate = 0;
     liveInputConfig.bindControllerInputPressed();
-    assert.equal(liveInputConfig.stepIndex, 1);
-    assert.deepEqual(liveInputConfig.createSnapshot().assignedControllerButtons, [ButtonMapping.CONTROLLER_DIRECTION_UP]);
+    assert.equal(liveInputConfig.stepIndex, 5);
+    assert.deepEqual(liveInputConfig.createSnapshot().assignedControllerButtons, [0]);
 
-    heldDirectionUp = false;
+    heldControllerButtonForDuplicate = -1;
     liveInputConfig.bindControllerInputPressed();
-    heldDirectionUp = true;
+    heldControllerButtonForDuplicate = 0;
     liveInputConfig.bindControllerInputPressed();
-    assert.equal(liveInputConfig.stepIndex, 1, "duplicate controller direction must not advance the input-config step");
+    assert.equal(liveInputConfig.stepIndex, 5, "duplicate JUMP/ATTACK controller button must not advance the input-config step");
     assert.equal(liveInputConfig.message, "ALREADY USED");
 
     const capturedRuntimeInputConfig = liveInputConfig.createSnapshot();
     assert.equal(capturedRuntimeInputConfig.controllerButtonDown.length, 17, "capture must preserve the runtime controller scan length");
+    assert.equal(capturedRuntimeInputConfig.controllerButtonDown[0], true);
     assert.equal(capturedRuntimeInputConfig.message, "ALREADY USED");
-    assert.deepEqual(capturedRuntimeInputConfig.assignedControllerButtons, [ButtonMapping.CONTROLLER_DIRECTION_UP]);
+    assert.deepEqual(capturedRuntimeInputConfig.assignedControllerButtons, [0]);
     assert.equal(serializer.isInputConfigSnapshotShape(capturedRuntimeInputConfig), true, "a duplicate-button runtime snapshot must validate");
 
     const restoredInputConfig = new InputConfigMode({
@@ -337,9 +339,9 @@ try {
     restoredInputConfig.restoreSnapshot({ getInput: () => restoredInput }, capturedRuntimeInputConfig);
     const roundTrippedInputConfig = restoredInputConfig.createSnapshot();
     assert.equal(roundTrippedInputConfig.controllerButtonDown.length, 17);
-    assert.equal(roundTrippedInputConfig.controllerButtonDown[0], false);
+    assert.equal(roundTrippedInputConfig.controllerButtonDown[0], true);
     assert.equal(roundTrippedInputConfig.message, "ALREADY USED");
-    assert.deepEqual(roundTrippedInputConfig.assignedControllerButtons, [ButtonMapping.CONTROLLER_DIRECTION_UP]);
+    assert.deepEqual(roundTrippedInputConfig.assignedControllerButtons, [0]);
     assert.equal(serializer.isInputConfigSnapshotShape(roundTrippedInputConfig), true, "restored runtime-sized input-config state must remain valid");
 
     restoredInputConfig.controllerButtonDown.fill(false);
