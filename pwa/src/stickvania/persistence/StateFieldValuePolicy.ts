@@ -69,7 +69,7 @@ export const THING_REFERENCE_FIELD_POLICY: Partial<Record<ThingTypeId, Readonly<
         axeKnight: { kind: "thing", targets: ["AxeKnight"], nullable: false }
     },
     Checkpoint: {
-        song: { kind: "song", nullable: false }
+        song: { kind: "song", nullable: true }
     },
     Dracula: {
         draculaBats: { kind: "thingArray", targets: ["DraculaBat"], length: 16 }
