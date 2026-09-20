@@ -20,6 +20,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
     const noop = () => {};
     const events = { pulses: 0, restores: 0, saves: 0, continuous: 0, loopResumes: 0, silencePredicates: [] };
     const runtimeControls = { display: () => Promise.resolve(), focus: noop };
+    const hapticControls = { deferSilence: false, pendingSilenceResolves: [] };
     const node = () => ({ addEventListener: noop, removeEventListener: noop, remove: noop });
     const shell = node();
     const host = node();
@@ -46,7 +47,13 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
                     getConnectedGamepads: () => [{}],
                     silenceGamepads: (_gamepads, isCurrent = () => true) => {
                         events.silencePredicates.push(isCurrent);
-                        return rejectHaptics ? Promise.reject(new Error("haptic silence failed")) : Promise.resolve();
+                        if (rejectHaptics) {
+                            return Promise.reject(new Error("haptic silence failed"));
+                        }
+                        if (hapticControls.deferSilence) {
+                            return new Promise((resolve) => hapticControls.pendingSilenceResolves.push(resolve));
+                        }
+                        return Promise.resolve();
                     },
                     playPulseOnGamepad: () => {
                         events.pulses++;
@@ -364,7 +371,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         };
     `;
     vm.runInNewContext(compile(mainSource) + bridge, context);
-    return { ...context.harness, events, runtimeControls };
+    return { ...context.harness, events, runtimeControls, hapticControls };
 }
 
 for (const enabled of [true, false]) {
@@ -399,7 +406,7 @@ test("new rumble ownership invalidates fallback work from an earlier stop", asyn
     assert.equal(staleStop(), false, "a newer play must invalidate pending fallback work from the old stop");
 });
 
-test("exclusive rumble pre-stop becomes stale before the new effect sequence owns hardware", async () => {
+test("exclusive rumble waits for its pre-stop before starting the new effect", async () => {
     const f = fixture({ exclusiveHaptics: true });
     await f.startGame(false);
     const manager = f.getRumbleManager();
@@ -407,8 +414,33 @@ test("exclusive rumble pre-stop becomes stale before the new effect sequence own
     manager.play("test");
     const exclusivePreStop = f.events.silencePredicates.at(-1);
 
-    assert.equal(exclusivePreStop(), false, "the exclusive pre-stop may issue its initial reset but not later fallbacks");
+    assert.equal(exclusivePreStop(), true);
+    assert.equal(f.events.pulses, 0, "exclusive playback must not race ahead of the hardware pre-stop");
+    await new Promise((resolve) => setImmediate(resolve));
     assert.equal(f.events.pulses, 1);
+});
+
+test("a newer haptic command cancels an exclusive effect still waiting on its pre-stop", async () => {
+    const f = fixture({ exclusiveHaptics: true });
+    await f.startGame(false);
+    const manager = f.getRumbleManager();
+    f.hapticControls.deferSilence = true;
+
+    manager.play("test");
+    const exclusivePreStop = f.events.silencePredicates.at(-1);
+    const resolveExclusiveStop = f.hapticControls.pendingSilenceResolves.shift();
+    assert.equal(f.events.pulses, 0);
+    assert.equal(exclusivePreStop(), true);
+
+    manager.stopAll();
+    assert.equal(exclusivePreStop(), false, "newer stop ownership must invalidate the pending exclusive startup");
+    resolveExclusiveStop();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(f.events.pulses, 0, "superseded exclusive playback must never start");
+
+    for (const resolve of f.hapticControls.pendingSilenceResolves.splice(0)) {
+        resolve();
+    }
 });
 
 test("best-effort haptic promise failures do not escape stop or play operations", async () => {
