@@ -3923,7 +3923,7 @@ export class Main extends BasicGame {
                     this.fadeReason = Main.FADE_REASON_SHOW_INPUT_CONFIG;
                 } else if (this.titleSelectedIndex == 1) {
                     this.buttonMapping.resetToDefaults();
-                    this.buttonMapping.save();
+                    this.notifyInputMappingChanged();
                     this.invalidateTitleInputMappingCache();
                     this.setTitleMenu(Main.TITLE_MENU_INPUT, 1);
                 } else {
