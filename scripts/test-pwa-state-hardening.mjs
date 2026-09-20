@@ -38,6 +38,7 @@ try {
     const { SONG_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/AudioRegistry.ts");
     const { MAX_TOTAL_SOUND_VOICES } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSoundEffects.ts");
     const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
+    const { StickvaniaGameStateStore } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateStore.ts");
     const { ButtonMapping } = await server.ssrLoadModule("/src/stickvania/ButtonMapping.ts");
     const { getBrowserStorageKey } = await server.ssrLoadModule("/src/stickvania/BrowserStorageKeys.ts");
     const { InputConfigMode } = await server.ssrLoadModule("/src/stickvania/InputConfigMode.ts");
@@ -587,6 +588,83 @@ try {
     storage.setItem(GAME_STATE_STORAGE_KEY, oversized);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), oversized);
+
+    const originalStateLocalStorage = globalThis.localStorage;
+    const stateStorage = createStorage();
+    globalThis.localStorage = stateStorage;
+    try {
+        const store = new StickvaniaGameStateStore("test-version");
+        store.isSnapshotValid = (candidate) => candidate?.valid === true;
+        store.serializer = {
+            createSnapshot(main) {
+                return {
+                    version: GAME_STATE_VERSION,
+                    valid: true,
+                    marker: main.marker
+                };
+            },
+            isSupportedSnapshotForLoadedResources() {
+                return true;
+            },
+            restoreSnapshot() {}
+        };
+        const main = {
+            marker: "new",
+            isStateSaveReady() {
+                return true;
+            }
+        };
+
+        stateStorage.setItem(
+            GAME_STATE_STORAGE_KEY,
+            JSON.stringify({ version: GAME_STATE_VERSION + 1, valid: false, marker: "future" })
+        );
+        assert.deepEqual(store.inspectStoredGameState(), {
+            status: "unsupported-future",
+            version: GAME_STATE_VERSION + 1
+        });
+        assert.deepEqual(store.save(main, () => true), { saved: false, reason: "unsupported-future" });
+        assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "future");
+
+        stateStorage.setItem(GAME_STATE_STORAGE_KEY, "{");
+        assert.deepEqual(store.inspectStoredGameState(), { status: "invalid" });
+        assert.deepEqual(store.save(main, () => true), { saved: false, reason: "invalid-existing" });
+        assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), "{");
+
+        stateStorage.removeItem(GAME_STATE_STORAGE_KEY);
+        assert.deepEqual(store.inspectStoredGameState(), { status: "missing" });
+        assert.deepEqual(store.save(main, () => false), { saved: false, reason: "not-authorized" });
+        assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), null);
+
+        assert.deepEqual(store.save(main, () => true), { saved: true });
+        assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "new");
+
+        globalThis.localStorage = {
+            getItem() {
+                throw new Error("read blocked");
+            },
+            setItem() {
+                throw new Error("write blocked");
+            },
+            removeItem() {
+                throw new Error("remove blocked");
+            }
+        };
+        const quietWarn = console.warn;
+        console.warn = () => {};
+        try {
+            assert.deepEqual(store.inspectStoredGameState(), { status: "read-failed" });
+            assert.deepEqual(store.save(main, () => true), { saved: false, reason: "read-failed" });
+        } finally {
+            console.warn = quietWarn;
+        }
+    } finally {
+        if (originalStateLocalStorage === undefined) {
+            delete globalThis.localStorage;
+        } else {
+            globalThis.localStorage = originalStateLocalStorage;
+        }
+    }
 
     // Space (Slick key code 57) is now an ordinary browser gameplay binding. Prove
     // that it survives the real ButtonMapping save/load path rather than merely
