@@ -40,6 +40,7 @@ try {
     const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
     const { StickvaniaGameStateStore } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateStore.ts");
     const { ButtonMapping } = await server.ssrLoadModule("/src/stickvania/ButtonMapping.ts");
+    const { BrowserPreferences } = await server.ssrLoadModule("/src/app/BrowserPreferences.ts");
     const { getBrowserStorageKey } = await server.ssrLoadModule("/src/stickvania/BrowserStorageKeys.ts");
     const { InputConfigMode } = await server.ssrLoadModule("/src/stickvania/InputConfigMode.ts");
     const { isReasonableStickvaniaGameStateSnapshot, isWithinStickvaniaGameStateValidationBudget } = await server.ssrLoadModule(
@@ -613,6 +614,44 @@ try {
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.deepEqual(inspectPotentialStoredStickvaniaGameState(storage), { status: "invalid" });
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), oversized);
+
+    const originalPreferenceLocalStorage = globalThis.localStorage;
+    const preferenceStorage = createStorage();
+    globalThis.localStorage = preferenceStorage;
+    try {
+        const prefs = new BrowserPreferences();
+        const volumeKey = getBrowserStorageKey("volume");
+        const difficultyKey = getBrowserStorageKey("difficulty");
+
+        assert.equal(prefs.setVolume(0.5, true, () => false), false);
+        assert.equal(prefs.volume, 0.5, "authorization failure must not roll back the live preference");
+        assert.equal(preferenceStorage.getItem(volumeKey), null);
+
+        assert.equal(prefs.setVolume(0.6, true, () => true), true);
+        assert.equal(preferenceStorage.getItem(volumeKey), "60");
+
+        assert.equal(prefs.setDifficulty(1, () => false), false);
+        assert.equal(prefs.difficulty, 1);
+        assert.equal(preferenceStorage.getItem(difficultyKey), null);
+
+        assert.equal(prefs.setDifficulty(1, () => true), true);
+        assert.equal(preferenceStorage.getItem(difficultyKey), "1");
+
+        assert.equal(prefs.reset(() => false), false);
+        assert.equal(preferenceStorage.getItem(volumeKey), "60");
+        assert.equal(preferenceStorage.getItem(difficultyKey), "1");
+
+        assert.equal(prefs.reset(() => true), true);
+        assert.equal(preferenceStorage.getItem(volumeKey), null);
+        assert.equal(preferenceStorage.getItem(difficultyKey), null, "PWA Reset must clear the difficulty preference");
+        assert.equal(prefs.difficulty, 0);
+    } finally {
+        if (originalPreferenceLocalStorage === undefined) {
+            delete globalThis.localStorage;
+        } else {
+            globalThis.localStorage = originalPreferenceLocalStorage;
+        }
+    }
 
     const originalStateLocalStorage = globalThis.localStorage;
     const stateStorage = createStorage();
