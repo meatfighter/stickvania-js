@@ -58,16 +58,15 @@ export class RumbleManager {
         this.lastStarted.set(id, now);
         if (effect.exclusive === true) {
             this.cancelAllSequences();
-            const silenceGeneration = this.nextHapticCommandGeneration();
-            ignoreHapticFailure(silenceGamepads(getConnectedGamepads(), () => this.isHapticCommandCurrent(silenceGeneration)));
         }
-        // Starting any new effect invalidates compatibility fallbacks from an
-        // earlier asynchronous stop operation, including the exclusive pre-stop.
-        this.nextHapticCommandGeneration();
-
+        const hapticGeneration = this.nextHapticCommandGeneration();
         const globalToken = this.globalToken;
         const channelToken = this.nextChannelToken(effect.channel);
-        ignoreHapticFailure(this.playSequence(effect, globalToken, channelToken, offsetMs));
+        if (effect.exclusive === true) {
+            ignoreHapticFailure(this.playExclusiveSequence(effect, globalToken, channelToken, hapticGeneration, offsetMs));
+        } else {
+            ignoreHapticFailure(this.playSequence(effect, globalToken, channelToken, offsetMs));
+        }
     }
 
     public stop(effectId: RumbleEffectId): void {
@@ -81,6 +80,20 @@ export class RumbleManager {
         this.cancelAllSequences();
         const generation = this.nextHapticCommandGeneration();
         ignoreHapticFailure(silenceGamepads(getConnectedGamepads(), () => this.isHapticCommandCurrent(generation)));
+    }
+
+    private async playExclusiveSequence(
+        effect: RumbleEffect,
+        globalToken: number,
+        channelToken: number,
+        hapticGeneration: number,
+        offsetMs: number
+    ): Promise<void> {
+        await silenceGamepads(getConnectedGamepads(), () => this.isHapticCommandCurrent(hapticGeneration));
+        if (!this.isHapticCommandCurrent(hapticGeneration) || !this.isSequenceCurrent(effect.channel, globalToken, channelToken)) {
+            return;
+        }
+        await this.playSequence(effect, globalToken, channelToken, offsetMs);
     }
 
     private async playSequence(effect: RumbleEffect, globalToken: number, channelToken: number, offsetMs: number): Promise<void> {
