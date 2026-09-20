@@ -69,8 +69,6 @@ const STANDALONE_MUSIC_IDS: MusicId[] = [...STANDALONE_MUSIC_FIELD_NAMES];
 
 const EXPECTED_STAGE_SEGMENT_COUNTS = [2, 4, 3, 2, 4, 3];
 const MAX_SAVED_STACK_CAPACITY = 4096;
-const MAX_SAVED_GRID_ROWS = 128;
-const MAX_SAVED_GRID_COLUMNS = 4096;
 const SONG_ID_SET = new Set<string>(SONG_IDS);
 const MUSIC_IDS: MusicId[] = [
     ...STANDALONE_MUSIC_IDS,
@@ -97,7 +95,6 @@ const MUSIC_IDS: MusicId[] = [
 const MUSIC_ID_SET = new Set<string>(MUSIC_IDS);
 
 export class StickvaniaGameStateSerializer {
-    private currentValidationThings: readonly ThingSnapshot[] | null = null;
     public createSnapshot(main: Main, appVersion: string): StickvaniaGameStateSnapshot {
         if (!main.isStateSaveReady()) {
             throw new Error("Game state is not ready to save.");
@@ -166,7 +163,6 @@ export class StickvaniaGameStateSerializer {
         }
 
         const thingTypes = new Map<number, ThingTypeId>(snapshot.things.map((thing) => [thing.id, thing.type]));
-        this.currentValidationThings = snapshot.things;
         const segmentCount = snapshot.stage === null ? 0 : snapshot.stage.segments.length;
         if (!snapshot.things.every((thing) => isPersistedThingFieldValuesValid(thing, thingTypes, segmentCount))) {
             return false;
@@ -174,7 +170,7 @@ export class StickvaniaGameStateSerializer {
 
         const stageRequired = isStageRequiredGameStateMode(snapshot.mode);
         if (stageRequired) {
-            if (!this.isStageSnapshotValid(snapshot.stage, thingTypes, snapshot.mainFields)) {
+            if (!this.isStageSnapshotValid(snapshot.stage, thingTypes, snapshot.mainFields, snapshot.things)) {
                 return false;
             }
         } else if (snapshot.stage !== null || snapshot.things.length !== 0) {
@@ -195,11 +191,10 @@ export class StickvaniaGameStateSerializer {
         }
 
         const references = this.createSnapshotReferenceLimits(snapshot.stage, snapshot.things.length);
-        const valid =
+        return (
             this.isEncodedRecordReferencesValid(snapshot.mainFields, references) &&
-            snapshot.things.every((thing) => this.isEncodedRecordReferencesValid(thing.fields, references));
-        this.currentValidationThings = null;
-        return valid;
+            snapshot.things.every((thing) => this.isEncodedRecordReferencesValid(thing.fields, references))
+        );
     }
 
     public isSupportedSnapshotForLoadedResources(main: Main, snapshot: StickvaniaGameStateSnapshot): boolean {
@@ -235,7 +230,7 @@ export class StickvaniaGameStateSerializer {
             for (let y = 0; y < loaded.stage.length; y++) {
                 for (let x = 0; x < width; x++) {
                     const tile = loaded.stage[y]![x];
-                    if (tile === Main.TILE_DOOR) {
+                    if (tile === Main.TILE_DOOR && (loaded.direction === Main.RIGHT || x !== 0)) {
                         doors++;
                     }
                     if (
@@ -269,7 +264,8 @@ export class StickvaniaGameStateSerializer {
     private isStageSnapshotValid(
         snapshot: unknown,
         thingTypes: ReadonlyMap<number, ThingTypeId>,
-        mainFields: EncodedRecord
+        mainFields: EncodedRecord,
+        thingSnapshots: readonly ThingSnapshot[]
     ): snapshot is StageSnapshot {
         if (
             !this.isPlainRecord(snapshot) ||
@@ -315,7 +311,7 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
 
-        if (!snapshot.segments.every((segment, index) => this.isSegmentSnapshotValid(segment, index, stageIndex, thingTypes))) {
+        if (!snapshot.segments.every((segment, index) => this.isSegmentSnapshotValid(segment, index, stageIndex, thingTypes, thingSnapshots))) {
             return false;
         }
 
@@ -345,7 +341,8 @@ export class StickvaniaGameStateSerializer {
         snapshot: unknown,
         segmentIndex: number,
         stageIndex: number,
-        thingTypes: ReadonlyMap<number, ThingTypeId>
+        thingTypes: ReadonlyMap<number, ThingTypeId>,
+        thingSnapshots: readonly ThingSnapshot[]
     ): snapshot is SegmentSnapshot {
         if (
             !this.isPlainRecord(snapshot) ||
@@ -372,7 +369,15 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
         return snapshot.regions.every((region, regionIndex) =>
-            this.isRegionSnapshotValid(region, segmentIndex, regionIndex, snapshot.mapWidth, expectedStageNumbers[regionIndex]!, thingTypes)
+            this.isRegionSnapshotValid(
+                region,
+                segmentIndex,
+                regionIndex,
+                snapshot.mapWidth,
+                expectedStageNumbers[regionIndex]!,
+                thingTypes,
+                thingSnapshots
+            )
         );
     }
 
@@ -382,7 +387,8 @@ export class StickvaniaGameStateSerializer {
         regionIndex: number,
         mapWidth: number,
         expectedStageNumber: number,
-        thingTypes: ReadonlyMap<number, ThingTypeId>
+        thingTypes: ReadonlyMap<number, ThingTypeId>,
+        thingSnapshots: readonly ThingSnapshot[]
     ): snapshot is RegionSnapshot {
         if (
             !this.isPlainRecord(snapshot) ||
@@ -402,7 +408,7 @@ export class StickvaniaGameStateSerializer {
         }
 
         const checkpoint = snapshot.checkpoint;
-        const checkpointSnapshot = checkpoint === null ? undefined : this.currentValidationThings?.[checkpoint];
+        const checkpointSnapshot = checkpoint === null ? undefined : thingSnapshots[checkpoint];
         if (
             checkpointSnapshot === undefined ||
             checkpointSnapshot.type !== "Checkpoint" ||
@@ -441,7 +447,13 @@ export class StickvaniaGameStateSerializer {
     }
 
     private isStackSnapshotValid(snapshot: unknown, thingCount: number): snapshot is ThingStackSnapshot {
-        if (!this.isPlainRecord(snapshot) || !this.isPlainRecord(snapshot.$stack) || !Array.isArray(snapshot.$stack.things)) {
+        if (
+            !this.isPlainRecord(snapshot) ||
+            !this.areRecordFieldNamesExact(snapshot, ["$stack"]) ||
+            !this.isPlainRecord(snapshot.$stack) ||
+            !this.areRecordFieldNamesExact(snapshot.$stack, ["capacity", "things"]) ||
+            !Array.isArray(snapshot.$stack.things)
+        ) {
             return false;
         }
         return (
@@ -451,13 +463,6 @@ export class StickvaniaGameStateSerializer {
             snapshot.$stack.things.length <= MAX_SAVED_STACK_CAPACITY &&
             snapshot.$stack.things.every((id) => this.isNullableThingId(id, thingCount))
         );
-    }
-
-    private isNumberGridSnapshot(value: unknown): value is number[][] {
-        if (!Array.isArray(value) || value.length > MAX_SAVED_GRID_ROWS) {
-            return false;
-        }
-        return value.every((row) => Array.isArray(row) && row.length <= MAX_SAVED_GRID_COLUMNS && row.every((cell) => this.isFiniteInteger(cell)));
     }
 
     private areThingSnapshotsValid(snapshots: ThingSnapshot[]): boolean {
