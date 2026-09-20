@@ -273,6 +273,22 @@ try {
     staleCompletedInputConfig.assignedKeys = [999];
     assert.equal(serializer.isInputConfigSnapshotShape(staleCompletedInputConfig), false);
 
+    const reservedDraftKey = createInputConfigSnapshot();
+    reservedDraftKey.draft.keyJump = 1;
+    assert.equal(serializer.isInputConfigSnapshotShape(reservedDraftKey), false);
+
+    const dpadActionDraft = createInputConfigSnapshot();
+    dpadActionDraft.draft.controllerJump = 12;
+    assert.equal(serializer.isInputConfigSnapshotShape(dpadActionDraft), false);
+
+    const duplicateDraftKey = createInputConfigSnapshot();
+    duplicateDraftKey.draft.keyAttack = duplicateDraftKey.draft.keyJump;
+    assert.equal(serializer.isInputConfigSnapshotShape(duplicateDraftKey), false);
+
+    const duplicateDraftController = createInputConfigSnapshot();
+    duplicateDraftController.draft.controllerAttack = duplicateDraftController.draft.controllerJump;
+    assert.equal(serializer.isInputConfigSnapshotShape(duplicateDraftController), false);
+
     const duplicateCompletedInputConfig = clone(validCompletedInputConfig);
     duplicateCompletedInputConfig.stepIndex = 2;
     duplicateCompletedInputConfig.assignedKeys = [200, 200];
@@ -460,6 +476,14 @@ try {
         assert.equal(ButtonMapping.isReservedKey(1), true);
         assert.equal(ButtonMapping.isValidKeyBinding(1), false);
         assert.equal(mapping.save(), false, "reserved keys must not enter the persisted mapping store");
+
+        mapping.keyJump = 57;
+        mapping.keyAttack = 57;
+        assert.equal(mapping.save(), false, "duplicate key mappings must not be persisted");
+
+        mapping.keyAttack = 44;
+        mapping.controllerJump = 12;
+        assert.equal(mapping.save(), false, "standard D-pad buttons must not be persisted as action bindings");
     } finally {
         if (oldLocalStorage === undefined) {
             delete globalThis.localStorage;
