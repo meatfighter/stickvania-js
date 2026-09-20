@@ -128,13 +128,18 @@ export async function silenceGamepads(gamepads: readonly Gamepad[], isCurrent: (
 }
 
 export function describeActuator(label: string, actuator: HapticActuator): string {
-    const effects = actuator.effects !== undefined && actuator.effects.length > 0 ? Array.from(actuator.effects).join(", ") : "unknown effects";
-    const methods = [
-        typeof actuator.playEffect === "function" ? "playEffect" : "",
-        typeof actuator.pulse === "function" ? "pulse" : "",
-        typeof actuator.reset === "function" ? "reset" : ""
-    ].filter(Boolean);
-    return `${label}: ${methods.join("/") || "no methods"}; ${effects}`;
+    try {
+        const rawEffects = actuator.effects;
+        const effects = rawEffects !== undefined && rawEffects.length > 0 ? Array.from(rawEffects).join(", ") : "unknown effects";
+        const methods = [
+            typeof actuator.playEffect === "function" ? "playEffect" : "",
+            typeof actuator.pulse === "function" ? "pulse" : "",
+            typeof actuator.reset === "function" ? "reset" : ""
+        ].filter(Boolean);
+        return `${label}: ${methods.join("/") || "no methods"}; ${effects}`;
+    } catch {
+        return `${label}: unavailable`;
+    }
 }
 
 function getVibrationActuator(gamepad: Gamepad): HapticActuator | null {
