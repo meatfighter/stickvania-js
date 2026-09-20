@@ -250,6 +250,12 @@ export class Simon extends Thing {
         this.walkSpriteIndex = 0;
     }
 
+    public resetInputReleaseLatches(): void {
+        this.releasedJump = false;
+        this.releasedKneel = false;
+        this.releasedWhip = false;
+    }
+
     public reset(): void {
         this.G = javaFloat(Main.GRAVITY);
         this.jumpVelocity = javaFloat(Main.SIMON_JUMP_VELOCITY);
