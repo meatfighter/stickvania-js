@@ -38,37 +38,37 @@ export class BrowserPreferences {
     public fullscreen = this.readFullscreen();
     public difficulty = this.readDifficulty();
 
-    public setVolume(value: number, persist = true, isAuthorized: () => boolean = () => true): boolean {
+    public setVolume(value: number, persist: boolean, isAuthorized: () => boolean): boolean {
         this.volume = BrowserPreferences.clampVolume(value);
         return !persist || this.write(VOLUME_STORAGE_KEY, String(Math.round(this.volume * 100)), "volume", isAuthorized);
     }
 
-    public setDisplayMode(value: DisplayModePreference, isAuthorized: () => boolean = () => true): boolean {
+    public setDisplayMode(value: DisplayModePreference, isAuthorized: () => boolean): boolean {
         this.displayMode = value;
         return this.write(DISPLAY_MODE_STORAGE_KEY, value, "display theme", isAuthorized);
     }
 
-    public setScaling(value: StickvaniaScalingPreference, isAuthorized: () => boolean = () => true): boolean {
+    public setScaling(value: StickvaniaScalingPreference, isAuthorized: () => boolean): boolean {
         this.scaling = value;
         return this.write(SCALING_STORAGE_KEY, value, "scaling preference", isAuthorized);
     }
 
-    public setRumbleEnabled(value: boolean, isAuthorized: () => boolean = () => true): boolean {
+    public setRumbleEnabled(value: boolean, isAuthorized: () => boolean): boolean {
         this.rumbleEnabled = value;
         return this.write(RUMBLE_STORAGE_KEY, String(value), "rumble preference", isAuthorized);
     }
 
-    public setFullscreen(value: boolean, isAuthorized: () => boolean = () => true): boolean {
+    public setFullscreen(value: boolean, isAuthorized: () => boolean): boolean {
         this.fullscreen = value;
         return this.write(FULLSCREEN_STORAGE_KEY, String(value), "fullscreen preference", isAuthorized);
     }
 
-    public setDifficulty(value: number, isAuthorized: () => boolean = () => true): boolean {
+    public setDifficulty(value: number, isAuthorized: () => boolean): boolean {
         this.difficulty = value === HARD_DIFFICULTY ? HARD_DIFFICULTY : DEFAULT_DIFFICULTY;
         return this.write(DIFFICULTY_STORAGE_KEY, String(this.difficulty), "difficulty preference", isAuthorized);
     }
 
-    public reset(isAuthorized: () => boolean = () => true): boolean {
+    public reset(isAuthorized: () => boolean): boolean {
         let success = true;
         for (const key of PWA_RESET_STORAGE_KEYS) {
             if (!isAuthorized()) {
