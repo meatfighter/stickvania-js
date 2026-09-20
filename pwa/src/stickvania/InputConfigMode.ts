@@ -5,6 +5,12 @@ import type { Main } from "./Main.js";
 
 type BindingStep = "UP" | "DOWN" | "LEFT" | "RIGHT" | "JUMP" | "ATTACK";
 
+type ControllerCaptureSample = {
+    readonly direction: number;
+    readonly button: number;
+    readonly anyDown: boolean;
+};
+
 export const INPUT_CONFIG_STEP_COUNT = 6;
 export const INPUT_CONFIG_DONE_DELAY = 30;
 export const INPUT_CONFIG_ARM_DELAY = 8;
@@ -222,6 +228,9 @@ export class InputConfigMode implements KeyListener {
     private controllerDownDown = false;
     private controllerLeftDown = false;
     private controllerRightDown = false;
+    private captureEpochUsed = false;
+    private awaitingControllerNeutral = false;
+    private readonly blockedKeysUntilRelease = new Set<number>();
 
     public constructor(private readonly main: Main) {}
 
@@ -322,19 +331,26 @@ export class InputConfigMode implements KeyListener {
 
     public keyPressed(key: number, c: string): void {
         void c;
-        if (!this.canAcceptInput() || ButtonMapping.isReservedKey(key)) {
+        if (ButtonMapping.isReservedKey(key)) {
             return;
         }
+        if (this.blockedKeysUntilRelease.has(key) || !this.canAcceptInput()) {
+            this.blockedKeysUntilRelease.add(key);
+            return;
+        }
+
+        this.captureEpochUsed = true;
+        this.blockedKeysUntilRelease.add(key);
         if (!this.bindKey(key)) {
             this.message = "ALREADY USED";
             return;
         }
-        this.advance();
+        this.advance(false);
     }
 
     public keyReleased(key: number, c: string): void {
-        void key;
         void c;
+        this.blockedKeysUntilRelease.delete(key);
     }
 
     public setInput(input: Input): void {
@@ -347,10 +363,12 @@ export class InputConfigMode implements KeyListener {
 
     public inputEnded(): void {}
 
-    public inputStarted(): void {}
+    public inputStarted(): void {
+        this.captureEpochUsed = false;
+    }
 
     private canAcceptInput(): boolean {
-        return !this.finished && this.armDelay == 0;
+        return !this.finished && this.armDelay == 0 && !this.captureEpochUsed;
     }
 
     private bindControllerDirection(binding: number): void {
@@ -377,49 +395,70 @@ export class InputConfigMode implements KeyListener {
             this.syncControllerInputState();
             return;
         }
-        const direction = this.getPressedControllerDirection();
-        if (direction !== ButtonMapping.NO_BINDING && !this.isActionStep()) {
-            this.bindControllerDirection(direction);
+
+        const sample = this.sampleControllerInputState();
+        if (this.awaitingControllerNeutral) {
+            if (!sample.anyDown) {
+                this.awaitingControllerNeutral = false;
+            }
             return;
         }
 
-        const button = this.getPressedNonDirectionalControllerButton();
-        if (button !== ButtonMapping.NO_BINDING) {
-            if (!this.bindControllerButton(button)) {
+        if (sample.direction !== ButtonMapping.NO_BINDING && !this.isActionStep()) {
+            if (!this.bindControllerButton(sample.direction)) {
                 this.message = "ALREADY USED";
                 return;
             }
-            this.advance();
+            this.captureEpochUsed = true;
+            this.awaitingControllerNeutral = sample.anyDown;
+            this.advance(true);
+            return;
+        }
+
+        if (sample.button !== ButtonMapping.NO_BINDING) {
+            if (!this.bindControllerButton(sample.button)) {
+                this.message = "ALREADY USED";
+                return;
+            }
+            this.captureEpochUsed = true;
+            this.awaitingControllerNeutral = sample.anyDown;
+            this.advance(true);
         }
     }
 
-    private getPressedControllerDirection(): number {
-        if (this.isControllerUpPressed()) {
-            return ButtonMapping.CONTROLLER_DIRECTION_UP;
-        }
-        if (this.isControllerDownPressed()) {
-            return ButtonMapping.CONTROLLER_DIRECTION_DOWN;
-        }
-        if (this.isControllerLeftPressed()) {
-            return ButtonMapping.CONTROLLER_DIRECTION_LEFT;
-        }
-        if (this.isControllerRightPressed()) {
-            return ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
-        }
-        return ButtonMapping.NO_BINDING;
-    }
-
-    private getPressedNonDirectionalControllerButton(): number {
+    private sampleControllerInputState(): ControllerCaptureSample {
         const input = this.input;
         if (input === null) {
-            return ButtonMapping.NO_BINDING;
+            return { direction: ButtonMapping.NO_BINDING, button: ButtonMapping.NO_BINDING, anyDown: false };
         }
+
+        const up = ControllerSupport.isUpDown(input);
+        const down = ControllerSupport.isDownDown(input);
+        const left = ControllerSupport.isLeftDown(input);
+        const right = ControllerSupport.isRightDown(input);
+        const upPressed = up && !this.controllerUpDown;
+        const downPressed = down && !this.controllerDownDown;
+        const leftPressed = left && !this.controllerLeftDown;
+        const rightPressed = right && !this.controllerRightDown;
+        this.controllerUpDown = up;
+        this.controllerDownDown = down;
+        this.controllerLeftDown = left;
+        this.controllerRightDown = right;
+
+        let direction = ButtonMapping.NO_BINDING;
+        if (upPressed) direction = ButtonMapping.CONTROLLER_DIRECTION_UP;
+        else if (downPressed) direction = ButtonMapping.CONTROLLER_DIRECTION_DOWN;
+        else if (leftPressed) direction = ButtonMapping.CONTROLLER_DIRECTION_LEFT;
+        else if (rightPressed) direction = ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
+
         this.resizeControllerButtonState(input);
         let pressedButton = ButtonMapping.NO_BINDING;
+        let anyButtonDown = false;
         for (let button = 0; button < this.controllerButtonDown.length; button++) {
-            const down = ControllerSupport.isButtonDown(input, button);
-            const pressed = down && !this.controllerButtonDown[button];
-            this.controllerButtonDown[button] = down;
+            const buttonDown = ControllerSupport.isButtonDown(input, button);
+            const pressed = buttonDown && !this.controllerButtonDown[button];
+            this.controllerButtonDown[button] = buttonDown;
+            anyButtonDown ||= buttonDown;
             if (
                 pressedButton === ButtonMapping.NO_BINDING &&
                 pressed &&
@@ -429,7 +468,20 @@ export class InputConfigMode implements KeyListener {
                 pressedButton = button;
             }
         }
-        return pressedButton;
+
+        return {
+            direction,
+            button: pressedButton,
+            anyDown: up || down || left || right || anyButtonDown
+        };
+    }
+
+    private getPressedControllerDirection(): number {
+        return this.sampleControllerInputState().direction;
+    }
+
+    private getPressedNonDirectionalControllerButton(): number {
+        return this.sampleControllerInputState().button;
     }
 
     private bindKey(key: number): boolean {
@@ -570,7 +622,7 @@ export class InputConfigMode implements KeyListener {
         mapping.controllerRight = this.draft!.controllerRight;
     }
 
-    private advance(): void {
+    private advance(_controllerCapture: boolean): void {
         this.main.playSound(this.main.pressed_enter);
         this.message = "";
         this.stepIndex++;
