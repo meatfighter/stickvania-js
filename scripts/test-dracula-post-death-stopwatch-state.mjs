@@ -74,7 +74,6 @@ function createFinalStageWatchSnapshot(songIds, version, appearDelay) {
             score: 0,
             time: 300,
             timeIncrementor: 0,
-            timeFrozen: 455,
             playerPower: 16,
             enemyPower: 0,
             beatStageFlag: false,
