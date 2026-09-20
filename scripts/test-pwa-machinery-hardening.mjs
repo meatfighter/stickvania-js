@@ -141,10 +141,22 @@ test("playback and fullscreen activation are attempt-scoped for live Continue", 
 
 test("synchronous post-commit viewport hooks are rechecked before RUNNING", () => {
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("function refreshVisibleBootProgress"));
+    const launchPause = launch.indexOf("appContainer.getInput().pause();");
+    const launchStart = launch.indexOf("await appContainer.start();");
     const launchFocus = launch.indexOf("viewport.focusCanvas();");
     const launchGuard = launch.indexOf("if (!isStartingGameSession(session, audio) || game !== mainGame || container !== appContainer)", launchFocus);
-    const launchRunning = launch.indexOf('pwaSessionState = "running";', launchFocus);
-    assert.ok(launchFocus >= 0 && launchGuard > launchFocus && launchRunning > launchGuard);
+    const launchResume = launch.indexOf("appContainer.getInput().resume();", launchGuard);
+    const launchRunning = launch.indexOf('pwaSessionState = "running";', launchResume);
+    const launchUnsuspend = launch.indexOf("mainGame.setBrowserSuspended(false);", launchRunning);
+    assert.ok(
+        launchPause >= 0 &&
+            launchStart > launchPause &&
+            launchFocus > launchStart &&
+            launchGuard > launchFocus &&
+            launchResume > launchGuard &&
+            launchRunning > launchResume &&
+            launchUnsuspend > launchRunning
+    );
 
     const resume = mainSource.slice(mainSource.indexOf("async function resumeLiveGameFromMenu"), mainSource.indexOf("function removeMenuOverlay"));
     const reconcile = resume.indexOf("viewport.reconcileDisplayModeNow();");
