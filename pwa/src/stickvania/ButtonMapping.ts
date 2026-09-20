@@ -1,6 +1,9 @@
 import { Input } from "slick2d-ts";
 import { getBrowserStorageKey } from "./BrowserStorageKeys.js";
 
+export type MappingWriteFailureReason = "unavailable" | "protected" | "invalid" | "stale-session";
+export type MappingWriteResult = { readonly saved: true } | { readonly saved: false; readonly reason: MappingWriteFailureReason };
+
 type ButtonMappingSnapshot = {
     version: number;
     keyJump: number;
@@ -127,21 +130,24 @@ export class ButtonMapping {
         return mapping;
     }
 
-    public save(): boolean {
+    public save(isAuthorized: () => boolean): MappingWriteResult {
         if (this.storageWriteProtected || ButtonMapping.hasProtectedStoredSnapshot()) {
             console.warn("A newer Stickvania input-mapping format is stored; leaving it unchanged.");
-            return false;
+            return { saved: false, reason: "protected" };
         }
         try {
             const snapshot = this.toSnapshot();
             if (!ButtonMapping.isSupportedSnapshot(snapshot)) {
-                return false;
+                return { saved: false, reason: "invalid" };
+            }
+            if (!isAuthorized()) {
+                return { saved: false, reason: "stale-session" };
             }
             localStorage.setItem(ButtonMapping.STORAGE_KEY, JSON.stringify(snapshot));
-            return true;
+            return { saved: true };
         } catch (error) {
             console.warn("Unable to save Stickvania input mapping.", error);
-            return false;
+            return { saved: false, reason: "unavailable" };
         }
     }
 
