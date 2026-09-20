@@ -92,6 +92,70 @@ test("null vibrationActuator still permits a legacy hapticActuators fallback", a
     ]);
 });
 
+test("gamepad enumeration failure is treated as no connected gamepads", () => {
+    const { getConnectedGamepads } = loadBrowserHaptics({
+        navigator: {
+            getGamepads() {
+                throw new Error("gamepad enumeration failed");
+            }
+        }
+    });
+
+    assert.deepEqual(Array.from(getConnectedGamepads()), []);
+});
+
+test("throwing vibrationActuator getter is ignored while legacy haptics remain usable", async () => {
+    const { getActuatorDescriptions, playPulseOnGamepad, silenceGamepads } = loadBrowserHaptics();
+    const pulses = [];
+    const gamepad = {
+        get vibrationActuator() {
+            throw new Error("vibration actuator unavailable");
+        },
+        hapticActuators: [
+            {
+                async pulse(value, duration) {
+                    pulses.push({ value, duration });
+                    return true;
+                }
+            }
+        ]
+    };
+
+    assert.deepEqual(Array.from(getActuatorDescriptions(gamepad)), ["hapticActuators[0]: pulse; unknown effects"]);
+    assert.equal(await playPulseOnGamepad(gamepad, { duration: 90, strong: 0.25, weak: 0.6 }), "hapticActuators[0].pulse: started");
+    await silenceGamepads([gamepad]);
+    assert.deepEqual(pulses, [
+        { value: 0.6, duration: 90 },
+        { value: 0, duration: 1 }
+    ]);
+});
+
+test("throwing legacy actuator getter and sparse actuator entries are ignored", async () => {
+    const { getActuatorDescriptions, getHapticActuators, playPulseOnGamepad, silenceGamepads } = loadBrowserHaptics();
+    const modernCalls = [];
+    const modernActuator = {
+        effects: ["dual-rumble"],
+        async playEffect(effect, params) {
+            modernCalls.push({ effect, params: { ...params } });
+            return "complete";
+        }
+    };
+    const throwingLegacy = {
+        vibrationActuator: modernActuator,
+        get hapticActuators() {
+            throw new Error("legacy actuator getter failed");
+        }
+    };
+    const sparseLegacy = { hapticActuators: [null, undefined] };
+
+    assert.deepEqual(Array.from(getHapticActuators(throwingLegacy)), []);
+    assert.deepEqual(Array.from(getHapticActuators(sparseLegacy)), []);
+    assert.deepEqual(Array.from(getActuatorDescriptions(throwingLegacy)), ["vibrationActuator: playEffect; dual-rumble"]);
+    assert.equal(await playPulseOnGamepad(throwingLegacy, { duration: 70, strong: 0.4, weak: 0.2 }), "vibrationActuator.playEffect: complete");
+    await silenceGamepads([throwingLegacy, sparseLegacy]);
+    assert.equal(modernCalls.length, 2);
+});
+
 test("browser haptics prefers dual-rumble and preserves strong/weak magnitudes", async () => {
     const { playPulseOnGamepad } = loadBrowserHaptics();
     const calls = [];
