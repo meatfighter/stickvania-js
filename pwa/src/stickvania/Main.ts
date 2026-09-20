@@ -11,7 +11,7 @@ import { Boomerang } from "./Boomerang.js";
 import { BreakWall } from "./BreakWall.js";
 import { BridgeBat } from "./BridgeBat.js";
 import { getBrowserStorageKey } from "./BrowserStorageKeys.js";
-import { ButtonMapping } from "./ButtonMapping.js";
+import { ButtonMapping, type MappingWriteResult } from "./ButtonMapping.js";
 import { Candles } from "./Candles.js";
 import { Checkpoint } from "./Checkpoint.js";
 import { Dagger } from "./Dagger.js";
@@ -491,6 +491,7 @@ export class Main extends BasicGame {
     public requestedSong: Song | null = null;
     public currentMusic: Music | null = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) | null = null;
+    public inputMappingChangedHandler: (() => MappingWriteResult) | null = null;
     private browserSuspended: boolean = false;
     private input: Input | null = null;
     public buttonMapping: ButtonMapping = ButtonMapping.load();
@@ -2745,6 +2746,13 @@ export class Main extends BasicGame {
     public finishInputConfig(): void {
         this.invalidateTitleInputMappingCache();
         this.initTitleScreen();
+    }
+
+    public notifyInputMappingChanged(): MappingWriteResult {
+        if (this.inputMappingChangedHandler === null) {
+            return { saved: false, reason: "unavailable" };
+        }
+        return this.inputMappingChangedHandler();
     }
 
     private completeStartup(gc: GameContainer): void {
