@@ -131,8 +131,8 @@ export class ButtonMapping {
         return mapping;
     }
 
-    public save(isAuthorized: () => boolean): MappingWriteResult {
-        if (this.storageWriteProtected || ButtonMapping.hasProtectedStoredSnapshot()) {
+    public save(isAuthorized: () => boolean, replaceProtected: boolean = false): MappingWriteResult {
+        if (!replaceProtected && (this.storageWriteProtected || ButtonMapping.hasProtectedStoredSnapshot())) {
             console.warn("Existing Stickvania input-mapping data is protected; leaving it unchanged.");
             return { saved: false, reason: "protected" };
         }
@@ -145,6 +145,7 @@ export class ButtonMapping {
                 return { saved: false, reason: "stale-session" };
             }
             localStorage.setItem(ButtonMapping.STORAGE_KEY, JSON.stringify(snapshot));
+            this.storageWriteProtected = false;
             return { saved: true };
         } catch (error) {
             console.warn("Unable to save Stickvania input mapping.", error);
