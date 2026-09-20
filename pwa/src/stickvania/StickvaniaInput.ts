@@ -64,19 +64,10 @@ function createEmptyState(): InputState {
     };
 }
 
-type ControllerReadContext = {
-    readonly valid: boolean;
-    readonly baselineOnly: boolean;
-    readonly controllerCount: number;
-};
-
-type ControllerBindingState = {
-    readonly down: boolean;
-    readonly pressed: boolean;
-};
-
 export class StickvaniaInput {
     private static readonly CONTROLLER_BINDING_SLOT_COUNT = 7;
+    private static readonly CONTROLLER_STATE_DOWN = 1;
+    private static readonly CONTROLLER_STATE_PRESSED = 2;
     private previous: InputState = createEmptyState();
     private current: InputState = createEmptyState();
     private readonly controllerBindingDown: boolean[][] = Array.from(
@@ -89,6 +80,9 @@ export class StickvaniaInput {
     );
     private readonly controllerConnectionGenerations: number[] = [];
     private readonly controllerGenerationChanged: boolean[] = [];
+    private controllerSampleValid = false;
+    private controllerSampleBaselineOnly = true;
+    private controllerCount = 0;
 
     public constructor(
         private readonly input: Input,
@@ -187,21 +181,21 @@ export class StickvaniaInput {
         const keyJump = this.isKeyDown(this.mapping.keyJump);
         const keyAttack = this.isKeyDown(this.mapping.keyAttack);
 
-        const context = this.prepareControllerReadContext();
-        const controllerUpState = this.readControllerBinding(this.mapping.controllerUp, 0, context, false, suppressControllerEdges);
-        const controllerDownState = this.readControllerBinding(this.mapping.controllerDown, 1, context, false, suppressControllerEdges);
-        const controllerLeftState = this.readControllerBinding(this.mapping.controllerLeft, 2, context, false, suppressControllerEdges);
-        const controllerRightState = this.readControllerBinding(this.mapping.controllerRight, 3, context, false, suppressControllerEdges);
-        const controllerJumpState = this.readControllerBinding(this.mapping.controllerJump, 4, context, true, suppressControllerEdges);
-        const controllerAttackState = this.readControllerBinding(this.mapping.controllerAttack, 5, context, true, suppressControllerEdges);
-        const anyControllerSelectState = this.readAnyNonDirectionalControllerState(6, context, suppressControllerEdges);
+        this.prepareControllerReadContext();
+        const controllerUpState = this.readControllerBinding(this.mapping.controllerUp, 0, false, suppressControllerEdges);
+        const controllerDownState = this.readControllerBinding(this.mapping.controllerDown, 1, false, suppressControllerEdges);
+        const controllerLeftState = this.readControllerBinding(this.mapping.controllerLeft, 2, false, suppressControllerEdges);
+        const controllerRightState = this.readControllerBinding(this.mapping.controllerRight, 3, false, suppressControllerEdges);
+        const controllerJumpState = this.readControllerBinding(this.mapping.controllerJump, 4, true, suppressControllerEdges);
+        const controllerAttackState = this.readControllerBinding(this.mapping.controllerAttack, 5, true, suppressControllerEdges);
+        const anyControllerSelectState = this.readAnyNonDirectionalControllerState(6, suppressControllerEdges);
 
-        const controllerUp = controllerUpState.down;
-        const controllerDown = controllerDownState.down;
-        const controllerLeft = controllerLeftState.down;
-        const controllerRight = controllerRightState.down;
-        const controllerJump = controllerJumpState.down;
-        const controllerAttack = controllerAttackState.down;
+        const controllerUp = (controllerUpState & StickvaniaInput.CONTROLLER_STATE_DOWN) !== 0;
+        const controllerDown = (controllerDownState & StickvaniaInput.CONTROLLER_STATE_DOWN) !== 0;
+        const controllerLeft = (controllerLeftState & StickvaniaInput.CONTROLLER_STATE_DOWN) !== 0;
+        const controllerRight = (controllerRightState & StickvaniaInput.CONTROLLER_STATE_DOWN) !== 0;
+        const controllerJump = (controllerJumpState & StickvaniaInput.CONTROLLER_STATE_DOWN) !== 0;
+        const controllerAttack = (controllerAttackState & StickvaniaInput.CONTROLLER_STATE_DOWN) !== 0;
         const up = keyUp || controllerUp;
         const down = keyDown || controllerDown;
         const left = keyLeft || controllerLeft;
@@ -209,7 +203,7 @@ export class StickvaniaInput {
         const jump = keyJump || controllerJump;
         const attack = keyAttack || controllerAttack;
         const enterSelect = !this.isKeyMappedToDirection(Input.KEY_ENTER) && this.isKeyDown(Input.KEY_ENTER);
-        const anyControllerSelect = anyControllerSelectState.down;
+        const anyControllerSelect = (anyControllerSelectState & StickvaniaInput.CONTROLLER_STATE_DOWN) !== 0;
 
         target.up = up;
         target.down = down;
@@ -230,54 +224,49 @@ export class StickvaniaInput {
         target.menuSelectJumpController = controllerJump;
         target.menuSelectAttackController = controllerAttack;
         target.menuSelectAnyController = anyControllerSelect;
-        target.menuUpControllerPressed = controllerUpState.pressed;
-        target.menuDownControllerPressed = controllerDownState.pressed;
-        target.menuSelectJumpControllerPressed = controllerJumpState.pressed;
-        target.menuSelectAttackControllerPressed = controllerAttackState.pressed;
-        target.menuSelectAnyControllerPressed = anyControllerSelectState.pressed;
+        target.menuUpControllerPressed = (controllerUpState & StickvaniaInput.CONTROLLER_STATE_PRESSED) !== 0;
+        target.menuDownControllerPressed = (controllerDownState & StickvaniaInput.CONTROLLER_STATE_PRESSED) !== 0;
+        target.menuSelectJumpControllerPressed = (controllerJumpState & StickvaniaInput.CONTROLLER_STATE_PRESSED) !== 0;
+        target.menuSelectAttackControllerPressed = (controllerAttackState & StickvaniaInput.CONTROLLER_STATE_PRESSED) !== 0;
+        target.menuSelectAnyControllerPressed = (anyControllerSelectState & StickvaniaInput.CONTROLLER_STATE_PRESSED) !== 0;
     }
 
-    private prepareControllerReadContext(): ControllerReadContext {
+    private prepareControllerReadContext(): void {
         const status = this.input.getControllerSampleStatus();
-        const controllerCount = this.input.getControllerCount();
-        this.resizeControllerTracking(controllerCount);
+        this.controllerSampleValid = status.valid;
+        this.controllerSampleBaselineOnly = status.baselineOnly;
+        this.controllerCount = this.input.getControllerCount();
+        this.resizeControllerTracking(this.controllerCount);
 
-        for (let controller = 0; controller < controllerCount; controller++) {
+        for (let controller = 0; controller < this.controllerCount; controller++) {
             const generation = this.input.getControllerConnectionGeneration(controller);
             this.controllerGenerationChanged[controller] = this.controllerConnectionGenerations[controller] !== generation;
-            if (status.valid) {
+            if (this.controllerSampleValid) {
                 this.controllerConnectionGenerations[controller] = generation;
             }
         }
-
-        return {
-            valid: status.valid,
-            baselineOnly: status.baselineOnly,
-            controllerCount
-        };
     }
 
     private readControllerBinding(
         binding: number,
         slot: number,
-        context: ControllerReadContext,
         discreteAction: boolean,
         suppressEdges: boolean
-    ): ControllerBindingState {
+    ): number {
         if (binding === ButtonMapping.NO_BINDING) {
-            return { down: false, pressed: false };
+            return 0;
         }
 
         let anyDown = false;
         let anyPressed = false;
         const previous = this.controllerBindingDown[slot]!;
         const blocked = this.controllerBindingBlockedUntilRelease[slot]!;
-        for (let controller = 0; controller < context.controllerCount; controller++) {
+        for (let controller = 0; controller < this.controllerCount; controller++) {
             const rawDown = ControllerSupport.isDirectionDownOnController(this.input, binding, controller);
             const uncertain =
-                suppressEdges || !context.valid || context.baselineOnly || this.controllerGenerationChanged[controller] === true;
+                suppressEdges || !this.controllerSampleValid || this.controllerSampleBaselineOnly || this.controllerGenerationChanged[controller] === true;
 
-            if (context.valid) {
+            if (this.controllerSampleValid) {
                 if (discreteAction && uncertain && rawDown) {
                     blocked[controller] = true;
                 }
@@ -295,20 +284,22 @@ export class StickvaniaInput {
                 anyDown ||= discreteAction ? previous[controller] === true : rawDown;
             }
         }
-        return { down: anyDown, pressed: anyPressed };
+        return (
+            (anyDown ? StickvaniaInput.CONTROLLER_STATE_DOWN : 0) |
+            (anyPressed ? StickvaniaInput.CONTROLLER_STATE_PRESSED : 0)
+        );
     }
 
     private readAnyNonDirectionalControllerState(
         slot: number,
-        context: ControllerReadContext,
         suppressEdges: boolean
-    ): ControllerBindingState {
+    ): number {
         let anyDown = false;
         let anyPressed = false;
         const previous = this.controllerBindingDown[slot]!;
         const blocked = this.controllerBindingBlockedUntilRelease[slot]!;
 
-        for (let controller = 0; controller < context.controllerCount; controller++) {
+        for (let controller = 0; controller < this.controllerCount; controller++) {
             let rawDown = false;
             const limit = ControllerSupport.getButtonScanLimitForController(this.input, controller);
             for (let button = 0; button < limit; button++) {
@@ -323,8 +314,8 @@ export class StickvaniaInput {
             }
 
             const uncertain =
-                suppressEdges || !context.valid || context.baselineOnly || this.controllerGenerationChanged[controller] === true;
-            if (context.valid) {
+                suppressEdges || !this.controllerSampleValid || this.controllerSampleBaselineOnly || this.controllerGenerationChanged[controller] === true;
+            if (this.controllerSampleValid) {
                 if (uncertain && rawDown) {
                     blocked[controller] = true;
                 }
@@ -340,7 +331,10 @@ export class StickvaniaInput {
             }
         }
 
-        return { down: anyDown, pressed: anyPressed };
+        return (
+            (anyDown ? StickvaniaInput.CONTROLLER_STATE_DOWN : 0) |
+            (anyPressed ? StickvaniaInput.CONTROLLER_STATE_PRESSED : 0)
+        );
     }
 
     private resizeControllerTracking(controllerCount: number): void {
