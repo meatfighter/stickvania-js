@@ -47,8 +47,8 @@ try {
     );
     const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
 
-    assert.equal(GAME_STATE_VERSION, 16);
-    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v16$/);
+    assert.equal(GAME_STATE_VERSION, 17);
+    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v17$/);
 
     const serializer = new StickvaniaGameStateSerializer();
     assert.equal(serializer.isThingIdArray([null, 0], 1), true);
@@ -247,32 +247,13 @@ try {
     finalStageOneHpWithWatch.mainFields.enemyPower = 1;
     assert.equal(isReasonableStickvaniaGameStateSnapshot(finalStageOneHpWithWatch), true);
 
-    const runtimeSizedInputConfig = createInputConfigSnapshot(17);
-    runtimeSizedInputConfig.message = "ALREADY USED";
-    assert.equal(ControllerSupport.isValidButtonDownSnapshot(runtimeSizedInputConfig.controllerButtonDown), true);
-    assert.equal(serializer.isInputConfigSnapshotShape(runtimeSizedInputConfig), true, "runtime-sized controller edge state must be saveable");
-
-    const noControllerInputConfig = createInputConfigSnapshot(0);
-    assert.equal(ControllerSupport.isValidButtonDownSnapshot(noControllerInputConfig.controllerButtonDown), true);
-    assert.equal(serializer.isInputConfigSnapshotShape(noControllerInputConfig), true, "keyboard-only input config must be saveable");
-
-    const maximumControllerState = createInputConfigSnapshot(64);
-    assert.equal(ControllerSupport.isValidButtonDownSnapshot(maximumControllerState.controllerButtonDown), true);
-    assert.equal(serializer.isInputConfigSnapshotShape(maximumControllerState), true, "the runtime scan limit must remain saveable");
-
-    const oversizedControllerState = createInputConfigSnapshot(65);
-    assert.equal(ControllerSupport.isValidButtonDownSnapshot(oversizedControllerState.controllerButtonDown), false);
-    assert.equal(serializer.isInputConfigSnapshotShape(oversizedControllerState), false, "controller edge state must remain bounded");
-
-    const invalidControllerState = createInputConfigSnapshot(17);
-    invalidControllerState.controllerButtonDown[3] = 1;
-    assert.equal(ControllerSupport.isValidButtonDownSnapshot(invalidControllerState.controllerButtonDown), false);
-    assert.equal(serializer.isInputConfigSnapshotShape(invalidControllerState), false, "controller edge state entries must remain boolean");
-
-    const sparseControllerState = createInputConfigSnapshot(17);
-    delete sparseControllerState.controllerButtonDown[3];
-    assert.equal(ControllerSupport.isValidButtonDownSnapshot(sparseControllerState.controllerButtonDown), false);
-    assert.equal(serializer.isInputConfigSnapshotShape(sparseControllerState), false, "sparse controller edge state must be rejected");
+    const liveInputConfigSnapshot = createInputConfigSnapshot();
+    assert.equal(serializer.isInputConfigSnapshotShape(liveInputConfigSnapshot), true);
+    assert.deepEqual(
+        Object.keys(liveInputConfigSnapshot).sort(),
+        ["armDelay", "assignedControllerButtons", "assignedKeys", "doneDelay", "draft", "finished", "message", "stepIndex"].sort(),
+        "save state must exclude physical controller-down edge state"
+    );
 
     let heldControllerButtonForDuplicate = -1;
     const liveInput = {
@@ -313,11 +294,10 @@ try {
     assert.equal(liveInputConfig.message, "ALREADY USED");
 
     const capturedRuntimeInputConfig = liveInputConfig.createSnapshot();
-    assert.equal(capturedRuntimeInputConfig.controllerButtonDown.length, 17, "capture must preserve the runtime controller scan length");
-    assert.equal(capturedRuntimeInputConfig.controllerButtonDown[0], true);
     assert.equal(capturedRuntimeInputConfig.message, "ALREADY USED");
     assert.deepEqual(capturedRuntimeInputConfig.assignedControllerButtons, [0]);
-    assert.equal(serializer.isInputConfigSnapshotShape(capturedRuntimeInputConfig), true, "a duplicate-button runtime snapshot must validate");
+    assert.equal(Object.hasOwn(capturedRuntimeInputConfig, "controllerButtonDown"), false);
+    assert.equal(serializer.isInputConfigSnapshotShape(capturedRuntimeInputConfig), true, "duplicate-button runtime snapshot must validate");
 
     const restoredInputConfig = new InputConfigMode({
         buttonMapping: new ButtonMapping(),
@@ -338,18 +318,15 @@ try {
     };
     restoredInputConfig.restoreSnapshot({ getInput: () => restoredInput }, capturedRuntimeInputConfig);
     const roundTrippedInputConfig = restoredInputConfig.createSnapshot();
-    assert.equal(roundTrippedInputConfig.controllerButtonDown.length, 17);
-    assert.equal(roundTrippedInputConfig.controllerButtonDown[0], true);
     assert.equal(roundTrippedInputConfig.message, "ALREADY USED");
     assert.deepEqual(roundTrippedInputConfig.assignedControllerButtons, [0]);
-    assert.equal(serializer.isInputConfigSnapshotShape(roundTrippedInputConfig), true, "restored runtime-sized input-config state must remain valid");
+    assert.equal(Object.hasOwn(roundTrippedInputConfig, "controllerButtonDown"), false);
+    assert.equal(serializer.isInputConfigSnapshotShape(roundTrippedInputConfig), true, "restored input-config state must remain valid");
 
-    restoredInputConfig.controllerButtonDown.fill(false);
-    restoredInputConfig.resyncControllerStateAfterBrowserResume();
     assert.equal(
         restoredInputConfig.getPressedNonDirectionalControllerButton(),
         ButtonMapping.NO_BINDING,
-        "a button already held while the browser menu owned input must become the resumed baseline, not a fresh binding"
+        "controller state present at restore time must become the baseline, not a fresh binding"
     );
     heldControllerButton = -1;
     restoredInputConfig.resyncControllerStateAfterBrowserResume();
@@ -361,13 +338,17 @@ try {
     );
 
     const inputSnapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
-    inputSnapshot.inputConfigMode = createInputConfigSnapshot(17);
+    inputSnapshot.inputConfigMode = createInputConfigSnapshot();
     inputSnapshot.inputConfigMode.message = "ALREADY USED";
-    assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), true, "sanity validation must accept runtime-sized input-config state");
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), true, "sanity validation must accept logical input-config state");
 
-    const unreasonableInputButtonState = clone(inputSnapshot);
-    unreasonableInputButtonState.inputConfigMode.controllerButtonDown = new Array(65).fill(false);
-    assert.equal(isReasonableStickvaniaGameStateSnapshot(unreasonableInputButtonState), false);
+    const transientFieldSnapshot = clone(inputSnapshot);
+    transientFieldSnapshot.inputConfigMode.controllerButtonDown = [];
+    assert.equal(
+        isReasonableStickvaniaGameStateSnapshot(transientFieldSnapshot),
+        false,
+        "obsolete physical controller-edge fields must not be accepted by the current schema"
+    );
 
     inputSnapshot.inputConfigMode.stepIndex = 99;
     assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), false);
@@ -541,7 +522,7 @@ function createSoundPlayback(voices, activeVoiceIndex = voices.length === 0 ? nu
     return { voices, activeVoiceIndex };
 }
 
-function createInputConfigSnapshot(controllerButtonCount = 64) {
+function createInputConfigSnapshot() {
     return {
         stepIndex: 0,
         doneDelay: 0,
@@ -563,12 +544,7 @@ function createInputConfigSnapshot(controllerButtonCount = 64) {
             controllerRight: -5
         },
         assignedKeys: [],
-        assignedControllerButtons: [],
-        controllerButtonDown: new Array(controllerButtonCount).fill(false),
-        controllerUpDown: false,
-        controllerDownDown: false,
-        controllerLeftDown: false,
-        controllerRightDown: false
+        assignedControllerButtons: []
     };
 }
 
