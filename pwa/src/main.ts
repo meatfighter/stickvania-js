@@ -653,12 +653,15 @@ function saveCurrentGameState(): boolean {
 }
 
 function clearStoredGameState(): void {
-    if (!ownership?.owned) {
+    if (!currentPreferenceWriteAuthorized()) {
         return;
     }
     const store = getLoadedGameStateStore();
     if (store !== null) {
-        store.clear();
+        store.clear(currentPreferenceWriteAuthorized);
+        return;
+    }
+    if (!currentPreferenceWriteAuthorized()) {
         return;
     }
     try {
