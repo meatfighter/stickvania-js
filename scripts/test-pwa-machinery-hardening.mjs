@@ -93,21 +93,30 @@ test("title default-mapping reset uses the same shell-owned persistence path", (
         gameMainSource.indexOf("private setTitleMenu", gameMainSource.indexOf("private selectTitleMenuOption"))
     );
     assert.match(selectTitle, /this\.buttonMapping\.resetToDefaults\(\)/);
-    assert.match(selectTitle, /this\.notifyInputMappingChanged\(\)/);
+    assert.match(selectTitle, /this\.notifyInputMappingChanged\(true\)/);
     assert.doesNotMatch(selectTitle, /this\.buttonMapping\.save\(/);
 });
 
 test("input mapping persistence is shell-owned and rechecks the current session at write time", () => {
     assert.match(inputConfigSource, /this\.main\.notifyInputMappingChanged\(\)\.saved/);
     assert.doesNotMatch(inputConfigSource, /buttonMapping\.save\(/);
-    assert.match(gameMainSource, /private static readonly inputMappingChangedHandlers = new WeakMap<Main, \(\) => MappingWriteResult>\(\)/);
-    assert.match(gameMainSource, /public setInputMappingChangedHandler\(handler: \(\(\) => MappingWriteResult\) \| null\): void/);
-    assert.match(gameMainSource, /public notifyInputMappingChanged\(\): MappingWriteResult/);
+    assert.match(
+        gameMainSource,
+        /private static readonly inputMappingChangedHandlers = new WeakMap<Main, \(replaceProtected: boolean\) => MappingWriteResult>\(\)/
+    );
+    assert.match(
+        gameMainSource,
+        /public setInputMappingChangedHandler\(handler: \(\(replaceProtected: boolean\) => MappingWriteResult\) \| null\): void/
+    );
+    assert.match(gameMainSource, /public notifyInputMappingChanged\(replaceProtected: boolean = false\): MappingWriteResult/);
 
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("appContainer.setAlwaysRender"));
-    assert.match(launch, /mainGame\.setInputMappingChangedHandler\(\(\) => \{/);
+    assert.match(launch, /mainGame\.setInputMappingChangedHandler\(\(replaceProtected\) => \{/);
     assert.match(launch, /if \(!isCurrentGameSession\(session\) \|\| game !== mainGame\)/);
-    assert.match(launch, /mainGame\.buttonMapping\.save\(\s*\(\) => ownership\.owned && isCurrentGameSession\(session\) && game === mainGame\s*\)/s);
+    assert.match(
+        launch,
+        /mainGame\.buttonMapping\.save\(\s*\(\) => ownership\.owned && isCurrentGameSession\(session\) && game === mainGame,\s*replaceProtected\s*\)/s
+    );
 });
 
 test("ownership relinquishment performs the final save before destructive cleanup", () => {
