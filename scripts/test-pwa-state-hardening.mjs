@@ -38,6 +38,9 @@ try {
     const { SONG_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/AudioRegistry.ts");
     const { MAX_TOTAL_SOUND_VOICES } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSoundEffects.ts");
     const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
+    const { ButtonMapping } = await server.ssrLoadModule("/src/stickvania/ButtonMapping.ts");
+    const { ControllerSupport } = await server.ssrLoadModule("/src/stickvania/ControllerSupport.ts");
+    const { InputConfigMode } = await server.ssrLoadModule("/src/stickvania/InputConfigMode.ts");
     const { isReasonableStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSanity.ts");
     const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } = await server.ssrLoadModule(
         "/src/stickvania/persistence/GameStateSchema.ts"
@@ -246,21 +249,52 @@ try {
 
     const runtimeSizedInputConfig = createInputConfigSnapshot(17);
     runtimeSizedInputConfig.message = "ALREADY USED";
+    assert.equal(ControllerSupport.isValidButtonDownSnapshot(runtimeSizedInputConfig.controllerButtonDown), true);
     assert.equal(serializer.isInputConfigSnapshotShape(runtimeSizedInputConfig), true, "runtime-sized controller edge state must be saveable");
 
     const noControllerInputConfig = createInputConfigSnapshot(0);
+    assert.equal(ControllerSupport.isValidButtonDownSnapshot(noControllerInputConfig.controllerButtonDown), true);
     assert.equal(serializer.isInputConfigSnapshotShape(noControllerInputConfig), true, "keyboard-only input config must be saveable");
 
+    const maximumControllerState = createInputConfigSnapshot(64);
+    assert.equal(ControllerSupport.isValidButtonDownSnapshot(maximumControllerState.controllerButtonDown), true);
+    assert.equal(serializer.isInputConfigSnapshotShape(maximumControllerState), true, "the runtime scan limit must remain saveable");
+
     const oversizedControllerState = createInputConfigSnapshot(65);
+    assert.equal(ControllerSupport.isValidButtonDownSnapshot(oversizedControllerState.controllerButtonDown), false);
     assert.equal(serializer.isInputConfigSnapshotShape(oversizedControllerState), false, "controller edge state must remain bounded");
 
     const invalidControllerState = createInputConfigSnapshot(17);
     invalidControllerState.controllerButtonDown[3] = 1;
+    assert.equal(ControllerSupport.isValidButtonDownSnapshot(invalidControllerState.controllerButtonDown), false);
     assert.equal(serializer.isInputConfigSnapshotShape(invalidControllerState), false, "controller edge state entries must remain boolean");
 
+    const sparseControllerState = createInputConfigSnapshot(17);
+    delete sparseControllerState.controllerButtonDown[3];
+    assert.equal(ControllerSupport.isValidButtonDownSnapshot(sparseControllerState.controllerButtonDown), false);
+    assert.equal(serializer.isInputConfigSnapshotShape(sparseControllerState), false, "sparse controller edge state must be rejected");
+
+    const liveInputConfig = new InputConfigMode({
+        buttonMapping: new ButtonMapping(),
+        clearInputPressedRecords() {}
+    });
+    liveInputConfig.message = "ALREADY USED";
+    liveInputConfig.controllerButtonDown = new Array(17).fill(false);
+    liveInputConfig.controllerButtonDown[2] = true;
+    const capturedRuntimeInputConfig = liveInputConfig.createSnapshot();
+    assert.equal(capturedRuntimeInputConfig.controllerButtonDown.length, 17, "capture must preserve the runtime controller scan length");
+    assert.equal(capturedRuntimeInputConfig.message, "ALREADY USED");
+    assert.equal(serializer.isInputConfigSnapshotShape(capturedRuntimeInputConfig), true, "a live runtime input-config snapshot must validate");
+
     const inputSnapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
-    inputSnapshot.inputConfigMode = createInputConfigSnapshot();
-    assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), true);
+    inputSnapshot.inputConfigMode = createInputConfigSnapshot(17);
+    inputSnapshot.inputConfigMode.message = "ALREADY USED";
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), true, "sanity validation must accept runtime-sized input-config state");
+
+    const unreasonableInputButtonState = clone(inputSnapshot);
+    unreasonableInputButtonState.inputConfigMode.controllerButtonDown = new Array(65).fill(false);
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(unreasonableInputButtonState), false);
+
     inputSnapshot.inputConfigMode.stepIndex = 99;
     assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), false);
 
