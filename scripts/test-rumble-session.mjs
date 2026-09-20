@@ -18,7 +18,7 @@ function deferred() {
 
 function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSucceeds = true, exclusiveHaptics = false } = {}) {
     const noop = () => {};
-    const events = { pulses: 0, restores: 0, saves: 0, continuous: 0, loopResumes: 0, silencePredicates: [] };
+    const events = { pulses: 0, restores: 0, saves: 0, continuous: 0, loopResumes: 0, silencePredicates: [], playPredicates: [] };
     const runtimeControls = { display: () => Promise.resolve(), focus: noop };
     const hapticControls = { deferSilence: false, pendingSilenceResolves: [] };
     const node = () => ({ addEventListener: noop, removeEventListener: noop, remove: noop });
@@ -55,15 +55,22 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
                         }
                         return Promise.resolve();
                     },
-                    playPulseOnGamepad: () => {
-                        events.pulses++;
+                    playPulseOnGamepad: (_gamepad, _pulse, isCurrent = () => true) => {
+                        events.playPredicates.push(isCurrent);
+                        if (isCurrent()) {
+                            events.pulses++;
+                        }
                         return rejectHaptics ? Promise.reject(new Error("haptic pulse failed")) : Promise.resolve();
                     }
                 };
             }
             if (id === "./RumbleEffects.js") {
                 return {
-                    getRumbleEffect: () => ({ channel: "test", pattern: [{ duration: 1 }], exclusive: exclusiveHaptics }),
+                    getRumbleEffect: (id) => ({
+                        channel: id === "other" ? "other" : "test",
+                        pattern: [{ duration: 1 }],
+                        exclusive: exclusiveHaptics
+                    }),
                     isRumbleDelayStep: () => false
                 };
             }
@@ -421,6 +428,38 @@ test("new rumble ownership invalidates fallback work from an earlier stop", asyn
     manager.play("test");
 
     assert.equal(staleStop(), false, "a newer play must invalidate pending fallback work from the old stop");
+});
+
+test("positive playback predicate retires immediately when stopAll takes ownership", async () => {
+    const f = fixture();
+    await f.startGame(false);
+    const manager = f.getRumbleManager();
+
+    manager.play("test");
+    const playPredicate = f.events.playPredicates.at(-1);
+    assert.equal(typeof playPredicate, "function");
+    assert.equal(playPredicate(), true);
+
+    manager.stopAll();
+    assert.equal(playPredicate(), false, "a stale positive play must not own fallback commands after stopAll");
+});
+
+test("nonexclusive channels stay independent until a global physical stop is requested", async () => {
+    const f = fixture();
+    await f.startGame(false);
+    const manager = f.getRumbleManager();
+
+    manager.play("test");
+    const firstChannel = f.events.playPredicates.at(-1);
+    manager.play("other");
+    const secondChannel = f.events.playPredicates.at(-1);
+
+    assert.equal(firstChannel(), true, "starting another nonexclusive channel must not retire the first");
+    assert.equal(secondChannel(), true);
+
+    manager.stop("test");
+    assert.equal(firstChannel(), false, "channel stop maps to a global physical silence and retires every sequence");
+    assert.equal(secondChannel(), false, "global physical silence cannot leave another logical channel claiming hardware ownership");
 });
 
 test("exclusive rumble waits for its pre-stop before starting the new effect", async () => {
