@@ -305,16 +305,20 @@ try {
     );
 
     let heldControllerButtonForDuplicate = -1;
+    let heldControllerUp = false;
+    let heldControllerDown = false;
+    let heldControllerLeft = false;
+    let heldControllerRight = false;
     const liveInput = {
         setAdditionalControllerDirectionAxes() {},
         addKeyListener() {},
         removeKeyListener() {},
         getControllerCount: () => 1,
         getButtonCount: () => 17,
-        isControllerUp: () => false,
-        isControllerDown: () => false,
-        isControllerLeft: () => false,
-        isControllerRight: () => false,
+        isControllerUp: () => heldControllerUp,
+        isControllerDown: () => heldControllerDown,
+        isControllerLeft: () => heldControllerLeft,
+        isControllerRight: () => heldControllerRight,
         isButtonPressed: (button) => button === heldControllerButtonForDuplicate,
         clearKeyPressedRecord() {},
         clearControlPressedRecord() {}
@@ -329,22 +333,108 @@ try {
     liveInputConfig.init({ getInput: () => liveInput });
     liveInputConfig.armDelay = 0;
     for (const key of [200, 208, 203, 205]) {
+        liveInputConfig.inputStarted();
         liveInputConfig.keyPressed(key, "");
     }
     assert.equal(liveInputConfig.stepIndex, 4); // JUMP
     assert.deepEqual(liveInputConfig.createSnapshot().assignedKeys, [200, 208, 203, 205]);
 
     heldControllerButtonForDuplicate = 0;
+    liveInputConfig.inputStarted();
     liveInputConfig.bindControllerInputPressed();
     assert.equal(liveInputConfig.stepIndex, 5);
     assert.deepEqual(liveInputConfig.createSnapshot().assignedControllerButtons, [0]);
 
     heldControllerButtonForDuplicate = -1;
+    liveInputConfig.inputStarted();
     liveInputConfig.bindControllerInputPressed();
     heldControllerButtonForDuplicate = 0;
+    liveInputConfig.inputStarted();
     liveInputConfig.bindControllerInputPressed();
     assert.equal(liveInputConfig.stepIndex, 5, "duplicate JUMP/ATTACK controller button must not advance the input-config step");
     assert.equal(liveInputConfig.message, "ALREADY USED");
+
+    const chordMain = {
+        buttonMapping: new ButtonMapping(),
+        pressed_enter: {},
+        playSound() {},
+        clearInputPressedRecords() {}
+    };
+    const chordConfig = new InputConfigMode(chordMain);
+    heldControllerButtonForDuplicate = -1;
+    heldControllerUp = false;
+    heldControllerDown = false;
+    heldControllerLeft = false;
+    heldControllerRight = false;
+    chordConfig.init({ getInput: () => liveInput });
+    chordConfig.armDelay = 0;
+
+    heldControllerUp = true;
+    heldControllerRight = true;
+    chordConfig.inputStarted();
+    chordConfig.bindControllerInputPressed();
+    assert.equal(chordConfig.stepIndex, 1, "one Up+Right gesture must fill only the UP row");
+    assert.deepEqual(chordConfig.createSnapshot().assignedControllerButtons, [ButtonMapping.CONTROLLER_DIRECTION_UP]);
+
+    chordConfig.inputStarted();
+    chordConfig.bindControllerInputPressed();
+    assert.equal(chordConfig.stepIndex, 1, "held Right from the same chord must not spill into DOWN");
+
+    heldControllerUp = false;
+    heldControllerRight = false;
+    chordConfig.inputStarted();
+    chordConfig.bindControllerInputPressed();
+    assert.equal(chordConfig.stepIndex, 1, "neutral sample only rearms controller capture");
+
+    heldControllerRight = true;
+    chordConfig.inputStarted();
+    chordConfig.bindControllerInputPressed();
+    assert.equal(chordConfig.stepIndex, 2, "a fresh post-neutral Right press may bind the next row");
+
+    const mixedChordConfig = new InputConfigMode(chordMain);
+    heldControllerRight = false;
+    heldControllerUp = false;
+    heldControllerButtonForDuplicate = -1;
+    mixedChordConfig.init({ getInput: () => liveInput });
+    mixedChordConfig.armDelay = 0;
+
+    heldControllerUp = true;
+    heldControllerButtonForDuplicate = 5;
+    mixedChordConfig.inputStarted();
+    mixedChordConfig.bindControllerInputPressed();
+    assert.equal(mixedChordConfig.stepIndex, 1);
+    assert.deepEqual(mixedChordConfig.createSnapshot().assignedControllerButtons, [ButtonMapping.CONTROLLER_DIRECTION_UP]);
+
+    mixedChordConfig.inputStarted();
+    mixedChordConfig.bindControllerInputPressed();
+    assert.equal(mixedChordConfig.stepIndex, 1, "simultaneous action button must be committed to the same physical sample, not the next row");
+
+    heldControllerUp = false;
+    heldControllerButtonForDuplicate = -1;
+    mixedChordConfig.inputStarted();
+    mixedChordConfig.bindControllerInputPressed();
+    heldControllerButtonForDuplicate = 5;
+    mixedChordConfig.inputStarted();
+    mixedChordConfig.bindControllerInputPressed();
+    assert.equal(mixedChordConfig.stepIndex, 2, "button may bind only after neutral and a fresh press");
+
+    const keyboardChordConfig = new InputConfigMode(chordMain);
+    heldControllerButtonForDuplicate = -1;
+    keyboardChordConfig.init({ getInput: () => liveInput });
+    keyboardChordConfig.armDelay = 0;
+    keyboardChordConfig.inputStarted();
+    keyboardChordConfig.keyPressed(200, "");
+    keyboardChordConfig.keyPressed(208, "");
+    assert.equal(keyboardChordConfig.stepIndex, 1, "two keyboard events in one input poll may fill only one row");
+    assert.deepEqual(keyboardChordConfig.createSnapshot().assignedKeys, [200]);
+
+    keyboardChordConfig.inputStarted();
+    keyboardChordConfig.keyPressed(208, "");
+    assert.equal(keyboardChordConfig.stepIndex, 1, "a held/repeat key from the same chord must stay quarantined");
+    keyboardChordConfig.keyReleased(208, "");
+    keyboardChordConfig.inputStarted();
+    keyboardChordConfig.keyPressed(208, "");
+    assert.equal(keyboardChordConfig.stepIndex, 2, "release then fresh press rearms the quarantined key");
 
     const capturedRuntimeInputConfig = liveInputConfig.createSnapshot();
     assert.equal(capturedRuntimeInputConfig.message, "ALREADY USED");
