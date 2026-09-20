@@ -278,8 +278,12 @@ try {
     };
     const liveInputConfig = new InputConfigMode(liveMain);
     liveInputConfig.init({ getInput: () => liveInput });
-    liveInputConfig.stepIndex = 4; // JUMP
     liveInputConfig.armDelay = 0;
+    for (const key of [200, 208, 203, 205]) {
+        liveInputConfig.keyPressed(key, "");
+    }
+    assert.equal(liveInputConfig.stepIndex, 4); // JUMP
+    assert.deepEqual(liveInputConfig.createSnapshot().assignedKeys, [200, 208, 203, 205]);
 
     heldControllerButtonForDuplicate = 0;
     liveInputConfig.bindControllerInputPressed();
@@ -295,6 +299,7 @@ try {
 
     const capturedRuntimeInputConfig = liveInputConfig.createSnapshot();
     assert.equal(capturedRuntimeInputConfig.message, "ALREADY USED");
+    assert.deepEqual(capturedRuntimeInputConfig.assignedKeys, [200, 208, 203, 205]);
     assert.deepEqual(capturedRuntimeInputConfig.assignedControllerButtons, [0]);
     assert.equal(Object.hasOwn(capturedRuntimeInputConfig, "controllerButtonDown"), false);
     assert.equal(serializer.isInputConfigSnapshotShape(capturedRuntimeInputConfig), true, "duplicate-button runtime snapshot must validate");
@@ -319,6 +324,7 @@ try {
     restoredInputConfig.restoreSnapshot({ getInput: () => restoredInput }, capturedRuntimeInputConfig);
     const roundTrippedInputConfig = restoredInputConfig.createSnapshot();
     assert.equal(roundTrippedInputConfig.message, "ALREADY USED");
+    assert.deepEqual(roundTrippedInputConfig.assignedKeys, [200, 208, 203, 205]);
     assert.deepEqual(roundTrippedInputConfig.assignedControllerButtons, [0]);
     assert.equal(Object.hasOwn(roundTrippedInputConfig, "controllerButtonDown"), false);
     assert.equal(serializer.isInputConfigSnapshotShape(roundTrippedInputConfig), true, "restored input-config state must remain valid");
