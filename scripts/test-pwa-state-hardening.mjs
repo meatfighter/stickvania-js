@@ -278,13 +278,18 @@ try {
         buttonMapping: new ButtonMapping(),
         clearInputPressedRecords() {}
     });
+    liveInputConfig.draft = liveInputConfig.createDraft();
+    assert.equal(liveInputConfig.bindControllerButton(0), true);
+    liveInputConfig.stepIndex++;
+    assert.equal(liveInputConfig.bindControllerButton(0), false, "pressing the same gamepad button twice must be rejected");
     liveInputConfig.message = "ALREADY USED";
     liveInputConfig.controllerButtonDown = new Array(17).fill(false);
-    liveInputConfig.controllerButtonDown[2] = true;
+    liveInputConfig.controllerButtonDown[0] = true;
     const capturedRuntimeInputConfig = liveInputConfig.createSnapshot();
     assert.equal(capturedRuntimeInputConfig.controllerButtonDown.length, 17, "capture must preserve the runtime controller scan length");
     assert.equal(capturedRuntimeInputConfig.message, "ALREADY USED");
-    assert.equal(serializer.isInputConfigSnapshotShape(capturedRuntimeInputConfig), true, "a live runtime input-config snapshot must validate");
+    assert.deepEqual(capturedRuntimeInputConfig.assignedControllerButtons, [0]);
+    assert.equal(serializer.isInputConfigSnapshotShape(capturedRuntimeInputConfig), true, "a duplicate-button runtime snapshot must validate");
 
     const inputSnapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     inputSnapshot.inputConfigMode = createInputConfigSnapshot(17);
