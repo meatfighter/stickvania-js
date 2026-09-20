@@ -9,6 +9,7 @@ type ControllerCaptureSample = {
     readonly direction: number;
     readonly button: number;
     readonly anyDown: boolean;
+    readonly valid: boolean;
 };
 
 export const INPUT_CONFIG_STEP_COUNT = 6;
@@ -224,10 +225,8 @@ export class InputConfigMode implements KeyListener {
     private readonly assignedKeys = new Set<number>();
     private readonly assignedControllerButtons = new Set<number>();
     private controllerButtonDown: boolean[] = [];
-    private controllerUpDown = false;
-    private controllerDownDown = false;
-    private controllerLeftDown = false;
-    private controllerRightDown = false;
+    private controllerDirectionDown: boolean[] = [];
+    private controllerConnectionGenerations: number[] = [];
     private captureEpochUsed = false;
     private awaitingControllerNeutral = false;
     private readonly blockedKeysUntilRelease = new Set<number>();
@@ -241,12 +240,12 @@ export class InputConfigMode implements KeyListener {
         this.draft = this.createDraft();
         this.assignedKeys.clear();
         this.assignedControllerButtons.clear();
-        this.syncControllerInputState();
+        this.syncControllerInputState(true);
         this.main.clearInputPressedRecords();
     }
 
     public resyncControllerStateAfterBrowserResume(): void {
-        this.syncControllerInputState();
+        this.syncControllerInputState(true);
     }
 
     public createSnapshot(): InputConfigModeSnapshot {
@@ -286,7 +285,7 @@ export class InputConfigMode implements KeyListener {
             // Restore the same in-memory mapping without replaying the preference write.
             this.commitDraft();
         }
-        this.syncControllerInputState();
+        this.syncControllerInputState(true);
         this.main.clearInputPressedRecords();
     }
 
@@ -380,12 +379,10 @@ export class InputConfigMode implements KeyListener {
         if (input === null) {
             return;
         }
-        if (ControllerSupport.refreshControllersIfNeeded(input)) {
-            this.syncControllerInputState();
+        const sample = this.sampleControllerInputState();
+        if (!sample.valid) {
             return;
         }
-
-        const sample = this.sampleControllerInputState();
         if (this.awaitingControllerNeutral) {
             if (!sample.anyDown) {
                 this.awaitingControllerNeutral = false;
@@ -415,53 +412,76 @@ export class InputConfigMode implements KeyListener {
         }
     }
 
-    private sampleControllerInputState(): ControllerCaptureSample {
+    private sampleControllerInputState(suppressEdges: boolean = false): ControllerCaptureSample {
         const input = this.input;
         if (input === null) {
-            return { direction: ButtonMapping.NO_BINDING, button: ButtonMapping.NO_BINDING, anyDown: false };
+            return { direction: ButtonMapping.NO_BINDING, button: ButtonMapping.NO_BINDING, anyDown: false, valid: false };
         }
 
-        const up = ControllerSupport.isUpDown(input);
-        const down = ControllerSupport.isDownDown(input);
-        const left = ControllerSupport.isLeftDown(input);
-        const right = ControllerSupport.isRightDown(input);
-        const upPressed = up && !this.controllerUpDown;
-        const downPressed = down && !this.controllerDownDown;
-        const leftPressed = left && !this.controllerLeftDown;
-        const rightPressed = right && !this.controllerRightDown;
-        this.controllerUpDown = up;
-        this.controllerDownDown = down;
-        this.controllerLeftDown = left;
-        this.controllerRightDown = right;
+        const status = input.getControllerSampleStatus();
+        const controllerCount = input.getControllerCount();
+        this.resizeControllerRuntimeState(controllerCount);
 
-        let direction = ButtonMapping.NO_BINDING;
-        if (upPressed) direction = ButtonMapping.CONTROLLER_DIRECTION_UP;
-        else if (downPressed) direction = ButtonMapping.CONTROLLER_DIRECTION_DOWN;
-        else if (leftPressed) direction = ButtonMapping.CONTROLLER_DIRECTION_LEFT;
-        else if (rightPressed) direction = ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
-
-        this.resizeControllerButtonState(input);
+        const directionPressed = [false, false, false, false];
         let pressedButton = ButtonMapping.NO_BINDING;
-        let anyButtonDown = false;
-        for (let button = 0; button < this.controllerButtonDown.length; button++) {
-            const buttonDown = ControllerSupport.isButtonDown(input, button);
-            const pressed = buttonDown && !this.controllerButtonDown[button];
-            this.controllerButtonDown[button] = buttonDown;
-            anyButtonDown ||= buttonDown;
-            if (
-                pressedButton === ButtonMapping.NO_BINDING &&
-                pressed &&
-                !ControllerSupport.isDirectionalButton(button) &&
-                !this.isDraftDirectionButton(button)
-            ) {
-                pressedButton = button;
+        let anyDown = false;
+
+        for (let controller = 0; controller < controllerCount; controller++) {
+            const connectionGeneration = input.getControllerConnectionGeneration(controller);
+            const generationChanged = this.controllerConnectionGenerations[controller] !== connectionGeneration;
+            const controllerSuppressEdges = suppressEdges || !status.valid || status.baselineOnly || generationChanged;
+            if (status.valid) {
+                this.controllerConnectionGenerations[controller] = connectionGeneration;
+            }
+
+            const directions = [
+                input.isControllerUp(controller),
+                input.isControllerDown(controller),
+                input.isControllerLeft(controller),
+                input.isControllerRight(controller)
+            ] as const;
+            for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
+                const stateIndex = controller * 4 + directionIndex;
+                const down = directions[directionIndex]!;
+                const pressed = status.valid && !controllerSuppressEdges && down && !this.controllerDirectionDown[stateIndex];
+                if (status.valid) {
+                    this.controllerDirectionDown[stateIndex] = down;
+                }
+                directionPressed[directionIndex] ||= pressed;
+                anyDown ||= down;
+            }
+
+            const buttonLimit = ControllerSupport.getButtonScanLimitForController(input, controller);
+            for (let button = 0; button < ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT; button++) {
+                const stateIndex = controller * ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT + button;
+                const down = button < buttonLimit && input.isButtonPressed(button, controller);
+                const pressed = status.valid && !controllerSuppressEdges && down && !this.controllerButtonDown[stateIndex];
+                if (status.valid) {
+                    this.controllerButtonDown[stateIndex] = down;
+                }
+                anyDown ||= down;
+                if (
+                    pressedButton === ButtonMapping.NO_BINDING &&
+                    pressed &&
+                    !ControllerSupport.isDirectionalButton(input, button, controller) &&
+                    !this.isDraftDirectionButton(button)
+                ) {
+                    pressedButton = button;
+                }
             }
         }
+
+        let direction = ButtonMapping.NO_BINDING;
+        if (directionPressed[0]) direction = ButtonMapping.CONTROLLER_DIRECTION_UP;
+        else if (directionPressed[1]) direction = ButtonMapping.CONTROLLER_DIRECTION_DOWN;
+        else if (directionPressed[2]) direction = ButtonMapping.CONTROLLER_DIRECTION_LEFT;
+        else if (directionPressed[3]) direction = ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
 
         return {
             direction,
             button: pressedButton,
-            anyDown: up || down || left || right || anyButtonDown
+            anyDown,
+            valid: status.valid
         };
     }
 
@@ -651,30 +671,31 @@ export class InputConfigMode implements KeyListener {
         );
     }
 
-    private resizeControllerButtonState(input: Input): void {
-        const length = ControllerSupport.getButtonScanLimit(input);
-        if (this.controllerButtonDown.length < length) {
-            const previousLength = this.controllerButtonDown.length;
-            this.controllerButtonDown.length = length;
-            this.controllerButtonDown.fill(false, previousLength);
-        } else if (this.controllerButtonDown.length > length) {
-            this.controllerButtonDown.length = length;
+    private resizeControllerRuntimeState(controllerCount: number): void {
+        const buttonLength = controllerCount * ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT;
+        if (this.controllerButtonDown.length !== buttonLength) {
+            this.controllerButtonDown.length = buttonLength;
+            this.controllerButtonDown.fill(false);
+        }
+        const directionLength = controllerCount * 4;
+        if (this.controllerDirectionDown.length !== directionLength) {
+            this.controllerDirectionDown.length = directionLength;
+            this.controllerDirectionDown.fill(false);
+        }
+        if (this.controllerConnectionGenerations.length !== controllerCount) {
+            this.controllerConnectionGenerations.length = controllerCount;
+            this.controllerConnectionGenerations.fill(0);
         }
     }
 
-    private syncControllerInputState(): void {
+    private syncControllerInputState(requestAuthoritativeBaseline: boolean = false): void {
         const input = this.input;
         if (input === null) {
             return;
         }
-        ControllerSupport.refreshControllersIfNeeded(input);
-        this.resizeControllerButtonState(input);
-        this.controllerUpDown = ControllerSupport.isUpDown(input);
-        this.controllerDownDown = ControllerSupport.isDownDown(input);
-        this.controllerLeftDown = ControllerSupport.isLeftDown(input);
-        this.controllerRightDown = ControllerSupport.isRightDown(input);
-        for (let button = 0; button < this.controllerButtonDown.length; button++) {
-            this.controllerButtonDown[button] = ControllerSupport.isButtonDown(input, button);
+        if (requestAuthoritativeBaseline) {
+            input.sampleControllersForBaseline();
         }
+        this.sampleControllerInputState(true);
     }
 }
