@@ -155,7 +155,11 @@ export class ButtonMapping {
             return false;
         }
         try {
-            localStorage.setItem(ButtonMapping.STORAGE_KEY, JSON.stringify(this.toSnapshot()));
+            const snapshot = this.toSnapshot();
+            if (!ButtonMapping.isSupportedSnapshot(snapshot)) {
+                return false;
+            }
+            localStorage.setItem(ButtonMapping.STORAGE_KEY, JSON.stringify(snapshot));
             return true;
         } catch (error) {
             console.warn("Unable to save Stickvania input mapping.", error);
@@ -397,7 +401,26 @@ export class ButtonMapping {
     }
 
     private static isSupportedSnapshot(snapshot: unknown): snapshot is ButtonMappingSnapshot {
-        if (typeof snapshot !== "object" || snapshot === null) {
+        if (typeof snapshot !== "object" || snapshot === null || Array.isArray(snapshot)) {
+            return false;
+        }
+        const expectedFields = [
+            "version",
+            "keyJump",
+            "keyAttack",
+            "keyUp",
+            "keyDown",
+            "keyLeft",
+            "keyRight",
+            "controllerJump",
+            "controllerAttack",
+            "controllerUp",
+            "controllerDown",
+            "controllerLeft",
+            "controllerRight"
+        ] as const;
+        const keys = Object.keys(snapshot);
+        if (keys.length !== expectedFields.length || !expectedFields.every((key) => Object.hasOwn(snapshot, key))) {
             return false;
         }
         const value = snapshot as Partial<ButtonMappingSnapshot>;
