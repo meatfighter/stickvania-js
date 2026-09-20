@@ -338,16 +338,18 @@ export class StickvaniaGameStateSerializer {
         const checkpointIds = new Set<number>();
         for (const segment of snapshot.segments) {
             for (const region of segment.regions) {
-                if (checkpointIds.has(region.checkpoint)) {
+                const checkpointId = region.checkpoint;
+                if (checkpointId === null || checkpointIds.has(checkpointId)) {
                     return false;
                 }
-                checkpointIds.add(region.checkpoint);
-                if (!this.isCheckpointTargetValid(region.checkpoint, thingSnapshots, snapshot.segments)) {
+                checkpointIds.add(checkpointId);
+                if (!this.isCheckpointTargetValid(checkpointId, thingSnapshots, snapshot.segments)) {
                     return false;
                 }
             }
         }
-        if (!checkpointIds.has(snapshot.checkpoint)) {
+        const stageCheckpoint = snapshot.checkpoint;
+        if (stageCheckpoint === null || !checkpointIds.has(stageCheckpoint)) {
             return false;
         }
 
