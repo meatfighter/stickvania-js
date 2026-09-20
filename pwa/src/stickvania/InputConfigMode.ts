@@ -35,6 +35,58 @@ export type InputConfigModeSnapshot = {
     assignedControllerButtons: number[];
 };
 
+export function isInputConfigModeSnapshot(value: unknown): value is InputConfigModeSnapshot {
+    if (!isPlainRecord(value) || !hasExactFields(value, [
+        "stepIndex",
+        "doneDelay",
+        "armDelay",
+        "message",
+        "finished",
+        "draft",
+        "assignedKeys",
+        "assignedControllerButtons"
+    ])) {
+        return false;
+    }
+    const draft = value.draft;
+    if (!isPlainRecord(draft) || !hasExactFields(draft, [
+        "keyJump",
+        "keyAttack",
+        "keyUp",
+        "keyDown",
+        "keyLeft",
+        "keyRight",
+        "controllerJump",
+        "controllerAttack",
+        "controllerUp",
+        "controllerDown",
+        "controllerLeft",
+        "controllerRight"
+    ])) {
+        return false;
+    }
+
+    const keyFields = ["keyJump", "keyAttack", "keyUp", "keyDown", "keyLeft", "keyRight"] as const;
+    const controllerActionFields = ["controllerJump", "controllerAttack"] as const;
+    const controllerDirectionFields = ["controllerUp", "controllerDown", "controllerLeft", "controllerRight"] as const;
+    if (
+        !isFiniteInteger(value.stepIndex) ||
+        !isFiniteInteger(value.doneDelay) ||
+        !isFiniteInteger(value.armDelay) ||
+        typeof value.message !== "string" ||
+        typeof value.finished !== "boolean" ||
+        !keyFields.every((field) => ButtonMapping.isValidKeyBinding(draft[field])) ||
+        !controllerActionFields.every((field) => ButtonMapping.isValidControllerActionBinding(draft[field])) ||
+        !controllerDirectionFields.every((field) => ButtonMapping.isValidControllerBinding(draft[field])) ||
+        !isAssignedKeyArray(value.assignedKeys) ||
+        !isAssignedControllerArray(value.assignedControllerButtons)
+    ) {
+        return false;
+    }
+
+    return isInputConfigLogicalStateConsistent(value as unknown as InputConfigModeSnapshot);
+}
+
 export function isInputConfigLogicalStateConsistent(snapshot: InputConfigModeSnapshot): boolean {
     const assignedKeys = snapshot.assignedKeys;
     const assignedControllerButtons = snapshot.assignedControllerButtons;
@@ -75,6 +127,42 @@ export function isInputConfigLogicalStateConsistent(snapshot: InputConfigModeSna
         snapshot.armDelay <= INPUT_CONFIG_ARM_DELAY &&
         assignmentCount === snapshot.stepIndex
     );
+}
+
+function isAssignedKeyArray(value: unknown): value is number[] {
+    return (
+        Array.isArray(value) &&
+        value.length <= INPUT_CONFIG_STEP_COUNT &&
+        new Set(value).size === value.length &&
+        value.every((key) => isFiniteInteger(key) && key >= 0 && !ButtonMapping.isReservedKey(key))
+    );
+}
+
+function isAssignedControllerArray(value: unknown): value is number[] {
+    return (
+        Array.isArray(value) &&
+        value.length <= INPUT_CONFIG_STEP_COUNT &&
+        new Set(value).size === value.length &&
+        value.every(
+            (button) =>
+                isFiniteInteger(button) &&
+                button !== ButtonMapping.NO_BINDING &&
+                (ButtonMapping.isControllerDirection(button) || ButtonMapping.isValidControllerActionBinding(button))
+        )
+    );
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasExactFields(record: Record<string, unknown>, expected: readonly string[]): boolean {
+    const keys = Object.keys(record);
+    return keys.length === expected.length && expected.every((key) => Object.hasOwn(record, key));
+}
+
+function isFiniteInteger(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value) && Number.isInteger(value);
 }
 
 function assignmentsMatchDraft(snapshot: InputConfigModeSnapshot, completedSteps: number): boolean {
