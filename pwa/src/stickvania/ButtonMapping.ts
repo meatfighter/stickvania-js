@@ -104,7 +104,7 @@ export class ButtonMapping {
             const snapshot = JSON.parse(text) as unknown;
             const version = ButtonMapping.getSnapshotVersion(snapshot);
             if (version !== ButtonMapping.VERSION || !ButtonMapping.isSupportedSnapshot(snapshot)) {
-                if (version !== null && version < ButtonMapping.FIRST_PUBLIC_VERSION) {
+                if (version !== null && version >= 1 && version < ButtonMapping.FIRST_PUBLIC_VERSION) {
                     try {
                         localStorage.removeItem(ButtonMapping.STORAGE_KEY);
                     } catch {}
@@ -361,7 +361,7 @@ export class ButtonMapping {
                 return false;
             }
             const version = ButtonMapping.getSnapshotVersion(snapshot);
-            return !(version !== null && version < ButtonMapping.FIRST_PUBLIC_VERSION);
+            return !(version !== null && version >= 1 && version < ButtonMapping.FIRST_PUBLIC_VERSION);
         } catch {
             return true;
         }
