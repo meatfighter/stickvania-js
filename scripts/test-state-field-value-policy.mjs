@@ -49,10 +49,24 @@ try {
     wrongSimonRoot.stage.simon = wrongSimonRoot.stage.checkpoint;
     assert.equal(serializer.isSupportedSnapshot(wrongSimonRoot), false, "stage Simon root must reference a Simon");
 
+    const validRetargetedCheckpoint = structuredClone(valid);
+    const retargeted = validRetargetedCheckpoint.things[validRetargetedCheckpoint.stage.checkpoint];
+    retargeted.fields.stageSegmentIndex = 1;
+    retargeted.fields.regionIndex = 0;
+    validRetargetedCheckpoint.stage.currentSegmentIndex = 1;
+    validRetargetedCheckpoint.stage.segments[1].regionIndex = 0;
+    validRetargetedCheckpoint.stage.platforms = validRetargetedCheckpoint.stage.segments[1].regions[0].platforms;
+    validRetargetedCheckpoint.mainFields.stage = validRetargetedCheckpoint.stage.segments[1].regions[0].stageNumber;
+    assert.equal(
+        serializer.isSupportedSnapshot(validRetargetedCheckpoint),
+        true,
+        "demo-style checkpoint retargeting to another real segment/region is reachable"
+    );
+
     const wrongCheckpointOwnership = structuredClone(valid);
     const currentCheckpoint = wrongCheckpointOwnership.things[wrongCheckpointOwnership.stage.checkpoint];
-    currentCheckpoint.fields.regionIndex = 4;
-    assert.equal(serializer.isSupportedSnapshot(wrongCheckpointOwnership), false, "checkpoint coordinates must agree with owning region");
+    currentCheckpoint.fields.regionIndex = 99;
+    assert.equal(serializer.isSupportedSnapshot(wrongCheckpointOwnership), false, "checkpoint respawn target must name a real region");
 
     const wrongStageNumber = structuredClone(valid);
     wrongStageNumber.stage.segments[0].regions[0].stageNumber = 18;
@@ -83,6 +97,20 @@ try {
         false,
         "loaded-resource preflight must reject a structurally valid wrong-width stage before mutation"
     );
+
+    let stopCalls = 0;
+    const resourceInvalidRestoreMain = {
+        ...createLoadedResourceMain(Main, 9),
+        stopAllSounds() {
+            stopCalls++;
+        }
+    };
+    assert.throws(
+        () => serializer.restoreSnapshot(resourceInvalidRestoreMain, {}, valid),
+        /Unsupported saved game state/,
+        "resource-invalid restore must fail before destructive restore work"
+    );
+    assert.equal(stopCalls, 0, "resource preflight must complete before stopAllSounds");
 
     const wrongResourceRegions = createLoadedResourceMain(Main, 8);
     wrongResourceRegions.loadedSegments[0][0].stage[5][4] = Main.TILE_EMPTY;
@@ -185,11 +213,19 @@ function createValidStageSnapshot(version, fields, policy, songIds) {
         walls: createGrid(11, 9, 0),
         mapWidth: 8,
         regionIndex: 0,
-        regions: numbers.map((stageNumber) => {
+        regions: numbers.map((stageNumber, regionIndex) => {
             const checkpoint = checkpointIds[checkpointCursor++];
+            const segment0Bounds = [
+                [0, 64],
+                [64, 96],
+                [96, 128],
+                [128, 160],
+                [160, 256]
+            ];
+            const bounds = segmentIndex === 0 ? segment0Bounds[regionIndex] : [0, 256];
             return {
-                min: 0,
-                max: 256,
+                min: bounds[0],
+                max: bounds[1],
                 checkpoint,
                 thingStack: createStack(checkpoint === 0 ? [checkpoint, boomerangId] : [checkpoint]),
                 platforms: [],
