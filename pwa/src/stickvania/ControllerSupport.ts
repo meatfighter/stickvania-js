@@ -82,11 +82,15 @@ export class ControllerSupport {
     }
 
     public static isValidButtonDownSnapshot(value: unknown): value is boolean[] {
-        return (
-            Array.isArray(value) &&
-            value.length <= ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT &&
-            value.every((buttonDown) => typeof buttonDown === "boolean")
-        );
+        if (!Array.isArray(value) || value.length > ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT) {
+            return false;
+        }
+        for (let i = 0; i < value.length; i++) {
+            if (typeof value[i] !== "boolean") {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static isDirectionalButton(button: number): boolean {
