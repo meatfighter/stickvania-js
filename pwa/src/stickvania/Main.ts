@@ -491,7 +491,7 @@ export class Main extends BasicGame {
     public requestedSong: Song | null = null;
     public currentMusic: Music | null = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) | null = null;
-    private static readonly inputMappingChangedHandlers = new WeakMap<Main, () => MappingWriteResult>();
+    private static readonly inputMappingChangedHandlers = new WeakMap<Main, (replaceProtected: boolean) => MappingWriteResult>();
     private browserSuspended: boolean = false;
     private input: Input | null = null;
     public buttonMapping: ButtonMapping = ButtonMapping.load();
@@ -2748,7 +2748,7 @@ export class Main extends BasicGame {
         this.initTitleScreen();
     }
 
-    public setInputMappingChangedHandler(handler: (() => MappingWriteResult) | null): void {
+    public setInputMappingChangedHandler(handler: ((replaceProtected: boolean) => MappingWriteResult) | null): void {
         if (handler === null) {
             Main.inputMappingChangedHandlers.delete(this);
         } else {
@@ -2756,8 +2756,8 @@ export class Main extends BasicGame {
         }
     }
 
-    public notifyInputMappingChanged(): MappingWriteResult {
-        return Main.inputMappingChangedHandlers.get(this)?.() ?? { saved: false, reason: "unavailable" };
+    public notifyInputMappingChanged(replaceProtected: boolean = false): MappingWriteResult {
+        return Main.inputMappingChangedHandlers.get(this)?.(replaceProtected) ?? { saved: false, reason: "unavailable" };
     }
 
     private completeStartup(gc: GameContainer): void {
@@ -3928,7 +3928,7 @@ export class Main extends BasicGame {
                     this.fadeReason = Main.FADE_REASON_SHOW_INPUT_CONFIG;
                 } else if (this.titleSelectedIndex == 1) {
                     this.buttonMapping.resetToDefaults();
-                    this.notifyInputMappingChanged();
+                    this.notifyInputMappingChanged(true);
                     this.invalidateTitleInputMappingCache();
                     this.setTitleMenu(Main.TITLE_MENU_INPUT, 1);
                 } else {
