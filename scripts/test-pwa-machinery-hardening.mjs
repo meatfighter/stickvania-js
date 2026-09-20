@@ -100,11 +100,12 @@ test("title default-mapping reset uses the same shell-owned persistence path", (
 test("input mapping persistence is shell-owned and rechecks the current session at write time", () => {
     assert.match(inputConfigSource, /this\.main\.notifyInputMappingChanged\(\)\.saved/);
     assert.doesNotMatch(inputConfigSource, /buttonMapping\.save\(/);
-    assert.match(gameMainSource, /public inputMappingChangedHandler: \(\(\) => MappingWriteResult\) \| null = null/);
+    assert.match(gameMainSource, /private static readonly inputMappingChangedHandlers = new WeakMap<Main, \(\) => MappingWriteResult>\(\)/);
+    assert.match(gameMainSource, /public setInputMappingChangedHandler\(handler: \(\(\) => MappingWriteResult\) \| null\): void/);
     assert.match(gameMainSource, /public notifyInputMappingChanged\(\): MappingWriteResult/);
 
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("appContainer.setAlwaysRender"));
-    assert.match(launch, /mainGame\.inputMappingChangedHandler = \(\) => \{/);
+    assert.match(launch, /mainGame\.setInputMappingChangedHandler\(\(\) => \{/);
     assert.match(launch, /if \(!isCurrentGameSession\(session\) \|\| game !== mainGame\)/);
     assert.match(launch, /mainGame\.buttonMapping\.save\(\s*\(\) => ownership\.owned && isCurrentGameSession\(session\) && game === mainGame\s*\)/s);
 });
