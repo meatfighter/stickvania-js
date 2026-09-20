@@ -209,6 +209,20 @@ test("browser haptics prefers dual-rumble and preserves strong/weak magnitudes",
     ]);
 });
 
+test("malformed actuator getters do not break diagnostic descriptions", () => {
+    const { describeActuator, getActuatorDescriptions } = loadBrowserHaptics();
+    const actuator = {};
+    Object.defineProperty(actuator, "effects", {
+        get() {
+            throw new Error("broken effects getter");
+        }
+    });
+    const gamepad = { vibrationActuator: actuator };
+
+    assert.equal(describeActuator("vibrationActuator", actuator), "vibrationActuator: unavailable");
+    assert.deepEqual(Array.from(getActuatorDescriptions(gamepad)), ["vibrationActuator: unavailable"]);
+});
+
 test("a malformed actuator method getter does not block fallback to another actuator", async () => {
     const { playPulseOnGamepad } = loadBrowserHaptics();
     const pulses = [];
