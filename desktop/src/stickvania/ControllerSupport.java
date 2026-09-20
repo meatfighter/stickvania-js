@@ -139,15 +139,9 @@ public final class ControllerSupport {
         return isAnyControllerLeft();
       case ButtonMapping.CONTROLLER_DIRECTION_RIGHT:
         return isAnyControllerRight();
-      case STANDARD_DPAD_UP:
-        return isAnyControllerUp() || isButtonDown(direction);
-      case STANDARD_DPAD_DOWN:
-        return isAnyControllerDown() || isButtonDown(direction);
-      case STANDARD_DPAD_LEFT:
-        return isAnyControllerLeft() || isButtonDown(direction);
-      case STANDARD_DPAD_RIGHT:
-        return isAnyControllerRight() || isButtonDown(direction);
       default:
+        // Nonnegative mappings are raw physical button indexes. Directional
+        // controls are stored with the negative logical direction constants.
         return isButtonDown(direction);
     }
   }
@@ -171,6 +165,12 @@ public final class ControllerSupport {
   public static boolean isButtonDown(int button) {
     return !isControllerInputUnavailable() && button >= 0
         && button < GAMEPAD_BUTTON_INDEX_LIMIT && sampledButtons[button];
+  }
+
+  public static boolean isNonDirectionalButtonDown(int button) {
+    return !isControllerInputUnavailable() && button >= 0
+        && button < GAMEPAD_BUTTON_INDEX_LIMIT
+        && sampledNonDirectionalButtons[button];
   }
 
   public static boolean isNonDirectionalButtonDown(ButtonMapping mapping) {
