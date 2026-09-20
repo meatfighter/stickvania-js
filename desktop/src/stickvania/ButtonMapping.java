@@ -5,7 +5,7 @@ import org.newdawn.slick.Input;
 
 public class ButtonMapping {
 
-  private static final int VERSION = 6;
+  private static final int VERSION = 7;
   public static final int NO_BINDING = -1;
   public static final int CONTROLLER_DIRECTION_UP = -2;
   public static final int CONTROLLER_DIRECTION_DOWN = -3;
@@ -24,11 +24,6 @@ public class ButtonMapping {
   private static final int DEFAULT_CONTROLLER_DOWN = CONTROLLER_DIRECTION_DOWN;
   private static final int DEFAULT_CONTROLLER_LEFT = CONTROLLER_DIRECTION_LEFT;
   private static final int DEFAULT_CONTROLLER_RIGHT = CONTROLLER_DIRECTION_RIGHT;
-
-  private static final String[] GAMEPAD_BUTTON_TEXT = {
-      "GP-A", "GP-B", "GP-X", "GP-Y", "GP-LB", "GP-RB", "GP-LT",
-      "GP-RT", "GP-VIEW", "GP-MENU", "GP-LS", "GP-RS", "GP-UP",
-      "GP-DOWN", "GP-LEFT", "GP-RIGHT", "GP-HOME" };
 
   public int keyJump = DEFAULT_KEY_JUMP;
   public int keyAttack = DEFAULT_KEY_ATTACK;
@@ -230,14 +225,10 @@ public class ButtonMapping {
     if (button == CONTROLLER_DIRECTION_RIGHT) {
       return "GP-RIGHT";
     }
-    if (button >= 0 && button < GAMEPAD_BUTTON_TEXT.length) {
-      return GAMEPAD_BUTTON_TEXT[button];
+    if (button >= 0) {
+      return "GP-BUTTON-" + (button + 1);
     }
     return "GP-" + button;
-  }
-
-  public static boolean isStandardGamepadDirectionButton(int button) {
-    return button >= 12 && button <= 15;
   }
 
   private static String sanitizeLabel(String label) {
