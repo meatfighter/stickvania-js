@@ -6,6 +6,7 @@ import test from "node:test";
 const rootDir = process.cwd();
 const mainSource = readFileSync(join(rootDir, "pwa", "src", "main.ts"), "utf8");
 const gameMainSource = readFileSync(join(rootDir, "pwa", "src", "stickvania", "Main.ts"), "utf8");
+const inputConfigSource = readFileSync(join(rootDir, "pwa", "src", "stickvania", "InputConfigMode.ts"), "utf8");
 const runtimeLoaderSource = readFileSync(join(rootDir, "pwa", "src", "app", "RuntimeLoader.ts"), "utf8");
 const serviceWorkerSource = readFileSync(join(rootDir, "pwa", "public", "sw.js"), "utf8");
 const stylesSource = readFileSync(join(rootDir, "pwa", "src", "styles.css"), "utf8");
@@ -84,6 +85,18 @@ test("live-menu presentation exits fullscreen before publishing recoverable save
     assert.ok(exitIndex >= 0 && renderIndex > exitIndex && publishIndex > renderIndex);
     const destroyIndex = liveMenu.indexOf("destroyGame();");
     assert.ok(destroyIndex < 0 || destroyIndex < exitIndex || destroyIndex > renderIndex, "ordinary save failure must not destroy the retained game");
+});
+
+test("input mapping persistence is shell-owned and rechecks the current session at write time", () => {
+    assert.match(inputConfigSource, /this\.main\.notifyInputMappingChanged\(\)\.saved/);
+    assert.doesNotMatch(inputConfigSource, /buttonMapping\.save\(/);
+    assert.match(gameMainSource, /public inputMappingChangedHandler: \(\(\) => MappingWriteResult\) \| null = null/);
+    assert.match(gameMainSource, /public notifyInputMappingChanged\(\): MappingWriteResult/);
+
+    const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("appContainer.setAlwaysRender"));
+    assert.match(launch, /mainGame\.inputMappingChangedHandler = \(\) => \{/);
+    assert.match(launch, /if \(!isCurrentGameSession\(session\) \|\| game !== mainGame\)/);
+    assert.match(launch, /mainGame\.buttonMapping\.save\(\s*\(\) => ownership\.owned && isCurrentGameSession\(session\) && game === mainGame\s*\)/s);
 });
 
 test("ownership relinquishment performs the final save before destructive cleanup", () => {
