@@ -225,7 +225,7 @@ public class InputConfigMode implements KeyListener {
       anyButtonDown |= buttonDown;
       if (sample.button == ButtonMapping.NO_BINDING
           && pressed
-          && !ControllerSupport.isDirectionalButton(button)
+          && ControllerSupport.isNonDirectionalButtonDown(button)
           && !isDraftDirectionButton(button)) {
         sample.button = button;
       }
