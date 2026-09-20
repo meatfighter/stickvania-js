@@ -10,7 +10,6 @@ import { BonePillar } from "./BonePillar.js";
 import { Boomerang } from "./Boomerang.js";
 import { BreakWall } from "./BreakWall.js";
 import { BridgeBat } from "./BridgeBat.js";
-import { getBrowserStorageKey } from "./BrowserStorageKeys.js";
 import { ButtonMapping, type MappingWriteResult } from "./ButtonMapping.js";
 import { Candles } from "./Candles.js";
 import { Checkpoint } from "./Checkpoint.js";
@@ -82,7 +81,6 @@ export class Main extends BasicGame {
     public static readonly MODE_INPUT_CONFIG: number = 10;
     public static readonly DIFFICULTY_NORMAL: number = 0;
     public static readonly DIFFICULTY_HARD: number = 1;
-    private static readonly DIFFICULTY_STORAGE_KEY: string = getBrowserStorageKey("difficulty");
     private static readonly HARD_SPAWN_DELAY_MULTIPLIER: number = javaFloat(0.66);
     private static readonly HARD_ATTACK_COOLDOWN_MULTIPLIER: number = javaFloat(0.7);
     private static readonly HARD_BEHAVIOR_DELAY_MULTIPLIER: number = javaFloat(0.75);
@@ -492,10 +490,11 @@ export class Main extends BasicGame {
     public currentMusic: Music | null = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) | null = null;
     private static readonly inputMappingChangedHandlers = new WeakMap<Main, (replaceProtected: boolean) => MappingWriteResult>();
+    private static readonly difficultyChangedHandlers = new WeakMap<Main, (difficulty: number) => boolean>();
     private browserSuspended: boolean = false;
     private input: Input | null = null;
     public buttonMapping: ButtonMapping = ButtonMapping.load();
-    public difficulty: number = Main.loadDifficulty();
+    public difficulty: number = Main.DIFFICULTY_NORMAL;
     public controlInput: StickvaniaInput | null = null;
     private inputConfigMode: InputConfigMode | null = null;
     private recordingIndex: number = 0;
@@ -509,21 +508,17 @@ export class Main extends BasicGame {
         }
     }
 
-    private static loadDifficulty(): number {
-        try {
-            const value = Number.parseInt(localStorage.getItem(Main.DIFFICULTY_STORAGE_KEY) ?? "", 10);
-            if (value == Main.DIFFICULTY_HARD) {
-                return Main.DIFFICULTY_HARD;
-            }
-        } catch {}
-        return Main.DIFFICULTY_NORMAL;
+    public setDifficultyChangedHandler(handler: ((difficulty: number) => boolean) | null): void {
+        if (handler === null) {
+            Main.difficultyChangedHandlers.delete(this);
+        } else {
+            Main.difficultyChangedHandlers.set(this, handler);
+        }
     }
 
     public setDifficulty(difficulty: number): void {
         this.difficulty = difficulty == Main.DIFFICULTY_HARD ? Main.DIFFICULTY_HARD : Main.DIFFICULTY_NORMAL;
-        try {
-            localStorage.setItem(Main.DIFFICULTY_STORAGE_KEY, String(this.difficulty));
-        } catch {}
+        Main.difficultyChangedHandlers.get(this)?.(this.difficulty);
     }
 
     public override init(gc: GameContainer): void {
