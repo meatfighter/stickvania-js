@@ -63,6 +63,8 @@ try {
     assert.equal(ButtonMapping.isValidControllerActionBinding(64), false);
     assert.equal(ButtonMapping.isValidControllerBinding(63), true);
     assert.equal(ButtonMapping.isValidControllerBinding(64), false);
+    assert.equal(ButtonMapping.isValidKeyBinding(999), false);
+    assert.equal(ButtonMapping.isValidKeyBinding(0x90), false, "legacy-only Slick keys not emitted by the browser must be rejected");
 
     const serializer = new StickvaniaGameStateSerializer();
     assert.equal(serializer.isThingIdArray([null, 0], 1), true);
