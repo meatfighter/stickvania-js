@@ -24,6 +24,7 @@ public class InputConfigMode implements KeyListener {
   private final Main main;
   private final Set<Integer> assignedKeys = new HashSet<Integer>();
   private final Set<Integer> assignedControllerButtons = new HashSet<Integer>();
+  private final Set<Integer> blockedKeysUntilRelease = new HashSet<Integer>();
   private final boolean[] controllerButtonDown =
       new boolean[ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT];
   private Input input;
@@ -36,7 +37,15 @@ public class InputConfigMode implements KeyListener {
   private boolean controllerDownDown;
   private boolean controllerLeftDown;
   private boolean controllerRightDown;
+  private boolean captureEpochUsed;
+  private boolean awaitingControllerNeutral;
   private MappingDraft draft;
+
+  private static final class ControllerCaptureSample {
+    int direction = ButtonMapping.NO_BINDING;
+    int button = ButtonMapping.NO_BINDING;
+    boolean anyDown;
+  }
 
   private static final class MappingDraft {
     int keyJump;
@@ -106,9 +115,16 @@ public class InputConfigMode implements KeyListener {
   }
 
   public void keyPressed(int key, char c) {
-    if (!canAcceptInput() || ButtonMapping.isReservedKey(key)) {
+    if (ButtonMapping.isReservedKey(key)) {
       return;
     }
+    if (blockedKeysUntilRelease.contains(key) || !canAcceptInput()) {
+      blockedKeysUntilRelease.add(key);
+      return;
+    }
+
+    captureEpochUsed = true;
+    blockedKeysUntilRelease.add(key);
     if (!bindKey(key)) {
       message = "ALREADY USED";
       return;
@@ -117,6 +133,7 @@ public class InputConfigMode implements KeyListener {
   }
 
   public void keyReleased(int key, char c) {
+    blockedKeysUntilRelease.remove(key);
   }
 
   public void setInput(Input input) {
@@ -131,21 +148,11 @@ public class InputConfigMode implements KeyListener {
   }
 
   public void inputStarted() {
+    captureEpochUsed = false;
   }
 
   private boolean canAcceptInput() {
-    return !finished && armDelay == 0;
-  }
-
-  private void bindControllerDirection(int button) {
-    if (!canAcceptInput() || isActionStep()) {
-      return;
-    }
-    if (!bindControllerButton(button)) {
-      message = "ALREADY USED";
-      return;
-    }
-    advance();
+    return !finished && armDelay == 0 && !captureEpochUsed;
   }
 
   private void bindControllerInputPressed() {
@@ -153,52 +160,86 @@ public class InputConfigMode implements KeyListener {
       syncControllerInputState();
       return;
     }
-    int direction = getPressedControllerDirection();
-    if (direction != ButtonMapping.NO_BINDING && !isActionStep()) {
-      bindControllerDirection(direction);
+
+    ControllerCaptureSample sample = sampleControllerInputState();
+    if (awaitingControllerNeutral) {
+      if (!sample.anyDown) {
+        awaitingControllerNeutral = false;
+      }
       return;
     }
 
-    int button = getPressedNonDirectionalControllerButton();
-    if (button != ButtonMapping.NO_BINDING) {
-      if (!bindControllerButton(button)) {
+    if (sample.direction != ButtonMapping.NO_BINDING && !isActionStep()) {
+      if (!bindControllerButton(sample.direction)) {
         message = "ALREADY USED";
         return;
       }
+      captureEpochUsed = true;
+      awaitingControllerNeutral = sample.anyDown;
+      advance();
+      return;
+    }
+
+    if (sample.button != ButtonMapping.NO_BINDING) {
+      if (!bindControllerButton(sample.button)) {
+        message = "ALREADY USED";
+        return;
+      }
+      captureEpochUsed = true;
+      awaitingControllerNeutral = sample.anyDown;
       advance();
     }
   }
 
-  private int getPressedControllerDirection() {
-    if (isControllerUpPressed()) {
-      return ButtonMapping.CONTROLLER_DIRECTION_UP;
-    }
-    if (isControllerDownPressed()) {
-      return ButtonMapping.CONTROLLER_DIRECTION_DOWN;
-    }
-    if (isControllerLeftPressed()) {
-      return ButtonMapping.CONTROLLER_DIRECTION_LEFT;
-    }
-    if (isControllerRightPressed()) {
-      return ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
-    }
-    return ButtonMapping.NO_BINDING;
-  }
+  private ControllerCaptureSample sampleControllerInputState() {
+    ControllerCaptureSample sample = new ControllerCaptureSample();
 
-  private int getPressedNonDirectionalControllerButton() {
-    int pressedButton = ButtonMapping.NO_BINDING;
+    boolean up = ControllerSupport.isUpDown();
+    boolean down = ControllerSupport.isDownDown();
+    boolean left = ControllerSupport.isLeftDown();
+    boolean right = ControllerSupport.isRightDown();
+    boolean upPressed = up && !controllerUpDown;
+    boolean downPressed = down && !controllerDownDown;
+    boolean leftPressed = left && !controllerLeftDown;
+    boolean rightPressed = right && !controllerRightDown;
+    controllerUpDown = up;
+    controllerDownDown = down;
+    controllerLeftDown = left;
+    controllerRightDown = right;
+
+    if (upPressed) {
+      sample.direction = ButtonMapping.CONTROLLER_DIRECTION_UP;
+    } else if (downPressed) {
+      sample.direction = ButtonMapping.CONTROLLER_DIRECTION_DOWN;
+    } else if (leftPressed) {
+      sample.direction = ButtonMapping.CONTROLLER_DIRECTION_LEFT;
+    } else if (rightPressed) {
+      sample.direction = ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
+    }
+
+    boolean anyButtonDown = false;
     for(int button = 0; button < controllerButtonDown.length; button++) {
-      boolean down = ControllerSupport.isButtonDown(button);
-      boolean pressed = down && !controllerButtonDown[button];
-      controllerButtonDown[button] = down;
-      if (pressedButton == ButtonMapping.NO_BINDING
+      boolean buttonDown = ControllerSupport.isButtonDown(button);
+      boolean pressed = buttonDown && !controllerButtonDown[button];
+      controllerButtonDown[button] = buttonDown;
+      anyButtonDown |= buttonDown;
+      if (sample.button == ButtonMapping.NO_BINDING
           && pressed
           && !ControllerSupport.isDirectionalButton(button)
           && !isDraftDirectionButton(button)) {
-        pressedButton = button;
+        sample.button = button;
       }
     }
-    return pressedButton;
+    sample.anyDown = up || down || left || right || anyButtonDown;
+    return sample;
+  }
+
+  private int getPressedControllerDirection() {
+    return sampleControllerInputState().direction;
+  }
+
+  private int getPressedNonDirectionalControllerButton() {
+    return sampleControllerInputState().button;
   }
 
   private boolean bindKey(int key) {
@@ -362,34 +403,6 @@ public class InputConfigMode implements KeyListener {
         || draft.controllerDown == button
         || draft.controllerLeft == button
         || draft.controllerRight == button;
-  }
-
-  private boolean isControllerUpPressed() {
-    boolean down = ControllerSupport.isUpDown();
-    boolean pressed = down && !controllerUpDown;
-    controllerUpDown = down;
-    return pressed;
-  }
-
-  private boolean isControllerDownPressed() {
-    boolean down = ControllerSupport.isDownDown();
-    boolean pressed = down && !controllerDownDown;
-    controllerDownDown = down;
-    return pressed;
-  }
-
-  private boolean isControllerLeftPressed() {
-    boolean down = ControllerSupport.isLeftDown();
-    boolean pressed = down && !controllerLeftDown;
-    controllerLeftDown = down;
-    return pressed;
-  }
-
-  private boolean isControllerRightPressed() {
-    boolean down = ControllerSupport.isRightDown();
-    boolean pressed = down && !controllerRightDown;
-    controllerRightDown = down;
-    return pressed;
   }
 
   private void syncControllerInputState() {
