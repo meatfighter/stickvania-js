@@ -209,6 +209,58 @@ test("browser haptics prefers dual-rumble and preserves strong/weak magnitudes",
     ]);
 });
 
+test("a malformed actuator method getter does not block fallback to another actuator", async () => {
+    const { playPulseOnGamepad } = loadBrowserHaptics();
+    const pulses = [];
+    const brokenActuator = {};
+    Object.defineProperty(brokenActuator, "playEffect", {
+        get() {
+            throw new Error("broken playEffect getter");
+        }
+    });
+    const gamepad = {
+        vibrationActuator: brokenActuator,
+        hapticActuators: [
+            {
+                async pulse(value, duration) {
+                    pulses.push({ value, duration });
+                    return true;
+                }
+            }
+        ]
+    };
+
+    assert.equal(await playPulseOnGamepad(gamepad, { duration: 90, strong: 0.25, weak: 0.6 }), "hapticActuators[0].pulse: started");
+    assert.deepEqual(pulses, [{ value: 0.6, duration: 90 }]);
+});
+
+test("a malformed stop actuator does not block cleanup of another actuator", async () => {
+    const { silenceGamepads } = loadBrowserHaptics();
+    const pulses = [];
+    const brokenActuator = {};
+    Object.defineProperty(brokenActuator, "reset", {
+        get() {
+            throw new Error("broken reset getter");
+        }
+    });
+    const goodActuator = {
+        async pulse(value, duration) {
+            pulses.push({ value, duration });
+            return true;
+        }
+    };
+
+    await assert.doesNotReject(
+        silenceGamepads([
+            {
+                vibrationActuator: brokenActuator,
+                hapticActuators: [brokenActuator, goodActuator]
+            }
+        ])
+    );
+    assert.deepEqual(pulses, [{ value: 0, duration: 1 }]);
+});
+
 test("browser haptics falls back from a failed vibration actuator to legacy pulse", async () => {
     const { playPulseOnGamepad } = loadBrowserHaptics();
     const pulses = [];
