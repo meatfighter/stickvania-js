@@ -46,7 +46,9 @@ try {
     const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } = await server.ssrLoadModule(
         "/src/stickvania/persistence/GameStateSchema.ts"
     );
-    const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
+    const { hasPotentialStoredStickvaniaGameState, inspectPotentialStoredStickvaniaGameState } = await server.ssrLoadModule(
+        "/src/stickvania/persistence/GameStatePreflight.ts"
+    );
     const { THING_PERSISTED_STATE_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/persistence/StateFieldRegistry.generated.ts");
 
     assert.equal(GAME_STATE_VERSION, 17);
@@ -550,6 +552,10 @@ try {
     const futureText = JSON.stringify(future);
     storage.setItem(GAME_STATE_STORAGE_KEY, futureText);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
+    assert.deepEqual(inspectPotentialStoredStickvaniaGameState(storage), {
+        status: "unsupported-future",
+        version: GAME_STATE_VERSION + 1
+    });
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), futureText);
 
     const missingPreflightSounds = createPotentialSnapshot(GAME_STATE_VERSION);
@@ -582,11 +588,13 @@ try {
     const malformed = "{";
     storage.setItem(GAME_STATE_STORAGE_KEY, malformed);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
+    assert.deepEqual(inspectPotentialStoredStickvaniaGameState(storage), { status: "invalid" });
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), malformed);
 
     const oversized = "x".repeat(MAX_GAME_STATE_TEXT_LENGTH + 1);
     storage.setItem(GAME_STATE_STORAGE_KEY, oversized);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
+    assert.deepEqual(inspectPotentialStoredStickvaniaGameState(storage), { status: "invalid" });
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), oversized);
 
     const originalStateLocalStorage = globalThis.localStorage;
