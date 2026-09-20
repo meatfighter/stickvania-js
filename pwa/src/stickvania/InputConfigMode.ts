@@ -75,6 +75,10 @@ export class InputConfigMode implements KeyListener {
         this.main.clearInputPressedRecords();
     }
 
+    public resyncControllerStateAfterBrowserResume(): void {
+        this.syncControllerInputState();
+    }
+
     public createSnapshot(): InputConfigModeSnapshot {
         return {
             stepIndex: this.stepIndex,
