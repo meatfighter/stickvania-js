@@ -295,10 +295,18 @@ try {
         buttonMapping: new ButtonMapping(),
         clearInputPressedRecords() {}
     });
+    let heldControllerButton = 0;
     const restoredInput = {
         setAdditionalControllerDirectionAxes() {},
         addKeyListener() {},
-        removeKeyListener() {}
+        removeKeyListener() {},
+        getControllerCount: () => 1,
+        getButtonCount: () => 17,
+        isControllerUp: () => false,
+        isControllerDown: () => false,
+        isControllerLeft: () => false,
+        isControllerRight: () => false,
+        isButtonPressed: (button) => button === heldControllerButton
     };
     restoredInputConfig.restoreSnapshot({ getInput: () => restoredInput }, capturedRuntimeInputConfig);
     const roundTrippedInputConfig = restoredInputConfig.createSnapshot();
@@ -307,6 +315,22 @@ try {
     assert.equal(roundTrippedInputConfig.message, "ALREADY USED");
     assert.deepEqual(roundTrippedInputConfig.assignedControllerButtons, [0]);
     assert.equal(serializer.isInputConfigSnapshotShape(roundTrippedInputConfig), true, "restored runtime-sized input-config state must remain valid");
+
+    restoredInputConfig.controllerButtonDown.fill(false);
+    restoredInputConfig.resyncControllerStateAfterBrowserResume();
+    assert.equal(
+        restoredInputConfig.getPressedNonDirectionalControllerButton(),
+        ButtonMapping.NO_BINDING,
+        "a button already held while the browser menu owned input must become the resumed baseline, not a fresh binding"
+    );
+    heldControllerButton = -1;
+    restoredInputConfig.resyncControllerStateAfterBrowserResume();
+    heldControllerButton = 1;
+    assert.equal(
+        restoredInputConfig.getPressedNonDirectionalControllerButton(),
+        1,
+        "a button pressed after browser resume must still produce a fresh input-config edge"
+    );
 
     const inputSnapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     inputSnapshot.inputConfigMode = createInputConfigSnapshot(17);
