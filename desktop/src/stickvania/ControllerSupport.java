@@ -22,10 +22,6 @@ public final class ControllerSupport {
   private static final int NAMED_RY_AXIS_SLOT = GAMEPAD_AXIS_LIMIT + 4;
   private static final float AXIS_THRESHOLD = 0.5f;
   private static final float AXIS_RECENTER_THRESHOLD = 0.05f;
-  private static final int STANDARD_DPAD_UP = 12;
-  private static final int STANDARD_DPAD_DOWN = 13;
-  private static final int STANDARD_DPAD_LEFT = 14;
-  private static final int STANDARD_DPAD_RIGHT = 15;
   private static final Object POLL_LOG_FILTER_LOCK = new Object();
 
   private static boolean jinputReflectionInitialized;
@@ -198,7 +194,7 @@ public final class ControllerSupport {
         return true;
       }
     }
-    return button >= STANDARD_DPAD_UP && button <= STANDARD_DPAD_RIGHT;
+    return false;
   }
 
   private static boolean isAnyControllerUp() {
@@ -737,31 +733,12 @@ public final class ControllerSupport {
 
   private static boolean isDirectionalButton(int button,
       Controller controller) {
-    if (getButtonDirection(button, controller) != ButtonMapping.NO_BINDING) {
-      return true;
-    }
-    return button >= STANDARD_DPAD_UP && button <= STANDARD_DPAD_RIGHT;
+    return getButtonDirection(button, controller) != ButtonMapping.NO_BINDING;
   }
 
   private static boolean isDirectionalButton(int button,
       Controller controller, int direction) {
-    int namedDirection = getButtonDirection(button, controller);
-    if (namedDirection != ButtonMapping.NO_BINDING) {
-      return namedDirection == direction;
-    }
-
-    switch(direction) {
-      case ButtonMapping.CONTROLLER_DIRECTION_UP:
-        return button == STANDARD_DPAD_UP;
-      case ButtonMapping.CONTROLLER_DIRECTION_DOWN:
-        return button == STANDARD_DPAD_DOWN;
-      case ButtonMapping.CONTROLLER_DIRECTION_LEFT:
-        return button == STANDARD_DPAD_LEFT;
-      case ButtonMapping.CONTROLLER_DIRECTION_RIGHT:
-        return button == STANDARD_DPAD_RIGHT;
-      default:
-        return false;
-    }
+    return getButtonDirection(button, controller) == direction;
   }
 
   private static int getButtonDirection(int button, Controller controller) {
