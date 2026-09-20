@@ -83,8 +83,12 @@ function isStartingGameSession(session: number, audio: GameAudioAttempt): boolea
     );
 }
 
+function currentPreferenceWriteAuthorized(): boolean {
+    return ownership?.owned === true;
+}
+
 function setAudioVolume(value: number, persist = true): boolean {
-    const saved = preferences.setVolume(value, persist);
+    const saved = preferences.setVolume(value, persist, currentPreferenceWriteAuthorized);
     applyAudioVolume(preferences.volume);
     return saved;
 }
@@ -105,7 +109,7 @@ function applyAudioVolume(value: number): void {
 }
 
 function setDisplayModePreference(value: DisplayModePreference): boolean {
-    const saved = preferences.setDisplayMode(value);
+    const saved = preferences.setDisplayMode(value, currentPreferenceWriteAuthorized);
     if (game !== null) {
         applyDisplayModePreference(game);
     }
@@ -118,13 +122,13 @@ function applyDisplayModePreference(target: Main): void {
 }
 
 function setScalingPreference(value: StickvaniaScalingPreference): boolean {
-    const saved = preferences.setScaling(value);
+    const saved = preferences.setScaling(value, currentPreferenceWriteAuthorized);
     activeBufferedGame?.setScalingPreference(value);
     return saved;
 }
 
 function setFullscreenPreference(value: boolean): boolean {
-    return preferences.setFullscreen(value);
+    return preferences.setFullscreen(value, currentPreferenceWriteAuthorized);
 }
 
 function getRumbleManager(): RumbleManager {
@@ -136,7 +140,7 @@ function getRumbleManager(): RumbleManager {
 }
 
 function setRumbleEnabled(value: boolean): boolean {
-    const saved = preferences.setRumbleEnabled(value);
+    const saved = preferences.setRumbleEnabled(value, currentPreferenceWriteAuthorized);
     const manager = getRumbleManager();
     manager.setEnabled(value);
     if (game !== null) {
@@ -241,7 +245,7 @@ function resetPwaState(): void {
         return;
     }
     pwaSessionState = "menu";
-    const cleared = preferences.reset();
+    const cleared = preferences.reset(currentPreferenceWriteAuthorized);
     applyApplicationAudioPreferences();
     const manager = getRumbleManager();
     manager.setEnabled(preferences.rumbleEnabled);
@@ -312,6 +316,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     }
     const mainGame = new runtime.Main();
     let restoreFailed = false;
+    mainGame.difficulty = preferences.difficulty;
     applyDisplayModePreference(mainGame);
     mainGame.rumble = getRumbleManager();
     const bufferedGame = new runtime.StickvaniaBufferedGame(mainGame, preferences.scaling);
@@ -334,6 +339,12 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
             replaceProtected
         );
     });
+    mainGame.setDifficultyChangedHandler((difficulty) =>
+        preferences.setDifficulty(
+            difficulty,
+            () => ownership.owned && isCurrentGameSession(session) && game === mainGame
+        )
+    );
     viewport.attach(appContainer, session);
     appContainer.setGraphicsLifecycleHandler((state) => {
         if (state === "lost" && isCurrentGameSession(session)) {
