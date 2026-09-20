@@ -52,7 +52,7 @@ export function getConnectedGamepads(): HapticGamepad[] {
         return [];
     }
     try {
-        return Array.from(navigator.getGamepads()).filter((gamepad): gamepad is HapticGamepad => gamepad !== null && gamepad.connected);
+        return Array.from(navigator.getGamepads()).filter((gamepad): gamepad is HapticGamepad => gamepad != null && gamepad.connected);
     } catch {
         return [];
     }
