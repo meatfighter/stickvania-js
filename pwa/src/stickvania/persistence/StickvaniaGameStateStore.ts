@@ -45,7 +45,7 @@ export class StickvaniaGameStateStore {
     public restore(main: Main, gc: GameContainer): boolean {
         try {
             const snapshot = this.readSnapshot();
-            if (snapshot === null) {
+            if (snapshot === null || !this.serializer.isSupportedSnapshotForLoadedResources(main, snapshot)) {
                 return false;
             }
             resetStopWatchMusicHold();
