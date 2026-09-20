@@ -2763,10 +2763,6 @@ export class Main extends BasicGame {
         return this.isStageStateRequiredForStateSave() && this.hasStageStateForStateSave();
     }
 
-    public isLiveMenuOverlayAllowed(): boolean {
-        return this.mode != Main.MODE_INPUT_CONFIG;
-    }
-
     private isStageStateRequiredForStateSave(): boolean {
         return isStageRequiredGameStateMode(this.mode);
     }
