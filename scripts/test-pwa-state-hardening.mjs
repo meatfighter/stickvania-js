@@ -713,6 +713,22 @@ try {
         }
         assert.equal(mappingStorage.getItem(mappingKey), "{");
 
+        const unknownVersion = { ...sameVersionSnapshot, version: 0 };
+        delete unknownVersion.obsoleteField;
+        const unknownVersionText = JSON.stringify(unknownVersion);
+        mappingStorage.setItem(mappingKey, unknownVersionText);
+        const unknownVersionFallback = ButtonMapping.load();
+        assert.equal(unknownVersionFallback.keyJump, 45);
+        assert.equal(mappingStorage.getItem(mappingKey), unknownVersionText);
+        const quietUnknownWarn = console.warn;
+        console.warn = () => {};
+        try {
+            assert.deepEqual(mapping.save(() => true), { saved: false, reason: "protected" });
+        } finally {
+            console.warn = quietUnknownWarn;
+        }
+        assert.equal(mappingStorage.getItem(mappingKey), unknownVersionText);
+
         const obsoletePrepublic = { ...sameVersionSnapshot, version: 6 };
         delete obsoletePrepublic.obsoleteField;
         mappingStorage.setItem(mappingKey, JSON.stringify(obsoletePrepublic));
