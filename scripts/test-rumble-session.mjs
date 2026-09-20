@@ -16,7 +16,7 @@ function deferred() {
     return { promise, resolve };
 }
 
-function fixture({ enabled = true, restore = true } = {}) {
+function fixture({ enabled = true, restore = true, rejectHaptics = false } = {}) {
     const noop = () => {};
     const events = { pulses: 0, restores: 0, continuous: 0, loopResumes: 0 };
     const runtimeControls = { display: () => Promise.resolve(), focus: noop };
@@ -44,10 +44,10 @@ function fixture({ enabled = true, restore = true } = {}) {
             if (id === "./BrowserHaptics.js") {
                 return {
                     getConnectedGamepads: () => [{}],
-                    silenceGamepads: () => Promise.resolve(),
+                    silenceGamepads: () => (rejectHaptics ? Promise.reject(new Error("haptic silence failed")) : Promise.resolve()),
                     playPulseOnGamepad: () => {
                         events.pulses++;
-                        return Promise.resolve();
+                        return rejectHaptics ? Promise.reject(new Error("haptic pulse failed")) : Promise.resolve();
                     }
                 };
             }
@@ -377,6 +377,21 @@ for (const enabled of [true, false]) {
         });
     }
 }
+
+test("best-effort haptic promise failures do not escape stop or play operations", async () => {
+    const f = fixture({ rejectHaptics: true });
+    const manager = f.getRumbleManager();
+
+    manager.stopAll();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    await f.startGame(false);
+    manager.play("test");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(f.state().phase, "running");
+    assert.equal(f.events.pulses, 1);
+});
 
 test("New Game after a live-menu transition reuses and unsuspends the page-lifetime manager", async () => {
     const f = fixture();
