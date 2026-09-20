@@ -264,8 +264,19 @@ export class InputConfigMode implements KeyListener {
         this.message = snapshot.message;
         this.finished = snapshot.finished;
         this.draft = this.cloneDraft(snapshot.draft);
-        this.assignedKeys = new Set(snapshot.assignedKeys);
-        this.assignedControllerButtons = new Set(snapshot.assignedControllerButtons);
+        this.assignedKeys.clear();
+        for (const key of snapshot.assignedKeys) {
+            this.assignedKeys.add(key);
+        }
+        this.assignedControllerButtons.clear();
+        for (const button of snapshot.assignedControllerButtons) {
+            this.assignedControllerButtons.add(button);
+        }
+        if (this.finished) {
+            // The draft was already committed before the snapshot was captured.
+            // Restore the same in-memory mapping without replaying the preference write.
+            this.commitDraft();
+        }
         this.syncControllerInputState();
         this.main.clearInputPressedRecords();
     }
