@@ -50,6 +50,7 @@ try {
         "/src/stickvania/persistence/GameStatePreflight.ts"
     );
     const { THING_PERSISTED_STATE_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/persistence/StateFieldRegistry.generated.ts");
+    const { canRegisteredSimonActionStart, registerPlayerActionMain } = await server.ssrLoadModule("/src/stickvania/PlayerActionPolicy.ts");
 
     assert.equal(GAME_STATE_VERSION, 17);
     assert.match(GAME_STATE_STORAGE_KEY, /game-state-v17$/);
@@ -622,6 +623,43 @@ try {
                 return true;
             }
         };
+
+        const previousActionOwner = {
+            mode: 4,
+            stageIndex: 0,
+            floorBreaking: false,
+            playerPower: 16,
+            time: 300,
+            beatStageFlag: false,
+            door: null,
+            simon: {
+                dead: 0,
+                hurt: false,
+                flashing: 0,
+                y: 100,
+                onStairs: false
+            }
+        };
+        registerPlayerActionMain(previousActionOwner);
+        assert.equal(canRegisteredSimonActionStart(), true);
+
+        stateStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify({ version: GAME_STATE_VERSION, valid: true, marker: "restore-failure" }));
+        const failingRestoreMain = {
+            weaponsStack: null,
+            weaponsStackSwap: null
+        };
+        const quietRestoreWarn = console.warn;
+        console.warn = () => {};
+        try {
+            assert.equal(store.restore(failingRestoreMain, {}), false);
+        } finally {
+            console.warn = quietRestoreWarn;
+        }
+        assert.equal(
+            canRegisteredSimonActionStart(),
+            true,
+            "a candidate that fails after serializer restore must not replace the prior input-side action owner"
+        );
 
         stateStorage.setItem(
             GAME_STATE_STORAGE_KEY,
