@@ -334,7 +334,7 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
 
-        return true;
+        return this.isThingGraphFullyReachable(snapshot, thingSnapshots);
     }
 
     private isSegmentSnapshotValid(
@@ -418,6 +418,71 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
         return true;
+    }
+
+    private isThingGraphFullyReachable(stage: StageSnapshot, things: readonly ThingSnapshot[]): boolean {
+        const reachable = new Set<number>();
+        const queue: number[] = [];
+        const add = (id: number | null): void => {
+            if (id !== null && !reachable.has(id)) {
+                reachable.add(id);
+                queue.push(id);
+            }
+        };
+        const addStack = (stack: ThingStackSnapshot): void => {
+            for (const id of stack.$stack.things) add(id);
+        };
+        const addIds = (ids: readonly (number | null)[]): void => {
+            for (const id of ids) add(id);
+        };
+
+        add(stage.checkpoint);
+        add(stage.simon);
+        add(stage.door);
+        addIds(stage.platforms ?? []);
+        addStack(stage.regionThingStack);
+        addStack(stage.regionStackSwap);
+        addStack(stage.weaponsStack);
+        addStack(stage.weaponsStackSwap);
+        addStack(stage.oldThingStack);
+        for (const segment of stage.segments) {
+            for (const region of segment.regions) {
+                add(region.checkpoint);
+                addIds(region.platforms);
+                addStack(region.thingStack);
+            }
+        }
+
+        while (queue.length > 0) {
+            const id = queue.pop()!;
+            const thing = things[id];
+            if (thing === undefined) {
+                return false;
+            }
+            this.visitEncodedThingReferences(thing.fields, add);
+        }
+        return reachable.size === things.length;
+    }
+
+    private visitEncodedThingReferences(value: EncodedValue | EncodedRecord, add: (id: number | null) => void): void {
+        if (value === null || value === undefined || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+            return;
+        }
+        if (Array.isArray(value)) {
+            for (const entry of value) this.visitEncodedThingReferences(entry as EncodedValue, add);
+            return;
+        }
+        if (this.hasOwn(value, "$thing")) {
+            add((value as { $thing: number | null }).$thing);
+            return;
+        }
+        if (this.hasOwn(value, "$stack")) {
+            for (const id of (value as ThingStackSnapshot).$stack.things) add(id);
+            return;
+        }
+        for (const child of Object.values(value)) {
+            this.visitEncodedThingReferences(child as EncodedValue, add);
+        }
     }
 
     private isMapGridSnapshot(value: unknown, mapWidth: number): value is number[][] {
