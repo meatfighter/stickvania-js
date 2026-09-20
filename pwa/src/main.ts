@@ -620,13 +620,16 @@ function removeMenuOverlay(): void {
 }
 
 function saveCurrentGameState(): boolean {
-    if (!ownership?.owned) {
+    const mainGame = game;
+    if (!ownership?.owned || mainGame === null || !mainGame.isStateSaveReady()) {
         return false;
     }
-    if (game === null || !game.isStateSaveReady()) {
+    const store = getLoadedGameStateStore();
+    if (store === null) {
         return false;
     }
-    return getLoadedGameStateStore()?.save(game) ?? false;
+    const result = store.save(mainGame, () => ownership?.owned === true && game === mainGame);
+    return result.saved;
 }
 
 function clearStoredGameState(): void {
