@@ -50,8 +50,6 @@ try {
 
     assert.equal(GAME_STATE_VERSION, 17);
     assert.match(GAME_STATE_STORAGE_KEY, /game-state-v17$/);
-    assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v17 must not persist derived StopWatch aggregate state");
-
 
     for (const field of ["releasedJump", "releasedKneel", "releasedWhip"]) {
         assert.equal(
@@ -76,6 +74,7 @@ try {
     assert.equal(serializer.isThingIdArray([Number.NaN], 1), false);
 
     const snapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
+    assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v17 must not persist derived StopWatch aggregate state");
     assert.equal(isReasonableStickvaniaGameStateSnapshot(snapshot), true);
 
     for (const timeIncrementor of [0, 90]) {
