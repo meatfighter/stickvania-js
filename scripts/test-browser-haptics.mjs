@@ -92,6 +92,18 @@ test("null vibrationActuator still permits a legacy hapticActuators fallback", a
     ]);
 });
 
+test("sparse gamepad enumeration ignores nullish slots", () => {
+    const connected = { connected: true };
+    const disconnected = { connected: false };
+    const { getConnectedGamepads } = loadBrowserHaptics({
+        navigator: {
+            getGamepads: () => [undefined, null, disconnected, connected]
+        }
+    });
+
+    assert.deepEqual(Array.from(getConnectedGamepads()), [connected]);
+});
+
 test("gamepad enumeration failure is treated as no connected gamepads", () => {
     const { getConnectedGamepads } = loadBrowserHaptics({
         navigator: {
