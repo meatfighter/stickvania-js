@@ -51,18 +51,25 @@ export function getConnectedGamepads(): HapticGamepad[] {
     if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") {
         return [];
     }
-    return Array.from(navigator.getGamepads()).filter((gamepad): gamepad is HapticGamepad => gamepad !== null && gamepad.connected);
+    try {
+        return Array.from(navigator.getGamepads()).filter((gamepad): gamepad is HapticGamepad => gamepad !== null && gamepad.connected);
+    } catch {
+        return [];
+    }
 }
 
 export function getHapticActuators(gamepad: Gamepad): HapticActuator[] {
-    const hapticGamepad = gamepad as HapticGamepad;
-    return Array.from(hapticGamepad.hapticActuators ?? []).filter((actuator): actuator is HapticActuator => actuator !== null);
+    try {
+        const hapticGamepad = gamepad as HapticGamepad;
+        return Array.from(hapticGamepad.hapticActuators ?? []).filter((actuator): actuator is HapticActuator => actuator != null);
+    } catch {
+        return [];
+    }
 }
 
 export function getActuatorDescriptions(gamepad: Gamepad): string[] {
-    const hapticGamepad = gamepad as HapticGamepad;
     const descriptions: string[] = [];
-    const vibrationActuator = hapticGamepad.vibrationActuator;
+    const vibrationActuator = getVibrationActuator(gamepad);
     if (vibrationActuator != null) {
         descriptions.push(describeActuator("vibrationActuator", vibrationActuator));
     }
@@ -112,10 +119,17 @@ export function describeActuator(label: string, actuator: HapticActuator): strin
     return `${label}: ${methods.join("/") || "no methods"}; ${effects}`;
 }
 
+function getVibrationActuator(gamepad: Gamepad): HapticActuator | null {
+    try {
+        return (gamepad as HapticGamepad).vibrationActuator ?? null;
+    } catch {
+        return null;
+    }
+}
+
 function getDistinctLabeledActuators(gamepad: Gamepad): LabeledActuator[] {
-    const hapticGamepad = gamepad as HapticGamepad;
     const candidates: LabeledActuator[] = [];
-    const vibrationActuator = hapticGamepad.vibrationActuator;
+    const vibrationActuator = getVibrationActuator(gamepad);
     if (vibrationActuator != null) {
         candidates.push({ label: "vibrationActuator", actuator: vibrationActuator });
     }
