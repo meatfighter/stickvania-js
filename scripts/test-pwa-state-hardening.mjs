@@ -258,6 +258,22 @@ try {
 
     const liveInputConfigSnapshot = createInputConfigSnapshot();
     assert.equal(serializer.isInputConfigSnapshotShape(liveInputConfigSnapshot), true);
+    const validCompletedInputConfig = createInputConfigSnapshot();
+    validCompletedInputConfig.stepIndex = 1;
+    validCompletedInputConfig.armDelay = 0;
+    validCompletedInputConfig.assignedKeys = [200];
+    assert.equal(serializer.isInputConfigSnapshotShape(validCompletedInputConfig), true);
+
+    const staleCompletedInputConfig = clone(validCompletedInputConfig);
+    staleCompletedInputConfig.assignedKeys = [999];
+    assert.equal(serializer.isInputConfigSnapshotShape(staleCompletedInputConfig), false);
+
+    const duplicateCompletedInputConfig = clone(validCompletedInputConfig);
+    duplicateCompletedInputConfig.stepIndex = 2;
+    duplicateCompletedInputConfig.assignedKeys = [200, 200];
+    assert.equal(serializer.isInputConfigSnapshotShape(duplicateCompletedInputConfig), false);
+
+
     assert.deepEqual(
         Object.keys(liveInputConfigSnapshot).sort(),
         ["armDelay", "assignedControllerButtons", "assignedKeys", "doneDelay", "draft", "finished", "message", "stepIndex"].sort(),
