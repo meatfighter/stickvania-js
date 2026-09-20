@@ -17,6 +17,8 @@ type ButtonMappingSnapshot = {
     controllerRight: number;
 };
 
+const ControllerSupportButtonLimit = 64;
+
 export class ButtonMapping {
     private static readonly STORAGE_KEY = getBrowserStorageKey("input-mapping");
     private static readonly VERSION = 6;
@@ -320,12 +322,18 @@ export class ButtonMapping {
         return (
             typeof value === "number" &&
             Number.isInteger(value) &&
-            (value === ButtonMapping.NO_BINDING || ButtonMapping.isControllerDirection(value) || value >= 0)
+            (value === ButtonMapping.NO_BINDING ||
+                ButtonMapping.isControllerDirection(value) ||
+                (value >= 0 && value < ControllerSupportButtonLimit))
         );
     }
 
     public static isValidControllerActionBinding(value: unknown): value is number {
-        return typeof value === "number" && Number.isInteger(value) && (value === ButtonMapping.NO_BINDING || value >= 0);
+        return (
+            typeof value === "number" &&
+            Number.isInteger(value) &&
+            (value === ButtonMapping.NO_BINDING || (value >= 0 && value < ControllerSupportButtonLimit))
+        );
     }
 
     public static isValidBinding(value: unknown): value is number {
