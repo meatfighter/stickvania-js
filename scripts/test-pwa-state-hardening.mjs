@@ -244,6 +244,20 @@ try {
     finalStageOneHpWithWatch.mainFields.enemyPower = 1;
     assert.equal(isReasonableStickvaniaGameStateSnapshot(finalStageOneHpWithWatch), true);
 
+    const runtimeSizedInputConfig = createInputConfigSnapshot(17);
+    runtimeSizedInputConfig.message = "ALREADY USED";
+    assert.equal(serializer.isInputConfigSnapshotShape(runtimeSizedInputConfig), true, "runtime-sized controller edge state must be saveable");
+
+    const noControllerInputConfig = createInputConfigSnapshot(0);
+    assert.equal(serializer.isInputConfigSnapshotShape(noControllerInputConfig), true, "keyboard-only input config must be saveable");
+
+    const oversizedControllerState = createInputConfigSnapshot(65);
+    assert.equal(serializer.isInputConfigSnapshotShape(oversizedControllerState), false, "controller edge state must remain bounded");
+
+    const invalidControllerState = createInputConfigSnapshot(17);
+    invalidControllerState.controllerButtonDown[3] = 1;
+    assert.equal(serializer.isInputConfigSnapshotShape(invalidControllerState), false, "controller edge state entries must remain boolean");
+
     const inputSnapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     inputSnapshot.inputConfigMode = createInputConfigSnapshot();
     assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), true);
@@ -419,7 +433,7 @@ function createSoundPlayback(voices, activeVoiceIndex = voices.length === 0 ? nu
     return { voices, activeVoiceIndex };
 }
 
-function createInputConfigSnapshot() {
+function createInputConfigSnapshot(controllerButtonCount = 64) {
     return {
         stepIndex: 0,
         doneDelay: 0,
@@ -442,7 +456,7 @@ function createInputConfigSnapshot() {
         },
         assignedKeys: [],
         assignedControllerButtons: [],
-        controllerButtonDown: new Array(64).fill(false),
+        controllerButtonDown: new Array(controllerButtonCount).fill(false),
         controllerUpDown: false,
         controllerDownDown: false,
         controllerLeftDown: false,
