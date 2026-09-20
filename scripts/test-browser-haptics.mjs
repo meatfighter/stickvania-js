@@ -60,6 +60,38 @@ test("missing browser Gamepad API is unavailable for rumble", () => {
     assert.equal(getBrowserRumbleCapability(), "unavailable");
 });
 
+test("null vibrationActuator is treated as an unsupported controller rather than an actuator", async () => {
+    const { getActuatorDescriptions, playPulseOnGamepad, silenceGamepads } = loadBrowserHaptics();
+    const gamepad = { vibrationActuator: null };
+
+    assert.deepEqual(Array.from(getActuatorDescriptions(gamepad)), []);
+    assert.equal(await playPulseOnGamepad(gamepad, { duration: 80, strong: 0.5, weak: 0.5 }), "no supported haptic actuator");
+    await assert.doesNotReject(silenceGamepads([gamepad]));
+});
+
+test("null vibrationActuator still permits a legacy hapticActuators fallback", async () => {
+    const { playPulseOnGamepad, silenceGamepads } = loadBrowserHaptics();
+    const pulses = [];
+    const gamepad = {
+        vibrationActuator: null,
+        hapticActuators: [
+            {
+                async pulse(value, duration) {
+                    pulses.push({ value, duration });
+                    return true;
+                }
+            }
+        ]
+    };
+
+    assert.equal(await playPulseOnGamepad(gamepad, { duration: 90, strong: 0.25, weak: 0.6 }), "hapticActuators[0].pulse: started");
+    await silenceGamepads([gamepad]);
+    assert.deepEqual(pulses, [
+        { value: 0.6, duration: 90 },
+        { value: 0, duration: 1 }
+    ]);
+});
+
 test("browser haptics prefers dual-rumble and preserves strong/weak magnitudes", async () => {
     const { playPulseOnGamepad } = loadBrowserHaptics();
     const calls = [];
