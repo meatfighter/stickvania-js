@@ -398,6 +398,7 @@ test("new rumble ownership invalidates fallback work from an earlier stop", asyn
 
     manager.stopAll();
     const staleStop = f.events.silencePredicates.at(-1);
+    assert.equal(typeof staleStop, "function");
     assert.equal(staleStop(), true);
 
     await f.startGame(false);
@@ -414,6 +415,7 @@ test("exclusive rumble waits for its pre-stop before starting the new effect", a
     manager.play("test");
     const exclusivePreStop = f.events.silencePredicates.at(-1);
 
+    assert.equal(typeof exclusivePreStop, "function");
     assert.equal(exclusivePreStop(), true);
     assert.equal(f.events.pulses, 0, "exclusive playback must not race ahead of the hardware pre-stop");
     await new Promise((resolve) => setImmediate(resolve));
@@ -429,6 +431,8 @@ test("a newer haptic command cancels an exclusive effect still waiting on its pr
     manager.play("test");
     const exclusivePreStop = f.events.silencePredicates.at(-1);
     const resolveExclusiveStop = f.hapticControls.pendingSilenceResolves.shift();
+    assert.equal(typeof exclusivePreStop, "function");
+    assert.equal(typeof resolveExclusiveStop, "function");
     assert.equal(f.events.pulses, 0);
     assert.equal(exclusivePreStop(), true);
 
