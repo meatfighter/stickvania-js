@@ -105,7 +105,9 @@ test("Stickvania Main no longer owns browser audio preferences or recovery", () 
     assert.match(suspension, /this\.browserSuspended = suspended/);
     assert.match(suspension, /this\.stopAllRumbles\(\)/);
     assert.match(suspension, /this\.clearInputPressedRecords\(\)/);
-    assert.doesNotMatch(suspension, /setMusicOn|setSoundOn|resume|Music|Song/);
+    assert.match(suspension, /!suspended && this\.mode == Main\.MODE_INPUT_CONFIG/);
+    assert.match(suspension, /this\.inputConfigMode\?\.resyncControllerStateAfterBrowserResume\(\)/);
+    assert.doesNotMatch(suspension, /setMusicOn|setSoundOn|resumeMusic|Music|Song/);
 });
 
 test("playback and fullscreen activation are attempt-scoped for live Continue", () => {
