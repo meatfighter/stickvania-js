@@ -2637,7 +2637,9 @@ export class Main extends BasicGame {
         }
         this.clearInputPressedRecords();
         if (!suspended) {
-            this.simon?.resetInputReleaseLatches();
+            if (this.mode == Main.MODE_PLAYING) {
+                this.simon?.resetInputReleaseLatches();
+            }
             if (this.mode == Main.MODE_INPUT_CONFIG) {
                 this.inputConfigMode?.resyncControllerStateAfterBrowserResume();
             }
