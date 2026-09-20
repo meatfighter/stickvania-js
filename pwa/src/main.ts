@@ -476,7 +476,6 @@ function canOpenLiveMenuOverlay(): boolean {
     return (
         pwaSessionState === "running" &&
         game !== null &&
-        game.isLiveMenuOverlayAllowed() &&
         container !== null &&
         !container.isDestroyed() &&
         viewport.gameShell !== null &&
