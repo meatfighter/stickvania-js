@@ -29,11 +29,6 @@ export type InputConfigModeSnapshot = {
     draft: MappingDraft;
     assignedKeys: number[];
     assignedControllerButtons: number[];
-    controllerButtonDown: boolean[];
-    controllerUpDown: boolean;
-    controllerDownDown: boolean;
-    controllerLeftDown: boolean;
-    controllerRightDown: boolean;
 };
 
 export class InputConfigMode implements KeyListener {
@@ -88,12 +83,7 @@ export class InputConfigMode implements KeyListener {
             finished: this.finished,
             draft: this.cloneDraft(this.draft ?? this.createDraft()),
             assignedKeys: Array.from(this.assignedKeys),
-            assignedControllerButtons: Array.from(this.assignedControllerButtons),
-            controllerButtonDown: this.controllerButtonDown.slice(),
-            controllerUpDown: this.controllerUpDown,
-            controllerDownDown: this.controllerDownDown,
-            controllerLeftDown: this.controllerLeftDown,
-            controllerRightDown: this.controllerRightDown
+            assignedControllerButtons: Array.from(this.assignedControllerButtons)
         };
     }
 
@@ -112,13 +102,7 @@ export class InputConfigMode implements KeyListener {
         this.copyAssignedCodesIntoSet(this.assignedKeys, snapshot.assignedKeys, InputConfigMode.isAssignedKeyCode);
         this.assignedControllerButtons.clear();
         this.copyAssignedCodesIntoSet(this.assignedControllerButtons, snapshot.assignedControllerButtons, InputConfigMode.isAssignedControllerCode);
-        this.controllerButtonDown = Array.isArray(snapshot.controllerButtonDown)
-            ? snapshot.controllerButtonDown.slice(0, ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT).map((value) => value === true)
-            : [];
-        this.controllerUpDown = Boolean(snapshot.controllerUpDown);
-        this.controllerDownDown = Boolean(snapshot.controllerDownDown);
-        this.controllerLeftDown = Boolean(snapshot.controllerLeftDown);
-        this.controllerRightDown = Boolean(snapshot.controllerRightDown);
+        this.syncControllerInputState();
         this.main.clearInputPressedRecords();
     }
 
