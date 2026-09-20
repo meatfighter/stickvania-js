@@ -16,9 +16,9 @@ function deferred() {
     return { promise, resolve };
 }
 
-function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSucceeds = true } = {}) {
+function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSucceeds = true, exclusiveHaptics = false } = {}) {
     const noop = () => {};
-    const events = { pulses: 0, restores: 0, saves: 0, continuous: 0, loopResumes: 0 };
+    const events = { pulses: 0, restores: 0, saves: 0, continuous: 0, loopResumes: 0, silencePredicates: [] };
     const runtimeControls = { display: () => Promise.resolve(), focus: noop };
     const node = () => ({ addEventListener: noop, removeEventListener: noop, remove: noop });
     const shell = node();
@@ -44,7 +44,10 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
             if (id === "./BrowserHaptics.js") {
                 return {
                     getConnectedGamepads: () => [{}],
-                    silenceGamepads: () => (rejectHaptics ? Promise.reject(new Error("haptic silence failed")) : Promise.resolve()),
+                    silenceGamepads: (_gamepads, isCurrent = () => true) => {
+                        events.silencePredicates.push(isCurrent);
+                        return rejectHaptics ? Promise.reject(new Error("haptic silence failed")) : Promise.resolve();
+                    },
                     playPulseOnGamepad: () => {
                         events.pulses++;
                         return rejectHaptics ? Promise.reject(new Error("haptic pulse failed")) : Promise.resolve();
@@ -52,7 +55,10 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
                 };
             }
             if (id === "./RumbleEffects.js") {
-                return { getRumbleEffect: () => ({ channel: "test", pattern: [{ duration: 1 }] }), isRumbleDelayStep: () => false };
+                return {
+                    getRumbleEffect: () => ({ channel: "test", pattern: [{ duration: 1 }], exclusive: exclusiveHaptics }),
+                    isRumbleDelayStep: () => false
+                };
             }
             throw new Error(`Unexpected rumble import: ${id}`);
         }
@@ -378,6 +384,32 @@ for (const enabled of [true, false]) {
         });
     }
 }
+
+test("new rumble ownership invalidates fallback work from an earlier stop", async () => {
+    const f = fixture();
+    const manager = f.getRumbleManager();
+
+    manager.stopAll();
+    const staleStop = f.events.silencePredicates.at(-1);
+    assert.equal(staleStop(), true);
+
+    await f.startGame(false);
+    manager.play("test");
+
+    assert.equal(staleStop(), false, "a newer play must invalidate pending fallback work from the old stop");
+});
+
+test("exclusive rumble pre-stop becomes stale before the new effect sequence owns hardware", async () => {
+    const f = fixture({ exclusiveHaptics: true });
+    await f.startGame(false);
+    const manager = f.getRumbleManager();
+
+    manager.play("test");
+    const exclusivePreStop = f.events.silencePredicates.at(-1);
+
+    assert.equal(exclusivePreStop(), false, "the exclusive pre-stop may issue its initial reset but not later fallbacks");
+    assert.equal(f.events.pulses, 1);
+});
 
 test("best-effort haptic promise failures do not escape stop or play operations", async () => {
     const f = fixture({ rejectHaptics: true });
