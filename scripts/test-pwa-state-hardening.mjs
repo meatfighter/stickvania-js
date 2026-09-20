@@ -50,6 +50,8 @@ try {
 
     assert.equal(GAME_STATE_VERSION, 17);
     assert.match(GAME_STATE_STORAGE_KEY, /game-state-v17$/);
+    assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v17 must not persist derived StopWatch aggregate state");
+
 
     for (const field of ["releasedJump", "releasedKneel", "releasedWhip"]) {
         assert.equal(
@@ -557,9 +559,8 @@ function createSongOwnershipSnapshot(base, currentSong, requestedSong, playingSo
     return snapshot;
 }
 
-function createStopWatchAggregateSnapshot(base, timeFrozen, weapons, weaponsSwap) {
+function createStopWatchAggregateSnapshot(base, _derivedTimeFrozen, weapons, weaponsSwap) {
     const snapshot = clone(base);
-    snapshot.mainFields.timeFrozen = timeFrozen;
     snapshot.things = [{ id: 0, type: "StopWatch", fields: { lifeTime: 455 } }];
     snapshot.stage.weaponsStack = createThingStack(weapons);
     snapshot.stage.weaponsStackSwap = createThingStack(weaponsSwap);
