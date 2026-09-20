@@ -677,7 +677,7 @@ try {
         const mapping = new ButtonMapping();
         mapping.keyJump = 57;
         assert.equal(ButtonMapping.isReservedKey(57), false);
-        assert.equal(mapping.save(), true);
+        assert.deepEqual(mapping.save(() => true), { saved: true });
         const restored = ButtonMapping.load();
         assert.equal(restored.keyJump, 57);
         assert.equal(restored.keyboardLabelFor("JUMP"), "SPACE");
@@ -696,15 +696,23 @@ try {
         mapping.keyJump = 1; // Slick KEY_ESCAPE
         assert.equal(ButtonMapping.isReservedKey(1), true);
         assert.equal(ButtonMapping.isValidKeyBinding(1), false);
-        assert.equal(mapping.save(), false, "reserved keys must not enter the persisted mapping store");
+        assert.deepEqual(mapping.save(() => true), { saved: false, reason: "invalid" }, "reserved keys must not enter the persisted mapping store");
 
         mapping.keyJump = 57;
+        const beforeUnauthorized = mappingStorage.getItem(mappingKey);
+        assert.deepEqual(mapping.save(() => false), { saved: false, reason: "stale-session" });
+        assert.equal(mappingStorage.getItem(mappingKey), beforeUnauthorized, "stale mapping save must preserve prior bytes");
+
         mapping.keyAttack = 57;
-        assert.equal(mapping.save(), false, "duplicate key mappings must not be persisted");
+        assert.deepEqual(mapping.save(() => true), { saved: false, reason: "invalid" }, "duplicate key mappings must not be persisted");
 
         mapping.keyAttack = 44;
         mapping.controllerJump = 12;
-        assert.equal(mapping.save(), false, "standard D-pad buttons must not be persisted as action bindings");
+        assert.deepEqual(
+            mapping.save(() => true),
+            { saved: false, reason: "invalid" },
+            "standard D-pad buttons must not be persisted as action bindings"
+        );
     } finally {
         if (oldLocalStorage === undefined) {
             delete globalThis.localStorage;
