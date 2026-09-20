@@ -70,8 +70,12 @@ export class RumbleManager {
     }
 
     public stop(effectId: RumbleEffectId): void {
-        const effect = getRumbleEffect(effectId);
-        this.nextChannelToken(effect.channel);
+        void effectId;
+        // Browser haptic actuators expose no channel-scoped stop. A physical
+        // silence command can stop every effect on that actuator, so retire all
+        // logical sequences before issuing it rather than leaving another channel
+        // believing it still owns hardware that was globally silenced.
+        this.cancelAllSequences();
         const generation = this.nextHapticCommandGeneration();
         ignoreHapticFailure(silenceGamepads(getConnectedGamepads(), () => this.isHapticCommandCurrent(generation)));
     }
@@ -97,9 +101,10 @@ export class RumbleManager {
     }
 
     private async playSequence(effect: RumbleEffect, globalToken: number, channelToken: number, offsetMs: number): Promise<void> {
+        const isCurrent = (): boolean => this.isSequenceCurrent(effect.channel, globalToken, channelToken);
         let remainingOffset = Math.max(0, Math.trunc(Number.isFinite(offsetMs) ? offsetMs : 0));
         for (const step of effect.pattern) {
-            if (!this.isSequenceCurrent(effect.channel, globalToken, channelToken)) {
+            if (!isCurrent()) {
                 return;
             }
             if (isRumbleDelayStep(step)) {
@@ -109,6 +114,9 @@ export class RumbleManager {
                 }
                 await sleep(step.delay - remainingOffset);
                 remainingOffset = 0;
+                if (!isCurrent()) {
+                    return;
+                }
                 continue;
             }
 
@@ -119,7 +127,10 @@ export class RumbleManager {
             const pulse = remainingOffset > 0 ? { ...step, duration: step.duration - remainingOffset } : step;
             remainingOffset = 0;
             const gamepads = getConnectedGamepads();
-            await Promise.all(gamepads.map((gamepad) => playPulseOnGamepad(gamepad, pulse)));
+            await Promise.all(gamepads.map((gamepad) => playPulseOnGamepad(gamepad, pulse, isCurrent)));
+            if (!isCurrent()) {
+                return;
+            }
         }
     }
 
