@@ -37,14 +37,18 @@ export function getBrowserRumbleCapability(): BrowserRumbleCapability {
         return "unavailable";
     }
 
-    const browser = globalThis as unknown as BrowserRumbleGlobal;
-    const gamepad = browser.Gamepad;
-    const hapticActuator = browser.GamepadHapticActuator;
-    if (gamepad === undefined || hapticActuator === undefined) {
+    try {
+        const browser = globalThis as unknown as BrowserRumbleGlobal;
+        const gamepad = browser.Gamepad;
+        const hapticActuator = browser.GamepadHapticActuator;
+        if (gamepad === undefined || hapticActuator === undefined) {
+            return "unavailable";
+        }
+
+        return "vibrationActuator" in gamepad.prototype && typeof hapticActuator.prototype.playEffect === "function" ? "available" : "unavailable";
+    } catch {
         return "unavailable";
     }
-
-    return "vibrationActuator" in gamepad.prototype && typeof hapticActuator.prototype.playEffect === "function" ? "available" : "unavailable";
 }
 
 export function getConnectedGamepads(): HapticGamepad[] {
@@ -100,11 +104,17 @@ export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseSte
     return failureMessage;
 }
 
-export async function silenceGamepads(gamepads: readonly Gamepad[]): Promise<void> {
+export async function silenceGamepads(gamepads: readonly Gamepad[], isCurrent: () => boolean = () => true): Promise<void> {
     for (const gamepad of gamepads) {
+        if (!isCurrent()) {
+            return;
+        }
         const actuators = Array.from(new Set(getDistinctLabeledActuators(gamepad).map(({ actuator }) => actuator)));
         for (const actuator of actuators) {
-            await silenceActuator(actuator);
+            if (!isCurrent()) {
+                return;
+            }
+            await silenceActuator(actuator, isCurrent);
         }
     }
 }
@@ -178,13 +188,22 @@ async function tryActuator(
     };
 }
 
-async function silenceActuator(actuator: HapticActuator): Promise<void> {
+async function silenceActuator(actuator: HapticActuator, isCurrent: () => boolean): Promise<void> {
+    if (!isCurrent()) {
+        return;
+    }
+
     if (typeof actuator.reset === "function") {
         try {
             await actuator.reset();
             return;
         } catch {
-            // Try the other haptic APIs if reset() is exposed but rejected.
+            // Yield even for a synchronous throw so a newer rumble command can
+            // invalidate this stop before any compatibility fallback is issued.
+            await Promise.resolve();
+            if (!isCurrent()) {
+                return;
+            }
         }
     }
 
@@ -197,11 +216,14 @@ async function silenceActuator(actuator: HapticActuator): Promise<void> {
             });
             return;
         } catch {
-            // Legacy pulse() can still stop vibration when playEffect() fails.
+            await Promise.resolve();
+            if (!isCurrent()) {
+                return;
+            }
         }
     }
 
-    if (typeof actuator.pulse === "function") {
+    if (typeof actuator.pulse === "function" && isCurrent()) {
         try {
             // A zero-intensity pulse supersedes an active legacy pulse.
             await actuator.pulse(0, 1);
