@@ -16,7 +16,7 @@ type HapticActuator = {
 
 type HapticGamepad = Gamepad & {
     readonly vibrationActuator?: HapticActuator | null;
-    readonly hapticActuators?: ArrayLike<HapticActuator | null>;
+    readonly hapticActuators?: ArrayLike<HapticActuator | null | undefined>;
 };
 
 type LabeledActuator = {
@@ -95,11 +95,15 @@ export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseSte
 
     let failureMessage = "no supported haptic actuator";
     for (const { label, actuator } of candidates) {
-        const result = await tryActuator(actuator, label, params);
-        if (result.handled) {
-            return result.message;
+        try {
+            const result = await tryActuator(actuator, label, params);
+            if (result.handled) {
+                return result.message;
+            }
+            failureMessage = result.message;
+        } catch {
+            failureMessage = `${label}: failed`;
         }
-        failureMessage = result.message;
     }
     return failureMessage;
 }
@@ -114,7 +118,11 @@ export async function silenceGamepads(gamepads: readonly Gamepad[], isCurrent: (
             if (!isCurrent()) {
                 return;
             }
-            await silenceActuator(actuator, isCurrent);
+            try {
+                await silenceActuator(actuator, isCurrent);
+            } catch {
+                // One malformed native actuator must not prevent cleanup of the others.
+            }
         }
     }
 }
