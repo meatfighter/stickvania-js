@@ -311,14 +311,20 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
 
-        if (!snapshot.segments.every((segment, index) => this.isSegmentSnapshotValid(segment, index, stageIndex, thingTypes, thingSnapshots))) {
+        if (!snapshot.segments.every((segment, index) => this.isSegmentSnapshotValid(segment, index, stageIndex, thingTypes))) {
             return false;
         }
 
         const checkpointIds = new Set<number>();
         for (const segment of snapshot.segments) {
             for (const region of segment.regions) {
+                if (checkpointIds.has(region.checkpoint)) {
+                    return false;
+                }
                 checkpointIds.add(region.checkpoint);
+                if (!this.isCheckpointTargetValid(region.checkpoint, thingSnapshots, snapshot.segments)) {
+                    return false;
+                }
             }
         }
         if (!checkpointIds.has(snapshot.checkpoint)) {
@@ -341,8 +347,7 @@ export class StickvaniaGameStateSerializer {
         snapshot: unknown,
         segmentIndex: number,
         stageIndex: number,
-        thingTypes: ReadonlyMap<number, ThingTypeId>,
-        thingSnapshots: readonly ThingSnapshot[]
+        thingTypes: ReadonlyMap<number, ThingTypeId>
     ): snapshot is SegmentSnapshot {
         if (
             !this.isPlainRecord(snapshot) ||
@@ -369,26 +374,15 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
         return snapshot.regions.every((region, regionIndex) =>
-            this.isRegionSnapshotValid(
-                region,
-                segmentIndex,
-                regionIndex,
-                snapshot.mapWidth,
-                expectedStageNumbers[regionIndex]!,
-                thingTypes,
-                thingSnapshots
-            )
+            this.isRegionSnapshotValid(region, snapshot.mapWidth, expectedStageNumbers[regionIndex]!, thingTypes)
         );
     }
 
     private isRegionSnapshotValid(
         snapshot: unknown,
-        segmentIndex: number,
-        regionIndex: number,
         mapWidth: number,
         expectedStageNumber: number,
-        thingTypes: ReadonlyMap<number, ThingTypeId>,
-        thingSnapshots: readonly ThingSnapshot[]
+        thingTypes: ReadonlyMap<number, ThingTypeId>
     ): snapshot is RegionSnapshot {
         if (
             !this.isPlainRecord(snapshot) ||
@@ -407,17 +401,30 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
 
-        const checkpoint = snapshot.checkpoint;
-        const checkpointSnapshot = checkpoint === null ? undefined : thingSnapshots[checkpoint];
-        if (
-            checkpointSnapshot === undefined ||
-            checkpointSnapshot.type !== "Checkpoint" ||
-            checkpointSnapshot.fields.stageSegmentIndex !== segmentIndex ||
-            checkpointSnapshot.fields.regionIndex !== regionIndex
-        ) {
+        return true;
+    }
+
+    private isCheckpointTargetValid(
+        checkpointId: number,
+        things: readonly ThingSnapshot[],
+        segments: readonly SegmentSnapshot[]
+    ): boolean {
+        const checkpoint = things[checkpointId];
+        if (checkpoint === undefined || checkpoint.type !== "Checkpoint") {
             return false;
         }
-        return true;
+        const segmentIndex = checkpoint.fields.stageSegmentIndex;
+        const regionIndex = checkpoint.fields.regionIndex;
+        return (
+            typeof segmentIndex === "number" &&
+            Number.isInteger(segmentIndex) &&
+            segmentIndex >= 0 &&
+            segmentIndex < segments.length &&
+            typeof regionIndex === "number" &&
+            Number.isInteger(regionIndex) &&
+            regionIndex >= 0 &&
+            regionIndex < segments[segmentIndex]!.regions.length
+        );
     }
 
     private isThingGraphFullyReachable(stage: StageSnapshot, things: readonly ThingSnapshot[]): boolean {
