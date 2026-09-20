@@ -1004,6 +1004,8 @@ export class Main extends BasicGame {
                         this.mode = Main.MODE_PLAYING;
                         this.players--;
                         this.createStage(this.stageIndex, false);
+                        this.clearInputPressedRecords();
+                        this.simon?.resetInputReleaseLatches();
                         break;
                     case Main.FADE_REASON_SHOW_MAP:
                         this.initMapScreen();
