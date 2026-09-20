@@ -325,12 +325,13 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     container = appContainer;
     game = mainGame;
     activeBufferedGame = bufferedGame;
-    mainGame.setInputMappingChangedHandler(() => {
+    mainGame.setInputMappingChangedHandler((replaceProtected) => {
         if (!isCurrentGameSession(session) || game !== mainGame) {
             return { saved: false, reason: "stale-session" };
         }
         return mainGame.buttonMapping.save(
-            () => ownership.owned && isCurrentGameSession(session) && game === mainGame
+            () => ownership.owned && isCurrentGameSession(session) && game === mainGame,
+            replaceProtected
         );
     });
     viewport.attach(appContainer, session);
