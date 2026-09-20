@@ -81,6 +81,14 @@ export class ControllerSupport {
         return Math.min(count, ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT);
     }
 
+    public static isValidButtonDownSnapshot(value: unknown): value is boolean[] {
+        return (
+            Array.isArray(value) &&
+            value.length <= ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT &&
+            value.every((buttonDown) => typeof buttonDown === "boolean")
+        );
+    }
+
     public static isDirectionalButton(button: number): boolean {
         return button >= 12 && button <= 15;
     }
