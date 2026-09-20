@@ -221,36 +221,67 @@ function isReferenceValueValid(
     segmentCount: number
 ): boolean {
     switch (policy.kind) {
-        case "thing":
-            if (!isExactTaggedRecord(value, "$thing")) return false;
-            if (value.$thing === null) return policy.nullable;
-            return Number.isInteger(value.$thing) && policy.targets.includes(thingTypes.get(value.$thing) as ThingTypeId);
+        case "thing": {
+            const reference = asThingReference(value);
+            if (reference === null) return false;
+            if (reference.$thing === null) return policy.nullable;
+            return policy.targets.includes(thingTypes.get(reference.$thing) as ThingTypeId);
+        }
         case "thingArray":
             return (
                 Array.isArray(value) &&
                 value.length === policy.length &&
-                value.every(
-                    (entry) =>
-                        isExactTaggedRecord(entry, "$thing") &&
-                        entry.$thing !== null &&
-                        Number.isInteger(entry.$thing) &&
-                        policy.targets.includes(thingTypes.get(entry.$thing) as ThingTypeId)
-                )
+                value.every((entry) => {
+                    const reference = asThingReference(entry);
+                    return (
+                        reference !== null &&
+                        reference.$thing !== null &&
+                        policy.targets.includes(thingTypes.get(reference.$thing) as ThingTypeId)
+                    );
+                })
             );
-        case "segment":
-            if (!isExactTaggedRecord(value, "$segment")) return false;
-            if (value.$segment === null) return policy.nullable;
-            return Number.isInteger(value.$segment) && value.$segment >= 0 && value.$segment < segmentCount;
-        case "song":
-            if (!isExactTaggedRecord(value, "$song")) return false;
-            return policy.nullable ? value.$song === null || typeof value.$song === "string" : typeof value.$song === "string";
+        case "segment": {
+            const reference = asSegmentReference(value);
+            if (reference === null) return false;
+            if (reference.$segment === null) return policy.nullable;
+            return reference.$segment >= 0 && reference.$segment < segmentCount;
+        }
+        case "song": {
+            const reference = asSongReference(value);
+            if (reference === null) return false;
+            return policy.nullable ? true : reference.$song !== null;
+        }
     }
 }
 
-function isExactTaggedRecord<K extends "$thing" | "$segment" | "$song">(
-    value: unknown,
-    key: K
-): value is Record<K, unknown> {
+function asThingReference(value: unknown): { readonly $thing: number | null } | null {
+    if (
+        !isExactSingleKeyRecord(value, "$thing") ||
+        !(value.$thing === null || (typeof value.$thing === "number" && Number.isInteger(value.$thing)))
+    ) {
+        return null;
+    }
+    return value as { readonly $thing: number | null };
+}
+
+function asSegmentReference(value: unknown): { readonly $segment: number | null } | null {
+    if (
+        !isExactSingleKeyRecord(value, "$segment") ||
+        !(value.$segment === null || (typeof value.$segment === "number" && Number.isInteger(value.$segment)))
+    ) {
+        return null;
+    }
+    return value as { readonly $segment: number | null };
+}
+
+function asSongReference(value: unknown): { readonly $song: string | null } | null {
+    if (!isExactSingleKeyRecord(value, "$song") || !(value.$song === null || typeof value.$song === "string")) {
+        return null;
+    }
+    return value as { readonly $song: string | null };
+}
+
+function isExactSingleKeyRecord<K extends string>(value: unknown, key: K): value is Record<K, unknown> {
     return value !== null && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 1 && Object.hasOwn(value, key);
 }
 
