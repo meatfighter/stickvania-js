@@ -225,13 +225,24 @@ export class StickvaniaGameStateSerializer {
                 return false;
             }
 
-            let doors = 0;
+            const effectiveDirection = snapshot.stage.stageIndex === 2 && segmentIndex === 0 ? Main.LEFT : loaded.direction;
+            if (saved.direction !== effectiveDirection) {
+                return false;
+            }
+
             let stairs = 0;
+            const expectedRegionBounds: Array<{ min: number; max: number }> = [{ min: 0, max: width << 5 }];
             for (let y = 0; y < loaded.stage.length; y++) {
                 for (let x = 0; x < width; x++) {
                     const tile = loaded.stage[y]![x];
-                    if (tile === Main.TILE_DOOR && (loaded.direction === Main.RIGHT || x !== 0)) {
-                        doors++;
+                    if (tile === Main.TILE_DOOR) {
+                        if (effectiveDirection === Main.RIGHT) {
+                            expectedRegionBounds[expectedRegionBounds.length - 1]!.max = (x << 5) + 32;
+                            expectedRegionBounds.push({ min: (x << 5) + 32, max: width << 5 });
+                        } else if (x !== 0) {
+                            expectedRegionBounds[expectedRegionBounds.length - 1]!.max = (x << 5) - 1;
+                            expectedRegionBounds.push({ min: (x << 5) - 1, max: width << 5 });
+                        }
                     }
                     if (
                         (y === 0 || y === loaded.stage.length - 1) &&
@@ -244,7 +255,14 @@ export class StickvaniaGameStateSerializer {
                     }
                 }
             }
-            if (doors + 1 !== saved.regions.length) {
+            if (
+                expectedRegionBounds.length !== saved.regions.length ||
+                saved.regions.some(
+                    (region, regionIndex) =>
+                        region.min !== expectedRegionBounds[regionIndex]!.min ||
+                        region.max !== expectedRegionBounds[regionIndex]!.max
+                )
+            ) {
                 return false;
             }
             stairsCounts.push(stairs);
