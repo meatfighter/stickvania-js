@@ -90,7 +90,8 @@ test("ownership relinquishment performs the final save before destructive cleanu
     const release = mainSource.slice(mainSource.indexOf("function releaseOwnedSession"), mainSource.indexOf("function showCleanupFailure"));
     const save = mainSource.slice(mainSource.indexOf("function saveCurrentGameState"), mainSource.indexOf("function clearStoredGameState"));
     assert.ok(release.indexOf("sessionCleanup.trySave(saveCurrentGameState);") < release.indexOf("destroyGame();"));
-    assert.match(save, /if \(!ownership\?\.owned\) \{\s*return false;\s*\}/);
+    assert.match(save, /if \(!ownership\?\.owned \|\| mainGame === null/);
+    assert.match(save, /store\.save\(mainGame, \(\) => ownership\?\.owned === true && game === mainGame\)/);
 });
 
 test("Stickvania Song sequencing uses logical transport and has no browser recovery authority", () => {
