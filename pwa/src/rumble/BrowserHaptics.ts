@@ -15,7 +15,7 @@ type HapticActuator = {
 };
 
 type HapticGamepad = Gamepad & {
-    readonly vibrationActuator?: HapticActuator;
+    readonly vibrationActuator?: HapticActuator | null;
     readonly hapticActuators?: ArrayLike<HapticActuator | null>;
 };
 
@@ -62,8 +62,9 @@ export function getHapticActuators(gamepad: Gamepad): HapticActuator[] {
 export function getActuatorDescriptions(gamepad: Gamepad): string[] {
     const hapticGamepad = gamepad as HapticGamepad;
     const descriptions: string[] = [];
-    if (hapticGamepad.vibrationActuator !== undefined) {
-        descriptions.push(describeActuator("vibrationActuator", hapticGamepad.vibrationActuator));
+    const vibrationActuator = hapticGamepad.vibrationActuator;
+    if (vibrationActuator != null) {
+        descriptions.push(describeActuator("vibrationActuator", vibrationActuator));
     }
     getHapticActuators(gamepad).forEach((actuator, index) => descriptions.push(describeActuator(`hapticActuators[${index}]`, actuator)));
     return descriptions;
@@ -114,8 +115,9 @@ export function describeActuator(label: string, actuator: HapticActuator): strin
 function getDistinctLabeledActuators(gamepad: Gamepad): LabeledActuator[] {
     const hapticGamepad = gamepad as HapticGamepad;
     const candidates: LabeledActuator[] = [];
-    if (hapticGamepad.vibrationActuator !== undefined) {
-        candidates.push({ label: "vibrationActuator", actuator: hapticGamepad.vibrationActuator });
+    const vibrationActuator = hapticGamepad.vibrationActuator;
+    if (vibrationActuator != null) {
+        candidates.push({ label: "vibrationActuator", actuator: vibrationActuator });
     }
     getHapticActuators(gamepad).forEach((actuator, index) => {
         if (!candidates.some((candidate) => candidate.actuator === actuator)) {
