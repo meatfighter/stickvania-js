@@ -693,13 +693,34 @@ try {
         const mappingKey = getBrowserStorageKey("input-mapping");
         const sameVersionSnapshot = JSON.parse(mappingStorage.getItem(mappingKey));
         sameVersionSnapshot.obsoleteField = true;
-        mappingStorage.setItem(mappingKey, JSON.stringify(sameVersionSnapshot));
+        const sameVersionInvalidText = JSON.stringify(sameVersionSnapshot);
+        mappingStorage.setItem(mappingKey, sameVersionInvalidText);
         const exactShapeFallback = ButtonMapping.load();
-        assert.equal(exactShapeFallback.keyJump, 45, "same-version mappings with extra fields must be discarded");
-        assert.equal(mappingStorage.getItem(mappingKey), null);
+        assert.equal(exactShapeFallback.keyJump, 45, "same-version invalid mappings must fall back in memory");
+        assert.equal(mappingStorage.getItem(mappingKey), sameVersionInvalidText);
+        assert.deepEqual(mapping.save(() => true), { saved: false, reason: "protected" });
+        assert.equal(mappingStorage.getItem(mappingKey), sameVersionInvalidText);
+
+        mappingStorage.setItem(mappingKey, "{");
+        const malformedFallback = ButtonMapping.load();
+        assert.equal(malformedFallback.keyJump, 45);
+        const quietMappingWarn = console.warn;
+        console.warn = () => {};
+        try {
+            assert.deepEqual(mapping.save(() => true), { saved: false, reason: "protected" });
+        } finally {
+            console.warn = quietMappingWarn;
+        }
+        assert.equal(mappingStorage.getItem(mappingKey), "{");
+
+        const obsoletePrepublic = { ...sameVersionSnapshot, version: 6 };
+        delete obsoletePrepublic.obsoleteField;
+        mappingStorage.setItem(mappingKey, JSON.stringify(obsoletePrepublic));
+        ButtonMapping.load();
+        assert.equal(mappingStorage.getItem(mappingKey), null, "explicitly obsolete prepublic mapping versions may be discarded");
 
         mapping.keyJump = 57;
-        assert.equal(mapping.save(), true);
+        assert.deepEqual(mapping.save(() => true), { saved: true });
 
         mapping.keyJump = 1; // Slick KEY_ESCAPE
         assert.equal(ButtonMapping.isReservedKey(1), true);
