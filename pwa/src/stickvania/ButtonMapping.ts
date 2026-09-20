@@ -315,7 +315,11 @@ export class ButtonMapping {
     }
 
     public static isValidKeyBinding(value: unknown): value is number {
-        return typeof value === "number" && Number.isInteger(value) && (value === ButtonMapping.NO_BINDING || value >= 0);
+        return (
+            typeof value === "number" &&
+            Number.isInteger(value) &&
+            (value === ButtonMapping.NO_BINDING || (value >= 0 && !ButtonMapping.isReservedKey(value)))
+        );
     }
 
     public static isValidControllerBinding(value: unknown): value is number {
