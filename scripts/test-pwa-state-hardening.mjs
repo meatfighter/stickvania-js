@@ -46,18 +46,17 @@ try {
         "/src/stickvania/persistence/GameStateSchema.ts"
     );
     const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
-    const { THING_STATE_FIELD_NAMES, THING_PERSISTED_STATE_FIELD_NAMES } = await server.ssrLoadModule(
-        "/src/stickvania/persistence/StateFieldRegistry.generated.ts"
-    );
-    const { THING_TRANSIENT_STATE_FIELDS } = await server.ssrLoadModule("/src/stickvania/persistence/ThingStateFieldPolicy.ts");
+    const { THING_PERSISTED_STATE_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/persistence/StateFieldRegistry.generated.ts");
 
     assert.equal(GAME_STATE_VERSION, 17);
     assert.match(GAME_STATE_STORAGE_KEY, /game-state-v17$/);
 
-    assert.deepEqual(Array.from(THING_TRANSIENT_STATE_FIELDS.Simon), ["releasedJump", "releasedKneel", "releasedWhip"]);
-    for (const field of THING_TRANSIENT_STATE_FIELDS.Simon) {
-        assert.equal(THING_STATE_FIELD_NAMES.Simon.includes(field), true, `${field} remains a real Simon runtime field`);
-        assert.equal(THING_PERSISTED_STATE_FIELD_NAMES.Simon.includes(field), false, `${field} must not be durable save state`);
+    for (const field of ["releasedJump", "releasedKneel", "releasedWhip"]) {
+        assert.equal(
+            THING_PERSISTED_STATE_FIELD_NAMES.Simon.includes(field),
+            true,
+            `${field} must remain durable because demo/credits recorded-input continuation depends on it`
+        );
     }
 
     assert.equal(ButtonMapping.isValidControllerActionBinding(63), true);
