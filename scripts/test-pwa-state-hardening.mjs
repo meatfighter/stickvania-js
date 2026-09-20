@@ -39,6 +39,7 @@ try {
     const { MAX_TOTAL_SOUND_VOICES } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSoundEffects.ts");
     const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
     const { ButtonMapping } = await server.ssrLoadModule("/src/stickvania/ButtonMapping.ts");
+    const { getBrowserStorageKey } = await server.ssrLoadModule("/src/stickvania/BrowserStorageKeys.ts");
     const { InputConfigMode } = await server.ssrLoadModule("/src/stickvania/InputConfigMode.ts");
     const { isReasonableStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSanity.ts");
     const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } = await server.ssrLoadModule(
@@ -471,6 +472,17 @@ try {
         const restored = ButtonMapping.load();
         assert.equal(restored.keyJump, 57);
         assert.equal(restored.keyboardLabelFor("JUMP"), "SPACE");
+
+        const mappingKey = getBrowserStorageKey("input-mapping");
+        const sameVersionSnapshot = JSON.parse(mappingStorage.getItem(mappingKey));
+        sameVersionSnapshot.obsoleteField = true;
+        mappingStorage.setItem(mappingKey, JSON.stringify(sameVersionSnapshot));
+        const exactShapeFallback = ButtonMapping.load();
+        assert.equal(exactShapeFallback.keyJump, 45, "same-version mappings with extra fields must be discarded");
+        assert.equal(mappingStorage.getItem(mappingKey), null);
+
+        mapping.keyJump = 57;
+        assert.equal(mapping.save(), true);
 
         mapping.keyJump = 1; // Slick KEY_ESCAPE
         assert.equal(ButtonMapping.isReservedKey(1), true);
