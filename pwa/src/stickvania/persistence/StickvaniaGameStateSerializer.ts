@@ -318,9 +318,7 @@ export class StickvaniaGameStateSerializer {
             controllerDirectionFields.every((field) => ButtonMapping.isValidControllerBinding((snapshot.draft as FieldBag)[field])) &&
             this.isAssignedInputCodeArray(snapshot.assignedKeys, 6) &&
             this.isAssignedControllerCodeArray(snapshot.assignedControllerButtons, 6) &&
-            Array.isArray(snapshot.controllerButtonDown) &&
-            snapshot.controllerButtonDown.length <= ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT &&
-            snapshot.controllerButtonDown.every((value) => typeof value === "boolean") &&
+            ControllerSupport.isValidButtonDownSnapshot(snapshot.controllerButtonDown) &&
             typeof snapshot.controllerUpDown === "boolean" &&
             typeof snapshot.controllerDownDown === "boolean" &&
             typeof snapshot.controllerLeftDown === "boolean" &&
