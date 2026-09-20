@@ -31,6 +31,9 @@ type BrowserRumbleGlobal = {
 
 export type BrowserRumbleCapability = "available" | "unavailable";
 
+const SILENCE_ATTEMPT_TIMEOUT_MS = 250;
+const RETIRED_MESSAGE = "retired";
+
 /** Browser-level menu capability. Controller capability is intentionally evaluated later, per connected pad. */
 export function getBrowserRumbleCapability(): BrowserRumbleCapability {
     if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") {
@@ -81,7 +84,14 @@ export function getActuatorDescriptions(gamepad: Gamepad): string[] {
     return descriptions;
 }
 
-export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseStep): Promise<string> {
+export async function playPulseOnGamepad(
+    gamepad: Gamepad,
+    pulse: RumblePulseStep,
+    isCurrent: () => boolean = () => true
+): Promise<string> {
+    if (!isCurrent()) {
+        return RETIRED_MESSAGE;
+    }
     const params = {
         startDelay: 0,
         duration: pulse.duration,
@@ -95,36 +105,39 @@ export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseSte
 
     let failureMessage = "no supported haptic actuator";
     for (const { label, actuator } of candidates) {
+        if (!isCurrent()) {
+            return RETIRED_MESSAGE;
+        }
         try {
-            const result = await tryActuator(actuator, label, params);
+            const result = await tryActuator(actuator, label, params, isCurrent);
+            if (!isCurrent()) {
+                return RETIRED_MESSAGE;
+            }
             if (result.handled) {
                 return result.message;
             }
             failureMessage = result.message;
         } catch {
+            if (!isCurrent()) {
+                return RETIRED_MESSAGE;
+            }
             failureMessage = `${label}: failed`;
         }
     }
-    return failureMessage;
+    return isCurrent() ? failureMessage : RETIRED_MESSAGE;
 }
 
 export async function silenceGamepads(gamepads: readonly Gamepad[], isCurrent: () => boolean = () => true): Promise<void> {
+    if (!isCurrent()) {
+        return;
+    }
+    const actuators = new Set<HapticActuator>();
     for (const gamepad of gamepads) {
-        if (!isCurrent()) {
-            return;
-        }
-        const actuators = Array.from(new Set(getDistinctLabeledActuators(gamepad).map(({ actuator }) => actuator)));
-        for (const actuator of actuators) {
-            if (!isCurrent()) {
-                return;
-            }
-            try {
-                await silenceActuator(actuator, isCurrent);
-            } catch {
-                // One malformed native actuator must not prevent cleanup of the others.
-            }
+        for (const { actuator } of getDistinctLabeledActuators(gamepad)) {
+            actuators.add(actuator);
         }
     }
+    await Promise.all(Array.from(actuators, (actuator) => silenceActuatorBounded(actuator, isCurrent)));
 }
 
 export function describeActuator(label: string, actuator: HapticActuator): string {
@@ -167,38 +180,77 @@ function getDistinctLabeledActuators(gamepad: Gamepad): LabeledActuator[] {
 async function tryActuator(
     actuator: HapticActuator,
     label: string,
-    params: DualRumbleParameters
+    params: DualRumbleParameters,
+    isCurrent: () => boolean
 ): Promise<{ readonly handled: boolean; readonly message: string }> {
     let playEffectFailed = false;
+    if (!isCurrent()) {
+        return { handled: false, message: RETIRED_MESSAGE };
+    }
     if (typeof actuator.playEffect === "function") {
         const supportedEffects = Array.from(actuator.effects ?? []);
         const supportsDualRumble = supportedEffects.length === 0 || supportedEffects.includes("dual-rumble");
-        if (supportsDualRumble) {
+        if (supportsDualRumble && isCurrent()) {
             try {
                 const result = await actuator.playEffect("dual-rumble", params);
+                if (!isCurrent()) {
+                    return { handled: false, message: RETIRED_MESSAGE };
+                }
                 return { handled: true, message: `${label}.playEffect: ${result || "started"}` };
             } catch {
+                if (!isCurrent()) {
+                    return { handled: false, message: RETIRED_MESSAGE };
+                }
                 playEffectFailed = true;
-                // Fall through to pulse() when the browser exposes both APIs but
-                // rejects dual-rumble at runtime.
+                // Fall through only while the same logical rumble command still
+                // owns the actuator. A retired play must never start a fallback.
             }
         }
     }
 
-    if (typeof actuator.pulse === "function") {
+    if (typeof actuator.pulse === "function" && isCurrent()) {
         try {
             const intensity = Math.max(params.strongMagnitude, params.weakMagnitude);
             const result = await actuator.pulse(intensity, params.duration);
+            if (!isCurrent()) {
+                return { handled: false, message: RETIRED_MESSAGE };
+            }
             return { handled: result !== false, message: `${label}.pulse: ${result === false ? "rejected" : "started"}` };
         } catch {
-            return { handled: false, message: `${label}.pulse failed` };
+            return {
+                handled: false,
+                message: isCurrent() ? `${label}.pulse failed` : RETIRED_MESSAGE
+            };
         }
     }
 
     return {
         handled: false,
-        message: playEffectFailed ? `${label}.playEffect failed` : `${label}: unsupported`
+        message: isCurrent() ? (playEffectFailed ? `${label}.playEffect failed` : `${label}: unsupported`) : RETIRED_MESSAGE
     };
+}
+
+async function silenceActuatorBounded(actuator: HapticActuator, isCurrent: () => boolean): Promise<void> {
+    if (!isCurrent()) {
+        return;
+    }
+
+    let retired = false;
+    const isAttemptCurrent = (): boolean => !retired && isCurrent();
+    let timeout: ReturnType<typeof globalThis.setTimeout> | null = null;
+    const timeoutPromise = new Promise<void>((resolve) => {
+        timeout = globalThis.setTimeout(resolve, SILENCE_ATTEMPT_TIMEOUT_MS);
+    });
+    const attempt = silenceActuator(actuator, isAttemptCurrent).catch(() => undefined);
+
+    try {
+        await Promise.race([attempt, timeoutPromise]);
+    } finally {
+        retired = true;
+        if (timeout !== null) {
+            globalThis.clearTimeout(timeout);
+        }
+    }
 }
 
 async function silenceActuator(actuator: HapticActuator, isCurrent: () => boolean): Promise<void> {
