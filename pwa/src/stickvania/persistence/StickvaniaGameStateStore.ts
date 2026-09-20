@@ -119,7 +119,10 @@ export class StickvaniaGameStateStore {
         return this.inspectStoredGameState().status === "current";
     }
 
-    public clear(): boolean {
+    public clear(isAuthorized: () => boolean): boolean {
+        if (!isAuthorized()) {
+            return false;
+        }
         try {
             localStorage.removeItem(GAME_STATE_STORAGE_KEY);
             return true;
