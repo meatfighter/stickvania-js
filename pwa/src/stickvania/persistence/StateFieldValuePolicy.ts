@@ -1,7 +1,7 @@
 import { Main } from "../Main.js";
 import type { EncodedRecord, EncodedValue, ThingSnapshot } from "./GameStateSnapshot.js";
 import { MAIN_PERSISTED_STATE_FIELD_NAMES, THING_PERSISTED_STATE_FIELD_NAMES } from "./StateFieldRegistry.generated.js";
-import type { ThingTypeId } from "./ThingTypeRegistry.js";
+import { THING_TYPES, type ThingTypeId } from "./ThingTypeRegistry.js";
 
 export const MAIN_BOOLEAN_PERSISTED_STATE_FIELDS = new Set<string>([
     "killAllFlag",
@@ -204,12 +204,14 @@ function isThingNumberValid(type: ThingTypeId, name: string, value: number): boo
 }
 
 function inferStaticIntegerRange(type: ThingTypeId, prefix: string): readonly [number, number] | null {
-    // The exact constructor is intentionally resolved lazily to avoid a second field-name registry.
-    // State/type constants are validated by the caller's imported class constructor in generated tests;
-    // fields without static enum constants retain the general finite-number envelope.
-    void type;
-    void prefix;
-    return null;
+    const constructor = THING_TYPES[type] as unknown as Record<string, unknown>;
+    const values = Object.entries(constructor)
+        .filter(([key, value]) => key.startsWith(prefix) && typeof value === "number" && Number.isInteger(value))
+        .map(([, value]) => value as number);
+    if (values.length === 0) {
+        return null;
+    }
+    return [Math.min(...values), Math.max(...values)];
 }
 
 function isReferenceValueValid(
@@ -248,7 +250,7 @@ function isReferenceValueValid(
 function isExactTaggedRecord<K extends "$thing" | "$segment" | "$song">(
     value: unknown,
     key: K
-): value is Record<K, any> {
+): value is Record<K, unknown> {
     return value !== null && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 1 && Object.hasOwn(value, key);
 }
 
