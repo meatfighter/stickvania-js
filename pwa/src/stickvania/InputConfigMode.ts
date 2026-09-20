@@ -46,6 +46,10 @@ export function isInputConfigLogicalStateConsistent(snapshot: InputConfigModeSna
     }
 
     const assignmentCount = assignedKeys.length + assignedControllerButtons.length;
+    const completedSteps = snapshot.finished ? INPUT_CONFIG_STEP_COUNT : snapshot.stepIndex;
+    if (!assignmentsMatchDraft(snapshot, completedSteps)) {
+        return false;
+    }
     if (snapshot.finished) {
         return (
             snapshot.stepIndex === INPUT_CONFIG_STEP_COUNT &&
@@ -64,6 +68,33 @@ export function isInputConfigLogicalStateConsistent(snapshot: InputConfigModeSna
         snapshot.armDelay <= INPUT_CONFIG_ARM_DELAY &&
         assignmentCount === snapshot.stepIndex
     );
+}
+
+function assignmentsMatchDraft(snapshot: InputConfigModeSnapshot, completedSteps: number): boolean {
+    const assignedKeys = new Set(snapshot.assignedKeys);
+    const assignedControllers = new Set(snapshot.assignedControllerButtons);
+    const fields = [
+        ["keyUp", "controllerUp"],
+        ["keyDown", "controllerDown"],
+        ["keyLeft", "controllerLeft"],
+        ["keyRight", "controllerRight"],
+        ["keyJump", "controllerJump"],
+        ["keyAttack", "controllerAttack"]
+    ] as const;
+
+    for (let i = 0; i < fields.length; i++) {
+        const [keyField, controllerField] = fields[i];
+        const ownsKey = assignedKeys.has(snapshot.draft[keyField]);
+        const ownsController = assignedControllers.has(snapshot.draft[controllerField]);
+        if (i < completedSteps) {
+            if (ownsKey === ownsController) {
+                return false;
+            }
+        } else if (ownsKey || ownsController) {
+            return false;
+        }
+    }
+    return true;
 }
 
 export class InputConfigMode implements KeyListener {
