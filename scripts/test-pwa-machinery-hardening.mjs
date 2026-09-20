@@ -177,6 +177,24 @@ test("synchronous post-commit viewport hooks are rechecked before RUNNING", () =
     );
 });
 
+test("failed Continue candidates are contained before they can affect a newer session", () => {
+    const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("function refreshVisibleBootProgress"));
+    const start = launch.indexOf("await appContainer.start();");
+    const staleGuard = launch.indexOf("if (!isStartingGameSession(session, audio))", start);
+    const staleRetire = launch.indexOf("retireStaleContainer(appContainer);", staleGuard);
+    const restoreFailure = launch.indexOf("if (restoreFailed)", staleRetire);
+    const failureMenu = launch.indexOf('showMenu("Unable to restore the saved game.', restoreFailure);
+    assert.ok(start >= 0 && staleGuard > start && staleRetire > staleGuard && restoreFailure > staleRetire && failureMenu > restoreFailure);
+
+    const showMenu = mainSource.slice(mainSource.indexOf("function showMenu"), mainSource.indexOf("function renderRootMenu"));
+    assert.match(showMenu, /if \(!ownership\?\.isCurrent\(ownership\.epoch\)\) \{\s*return;\s*\}/);
+    assert.match(showMenu, /if \(!destroyGame\(\)\) \{\s*return;\s*\}/);
+
+    const retire = mainSource.slice(mainSource.indexOf("function retireStaleContainer"), mainSource.indexOf("function requestPreferredFullscreen"));
+    assert.match(retire, /sessionCleanup\.run\(\(\) => appContainer\.destroy\(\)\)/);
+    assert.doesNotMatch(retire, /\bgame\s*=|\bcontainer\s*=|destroyGame\(/);
+});
+
 test("stale container retirement uses the shared cleanup latch", () => {
     assert.match(mainSource, /function retireStaleContainer\(appContainer: AppGameContainer\): void/);
     assert.match(mainSource, /sessionCleanup\.run\(\(\) => appContainer\.destroy\(\)\)/);
