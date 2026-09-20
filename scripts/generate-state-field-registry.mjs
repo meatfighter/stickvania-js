@@ -10,6 +10,7 @@ const registryPath = join(stickvaniaDir, "persistence", "StateFieldRegistry.gene
 const thingRegistryPath = join(stickvaniaDir, "persistence", "ThingTypeRegistry.ts");
 const mainPolicyPath = join(stickvaniaDir, "persistence", "MainStateFieldPolicy.ts");
 const rehydrationRegistryPath = join(stickvaniaDir, "persistence", "ThingRehydrationRegistry.ts");
+const valuePolicyPath = join(stickvaniaDir, "persistence", "StateFieldValuePolicy.ts");
 const checkOnly = process.argv.includes("--check");
 const RUNTIME_RESOURCE_TYPES = new Set(["Color", "Image", "Music", "Sound"]);
 const VALID_MAIN_CLASSIFICATIONS = new Set(["persisted", "runtime", "reconstructed", "special"]);
@@ -43,15 +44,16 @@ function typeName(member, source) {
 function collectDeclaredInstanceFields(node, source) {
     const fields = [];
     const seen = new Set();
-    const add = (name, runtimeResource = false) => {
+    const add = (name, runtimeResource = false, declaredType = "") => {
         if (name !== null && !seen.has(name)) {
             seen.add(name);
-            fields.push({ name, runtimeResource });
+            fields.push({ name, runtimeResource, declaredType });
         }
     };
     for (const member of node.members) {
         if (ts.isPropertyDeclaration(member) && !hasModifier(member, ts.SyntaxKind.StaticKeyword)) {
-            add(propertyNameText(member.name), RUNTIME_RESOURCE_TYPES.has(typeName(member, source)));
+            const declaredType = typeName(member, source);
+            add(propertyNameText(member.name), RUNTIME_RESOURCE_TYPES.has(declaredType), declaredType);
             continue;
         }
         if (!ts.isConstructorDeclaration(member)) continue;
@@ -61,7 +63,7 @@ function collectDeclaredInstanceFields(node, source) {
                 hasModifier(parameter, ts.SyntaxKind.PrivateKeyword) ||
                 hasModifier(parameter, ts.SyntaxKind.ProtectedKeyword) ||
                 hasModifier(parameter, ts.SyntaxKind.ReadonlyKeyword);
-            if (parameterProperty) add(propertyNameText(parameter.name), false);
+            if (parameterProperty) add(propertyNameText(parameter.name), false, typeName(parameter, source));
         }
     }
     return fields;
@@ -121,6 +123,103 @@ function readObjectLiteral(path, variableName) {
     }
     throw new Error(`Unable to find ${variableName}.`);
 }
+function readStringSet(path, variableName) {
+    const source = ts.createSourceFile(path, readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    for (const statement of source.statements) {
+        if (!ts.isVariableStatement(statement)) continue;
+        for (const declaration of statement.declarationList.declarations) {
+            if (!ts.isIdentifier(declaration.name) || declaration.name.text !== variableName || declaration.initializer === undefined) continue;
+            const initializer = unwrapExpression(declaration.initializer);
+            if (!ts.isNewExpression(initializer) || !ts.isIdentifier(initializer.expression) || initializer.expression.text !== "Set") {
+                throw new Error(`${variableName} must remain a Set initialized from an array literal.`);
+            }
+            const argument = initializer.arguments?.[0];
+            if (argument === undefined || !ts.isArrayLiteralExpression(argument)) {
+                throw new Error(`${variableName} must remain a Set initialized from an array literal.`);
+            }
+            return new Set(
+                argument.elements.map((element) => {
+                    const value = unwrapExpression(element);
+                    if (!ts.isStringLiteral(value)) throw new Error(`${variableName} entries must be string literals.`);
+                    return value.text;
+                })
+            );
+        }
+    }
+    throw new Error(`Unable to find ${variableName}.`);
+}
+
+function readReferencePolicyKeys() {
+    const { initializer } = readObjectLiteral(valuePolicyPath, "THING_REFERENCE_FIELD_POLICY");
+    const keys = new Set();
+    for (const typeProperty of initializer.properties) {
+        if (!ts.isPropertyAssignment(typeProperty)) throw new Error("THING_REFERENCE_FIELD_POLICY type entries must be property assignments.");
+        const typeId = propertyNameText(typeProperty.name);
+        const fields = unwrapExpression(typeProperty.initializer);
+        if (typeId === null || !ts.isObjectLiteralExpression(fields)) {
+            throw new Error("THING_REFERENCE_FIELD_POLICY type entries must map to object literals.");
+        }
+        for (const fieldProperty of fields.properties) {
+            if (!ts.isPropertyAssignment(fieldProperty)) throw new Error("THING_REFERENCE_FIELD_POLICY field entries must be property assignments.");
+            const fieldName = propertyNameText(fieldProperty.name);
+            if (fieldName === null) throw new Error("THING_REFERENCE_FIELD_POLICY field names must be literal names.");
+            keys.add(`${typeId}.${fieldName}`);
+        }
+    }
+    return keys;
+}
+
+function validatePersistedValuePolicy(mainInfo, mainPolicy, thingTypeMappings, classes) {
+    const mainBooleanFields = readStringSet(valuePolicyPath, "MAIN_BOOLEAN_PERSISTED_STATE_FIELDS");
+    const thingBooleanFields = readStringSet(valuePolicyPath, "THING_BOOLEAN_PERSISTED_STATE_FIELDS");
+    const referenceFields = readReferencePolicyKeys();
+
+    const expectedMainBooleanFields = new Set();
+    for (const field of mainInfo.fields) {
+        if (mainPolicy.get(field.name) !== "persisted") continue;
+        if (field.declaredType === "boolean") {
+            expectedMainBooleanFields.add(field.name);
+            if (!mainBooleanFields.has(field.name)) throw new Error(`Persisted Main boolean ${field.name} is missing from MAIN_BOOLEAN_PERSISTED_STATE_FIELDS.`);
+        } else if (field.declaredType === "number") {
+            if (mainBooleanFields.has(field.name)) throw new Error(`Persisted Main numeric field ${field.name} is incorrectly classified as boolean.`);
+        } else {
+            throw new Error(`Persisted Main field ${field.name} has unsupported value-policy type ${field.declaredType || "(inferred)"}.`);
+        }
+    }
+    for (const field of mainBooleanFields) {
+        if (!expectedMainBooleanFields.has(field)) throw new Error(`MAIN_BOOLEAN_PERSISTED_STATE_FIELDS contains stale/non-persisted field ${field}.`);
+    }
+
+    const expectedThingBooleanFields = new Set();
+    const expectedReferenceFields = new Set();
+    for (const { id, className } of thingTypeMappings) {
+        const fields = inheritedFieldInfo(classes, className);
+        for (const field of fields) {
+            if (field.name === "main" || field.runtimeResource) continue;
+            const key = `${id}.${field.name}`;
+            if (field.declaredType === "boolean") {
+                expectedThingBooleanFields.add(field.name);
+                if (!thingBooleanFields.has(field.name)) throw new Error(`Persisted Thing boolean ${key} is missing from THING_BOOLEAN_PERSISTED_STATE_FIELDS.`);
+                if (referenceFields.has(key)) throw new Error(`Persisted Thing boolean ${key} is incorrectly classified as a reference.`);
+            } else if (field.declaredType === "number") {
+                if (thingBooleanFields.has(field.name)) throw new Error(`Persisted Thing numeric field ${key} collides with THING_BOOLEAN_PERSISTED_STATE_FIELDS.`);
+                if (referenceFields.has(key)) throw new Error(`Persisted Thing numeric field ${key} is incorrectly classified as a reference.`);
+            } else {
+                expectedReferenceFields.add(key);
+                if (!referenceFields.has(key)) {
+                    throw new Error(`Persisted Thing reference/collection ${key} (${field.declaredType || "inferred"}) is missing from THING_REFERENCE_FIELD_POLICY.`);
+                }
+            }
+        }
+    }
+    for (const field of thingBooleanFields) {
+        if (!expectedThingBooleanFields.has(field)) throw new Error(`THING_BOOLEAN_PERSISTED_STATE_FIELDS contains stale/non-persisted field ${field}.`);
+    }
+    for (const key of referenceFields) {
+        if (!expectedReferenceFields.has(key)) throw new Error(`THING_REFERENCE_FIELD_POLICY contains stale/non-persisted field ${key}.`);
+    }
+}
+
 function readThingTypeMappings() {
     const { initializer } = readObjectLiteral(thingRegistryPath, "THING_TYPES");
     return initializer.properties.map((property) => {
@@ -180,6 +279,7 @@ for (const field of mainPolicy.keys()) if (!mainFields.includes(field)) throw ne
 const persistedMainFields = mainFields.filter((field) => mainPolicy.get(field) === "persisted");
 const rehydratorIds = readRehydratorIds();
 const thingTypeMappings = readThingTypeMappings();
+validatePersistedValuePolicy(mainInfo, mainPolicy, thingTypeMappings, classes);
 const knownThingIds = new Set(thingTypeMappings.map(({ id }) => id));
 const thingFields = {};
 const persistedThingFields = {};
