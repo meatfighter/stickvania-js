@@ -280,9 +280,13 @@ try {
     reservedDraftKey.draft.keyJump = 1;
     assert.equal(serializer.isInputConfigSnapshotShape(reservedDraftKey), false);
 
-    const dpadActionDraft = createInputConfigSnapshot();
-    dpadActionDraft.draft.controllerJump = 12;
-    assert.equal(serializer.isInputConfigSnapshotShape(dpadActionDraft), false);
+    const rawButton12ActionDraft = createInputConfigSnapshot();
+    rawButton12ActionDraft.draft.controllerJump = 12;
+    assert.equal(
+        serializer.isInputConfigSnapshotShape(rawButton12ActionDraft),
+        true,
+        "raw physical button 12 is a valid action binding; standard D-pad capture is canonicalized to a logical direction"
+    );
 
     const duplicateDraftKey = createInputConfigSnapshot();
     duplicateDraftKey.draft.keyAttack = duplicateDraftKey.draft.keyJump;
@@ -320,6 +324,12 @@ try {
         isControllerLeft: () => heldControllerLeft,
         isControllerRight: () => heldControllerRight,
         isButtonPressed: (button) => button === heldControllerButtonForDuplicate,
+        isControllerButtonDirectional: (button) => button >= 12 && button <= 15,
+        getControllerSampleStatus: () => ({ sequence: 1, available: true, valid: true, topologyGeneration: 1, baselineOnly: false }),
+        getControllerConnectionGeneration: () => 1,
+        sampleControllersForBaseline() {
+            return this.getControllerSampleStatus();
+        },
         clearKeyPressedRecord() {},
         clearControlPressedRecord() {}
     };
@@ -458,7 +468,13 @@ try {
         isControllerDown: () => false,
         isControllerLeft: () => false,
         isControllerRight: () => false,
-        isButtonPressed: (button) => button === heldControllerButton
+        isButtonPressed: (button) => button === heldControllerButton,
+        isControllerButtonDirectional: (button) => button >= 12 && button <= 15,
+        getControllerSampleStatus: () => ({ sequence: 1, available: true, valid: true, topologyGeneration: 1, baselineOnly: false }),
+        getControllerConnectionGeneration: () => 1,
+        sampleControllersForBaseline() {
+            return this.getControllerSampleStatus();
+        }
     };
     restoredInputConfig.restoreSnapshot({ getInput: () => restoredInput }, capturedRuntimeInputConfig);
     const roundTrippedInputConfig = restoredInputConfig.createSnapshot();
