@@ -264,10 +264,8 @@ export class InputConfigMode implements KeyListener {
         this.message = snapshot.message;
         this.finished = snapshot.finished;
         this.draft = this.cloneDraft(snapshot.draft);
-        this.assignedKeys.clear();
-        this.copyAssignedCodesIntoSet(this.assignedKeys, snapshot.assignedKeys, InputConfigMode.isAssignedKeyCode);
-        this.assignedControllerButtons.clear();
-        this.copyAssignedCodesIntoSet(this.assignedControllerButtons, snapshot.assignedControllerButtons, InputConfigMode.isAssignedControllerCode);
+        this.assignedKeys = new Set(snapshot.assignedKeys);
+        this.assignedControllerButtons = new Set(snapshot.assignedControllerButtons);
         this.syncControllerInputState();
         this.main.clearInputPressedRecords();
     }
@@ -500,56 +498,7 @@ export class InputConfigMode implements KeyListener {
     }
 
     private cloneDraft(draft: MappingDraft): MappingDraft {
-        return {
-            keyJump: this.sanitizedKeyBinding(draft.keyJump),
-            keyAttack: this.sanitizedKeyBinding(draft.keyAttack),
-            keyUp: this.sanitizedKeyBinding(draft.keyUp),
-            keyDown: this.sanitizedKeyBinding(draft.keyDown),
-            keyLeft: this.sanitizedKeyBinding(draft.keyLeft),
-            keyRight: this.sanitizedKeyBinding(draft.keyRight),
-            controllerJump: this.sanitizedControllerActionBinding(draft.controllerJump),
-            controllerAttack: this.sanitizedControllerActionBinding(draft.controllerAttack),
-            controllerUp: this.sanitizedControllerBinding(draft.controllerUp),
-            controllerDown: this.sanitizedControllerBinding(draft.controllerDown),
-            controllerLeft: this.sanitizedControllerBinding(draft.controllerLeft),
-            controllerRight: this.sanitizedControllerBinding(draft.controllerRight)
-        };
-    }
-
-    private sanitizedKeyBinding(value: unknown): number {
-        return ButtonMapping.isValidKeyBinding(value) ? value : ButtonMapping.NO_BINDING;
-    }
-
-    private sanitizedControllerBinding(value: unknown): number {
-        return ButtonMapping.isValidControllerBinding(value) ? value : ButtonMapping.NO_BINDING;
-    }
-
-    private sanitizedControllerActionBinding(value: unknown): number {
-        return ButtonMapping.isValidControllerActionBinding(value) ? value : ButtonMapping.NO_BINDING;
-    }
-
-    private copyAssignedCodesIntoSet(target: Set<number>, values: unknown, isValid: (value: unknown) => value is number): void {
-        if (!Array.isArray(values)) {
-            return;
-        }
-        for (const value of values) {
-            if (isValid(value)) {
-                target.add(value);
-            }
-        }
-    }
-
-    private static isAssignedKeyCode(value: unknown): value is number {
-        return typeof value === "number" && Number.isInteger(value) && value >= 0;
-    }
-
-    private static isAssignedControllerCode(value: unknown): value is number {
-        return (
-            typeof value === "number" &&
-            Number.isInteger(value) &&
-            value !== ButtonMapping.NO_BINDING &&
-            (ButtonMapping.isControllerDirection(value) || value >= 0)
-        );
+        return { ...draft };
     }
 
     private clearDraftKey(key: number): void {
