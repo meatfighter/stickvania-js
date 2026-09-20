@@ -16,9 +16,9 @@ function deferred() {
     return { promise, resolve };
 }
 
-function fixture({ enabled = true, restore = true, rejectHaptics = false } = {}) {
+function fixture({ enabled = true, restore = true, rejectHaptics = false, liveOverlayAllowed = true } = {}) {
     const noop = () => {};
-    const events = { pulses: 0, restores: 0, continuous: 0, loopResumes: 0 };
+    const events = { pulses: 0, restores: 0, saves: 0, continuous: 0, loopResumes: 0 };
     const runtimeControls = { display: () => Promise.resolve(), focus: noop };
     const node = () => ({ addEventListener: noop, removeEventListener: noop, remove: noop });
     const shell = node();
@@ -186,6 +186,9 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false } = {})
         isStateSaveReady() {
             return true;
         }
+        isLiveMenuOverlayAllowed() {
+            return liveOverlayAllowed;
+        }
         resumeBrowserOnlyRumbles() {
             events.continuous++;
         }
@@ -253,6 +256,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false } = {})
             return restore;
         }
         save() {
+            events.saves++;
             return true;
         }
         clear() {
@@ -464,6 +468,24 @@ test("failed cold restore never releases rumble suspension", async () => {
     f.getRumbleManager().play("test");
     assert.equal(f.events.pulses, 0);
     assert.equal(f.events.continuous, 0);
+});
+
+test("modes that disallow the live overlay persist and return through durable Continue", async () => {
+    const f = fixture({ liveOverlayAllowed: false });
+    await f.startGame(false);
+    const liveGame = f.state().game;
+
+    f.requestPwaMenu("hamburger");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(f.state().phase, "menu");
+    assert.equal(f.state().game, null, "disallowed modes must not retain a live game behind the root menu");
+    assert.equal(f.events.saves, 1, "the disallowed live-overlay transition must persist before teardown");
+
+    await f.startGame(true);
+    assert.equal(f.state().phase, "running");
+    assert.notEqual(f.state().game, liveGame, "Continue must reconstruct the durably saved game");
+    assert.equal(f.events.restores, 1);
 });
 
 test("live Continue still resumes the retained session and its haptics", async () => {
