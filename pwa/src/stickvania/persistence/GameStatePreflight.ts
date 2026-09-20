@@ -42,11 +42,7 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
     const currentMusicValue = isRecord(audioValue) ? audioValue.currentMusic : null;
     const currentMusicPlayback = isRecord(currentMusicValue) && isRecord(currentMusicValue.playback) ? currentMusicValue.playback : null;
     const hasObsoletePausedStandalone = isRecord(currentMusicPlayback) && currentMusicPlayback.transport === "paused";
-    const hasObsoleteTerminalStopWatch =
-        isRecord(mainFieldsValue) &&
-        typeof mainFieldsValue.timeFrozen === "number" &&
-        mainFieldsValue.timeFrozen > 0 &&
-        isTerminalStopWatchState(snapshot, mainFieldsValue);
+    const hasObsoleteTerminalStopWatch = isRecord(mainFieldsValue) && hasActiveStopWatch(snapshot) && isTerminalStopWatchState(snapshot, mainFieldsValue);
     const hasInvalidStopWatchRepeatState =
         isRecord(mainFieldsValue) && mainFieldsValue.weaponType === WEAPON_TYPE_STOP_WATCH && mainFieldsValue.weaponRepeats !== WEAPON_REPEATS_SINGLE;
     return (
@@ -66,6 +62,15 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         !hasObsoleteTerminalStopWatch &&
         !hasInvalidStopWatchRepeatState &&
         isAxeKnightShieldSnapshotStateValid(snapshot)
+    );
+}
+
+function hasActiveStopWatch(snapshot: Record<string, unknown>): boolean {
+    if (!Array.isArray(snapshot.things)) {
+        return false;
+    }
+    return snapshot.things.some(
+        (thing) => isRecord(thing) && thing.type === "StopWatch" && isRecord(thing.fields) && typeof thing.fields.lifeTime === "number" && thing.fields.lifeTime > 0
     );
 }
 
