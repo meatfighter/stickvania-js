@@ -1,6 +1,7 @@
 import { GameContainer, JavaRandom, Music, isMusicPlaybackSnapshot } from "slick2d-ts";
 import { Checkpoint } from "../Checkpoint.js";
 import { ButtonMapping } from "../ButtonMapping.js";
+import { ControllerSupport } from "../ControllerSupport.js";
 import { Main } from "../Main.js";
 import { Region } from "../Region.js";
 import { Song } from "../Song.js";
@@ -318,7 +319,7 @@ export class StickvaniaGameStateSerializer {
             this.isAssignedInputCodeArray(snapshot.assignedKeys, 6) &&
             this.isAssignedControllerCodeArray(snapshot.assignedControllerButtons, 6) &&
             Array.isArray(snapshot.controllerButtonDown) &&
-            snapshot.controllerButtonDown.length === 64 &&
+            snapshot.controllerButtonDown.length <= ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT &&
             snapshot.controllerButtonDown.every((value) => typeof value === "boolean") &&
             typeof snapshot.controllerUpDown === "boolean" &&
             typeof snapshot.controllerDownDown === "boolean" &&
