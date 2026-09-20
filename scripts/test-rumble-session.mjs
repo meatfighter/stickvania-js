@@ -392,6 +392,22 @@ for (const enabled of [true, false]) {
     }
 }
 
+test("repeated suspension stops make only the newest async shutdown authoritative", () => {
+    const f = fixture();
+    const manager = f.getRumbleManager();
+
+    manager.stopAll();
+    const firstStop = f.events.silencePredicates.at(-1);
+    assert.equal(typeof firstStop, "function");
+    assert.equal(firstStop(), true);
+
+    manager.stopAll();
+    const secondStop = f.events.silencePredicates.at(-1);
+    assert.equal(typeof secondStop, "function");
+    assert.equal(firstStop(), false);
+    assert.equal(secondStop(), true);
+});
+
 test("new rumble ownership invalidates fallback work from an earlier stop", async () => {
     const f = fixture();
     const manager = f.getRumbleManager();
