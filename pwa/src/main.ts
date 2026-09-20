@@ -319,6 +319,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     const appContainer = new runtime.slick.AppGameContainer(bufferedGame, displayMode.width, displayMode.height, false);
     appContainer.setPreserveAudioCacheOnDestroy(true);
     appContainer.setLoopSuspended(true);
+    appContainer.getInput().pause();
     appContainer.setHighDpiEnabled(HIGH_DPI_ENABLED);
     appContainer.setMaxDevicePixelRatio(MAX_DEVICE_PIXEL_RATIO);
     container = appContainer;
@@ -381,6 +382,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     if (!isStartingGameSession(session, audio) || game !== mainGame || container !== appContainer) {
         return;
     }
+    appContainer.getInput().resume();
     gameLaunchInProgress = false;
     pwaSessionState = "running";
     mainGame.setBrowserSuspended(false);
