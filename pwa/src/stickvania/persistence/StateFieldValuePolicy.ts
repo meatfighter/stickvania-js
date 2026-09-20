@@ -181,15 +181,15 @@ function isThingNumberValid(type: ThingTypeId, name: string, value: number): boo
         return value === Main.LEFT || value === Main.RIGHT;
     }
     if (name === "state") {
-        const range = inferStaticIntegerRange(type, "STATE_");
-        if (range !== null) {
-            return Number.isInteger(value) && value >= range[0] && value <= range[1];
+        const values = inferStaticIntegerValues(type, "STATE_");
+        if (values !== null) {
+            return Number.isInteger(value) && values.includes(value);
         }
     }
     if (name === "type") {
-        const range = inferStaticIntegerRange(type, "TYPE_");
-        if (range !== null) {
-            return Number.isInteger(value) && value >= range[0] && value <= range[1];
+        const values = inferStaticIntegerValues(type, "TYPE_");
+        if (values !== null) {
+            return Number.isInteger(value) && values.includes(value);
         }
     }
     if (name === "spriteIndex" || name === "spriteIndexIncrementor" || name.endsWith("Delay") || name.endsWith("Timer") || name === "hits" || name === "count") {
@@ -204,15 +204,12 @@ function isThingNumberValid(type: ThingTypeId, name: string, value: number): boo
     return Math.abs(value) <= 1_000_000;
 }
 
-function inferStaticIntegerRange(type: ThingTypeId, prefix: string): readonly [number, number] | null {
+function inferStaticIntegerValues(type: ThingTypeId, prefix: string): readonly number[] | null {
     const constructor = THING_TYPES[type] as unknown as Record<string, unknown>;
     const values = Object.entries(constructor)
         .filter(([key, value]) => key.startsWith(prefix) && typeof value === "number" && Number.isInteger(value))
         .map(([, value]) => value as number);
-    if (values.length === 0) {
-        return null;
-    }
-    return [Math.min(...values), Math.max(...values)];
+    return values.length === 0 ? null : values;
 }
 
 function isReferenceValueValid(
