@@ -57,12 +57,10 @@ test("graphics lifecycle is exit-only and restoration never resumes gameplay", (
     assert.doesNotMatch(launch, /state === "restored"[\s\S]*?(?:setLoopSuspended\(false\)|setBrowserSuspended\(false\)|beginGameAudio\(|commitGameAudio\()/);
 });
 
-test("live-menu overlay admission honors the game mode contract", () => {
+test("live-menu retention has no mode-specific Input Config exclusion", () => {
+    assert.doesNotMatch(gameMainSource, /isLiveMenuOverlayAllowed/);
     const canOpen = mainSource.slice(mainSource.indexOf("function canOpenLiveMenuOverlay"), mainSource.indexOf("function hasLiveSuspendedGame"));
-    assert.match(canOpen, /game\.isLiveMenuOverlayAllowed\(\)/);
-
-    const policy = gameMainSource.slice(gameMainSource.indexOf("public isLiveMenuOverlayAllowed"), gameMainSource.indexOf("private isStageStateRequiredForStateSave"));
-    assert.match(policy, /return this\.mode != Main\.MODE_INPUT_CONFIG/);
+    assert.doesNotMatch(canOpen, /MODE_INPUT_CONFIG|inputConfig|isLiveMenuOverlayAllowed/);
 });
 
 test("live-menu transition freezes rumble/gameplay and retires playback before saving", () => {
