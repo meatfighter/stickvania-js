@@ -35,6 +35,37 @@ export type InputConfigModeSnapshot = {
     assignedControllerButtons: number[];
 };
 
+export function isInputConfigLogicalStateConsistent(snapshot: InputConfigModeSnapshot): boolean {
+    const assignedKeys = snapshot.assignedKeys;
+    const assignedControllerButtons = snapshot.assignedControllerButtons;
+    if (
+        new Set(assignedKeys).size !== assignedKeys.length ||
+        new Set(assignedControllerButtons).size !== assignedControllerButtons.length
+    ) {
+        return false;
+    }
+
+    const assignmentCount = assignedKeys.length + assignedControllerButtons.length;
+    if (snapshot.finished) {
+        return (
+            snapshot.stepIndex === INPUT_CONFIG_STEP_COUNT &&
+            snapshot.doneDelay >= 1 &&
+            snapshot.doneDelay <= INPUT_CONFIG_DONE_DELAY &&
+            snapshot.armDelay === 0 &&
+            assignmentCount === INPUT_CONFIG_STEP_COUNT
+        );
+    }
+
+    return (
+        snapshot.stepIndex >= 0 &&
+        snapshot.stepIndex < INPUT_CONFIG_STEP_COUNT &&
+        snapshot.doneDelay === 0 &&
+        snapshot.armDelay >= 0 &&
+        snapshot.armDelay <= INPUT_CONFIG_ARM_DELAY &&
+        assignmentCount === snapshot.stepIndex
+    );
+}
+
 export class InputConfigMode implements KeyListener {
     private static readonly STEPS: BindingStep[] = ["UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK"];
     private static readonly DONE_DELAY = INPUT_CONFIG_DONE_DELAY;
