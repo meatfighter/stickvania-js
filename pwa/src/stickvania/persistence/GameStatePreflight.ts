@@ -12,14 +12,48 @@ type GameStateStorage = {
     getItem(key: string): string | null;
 };
 
+export type PotentialStoredStickvaniaGameStateInspection =
+    | { readonly status: "read-failed" }
+    | { readonly status: "missing" }
+    | { readonly status: "invalid" }
+    | { readonly status: "unsupported-future"; readonly version: number }
+    | { readonly status: "current" };
+
 /** Menu preflight has no write capability and never migrates or deletes saves. */
-export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage, storageKey: string = GAME_STATE_STORAGE_KEY): boolean {
+export function inspectPotentialStoredStickvaniaGameState(
+    storage: GameStateStorage,
+    storageKey: string = GAME_STATE_STORAGE_KEY
+): PotentialStoredStickvaniaGameStateInspection {
+    let text: string | null;
     try {
-        const text = storage.getItem(storageKey);
-        return text !== null && text.length <= MAX_GAME_STATE_TEXT_LENGTH && isPotentialStickvaniaGameStateSnapshot(JSON.parse(text) as unknown);
+        text = storage.getItem(storageKey);
     } catch {
-        return false;
+        return { status: "read-failed" };
     }
+    if (text === null) {
+        return { status: "missing" };
+    }
+    if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
+        return { status: "invalid" };
+    }
+
+    let snapshot: unknown;
+    try {
+        snapshot = JSON.parse(text) as unknown;
+    } catch {
+        return { status: "invalid" };
+    }
+    if (isRecord(snapshot)) {
+        const version = snapshot.version;
+        if (typeof version === "number" && Number.isInteger(version) && version > GAME_STATE_VERSION) {
+            return { status: "unsupported-future", version };
+        }
+    }
+    return isPotentialStickvaniaGameStateSnapshot(snapshot) ? { status: "current" } : { status: "invalid" };
+}
+
+export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage, storageKey: string = GAME_STATE_STORAGE_KEY): boolean {
+    return inspectPotentialStoredStickvaniaGameState(storage, storageKey).status === "current";
 }
 
 export function hasPotentialBrowserStoredStickvaniaGameState(): boolean {
