@@ -2636,8 +2636,11 @@ export class Main extends BasicGame {
             this.stopAllRumbles();
         }
         this.clearInputPressedRecords();
-        if (!suspended && this.mode == Main.MODE_INPUT_CONFIG) {
-            this.inputConfigMode?.resyncControllerStateAfterBrowserResume();
+        if (!suspended) {
+            this.simon?.resetInputReleaseLatches();
+            if (this.mode == Main.MODE_INPUT_CONFIG) {
+                this.inputConfigMode?.resyncControllerStateAfterBrowserResume();
+            }
         }
         this.resetNextFrameTime();
     }
