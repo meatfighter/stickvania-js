@@ -41,6 +41,8 @@ public final class ControllerSupportTest {
       int polls = pad.polls;
       check(ControllerSupport.isLeftDown(), "Stick direction");
       check(ControllerSupport.isButtonDown(0), "Action button");
+      check(!ControllerSupport.isDirectionalButton(12),
+          "An unnamed raw button 12 must not be guessed to be a D-pad direction");
       check(ControllerSupport.isNonDirectionalButtonDown(mapping), "Menu button");
       for (int i = 0; i < 1000; i++) {
         ControllerSupport.isLeftDown();
@@ -162,8 +164,28 @@ public final class ControllerSupportTest {
     final Control x = new Control(Component.Identifier.Axis.X);
     final Control y = new Control(Component.Identifier.Axis.Y);
     final Control pov = new Control(Component.Identifier.Axis.POV);
-    final Control button = new Control(Component.Identifier.Button._0);
-    final Component[] components = {x, y, pov, button};
+    final Control[] buttons = {
+        new Control(Component.Identifier.Button._0),
+        new Control(Component.Identifier.Button._1),
+        new Control(Component.Identifier.Button._2),
+        new Control(Component.Identifier.Button._3),
+        new Control(Component.Identifier.Button._4),
+        new Control(Component.Identifier.Button._5),
+        new Control(Component.Identifier.Button._6),
+        new Control(Component.Identifier.Button._7),
+        new Control(Component.Identifier.Button._8),
+        new Control(Component.Identifier.Button._9),
+        new Control(Component.Identifier.Button._10),
+        new Control(Component.Identifier.Button._11),
+        new Control(Component.Identifier.Button._12)
+    };
+    final Control button = buttons[0];
+    final Component[] components = {
+        x, y, pov,
+        buttons[0], buttons[1], buttons[2], buttons[3], buttons[4],
+        buttons[5], buttons[6], buttons[7], buttons[8], buttons[9],
+        buttons[10], buttons[11], buttons[12]
+    };
     final EventQueue events = new EventQueue(32);
     int polls;
     boolean fail;
