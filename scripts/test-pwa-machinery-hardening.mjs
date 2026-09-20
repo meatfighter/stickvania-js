@@ -97,6 +97,30 @@ test("title default-mapping reset uses the same shell-owned persistence path", (
     assert.doesNotMatch(selectTitle, /this\.buttonMapping\.save\(/);
 });
 
+test("difficulty and browser preference persistence is shell-owned", () => {
+    const difficultyStart = gameMainSource.indexOf("public setDifficulty(difficulty: number): void");
+    const difficultyEnd = gameMainSource.indexOf("public override init", difficultyStart);
+    const difficulty = gameMainSource.slice(difficultyStart, difficultyEnd);
+    assert.match(difficulty, /Main\.difficultyChangedHandlers\.get\(this\)\?\.\(this\.difficulty\)/);
+    assert.doesNotMatch(difficulty, /localStorage|DIFFICULTY_STORAGE_KEY/);
+    assert.doesNotMatch(gameMainSource, /DIFFICULTY_STORAGE_KEY/);
+
+    const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("appContainer.setAlwaysRender"));
+    assert.match(launch, /mainGame\.difficulty = preferences\.difficulty/);
+    assert.match(launch, /mainGame\.setDifficultyChangedHandler\(\(difficulty\) =>/);
+    assert.match(
+        launch,
+        /preferences\.setDifficulty\(\s*difficulty,\s*\(\) => ownership\.owned && isCurrentGameSession\(session\) && game === mainGame\s*\)/s
+    );
+
+    assert.match(mainSource, /preferences\.setVolume\(value, persist, currentPreferenceWriteAuthorized\)/);
+    assert.match(mainSource, /preferences\.setDisplayMode\(value, currentPreferenceWriteAuthorized\)/);
+    assert.match(mainSource, /preferences\.setScaling\(value, currentPreferenceWriteAuthorized\)/);
+    assert.match(mainSource, /preferences\.setRumbleEnabled\(value, currentPreferenceWriteAuthorized\)/);
+    assert.match(mainSource, /preferences\.setFullscreen\(value, currentPreferenceWriteAuthorized\)/);
+    assert.match(mainSource, /preferences\.reset\(currentPreferenceWriteAuthorized\)/);
+});
+
 test("input mapping persistence is shell-owned and rechecks the current session at write time", () => {
     assert.match(inputConfigSource, /this\.main\.notifyInputMappingChanged\(\)\.saved/);
     assert.doesNotMatch(inputConfigSource, /buttonMapping\.save\(/);
