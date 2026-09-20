@@ -491,7 +491,7 @@ export class Main extends BasicGame {
     public requestedSong: Song | null = null;
     public currentMusic: Music | null = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) | null = null;
-    public inputMappingChangedHandler: (() => MappingWriteResult) | null = null;
+    private static readonly inputMappingChangedHandlers = new WeakMap<Main, () => MappingWriteResult>();
     private browserSuspended: boolean = false;
     private input: Input | null = null;
     public buttonMapping: ButtonMapping = ButtonMapping.load();
@@ -2748,11 +2748,16 @@ export class Main extends BasicGame {
         this.initTitleScreen();
     }
 
-    public notifyInputMappingChanged(): MappingWriteResult {
-        if (this.inputMappingChangedHandler === null) {
-            return { saved: false, reason: "unavailable" };
+    public setInputMappingChangedHandler(handler: (() => MappingWriteResult) | null): void {
+        if (handler === null) {
+            Main.inputMappingChangedHandlers.delete(this);
+        } else {
+            Main.inputMappingChangedHandlers.set(this, handler);
         }
-        return this.inputMappingChangedHandler();
+    }
+
+    public notifyInputMappingChanged(): MappingWriteResult {
+        return Main.inputMappingChangedHandlers.get(this)?.() ?? { saved: false, reason: "unavailable" };
     }
 
     private completeStartup(gc: GameContainer): void {
