@@ -410,6 +410,18 @@ try {
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), missingPreflightText);
 
+    const invalidInputPreflight = createPotentialSnapshot(GAME_STATE_VERSION);
+    invalidInputPreflight.mode = 10;
+    invalidInputPreflight.mainFields.mode = 10;
+    invalidInputPreflight.inputConfigMode = createInputConfigSnapshot();
+    invalidInputPreflight.inputConfigMode.stepIndex = 1;
+    invalidInputPreflight.inputConfigMode.armDelay = 0;
+    invalidInputPreflight.inputConfigMode.assignedKeys = [999];
+    const invalidInputPreflightText = JSON.stringify(invalidInputPreflight);
+    storage.setItem(GAME_STATE_STORAGE_KEY, invalidInputPreflightText);
+    assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
+    assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), invalidInputPreflightText);
+
     const obsoleteAudioPolicy = createPotentialSnapshot(GAME_STATE_VERSION);
     obsoleteAudioPolicy.audio.musicOn = false;
     obsoleteAudioPolicy.audio.soundOn = true;
@@ -443,6 +455,11 @@ try {
         const restored = ButtonMapping.load();
         assert.equal(restored.keyJump, 57);
         assert.equal(restored.keyboardLabelFor("JUMP"), "SPACE");
+
+        mapping.keyJump = 1; // Slick KEY_ESCAPE
+        assert.equal(ButtonMapping.isReservedKey(1), true);
+        assert.equal(ButtonMapping.isValidKeyBinding(1), false);
+        assert.equal(mapping.save(), false, "reserved keys must not enter the persisted mapping store");
     } finally {
         if (oldLocalStorage === undefined) {
             delete globalThis.localStorage;
