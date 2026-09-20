@@ -78,6 +78,11 @@ export function isInputConfigModeSnapshot(value: unknown): value is InputConfigM
         !keyFields.every((field) => ButtonMapping.isValidKeyBinding(draft[field])) ||
         !controllerActionFields.every((field) => ButtonMapping.isValidControllerActionBinding(draft[field])) ||
         !controllerDirectionFields.every((field) => ButtonMapping.isValidControllerBinding(draft[field])) ||
+        !ButtonMapping.hasUniqueNonBindingValues(keyFields.map((field) => draft[field])) ||
+        !ButtonMapping.hasUniqueNonBindingValues([
+            ...controllerActionFields.map((field) => draft[field]),
+            ...controllerDirectionFields.map((field) => draft[field])
+        ]) ||
         !isAssignedKeyArray(value.assignedKeys) ||
         !isAssignedControllerArray(value.assignedControllerButtons)
     ) {
