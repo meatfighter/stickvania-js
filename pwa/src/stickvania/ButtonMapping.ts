@@ -336,7 +336,10 @@ export class ButtonMapping {
         return (
             typeof value === "number" &&
             Number.isInteger(value) &&
-            (value === ButtonMapping.NO_BINDING || (value >= 0 && value < CONTROLLER_BUTTON_INDEX_LIMIT))
+            (value === ButtonMapping.NO_BINDING ||
+                (value >= 0 &&
+                    value < CONTROLLER_BUTTON_INDEX_LIMIT &&
+                    !ButtonMapping.isStandardGamepadDirectionButton(value)))
         );
     }
 
@@ -380,6 +383,11 @@ export class ButtonMapping {
         }
     }
 
+    public static hasUniqueNonBindingValues(values: readonly unknown[]): boolean {
+        const assigned = values.filter((value): value is number => typeof value === "number" && value !== ButtonMapping.NO_BINDING);
+        return new Set(assigned).size === assigned.length;
+    }
+
     private static getSnapshotVersion(snapshot: unknown): number | null {
         if (typeof snapshot !== "object" || snapshot === null || !("version" in snapshot)) {
             return null;
@@ -408,7 +416,23 @@ export class ButtonMapping {
             ButtonMapping.isValidControllerBinding(value.controllerUp) &&
             ButtonMapping.isValidControllerBinding(value.controllerDown) &&
             ButtonMapping.isValidControllerBinding(value.controllerLeft) &&
-            ButtonMapping.isValidControllerBinding(value.controllerRight)
+            ButtonMapping.isValidControllerBinding(value.controllerRight) &&
+            ButtonMapping.hasUniqueNonBindingValues([
+                value.keyJump,
+                value.keyAttack,
+                value.keyUp,
+                value.keyDown,
+                value.keyLeft,
+                value.keyRight
+            ]) &&
+            ButtonMapping.hasUniqueNonBindingValues([
+                value.controllerJump,
+                value.controllerAttack,
+                value.controllerUp,
+                value.controllerDown,
+                value.controllerLeft,
+                value.controllerRight
+            ])
         );
     }
 }
