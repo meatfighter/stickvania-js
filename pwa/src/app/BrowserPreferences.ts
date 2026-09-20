@@ -8,6 +8,8 @@ export const DEFAULT_RUMBLE_ENABLED = true;
 export const DEFAULT_FULLSCREEN_PREFERENCE = true;
 export const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
 export const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";
+export const DEFAULT_DIFFICULTY = 0;
+export const HARD_DIFFICULTY = 1;
 
 const VOLUME_STORAGE_KEY = getBrowserStorageKey("volume");
 const DISPLAY_MODE_STORAGE_KEY = getBrowserStorageKey("display-mode");
@@ -34,35 +36,44 @@ export class BrowserPreferences {
     public scaling = this.readScaling();
     public rumbleEnabled = this.readRumbleEnabled();
     public fullscreen = this.readFullscreen();
+    public difficulty = this.readDifficulty();
 
-    public setVolume(value: number, persist = true): boolean {
+    public setVolume(value: number, persist = true, isAuthorized: () => boolean = () => true): boolean {
         this.volume = BrowserPreferences.clampVolume(value);
-        return !persist || this.write(VOLUME_STORAGE_KEY, String(Math.round(this.volume * 100)), "volume");
+        return !persist || this.write(VOLUME_STORAGE_KEY, String(Math.round(this.volume * 100)), "volume", isAuthorized);
     }
 
-    public setDisplayMode(value: DisplayModePreference): boolean {
+    public setDisplayMode(value: DisplayModePreference, isAuthorized: () => boolean = () => true): boolean {
         this.displayMode = value;
-        return this.write(DISPLAY_MODE_STORAGE_KEY, value, "display theme");
+        return this.write(DISPLAY_MODE_STORAGE_KEY, value, "display theme", isAuthorized);
     }
 
-    public setScaling(value: StickvaniaScalingPreference): boolean {
+    public setScaling(value: StickvaniaScalingPreference, isAuthorized: () => boolean = () => true): boolean {
         this.scaling = value;
-        return this.write(SCALING_STORAGE_KEY, value, "scaling preference");
+        return this.write(SCALING_STORAGE_KEY, value, "scaling preference", isAuthorized);
     }
 
-    public setRumbleEnabled(value: boolean): boolean {
+    public setRumbleEnabled(value: boolean, isAuthorized: () => boolean = () => true): boolean {
         this.rumbleEnabled = value;
-        return this.write(RUMBLE_STORAGE_KEY, String(value), "rumble preference");
+        return this.write(RUMBLE_STORAGE_KEY, String(value), "rumble preference", isAuthorized);
     }
 
-    public setFullscreen(value: boolean): boolean {
+    public setFullscreen(value: boolean, isAuthorized: () => boolean = () => true): boolean {
         this.fullscreen = value;
-        return this.write(FULLSCREEN_STORAGE_KEY, String(value), "fullscreen preference");
+        return this.write(FULLSCREEN_STORAGE_KEY, String(value), "fullscreen preference", isAuthorized);
     }
 
-    public reset(): boolean {
+    public setDifficulty(value: number, isAuthorized: () => boolean = () => true): boolean {
+        this.difficulty = value === HARD_DIFFICULTY ? HARD_DIFFICULTY : DEFAULT_DIFFICULTY;
+        return this.write(DIFFICULTY_STORAGE_KEY, String(this.difficulty), "difficulty preference", isAuthorized);
+    }
+
+    public reset(isAuthorized: () => boolean = () => true): boolean {
         let success = true;
         for (const key of PWA_RESET_STORAGE_KEYS) {
+            if (!isAuthorized()) {
+                return false;
+            }
             try {
                 localStorage.removeItem(key);
             } catch (error) {
@@ -75,6 +86,7 @@ export class BrowserPreferences {
         this.scaling = DEFAULT_SCALING_PREFERENCE;
         this.rumbleEnabled = DEFAULT_RUMBLE_ENABLED;
         this.fullscreen = DEFAULT_FULLSCREEN_PREFERENCE;
+        this.difficulty = DEFAULT_DIFFICULTY;
         return success;
     }
 
@@ -139,7 +151,20 @@ export class BrowserPreferences {
         return DEFAULT_FULLSCREEN_PREFERENCE;
     }
 
-    private write(key: string, value: string, label: string): boolean {
+    private readDifficulty(): number {
+        try {
+            return Number.parseInt(localStorage.getItem(DIFFICULTY_STORAGE_KEY) ?? "", 10) === HARD_DIFFICULTY
+                ? HARD_DIFFICULTY
+                : DEFAULT_DIFFICULTY;
+        } catch {
+            return DEFAULT_DIFFICULTY;
+        }
+    }
+
+    private write(key: string, value: string, label: string, isAuthorized: () => boolean): boolean {
+        if (!isAuthorized()) {
+            return false;
+        }
         try {
             localStorage.setItem(key, value);
             return true;
