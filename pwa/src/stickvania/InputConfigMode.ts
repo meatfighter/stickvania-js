@@ -56,10 +56,17 @@ export function isInputConfigLogicalStateConsistent(snapshot: InputConfigModeSna
             snapshot.doneDelay >= 1 &&
             snapshot.doneDelay <= INPUT_CONFIG_DONE_DELAY &&
             snapshot.armDelay === 0 &&
-            assignmentCount === INPUT_CONFIG_STEP_COUNT
+            assignmentCount === INPUT_CONFIG_STEP_COUNT &&
+            (snapshot.message === "SAVED" || snapshot.message === "NOT SAVED")
         );
     }
 
+    if (snapshot.message !== "" && snapshot.message !== "ALREADY USED") {
+        return false;
+    }
+    if (snapshot.armDelay > 0 && (snapshot.stepIndex !== 0 || assignmentCount !== 0 || snapshot.message !== "")) {
+        return false;
+    }
     return (
         snapshot.stepIndex >= 0 &&
         snapshot.stepIndex < INPUT_CONFIG_STEP_COUNT &&
