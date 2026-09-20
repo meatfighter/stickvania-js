@@ -28,6 +28,11 @@ type InputState = {
     menuSelectJumpController: boolean;
     menuSelectAttackController: boolean;
     menuSelectAnyController: boolean;
+    menuUpControllerPressed: boolean;
+    menuDownControllerPressed: boolean;
+    menuSelectJumpControllerPressed: boolean;
+    menuSelectAttackControllerPressed: boolean;
+    menuSelectAnyControllerPressed: boolean;
 };
 
 function createEmptyState(): InputState {
@@ -50,13 +55,40 @@ function createEmptyState(): InputState {
         menuSelectEnterKeyboard: false,
         menuSelectJumpController: false,
         menuSelectAttackController: false,
-        menuSelectAnyController: false
+        menuSelectAnyController: false,
+        menuUpControllerPressed: false,
+        menuDownControllerPressed: false,
+        menuSelectJumpControllerPressed: false,
+        menuSelectAttackControllerPressed: false,
+        menuSelectAnyControllerPressed: false
     };
 }
 
+type ControllerReadContext = {
+    readonly valid: boolean;
+    readonly baselineOnly: boolean;
+    readonly controllerCount: number;
+};
+
+type ControllerBindingState = {
+    readonly down: boolean;
+    readonly pressed: boolean;
+};
+
 export class StickvaniaInput {
+    private static readonly CONTROLLER_BINDING_SLOT_COUNT = 7;
     private previous: InputState = createEmptyState();
     private current: InputState = createEmptyState();
+    private readonly controllerBindingDown: boolean[][] = Array.from(
+        { length: StickvaniaInput.CONTROLLER_BINDING_SLOT_COUNT },
+        () => []
+    );
+    private readonly controllerBindingBlockedUntilRelease: boolean[][] = Array.from(
+        { length: StickvaniaInput.CONTROLLER_BINDING_SLOT_COUNT },
+        () => []
+    );
+    private readonly controllerConnectionGenerations: number[] = [];
+    private readonly controllerGenerationChanged: boolean[] = [];
 
     public constructor(
         private readonly input: Input,
@@ -70,7 +102,7 @@ export class StickvaniaInput {
         const next = this.previous;
         this.previous = this.current;
         this.current = next;
-        this.readStateInto(this.current);
+        this.readStateInto(this.current, false);
         // Complete any first below-pit presentation before Main's legacy pit
         // branch can return, including a cold-restored lethal trajectory.
         prepareRegisteredPitDeathPresentation();
@@ -83,7 +115,8 @@ export class StickvaniaInput {
     }
 
     public clearPressedState(): void {
-        this.readStateInto(this.current);
+        this.input.sampleControllersForBaseline();
+        this.readStateInto(this.current, true);
         this.copyState(this.previous, this.current);
     }
 
@@ -120,14 +153,14 @@ export class StickvaniaInput {
     public isMenuUpPressed(): boolean {
         return (
             StickvaniaInput.pressed(this.current.menuUpKeyboard, this.previous.menuUpKeyboard) ||
-            StickvaniaInput.pressed(this.current.menuUpController, this.previous.menuUpController)
+            this.current.menuUpControllerPressed
         );
     }
 
     public isMenuDownPressed(): boolean {
         return (
             StickvaniaInput.pressed(this.current.menuDownKeyboard, this.previous.menuDownKeyboard) ||
-            StickvaniaInput.pressed(this.current.menuDownController, this.previous.menuDownController)
+            this.current.menuDownControllerPressed
         );
     }
 
@@ -136,9 +169,9 @@ export class StickvaniaInput {
             StickvaniaInput.pressed(this.current.menuSelectJumpKeyboard, this.previous.menuSelectJumpKeyboard) ||
             StickvaniaInput.pressed(this.current.menuSelectAttackKeyboard, this.previous.menuSelectAttackKeyboard) ||
             StickvaniaInput.pressed(this.current.menuSelectEnterKeyboard, this.previous.menuSelectEnterKeyboard) ||
-            StickvaniaInput.pressed(this.current.menuSelectJumpController, this.previous.menuSelectJumpController) ||
-            StickvaniaInput.pressed(this.current.menuSelectAttackController, this.previous.menuSelectAttackController) ||
-            StickvaniaInput.pressed(this.current.menuSelectAnyController, this.previous.menuSelectAnyController)
+            this.current.menuSelectJumpControllerPressed ||
+            this.current.menuSelectAttackControllerPressed ||
+            this.current.menuSelectAnyControllerPressed
         );
     }
 
@@ -146,19 +179,29 @@ export class StickvaniaInput {
         return this.isMenuSelectPressed();
     }
 
-    private readStateInto(target: InputState): void {
+    private readStateInto(target: InputState, suppressControllerEdges: boolean): void {
         const keyUp = this.isKeyDown(this.mapping.keyUp);
         const keyDown = this.isKeyDown(this.mapping.keyDown);
         const keyLeft = this.isKeyDown(this.mapping.keyLeft);
         const keyRight = this.isKeyDown(this.mapping.keyRight);
         const keyJump = this.isKeyDown(this.mapping.keyJump);
         const keyAttack = this.isKeyDown(this.mapping.keyAttack);
-        const controllerUp = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerUp);
-        const controllerDown = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerDown);
-        const controllerLeft = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerLeft);
-        const controllerRight = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerRight);
-        const controllerJump = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerJump);
-        const controllerAttack = ControllerSupport.isDirectionDown(this.input, this.mapping.controllerAttack);
+
+        const context = this.prepareControllerReadContext();
+        const controllerUpState = this.readControllerBinding(this.mapping.controllerUp, 0, context, false, suppressControllerEdges);
+        const controllerDownState = this.readControllerBinding(this.mapping.controllerDown, 1, context, false, suppressControllerEdges);
+        const controllerLeftState = this.readControllerBinding(this.mapping.controllerLeft, 2, context, false, suppressControllerEdges);
+        const controllerRightState = this.readControllerBinding(this.mapping.controllerRight, 3, context, false, suppressControllerEdges);
+        const controllerJumpState = this.readControllerBinding(this.mapping.controllerJump, 4, context, true, suppressControllerEdges);
+        const controllerAttackState = this.readControllerBinding(this.mapping.controllerAttack, 5, context, true, suppressControllerEdges);
+        const anyControllerSelectState = this.readAnyNonDirectionalControllerState(6, context, suppressControllerEdges);
+
+        const controllerUp = controllerUpState.down;
+        const controllerDown = controllerDownState.down;
+        const controllerLeft = controllerLeftState.down;
+        const controllerRight = controllerRightState.down;
+        const controllerJump = controllerJumpState.down;
+        const controllerAttack = controllerAttackState.down;
         const up = keyUp || controllerUp;
         const down = keyDown || controllerDown;
         const left = keyLeft || controllerLeft;
@@ -166,7 +209,7 @@ export class StickvaniaInput {
         const jump = keyJump || controllerJump;
         const attack = keyAttack || controllerAttack;
         const enterSelect = !this.isKeyMappedToDirection(Input.KEY_ENTER) && this.isKeyDown(Input.KEY_ENTER);
-        const anyControllerSelect = ControllerSupport.isNonDirectionalButtonDown(this.input, this.mapping);
+        const anyControllerSelect = anyControllerSelectState.down;
 
         target.up = up;
         target.down = down;
@@ -187,6 +230,142 @@ export class StickvaniaInput {
         target.menuSelectJumpController = controllerJump;
         target.menuSelectAttackController = controllerAttack;
         target.menuSelectAnyController = anyControllerSelect;
+        target.menuUpControllerPressed = controllerUpState.pressed;
+        target.menuDownControllerPressed = controllerDownState.pressed;
+        target.menuSelectJumpControllerPressed = controllerJumpState.pressed;
+        target.menuSelectAttackControllerPressed = controllerAttackState.pressed;
+        target.menuSelectAnyControllerPressed = anyControllerSelectState.pressed;
+    }
+
+    private prepareControllerReadContext(): ControllerReadContext {
+        const status = this.input.getControllerSampleStatus();
+        const controllerCount = this.input.getControllerCount();
+        this.resizeControllerTracking(controllerCount);
+
+        for (let controller = 0; controller < controllerCount; controller++) {
+            const generation = this.input.getControllerConnectionGeneration(controller);
+            this.controllerGenerationChanged[controller] = this.controllerConnectionGenerations[controller] !== generation;
+            if (status.valid) {
+                this.controllerConnectionGenerations[controller] = generation;
+            }
+        }
+
+        return {
+            valid: status.valid,
+            baselineOnly: status.baselineOnly,
+            controllerCount
+        };
+    }
+
+    private readControllerBinding(
+        binding: number,
+        slot: number,
+        context: ControllerReadContext,
+        discreteAction: boolean,
+        suppressEdges: boolean
+    ): ControllerBindingState {
+        if (binding === ButtonMapping.NO_BINDING) {
+            return { down: false, pressed: false };
+        }
+
+        let anyDown = false;
+        let anyPressed = false;
+        const previous = this.controllerBindingDown[slot]!;
+        const blocked = this.controllerBindingBlockedUntilRelease[slot]!;
+        for (let controller = 0; controller < context.controllerCount; controller++) {
+            const rawDown = ControllerSupport.isDirectionDownOnController(this.input, binding, controller);
+            const uncertain =
+                suppressEdges || !context.valid || context.baselineOnly || this.controllerGenerationChanged[controller] === true;
+
+            if (context.valid) {
+                if (discreteAction && uncertain && rawDown) {
+                    blocked[controller] = true;
+                }
+                if (discreteAction && blocked[controller] && !rawDown) {
+                    blocked[controller] = false;
+                }
+                const effectiveDown = discreteAction && blocked[controller] ? false : rawDown;
+                anyPressed ||= !uncertain && effectiveDown && !previous[controller];
+                previous[controller] = effectiveDown;
+                anyDown ||= effectiveDown;
+            } else {
+                // Enumeration uncertainty is not a release. Preserve the last
+                // eligible discrete-action level and let movement continue to use
+                // the engine's retained last-valid controller sample.
+                anyDown ||= discreteAction ? previous[controller] === true : rawDown;
+            }
+        }
+        return { down: anyDown, pressed: anyPressed };
+    }
+
+    private readAnyNonDirectionalControllerState(
+        slot: number,
+        context: ControllerReadContext,
+        suppressEdges: boolean
+    ): ControllerBindingState {
+        let anyDown = false;
+        let anyPressed = false;
+        const previous = this.controllerBindingDown[slot]!;
+        const blocked = this.controllerBindingBlockedUntilRelease[slot]!;
+
+        for (let controller = 0; controller < context.controllerCount; controller++) {
+            let rawDown = false;
+            const limit = ControllerSupport.getButtonScanLimitForController(this.input, controller);
+            for (let button = 0; button < limit; button++) {
+                if (
+                    !ControllerSupport.isDirectionalButton(this.input, button, controller) &&
+                    !this.isMappedDirectionButton(button) &&
+                    this.input.isButtonPressed(button, controller)
+                ) {
+                    rawDown = true;
+                    break;
+                }
+            }
+
+            const uncertain =
+                suppressEdges || !context.valid || context.baselineOnly || this.controllerGenerationChanged[controller] === true;
+            if (context.valid) {
+                if (uncertain && rawDown) {
+                    blocked[controller] = true;
+                }
+                if (blocked[controller] && !rawDown) {
+                    blocked[controller] = false;
+                }
+                const effectiveDown = blocked[controller] ? false : rawDown;
+                anyPressed ||= !uncertain && effectiveDown && !previous[controller];
+                previous[controller] = effectiveDown;
+                anyDown ||= effectiveDown;
+            } else {
+                anyDown ||= previous[controller] === true;
+            }
+        }
+
+        return { down: anyDown, pressed: anyPressed };
+    }
+
+    private resizeControllerTracking(controllerCount: number): void {
+        this.controllerConnectionGenerations.length = controllerCount;
+        this.controllerGenerationChanged.length = controllerCount;
+        for (let slot = 0; slot < StickvaniaInput.CONTROLLER_BINDING_SLOT_COUNT; slot++) {
+            const previous = this.controllerBindingDown[slot]!;
+            const blocked = this.controllerBindingBlockedUntilRelease[slot]!;
+            const oldLength = previous.length;
+            previous.length = controllerCount;
+            blocked.length = controllerCount;
+            if (controllerCount > oldLength) {
+                previous.fill(false, oldLength);
+                blocked.fill(false, oldLength);
+            }
+        }
+    }
+
+    private isMappedDirectionButton(button: number): boolean {
+        return (
+            this.mapping.controllerUp === button ||
+            this.mapping.controllerDown === button ||
+            this.mapping.controllerLeft === button ||
+            this.mapping.controllerRight === button
+        );
     }
 
     private isKeyDown(key: number): boolean {
@@ -213,6 +392,11 @@ export class StickvaniaInput {
         target.menuSelectJumpController = source.menuSelectJumpController;
         target.menuSelectAttackController = source.menuSelectAttackController;
         target.menuSelectAnyController = source.menuSelectAnyController;
+        target.menuUpControllerPressed = source.menuUpControllerPressed;
+        target.menuDownControllerPressed = source.menuDownControllerPressed;
+        target.menuSelectJumpControllerPressed = source.menuSelectJumpControllerPressed;
+        target.menuSelectAttackControllerPressed = source.menuSelectAttackControllerPressed;
+        target.menuSelectAnyControllerPressed = source.menuSelectAnyControllerPressed;
     }
 
     private isKeyMappedToDirection(key: number): boolean {
