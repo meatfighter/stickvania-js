@@ -17,7 +17,7 @@ type ButtonMappingSnapshot = {
     controllerRight: number;
 };
 
-const ControllerSupportButtonLimit = 64;
+const CONTROLLER_BUTTON_INDEX_LIMIT = 64;
 
 export class ButtonMapping {
     private static readonly STORAGE_KEY = getBrowserStorageKey("input-mapping");
@@ -324,7 +324,7 @@ export class ButtonMapping {
             Number.isInteger(value) &&
             (value === ButtonMapping.NO_BINDING ||
                 ButtonMapping.isControllerDirection(value) ||
-                (value >= 0 && value < ControllerSupportButtonLimit))
+                (value >= 0 && value < CONTROLLER_BUTTON_INDEX_LIMIT))
         );
     }
 
@@ -332,7 +332,7 @@ export class ButtonMapping {
         return (
             typeof value === "number" &&
             Number.isInteger(value) &&
-            (value === ButtonMapping.NO_BINDING || (value >= 0 && value < ControllerSupportButtonLimit))
+            (value === ButtonMapping.NO_BINDING || (value >= 0 && value < CONTROLLER_BUTTON_INDEX_LIMIT))
         );
     }
 
