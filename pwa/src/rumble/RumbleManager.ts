@@ -5,6 +5,7 @@ export class RumbleManager {
     private enabled: boolean;
     private suspended: boolean = false;
     private globalToken: number = 0;
+    private hapticCommandGeneration: number = 0;
     private readonly channelTokens: Map<RumbleChannel, number> = new Map();
     private readonly lastStarted: Map<RumbleEffectId, number> = new Map();
     private readonly browserRumbleAvailable = typeof getBrowserRumbleCapability !== "function" || getBrowserRumbleCapability() === "available";
@@ -57,8 +58,12 @@ export class RumbleManager {
         this.lastStarted.set(id, now);
         if (effect.exclusive === true) {
             this.cancelAllSequences();
-            ignoreHapticFailure(silenceGamepads(getConnectedGamepads()));
+            const silenceGeneration = this.nextHapticCommandGeneration();
+            ignoreHapticFailure(silenceGamepads(getConnectedGamepads(), () => this.isHapticCommandCurrent(silenceGeneration)));
         }
+        // Starting any new effect invalidates compatibility fallbacks from an
+        // earlier asynchronous stop operation, including the exclusive pre-stop.
+        this.nextHapticCommandGeneration();
 
         const globalToken = this.globalToken;
         const channelToken = this.nextChannelToken(effect.channel);
@@ -68,12 +73,14 @@ export class RumbleManager {
     public stop(effectId: RumbleEffectId): void {
         const effect = getRumbleEffect(effectId);
         this.nextChannelToken(effect.channel);
-        ignoreHapticFailure(silenceGamepads(getConnectedGamepads()));
+        const generation = this.nextHapticCommandGeneration();
+        ignoreHapticFailure(silenceGamepads(getConnectedGamepads(), () => this.isHapticCommandCurrent(generation)));
     }
 
     public stopAll(): void {
         this.cancelAllSequences();
-        ignoreHapticFailure(silenceGamepads(getConnectedGamepads()));
+        const generation = this.nextHapticCommandGeneration();
+        ignoreHapticFailure(silenceGamepads(getConnectedGamepads(), () => this.isHapticCommandCurrent(generation)));
     }
 
     private async playSequence(effect: RumbleEffect, globalToken: number, channelToken: number, offsetMs: number): Promise<void> {
@@ -101,6 +108,14 @@ export class RumbleManager {
             const gamepads = getConnectedGamepads();
             await Promise.all(gamepads.map((gamepad) => playPulseOnGamepad(gamepad, pulse)));
         }
+    }
+
+    private nextHapticCommandGeneration(): number {
+        return ++this.hapticCommandGeneration;
+    }
+
+    private isHapticCommandCurrent(generation: number): boolean {
+        return generation === this.hapticCommandGeneration;
     }
 
     private nextChannelToken(channel: RumbleChannel): number {
