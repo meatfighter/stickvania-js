@@ -99,6 +99,21 @@ test("Stickvania Song sequencing uses logical transport and has no browser recov
     assert.doesNotMatch(songSource, /resumeAfterBrowserSuspension|resumeMusicPart|browser/i);
 });
 
+test("human gameplay entry rebaselines held browser/menu actions", () => {
+    const transitionStart = gameMainSource.indexOf("case Main.FADE_REASON_RESTORE_CHECKPOINT");
+    const transitionEnd = gameMainSource.indexOf("case Main.FADE_REASON_SHOW_MAP", transitionStart);
+    const transition = gameMainSource.slice(transitionStart, transitionEnd);
+
+    assert.match(transition, /this\.mode = Main\.MODE_PLAYING/);
+    assert.match(transition, /this\.createStage\(this\.stageIndex, false\)/);
+    assert.match(transition, /this\.clearInputPressedRecords\(\)/);
+    assert.match(transition, /this\.simon\?\.resetInputReleaseLatches\(\)/);
+
+    const suspension = gameMainSource.slice(gameMainSource.indexOf("public setBrowserSuspended"), gameMainSource.indexOf("public resetNextFrameTime"));
+    assert.match(suspension, /this\.mode == Main\.MODE_PLAYING/);
+    assert.match(suspension, /this\.simon\?\.resetInputReleaseLatches\(\)/);
+});
+
 test("Stickvania Main no longer owns browser audio preferences or recovery", () => {
     assert.doesNotMatch(gameMainSource, /BrowserAudioController|browserAudioController|browserSuspendedMusicOn|browserSuspendedSoundOn|resumeBrowserAudio/);
     const suspension = gameMainSource.slice(gameMainSource.indexOf("public setBrowserSuspended"), gameMainSource.indexOf("public resetNextFrameTime"));
