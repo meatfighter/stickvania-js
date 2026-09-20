@@ -39,16 +39,25 @@ try {
     const { MAX_TOTAL_SOUND_VOICES } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSoundEffects.ts");
     const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
     const { ButtonMapping } = await server.ssrLoadModule("/src/stickvania/ButtonMapping.ts");
-    const { ControllerSupport } = await server.ssrLoadModule("/src/stickvania/ControllerSupport.ts");
     const { InputConfigMode } = await server.ssrLoadModule("/src/stickvania/InputConfigMode.ts");
     const { isReasonableStickvaniaGameStateSnapshot } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSanity.ts");
     const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } = await server.ssrLoadModule(
         "/src/stickvania/persistence/GameStateSchema.ts"
     );
     const { hasPotentialStoredStickvaniaGameState } = await server.ssrLoadModule("/src/stickvania/persistence/GameStatePreflight.ts");
+    const { THING_STATE_FIELD_NAMES, THING_PERSISTED_STATE_FIELD_NAMES } = await server.ssrLoadModule(
+        "/src/stickvania/persistence/StateFieldRegistry.generated.ts"
+    );
+    const { THING_TRANSIENT_STATE_FIELDS } = await server.ssrLoadModule("/src/stickvania/persistence/ThingStateFieldPolicy.ts");
 
     assert.equal(GAME_STATE_VERSION, 17);
     assert.match(GAME_STATE_STORAGE_KEY, /game-state-v17$/);
+
+    assert.deepEqual(Array.from(THING_TRANSIENT_STATE_FIELDS.Simon), ["releasedJump", "releasedKneel", "releasedWhip"]);
+    for (const field of THING_TRANSIENT_STATE_FIELDS.Simon) {
+        assert.equal(THING_STATE_FIELD_NAMES.Simon.includes(field), true, `${field} remains a real Simon runtime field`);
+        assert.equal(THING_PERSISTED_STATE_FIELD_NAMES.Simon.includes(field), false, `${field} must not be durable save state`);
+    }
 
     const serializer = new StickvaniaGameStateSerializer();
     assert.equal(serializer.isThingIdArray([null, 0], 1), true);
