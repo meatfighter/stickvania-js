@@ -59,6 +59,11 @@ try {
         assert.equal(THING_PERSISTED_STATE_FIELD_NAMES.Simon.includes(field), false, `${field} must not be durable save state`);
     }
 
+    assert.equal(ButtonMapping.isValidControllerActionBinding(63), true);
+    assert.equal(ButtonMapping.isValidControllerActionBinding(64), false);
+    assert.equal(ButtonMapping.isValidControllerBinding(63), true);
+    assert.equal(ButtonMapping.isValidControllerBinding(64), false);
+
     const serializer = new StickvaniaGameStateSerializer();
     assert.equal(serializer.isThingIdArray([null, 0], 1), true);
     assert.equal(serializer.isThingIdArray([1], 1), false);
