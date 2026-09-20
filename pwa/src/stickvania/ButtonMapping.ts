@@ -322,7 +322,8 @@ export class ButtonMapping {
         return (
             typeof value === "number" &&
             Number.isInteger(value) &&
-            (value === ButtonMapping.NO_BINDING || (value >= 0 && !ButtonMapping.isReservedKey(value)))
+            (value === ButtonMapping.NO_BINDING ||
+                (Input.isBrowserKeyCodeSupported(value) && !ButtonMapping.isReservedKey(value)))
         );
     }
 
