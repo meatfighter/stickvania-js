@@ -148,16 +148,20 @@ pre { background: #111; color: #eee; padding: 12px; overflow: auto; white-space:
         if (actuator === null || actuator === undefined) {
             return null;
         }
+        const constructorName = safeRead("constructor", () => actuator.constructor?.name ?? null);
         const effects = safeRead("effects", () => (actuator.effects === undefined ? undefined : Array.from(actuator.effects)));
         const type = safeRead("type", () => actuator.type);
+        const playEffect = safeRead("playEffect", () => typeof actuator.playEffect);
+        const pulse = safeRead("pulse", () => typeof actuator.pulse);
+        const reset = safeRead("reset", () => typeof actuator.reset);
         return {
-            constructorName: actuator.constructor?.name ?? null,
+            constructorName: constructorName.ok ? constructorName.value : { error: constructorName.error },
             effects: effects.ok ? effects.value : { error: effects.error },
             type: type.ok ? type.value : { error: type.error },
             methods: {
-                playEffect: typeof actuator.playEffect,
-                pulse: typeof actuator.pulse,
-                reset: typeof actuator.reset
+                playEffect: playEffect.ok ? playEffect.value : { error: playEffect.error },
+                pulse: pulse.ok ? pulse.value : { error: pulse.error },
+                reset: reset.ok ? reset.value : { error: reset.error }
             },
             ownPropertyNames: safeRead("ownPropertyNames", () => Object.getOwnPropertyNames(actuator)).value ?? []
         };
@@ -167,7 +171,11 @@ pre { background: #111; color: #eee; padding: 12px; overflow: auto; white-space:
         if (typeof navigator.getGamepads !== "function") {
             return [];
         }
-        return Array.from(navigator.getGamepads()).filter((pad) => pad !== null);
+        try {
+            return Array.from(navigator.getGamepads()).filter((pad) => pad !== null && pad !== undefined);
+        } catch {
+            return [];
+        }
     }
 
     function gamepadSnapshot(pad) {
