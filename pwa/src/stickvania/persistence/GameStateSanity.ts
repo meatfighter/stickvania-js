@@ -1,6 +1,6 @@
 import { isMusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
 import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "../AudioRegistry.js";
-import { isInputConfigLogicalStateConsistent, type InputConfigModeSnapshot } from "../InputConfigMode.js";
+import { isInputConfigModeSnapshot, type InputConfigModeSnapshot } from "../InputConfigMode.js";
 import type { AudioSnapshot, MusicId, MusicSnapshot, SongId, StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isSoundEffectSnapshotsShape } from "./GameStateSoundEffects.js";
 
@@ -220,7 +220,7 @@ function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): bool
         isReasonableValue(snapshot.draft, "draft", 0) &&
         isReasonableValue(snapshot.assignedKeys, "assignedKeys", 0) &&
         isReasonableValue(snapshot.assignedControllerButtons, "assignedControllerButtons", 0) &&
-        isInputConfigLogicalStateConsistent(snapshot)
+        isInputConfigModeSnapshot(snapshot)
     );
 }
 
