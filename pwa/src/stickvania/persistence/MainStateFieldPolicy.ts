@@ -37,7 +37,7 @@ export const MAIN_STATE_FIELD_POLICY = {
     weaponType: "persisted",
     weaponRepeats: "persisted",
     camera: "persisted",
-    timeFrozen: "persisted",
+    timeFrozen: "reconstructed",
     killAllFlag: "persisted",
     random: "special",
     beatStageFlag: "persisted",
