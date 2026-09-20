@@ -23,6 +23,7 @@ type ButtonMappingSnapshot = {
 export class ButtonMapping {
     private static readonly STORAGE_KEY = getBrowserStorageKey("input-mapping");
     private static readonly VERSION = 7;
+    private static readonly FIRST_PUBLIC_VERSION = 7;
     public static readonly NO_BINDING = -1;
     public static readonly CONTROLLER_DIRECTION_UP = -2;
     public static readonly CONTROLLER_DIRECTION_DOWN = -3;
@@ -102,14 +103,14 @@ export class ButtonMapping {
             }
             const snapshot = JSON.parse(text) as unknown;
             const version = ButtonMapping.getSnapshotVersion(snapshot);
-            if (version !== null && version > ButtonMapping.VERSION) {
-                mapping.storageWriteProtected = true;
-                return mapping;
-            }
             if (version !== ButtonMapping.VERSION || !ButtonMapping.isSupportedSnapshot(snapshot)) {
-                try {
-                    localStorage.removeItem(ButtonMapping.STORAGE_KEY);
-                } catch {}
+                if (version !== null && version < ButtonMapping.FIRST_PUBLIC_VERSION) {
+                    try {
+                        localStorage.removeItem(ButtonMapping.STORAGE_KEY);
+                    } catch {}
+                } else {
+                    mapping.storageWriteProtected = true;
+                }
                 return mapping;
             }
             mapping.keyJump = snapshot.keyJump;
@@ -132,7 +133,7 @@ export class ButtonMapping {
 
     public save(isAuthorized: () => boolean): MappingWriteResult {
         if (this.storageWriteProtected || ButtonMapping.hasProtectedStoredSnapshot()) {
-            console.warn("A newer Stickvania input-mapping format is stored; leaving it unchanged.");
+            console.warn("Existing Stickvania input-mapping data is protected; leaving it unchanged.");
             return { saved: false, reason: "protected" };
         }
         try {
@@ -355,10 +356,14 @@ export class ButtonMapping {
             return false;
         }
         try {
-            const version = ButtonMapping.getSnapshotVersion(JSON.parse(text) as unknown);
-            return version !== null && version > ButtonMapping.VERSION;
+            const snapshot = JSON.parse(text) as unknown;
+            if (ButtonMapping.isSupportedSnapshot(snapshot)) {
+                return false;
+            }
+            const version = ButtonMapping.getSnapshotVersion(snapshot);
+            return !(version !== null && version < ButtonMapping.FIRST_PUBLIC_VERSION);
         } catch {
-            return false;
+            return true;
         }
     }
 
