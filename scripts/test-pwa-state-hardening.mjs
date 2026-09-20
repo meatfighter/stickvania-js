@@ -408,6 +408,29 @@ try {
     inputSnapshot.inputConfigMode.stepIndex = 99;
     assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), false);
 
+    const finishedInputConfig = createInputConfigSnapshot();
+    finishedInputConfig.stepIndex = 6;
+    finishedInputConfig.doneDelay = 30;
+    finishedInputConfig.armDelay = 0;
+    finishedInputConfig.message = "NOT SAVED";
+    finishedInputConfig.finished = true;
+    finishedInputConfig.assignedKeys = [200, 208, 203, 205];
+    finishedInputConfig.assignedControllerButtons = [0, 2];
+    assert.equal(serializer.isInputConfigSnapshotShape(finishedInputConfig), true);
+
+    const restoredFinishedMapping = new ButtonMapping();
+    restoredFinishedMapping.keyUp = 99;
+    restoredFinishedMapping.controllerAttack = 7;
+    const finishedMain = {
+        buttonMapping: restoredFinishedMapping,
+        clearInputPressedRecords() {}
+    };
+    const restoredFinishedInputConfig = new InputConfigMode(finishedMain);
+    restoredFinishedInputConfig.restoreSnapshot({ getInput: () => restoredInput }, finishedInputConfig);
+    assert.equal(restoredFinishedMapping.keyUp, 200, "finished restore must reapply the committed draft in memory");
+    assert.equal(restoredFinishedMapping.controllerAttack, 2, "finished restore must preserve the live committed mapping even after preference-save failure");
+
+
     const storage = createStorage();
 
     const obsolete = createPotentialSnapshot(GAME_STATE_VERSION - 1);
@@ -523,7 +546,6 @@ function createSnapshot(songIds, version) {
             score: 0,
             time: 300,
             timeIncrementor: 0,
-            timeFrozen: 0,
             playerPower: 16,
             enemyPower: 16,
             beatStageFlag: false,
