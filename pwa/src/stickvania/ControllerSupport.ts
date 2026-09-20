@@ -3,7 +3,7 @@ import { ButtonMapping } from "./ButtonMapping.js";
 
 /** Browser counterpart to the desktop ControllerSupport boundary. */
 export class ControllerSupport {
-    public static readonly GAMEPAD_BUTTON_INDEX_LIMIT = 64;
+    public static readonly GAMEPAD_BUTTON_INDEX_LIMIT = Input.BROWSER_CONTROLLER_BUTTON_LIMIT;
     private static readonly ADDITIONAL_DIRECTION_AXES = [
         { horizontalAxis: 2, verticalAxis: 3 },
         { horizontalAxis: 6, verticalAxis: 7 }
@@ -25,15 +25,10 @@ export class ControllerSupport {
                 return ControllerSupport.isLeftDown(input);
             case ButtonMapping.CONTROLLER_DIRECTION_RIGHT:
                 return ControllerSupport.isRightDown(input);
-            case 12:
-                return ControllerSupport.isUpDown(input) || ControllerSupport.isButtonDown(input, direction);
-            case 13:
-                return ControllerSupport.isDownDown(input) || ControllerSupport.isButtonDown(input, direction);
-            case 14:
-                return ControllerSupport.isLeftDown(input) || ControllerSupport.isButtonDown(input, direction);
-            case 15:
-                return ControllerSupport.isRightDown(input) || ControllerSupport.isButtonDown(input, direction);
             default:
+                // Nonnegative bindings are always raw physical button indexes.
+                // Standard-layout D-pad capture is canonicalized to the negative
+                // logical direction constants instead of changing this meaning.
                 return ControllerSupport.isButtonDown(input, direction);
         }
     }
@@ -59,14 +54,17 @@ export class ControllerSupport {
     }
 
     public static isNonDirectionalButtonDown(input: Input, mapping: ButtonMapping): boolean {
-        const limit = ControllerSupport.getButtonScanLimit(input);
-        for (let button = 0; button < limit; button++) {
-            if (
-                !ControllerSupport.isDirectionalButton(button) &&
-                !ControllerSupport.isMappedDirectionButton(mapping, button) &&
-                input.isButtonPressed(button, Input.ANY_CONTROLLER)
-            ) {
-                return true;
+        const controllerCount = input.getControllerCount();
+        for (let controller = 0; controller < controllerCount; controller++) {
+            const limit = ControllerSupport.getButtonScanLimitForController(input, controller);
+            for (let button = 0; button < limit; button++) {
+                if (
+                    !ControllerSupport.isDirectionalButton(input, button, controller) &&
+                    !ControllerSupport.isMappedDirectionButton(mapping, button) &&
+                    input.isButtonPressed(button, controller)
+                ) {
+                    return true;
+                }
             }
         }
         return false;
@@ -76,17 +74,40 @@ export class ControllerSupport {
         let count = 0;
         const controllerCount = input.getControllerCount();
         for (let controller = 0; controller < controllerCount; controller++) {
-            count = Math.max(count, input.getButtonCount(controller));
+            count = Math.max(count, ControllerSupport.getButtonScanLimitForController(input, controller));
         }
-        return Math.min(count, ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT);
+        return count;
     }
 
-    public static isDirectionalButton(button: number): boolean {
-        return button >= 12 && button <= 15;
+    public static getButtonScanLimitForController(input: Input, controller: number): number {
+        return Math.min(input.getButtonCount(controller), ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT);
     }
 
-    public static refreshControllersIfNeeded(_input: Input): boolean {
-        return false;
+    public static isButtonDownOnController(input: Input, button: number, controller: number): boolean {
+        return (
+            button >= 0 &&
+            button < ControllerSupport.getButtonScanLimitForController(input, controller) &&
+            input.isButtonPressed(button, controller)
+        );
+    }
+
+    public static isDirectionalButton(input: Input, button: number, controller: number): boolean {
+        return input.isControllerButtonDirectional(button, controller);
+    }
+
+    public static isDirectionDownOnController(input: Input, direction: number, controller: number): boolean {
+        switch (direction) {
+            case ButtonMapping.CONTROLLER_DIRECTION_UP:
+                return input.isControllerUp(controller);
+            case ButtonMapping.CONTROLLER_DIRECTION_DOWN:
+                return input.isControllerDown(controller);
+            case ButtonMapping.CONTROLLER_DIRECTION_LEFT:
+                return input.isControllerLeft(controller);
+            case ButtonMapping.CONTROLLER_DIRECTION_RIGHT:
+                return input.isControllerRight(controller);
+            default:
+                return ControllerSupport.isButtonDownOnController(input, direction, controller);
+        }
     }
 
     private static isMappedDirectionButton(mapping: ButtonMapping, button: number): boolean {
