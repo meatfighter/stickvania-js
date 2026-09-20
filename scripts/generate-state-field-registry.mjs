@@ -9,7 +9,6 @@ const stickvaniaDir = join(rootDir, "pwa", "src", "stickvania");
 const registryPath = join(stickvaniaDir, "persistence", "StateFieldRegistry.generated.ts");
 const thingRegistryPath = join(stickvaniaDir, "persistence", "ThingTypeRegistry.ts");
 const mainPolicyPath = join(stickvaniaDir, "persistence", "MainStateFieldPolicy.ts");
-const thingPolicyPath = join(stickvaniaDir, "persistence", "ThingStateFieldPolicy.ts");
 const rehydrationRegistryPath = join(stickvaniaDir, "persistence", "ThingRehydrationRegistry.ts");
 const checkOnly = process.argv.includes("--check");
 const RUNTIME_RESOURCE_TYPES = new Set(["Color", "Image", "Music", "Sound"]);
@@ -146,26 +145,6 @@ function readMainPolicy() {
     }
     return result;
 }
-function readThingTransientFields() {
-    const { initializer } = readObjectLiteral(thingPolicyPath, "THING_TRANSIENT_STATE_FIELDS");
-    const result = new Map();
-    for (const property of initializer.properties) {
-        if (!ts.isPropertyAssignment(property)) throw new Error("THING_TRANSIENT_STATE_FIELDS entries must be explicit property assignments.");
-        const id = propertyNameText(property.name);
-        const value = unwrapExpression(property.initializer);
-        if (id === null || !ts.isArrayLiteralExpression(value)) {
-            throw new Error("THING_TRANSIENT_STATE_FIELDS values must be string-array literals.");
-        }
-        const fields = value.elements.map((element) => {
-            if (!ts.isStringLiteral(element)) throw new Error("THING_TRANSIENT_STATE_FIELDS entries must be string literals.");
-            return element.text;
-        });
-        if (new Set(fields).size !== fields.length) throw new Error(`THING_TRANSIENT_STATE_FIELDS.${id} contains duplicate field names.`);
-        result.set(id, new Set(fields));
-    }
-    return result;
-}
-
 function readRehydratorIds() {
     const source = ts.createSourceFile(rehydrationRegistryPath, readFileSync(rehydrationRegistryPath, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
     for (const statement of source.statements) {
@@ -200,7 +179,6 @@ for (const field of mainFields)
 for (const field of mainPolicy.keys()) if (!mainFields.includes(field)) throw new Error(`MAIN_STATE_FIELD_POLICY contains stale field ${field}.`);
 const persistedMainFields = mainFields.filter((field) => mainPolicy.get(field) === "persisted");
 const rehydratorIds = readRehydratorIds();
-const thingTransientFields = readThingTransientFields();
 const thingTypeMappings = readThingTypeMappings();
 const knownThingIds = new Set(thingTypeMappings.map(({ id }) => id));
 const thingFields = {};
@@ -212,19 +190,8 @@ for (const { id, className } of thingTypeMappings) {
     const fields = inheritedFieldInfo(classes, className);
     if (!fields.some((field) => field.name === "main")) throw new Error(`Registered Thing class ${className} does not inherit Thing.main.`);
     thingFields[id] = fields.map((field) => field.name);
-    const transientFields = thingTransientFields.get(id) ?? new Set();
-    for (const transientField of transientFields) {
-        if (!fields.some((field) => field.name === transientField)) {
-            throw new Error(`THING_TRANSIENT_STATE_FIELDS.${id} names missing field ${transientField}.`);
-        }
-    }
-    persistedThingFields[id] = fields
-        .filter((field) => field.name !== "main" && !field.runtimeResource && !transientFields.has(field.name))
-        .map((field) => field.name);
+    persistedThingFields[id] = fields.filter((field) => field.name !== "main" && !field.runtimeResource).map((field) => field.name);
     if (fields.some((field) => field.runtimeResource)) requiredRehydrators.add(id);
-}
-for (const id of thingTransientFields.keys()) {
-    if (!knownThingIds.has(id)) throw new Error(`THING_TRANSIENT_STATE_FIELDS contains unknown Thing type ${id}.`);
 }
 for (const id of requiredRehydrators)
     if (!rehydratorIds.has(id)) throw new Error(`Thing type ${id} owns runtime resource fields and requires an explicit state rehydrator.`);
