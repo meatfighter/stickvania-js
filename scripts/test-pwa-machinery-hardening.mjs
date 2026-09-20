@@ -143,6 +143,14 @@ test("input mapping persistence is shell-owned and rechecks the current session 
     );
 });
 
+test("New Game game-state removal rechecks ownership at the storage boundary", () => {
+    const clear = mainSource.slice(mainSource.indexOf("function clearStoredGameState"), mainSource.indexOf("function syncScreenWakeLock"));
+    assert.match(clear, /if \(!currentPreferenceWriteAuthorized\(\)\) \{\s*return;\s*\}/);
+    assert.match(clear, /store\.clear\(currentPreferenceWriteAuthorized\)/);
+    assert.ok((clear.match(/currentPreferenceWriteAuthorized\(\)/g) ?? []).length >= 2);
+    assert.match(clear, /localStorage\.removeItem\(GAME_STATE_STORAGE_KEY\)/);
+});
+
 test("ownership relinquishment performs the final save before destructive cleanup", () => {
     const release = mainSource.slice(mainSource.indexOf("function releaseOwnedSession"), mainSource.indexOf("function showCleanupFailure"));
     const save = mainSource.slice(mainSource.indexOf("function saveCurrentGameState"), mainSource.indexOf("function clearStoredGameState"));
