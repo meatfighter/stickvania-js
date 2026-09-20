@@ -739,6 +739,12 @@ try {
 
         assert.deepEqual(store.save(main, () => true), { saved: true });
         assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "new");
+        const beforeUnauthorizedClear = stateStorage.getItem(GAME_STATE_STORAGE_KEY);
+        assert.equal(store.clear(() => false), false);
+        assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), beforeUnauthorizedClear);
+        assert.equal(store.clear(() => true), true);
+        assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), null);
+        assert.deepEqual(store.save(main, () => true), { saved: true });
 
         globalThis.localStorage = {
             getItem() {
