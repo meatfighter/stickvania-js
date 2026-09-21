@@ -770,6 +770,9 @@ try {
         store.isSnapshotValid = (candidate) => candidate?.valid === true;
         store.serializer = {
             createSnapshot(main) {
+                if (main.throwOnSnapshot === true) {
+                    throw new Error("snapshot creation must not run for protected storage");
+                }
                 return {
                     version: GAME_STATE_VERSION,
                     valid: true,
@@ -833,6 +836,12 @@ try {
         assert.deepEqual(
             store.save(main, () => true),
             { saved: false, reason: "unsupported-future" }
+        );
+        assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "future");
+        assert.deepEqual(
+            store.save({ ...main, throwOnSnapshot: true }, () => true),
+            { saved: false, reason: "unsupported-future" },
+            "protected future storage must be inspected before snapshot creation"
         );
         assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "future");
 
