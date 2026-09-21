@@ -926,9 +926,10 @@ try {
         mapping.controllerJump = 12;
         assert.deepEqual(
             mapping.save(() => true),
-            { saved: false, reason: "invalid" },
-            "standard D-pad buttons must not be persisted as action bindings"
+            { saved: true },
+            "raw physical button 12 may be an action binding; standard-layout D-pad capture is canonicalized before persistence"
         );
+        assert.equal(JSON.parse(mappingStorage.getItem(mappingKey)).controllerJump, 12);
     } finally {
         if (oldLocalStorage === undefined) {
             delete globalThis.localStorage;
