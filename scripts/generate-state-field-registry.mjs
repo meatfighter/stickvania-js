@@ -232,8 +232,7 @@ function validatePersistedValuePolicy(mainInfo, mainPolicy, thingTypeMappings, c
         if (!expectedThingBooleanFields.has(field)) throw new Error(`THING_BOOLEAN_PERSISTED_STATE_FIELDS contains stale/non-persisted field ${field}.`);
     }
     for (const key of thingNumericFieldOverrides) {
-        if (!expectedThingNumericFieldOverrides.has(key))
-            throw new Error(`THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS contains stale/unnecessary field ${key}.`);
+        if (!expectedThingNumericFieldOverrides.has(key)) throw new Error(`THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS contains stale/unnecessary field ${key}.`);
     }
     for (const key of referenceFields) {
         if (!expectedReferenceFields.has(key)) throw new Error(`THING_REFERENCE_FIELD_POLICY contains stale/non-persisted field ${key}.`);
