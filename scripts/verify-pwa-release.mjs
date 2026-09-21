@@ -32,7 +32,7 @@ const mainStateFieldPolicySourcePath = join(rootDir, "pwa", "src", "stickvania",
 const gameStateStoreSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "StickvaniaGameStateStore.ts");
 const thingTypeRegistrySourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "ThingTypeRegistry.ts");
 const inputMappingStorageKey = expectedBrowserStorageKey("input-mapping");
-const inputMappingVersion = 6;
+const inputMappingVersion = 7;
 const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
 const versionInfo = readVersion();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
@@ -347,6 +347,9 @@ async function importGameStatePreflight() {
     const outputDirectory = join(tempRoot, "game-state-preflight");
     const audioRegistryOutputPath = join(outputDirectory, "AudioRegistry.js");
     const browserStorageKeysOutputPath = join(outputDirectory, "BrowserStorageKeys.js");
+    const buttonMappingOutputPath = join(outputDirectory, "ButtonMapping.js");
+    const controllerSupportOutputPath = join(outputDirectory, "ControllerSupport.js");
+    const inputConfigModeOutputPath = join(outputDirectory, "InputConfigMode.js");
     const persistenceOutputDirectory = join(outputDirectory, "persistence");
     const schemaOutputPath = join(persistenceOutputDirectory, "GameStateSchema.js");
     const policyOutputPath = join(persistenceOutputDirectory, "GameStatePolicy.js");
@@ -356,6 +359,9 @@ async function importGameStatePreflight() {
     mkdirSync(persistenceOutputDirectory, { recursive: true });
     writeTranspiledModule(audioRegistrySourcePath, audioRegistryOutputPath);
     writeTranspiledModule(browserStorageKeysSourcePath, browserStorageKeysOutputPath);
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ButtonMapping.ts"), buttonMappingOutputPath);
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ControllerSupport.ts"), controllerSupportOutputPath);
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "InputConfigMode.ts"), inputConfigModeOutputPath);
     writeTranspiledModule(gameStateSchemaSourcePath, schemaOutputPath);
     writeTranspiledModule(gameStatePolicySourcePath, policyOutputPath);
     writeTranspiledModule(
@@ -457,6 +463,22 @@ class FakeStickvaniaInput {
     controllerLeft = false;
     controllerRight = false;
     additionalDirectionAxes = null;
+
+    getControllerSampleStatus() {
+        return { sequence: 1, available: true, valid: true, topologyGeneration: 1, baselineOnly: false };
+    }
+
+    sampleControllersForBaseline() {
+        return this.getControllerSampleStatus();
+    }
+
+    getControllerConnectionGeneration(_controller) {
+        return 1;
+    }
+
+    isControllerButtonDirectional(button, _controller) {
+        return button >= 12 && button <= 15;
+    }
 
     getControllerCount() {
         return this.controllerCount ?? 1;
@@ -899,7 +921,7 @@ test("PWA browser storage keys are scoped to the deployed path", async () => {
     const productionCacheBustUrl = "https://example.test/stickvania/?v=two";
     const stagingUrl = "https://example.test/stickvania-staging/?v=one";
     const productionIndexUrl = "https://example.test/stickvania/index.html?v=one";
-    const names = ["game-state-v16", "volume", "display-mode", "scaling", "rumble", "difficulty", "input-mapping"];
+    const names = ["game-state-v17", "volume", "display-mode", "scaling", "rumble", "difficulty", "input-mapping"];
 
     assert.equal(getBrowserStorageScopePath(productionUrl), "/stickvania/");
     assert.equal(getBrowserStorageScopePath(productionIndexUrl), "/stickvania/");
@@ -942,7 +964,7 @@ test("PWA browser storage source uses scoped keys for saves and preferences", ()
     assert.match(sourceText, /getBrowserStorageKey\("rumble"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("input-mapping"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("difficulty"\)/);
-    assert.match(sourceText, /getBrowserStorageKey\("game-state-v16"\)/);
+    assert.match(sourceText, /getBrowserStorageKey\("game-state-v17"\)/);
 });
 
 test("PWA game-state Thing type IDs are stable through production minification", () => {
@@ -953,7 +975,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const mainSource = readFileSync(mainSourcePath, "utf8");
     const builtSource = builtJavaScript();
 
-    assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state-v16"\);/);
+    assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state-v17"\);/);
     assert.match(schemaSource, /export const GAME_STATE_VERSION = 16;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
@@ -1036,8 +1058,8 @@ test("PWA Continue launch failures preserve saved games", () => {
 test("PWA root-menu preflight scopes reads without mutating deployment saves", async () => {
     const { GAME_STATE_VERSION, hasPotentialStoredStickvaniaGameState } = await importGameStatePreflight();
     const storage = createLocalStorageMock();
-    const stagingStorageKey = expectedBrowserStorageKey("game-state-v16", "https://example.test/stickvania-staging/");
-    const productionStorageKey = expectedBrowserStorageKey("game-state-v16", "https://example.test/stickvania/");
+    const stagingStorageKey = expectedBrowserStorageKey("game-state-v17", "https://example.test/stickvania-staging/");
+    const productionStorageKey = expectedBrowserStorageKey("game-state-v17", "https://example.test/stickvania/");
 
     storage.setItem(stagingStorageKey, "{");
     storage.setItem(productionStorageKey, JSON.stringify(validPotentialGameStateSnapshot(GAME_STATE_VERSION)));
@@ -1119,6 +1141,6 @@ test("ButtonMapping preserves future-version mappings instead of overwriting the
 
     const mapping = ButtonMapping.load();
     assert.equal(mapping.keyAttack, 44);
-    assert.equal(mapping.save(), false);
+    assert.deepEqual(mapping.save(() => true), { saved: false, reason: "protected" });
     assert.equal(localStorage.getItem(inputMappingStorageKey), JSON.stringify(future));
 });
