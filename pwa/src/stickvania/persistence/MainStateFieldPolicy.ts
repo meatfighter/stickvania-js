@@ -231,7 +231,6 @@ export const MAIN_STATE_FIELD_POLICY = {
     requestedSong: "special",
     currentMusic: "special",
     loadingCompleteHandler: "runtime",
-    inputMappingChangedHandler: "runtime",
     browserSuspended: "runtime",
     input: "runtime",
     buttonMapping: "runtime",
