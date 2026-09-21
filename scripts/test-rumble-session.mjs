@@ -276,7 +276,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         }
         save() {
             events.saves++;
-            return saveSucceeds;
+            return saveSucceeds ? { saved: true } : { saved: false, reason: "write-failed" };
         }
         clear() {
             return true;
