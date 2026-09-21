@@ -85,9 +85,10 @@ test("the PWA menu has a full local reset escape hatch", () => {
     assert.match(reset, /if \(!canActivateFromMenu\(\)\) \{\s*return;\s*\}/);
     assert.match(reset, /if \(!destroyGame\(\)\) \{\s*return;\s*\}/);
     assert.ok(
-        reset.indexOf("const cleared = preferences.reset();") > reset.indexOf("if (!destroyGame())"),
+        reset.indexOf("const cleared = preferences.reset(currentPreferenceWriteAuthorized);") > reset.indexOf("if (!destroyGame())"),
         "preferences must reset only after destructive cleanup succeeds"
     );
+    assert.match(reset, /preferences\.reset\(currentPreferenceWriteAuthorized\)/, "reset must retain the ownership authorization boundary");
     assert.match(preferencesSource, /this\.volume = DEFAULT_VOLUME;/);
     assert.match(preferencesSource, /this\.displayMode = DEFAULT_DISPLAY_MODE;/);
     assert.match(preferencesSource, /this\.scaling = DEFAULT_SCALING_PREFERENCE;/);
