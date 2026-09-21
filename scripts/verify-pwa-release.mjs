@@ -1141,6 +1141,9 @@ test("ButtonMapping preserves future-version mappings instead of overwriting the
 
     const mapping = ButtonMapping.load();
     assert.equal(mapping.keyAttack, 44);
-    assert.deepEqual(mapping.save(() => true), { saved: false, reason: "protected" });
+    assert.deepEqual(
+        mapping.save(() => true),
+        { saved: false, reason: "protected" }
+    );
     assert.equal(localStorage.getItem(inputMappingStorageKey), JSON.stringify(future));
 });
