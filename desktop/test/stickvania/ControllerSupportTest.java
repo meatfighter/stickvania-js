@@ -38,7 +38,6 @@ public final class ControllerSupportTest {
       pad.x.value = -1;
       pad.button.value = 1;
       ControllerSupport.beginFrame();
-      int polls = pad.polls;
       check(ControllerSupport.isLeftDown(), "Stick direction");
       check(ControllerSupport.isButtonDown(0), "Action button");
       check(!ControllerSupport.isDirectionalButton(12),
@@ -53,6 +52,7 @@ public final class ControllerSupportTest {
       pad.button.value = 1;
       ControllerSupport.beginFrame();
       check(ControllerSupport.isNonDirectionalButtonDown(mapping), "Menu button");
+      int polls = pad.polls;
       for (int i = 0; i < 1000; i++) {
         ControllerSupport.isLeftDown();
         ControllerSupport.isRightDown();
