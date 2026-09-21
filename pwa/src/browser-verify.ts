@@ -177,6 +177,41 @@ async function verify(): Promise<void> {
                                   thingTypes
                               ) === true
                       ),
+                      segments: validationSnapshot.stage.segments.map((segment, index) => ({
+                          index,
+                          direction: segment.direction,
+                          stageSegmentIndex: segment.stageSegmentIndex,
+                          mapWidth: segment.mapWidth,
+                          mapRows: segment.map.length,
+                          mapRowLengths: Array.from(new Set(segment.map.map((row) => row.length))),
+                          wallRows: segment.walls.length,
+                          wallRowLengths: Array.from(new Set(segment.walls.map((row) => row.length))),
+                          regionIndex: segment.regionIndex,
+                          regionCount: segment.regions.length,
+                          expectedStageNumbers: Main.stageNumbers[validationSnapshot.stage!.stageIndex]?.[index] ?? null,
+                          regions: segment.regions.map((region, regionIndex) => ({
+                              regionIndex,
+                              min: region.min,
+                              max: region.max,
+                              stageNumber: region.stageNumber,
+                              checkpoint: region.checkpoint,
+                              checkpointType:
+                                  region.checkpoint === null ? null : validationSnapshot.things[region.checkpoint]?.type ?? null,
+                              checkpointFields:
+                                  region.checkpoint === null ? null : validationSnapshot.things[region.checkpoint]?.fields ?? null,
+                              thingStackCapacity: region.thingStack.$stack.capacity,
+                              thingStackCount: region.thingStack.$stack.things.length,
+                              platforms: region.platforms,
+                              regionValid:
+                                  serializerInternals.isRegionSnapshotValid?.call(
+                                      validationSerializer,
+                                      region,
+                                      segment.mapWidth,
+                                      Main.stageNumbers[validationSnapshot.stage!.stageIndex]?.[index]?.[regionIndex],
+                                      thingTypes
+                                  ) === true
+                          }))
+                      })),
                       currentSegmentIndex: validationSnapshot.stage.currentSegmentIndex,
                       currentRegionIndex:
                           validationSnapshot.stage.currentSegmentIndex === null
