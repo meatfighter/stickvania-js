@@ -50,6 +50,16 @@ export const THING_BOOLEAN_PERSISTED_STATE_FIELDS = new Set<string>([
     "whipping"
 ]);
 
+// Most translated Thing fields keep the same primitive type when a field name is
+// reused across classes. Type-qualified exceptions cover the rare Java case where
+// a shared field name has a different primitive type (Simon.dead is an int while
+// several enemies use boolean dead).
+export const THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS = new Set<string>(["Simon.dead"]);
+
+export function isThingBooleanPersistedStateField(type: ThingTypeId, name: string): boolean {
+    return THING_BOOLEAN_PERSISTED_STATE_FIELDS.has(name) && !THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS.has(`${type}.${name}`);
+}
+
 type ThingReferencePolicy =
     | { readonly kind: "thing"; readonly targets: readonly ThingTypeId[]; readonly nullable: boolean }
     | { readonly kind: "thingArray"; readonly targets: readonly ThingTypeId[]; readonly length: number }
@@ -119,7 +129,7 @@ export function isPersistedThingFieldValuesValid(snapshot: ThingSnapshot, thingT
             }
             continue;
         }
-        if (THING_BOOLEAN_PERSISTED_STATE_FIELDS.has(name)) {
+        if (isThingBooleanPersistedStateField(snapshot.type, name)) {
             if (typeof value !== "boolean") {
                 return false;
             }
@@ -173,6 +183,9 @@ function isMainNumberValid(name: string, value: number): boolean {
 }
 
 function isThingNumberValid(type: ThingTypeId, name: string, value: number): boolean {
+    if (type === "Simon" && name === "dead") {
+        return Number.isInteger(value) && value >= 0 && value <= 1_000_000;
+    }
     if (name === "direction" || name === "displayDirection" || name === "originalDirection") {
         return value === Main.LEFT || value === Main.RIGHT;
     }
