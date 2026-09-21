@@ -791,6 +791,17 @@ try {
             }
         };
 
+        const priorGameStateKey = GAME_STATE_STORAGE_KEY.replace(/game-state-v\d+$/, `game-state-v${GAME_STATE_VERSION - 1}`);
+        const priorGameStateText = JSON.stringify({ version: GAME_STATE_VERSION - 1, obsoleteShape: true });
+        stateStorage.setItem(priorGameStateKey, priorGameStateText);
+        assert.deepEqual(
+            store.save(main, () => true),
+            { saved: true },
+            "prior development schema storage must not block the current schema save"
+        );
+        assert.equal(stateStorage.getItem(priorGameStateKey), priorGameStateText, "prior development schema bytes must remain untouched");
+        assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).version, GAME_STATE_VERSION);
+
         const previousActionOwner = {
             mode: 4,
             stageIndex: 0,
