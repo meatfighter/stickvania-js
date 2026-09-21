@@ -395,11 +395,11 @@ function validMappingSnapshot(overrides = {}) {
     return {
         version: inputMappingVersion,
         keyJump: -1,
-        keyAttack: 90,
+        keyAttack: 44,
         keyUp: 200,
-        keyDown: 201,
-        keyLeft: 202,
-        keyRight: 203,
+        keyDown: 208,
+        keyLeft: 203,
+        keyRight: 205,
         controllerJump: 0,
         controllerAttack: 2,
         controllerUp: -2,
@@ -1118,7 +1118,7 @@ test("ButtonMapping accepts persisted integer bindings and NO_BINDING", async ()
     const mapping = ButtonMapping.load();
 
     assert.equal(mapping.keyJump, -1);
-    assert.equal(mapping.keyAttack, 90);
+    assert.equal(mapping.keyAttack, 44);
     assert.equal(mapping.controllerLeft, -4);
 });
 
