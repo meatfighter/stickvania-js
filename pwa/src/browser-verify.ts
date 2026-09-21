@@ -219,15 +219,17 @@ async function verify(): Promise<void> {
                               : validationSnapshot.stage.segments[validationSnapshot.stage.currentSegmentIndex]?.regionIndex ?? null,
                       checkpointId: validationSnapshot.stage.checkpoint,
                       platformIds: validationSnapshot.stage.platforms,
-                      checkpointTargetsValid: validationSnapshot.stage.segments.every((segment) =>
+                      checkpointTargetsValid: validationSnapshot.stage.segments.every((segment, segmentIndex) =>
                           segment.regions.every(
-                              (region) =>
-                                  region.checkpoint !== null &&
+                              (region, regionIndex) =>
+                                  region.checkpoint === null ||
                                   serializerInternals.isCheckpointTargetValid?.call(
                                       validationSerializer,
                                       region.checkpoint,
                                       validationSnapshot.things,
-                                      validationSnapshot.stage!.segments
+                                      validationSnapshot.stage!.segments,
+                                      segmentIndex,
+                                      regionIndex
                                   ) === true
                           )
                       ),
