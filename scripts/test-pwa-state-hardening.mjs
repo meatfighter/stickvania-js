@@ -505,7 +505,7 @@ try {
     assert.equal(serializer.isInputConfigSnapshotShape(roundTrippedInputConfig), true, "restored input-config state must remain valid");
 
     assert.equal(
-        restoredInputConfig.getPressedNonDirectionalControllerButton(),
+        restoredInputConfig.sampleControllerInputState().button,
         ButtonMapping.NO_BINDING,
         "controller state present at restore time must become the baseline, not a fresh binding"
     );
@@ -513,7 +513,7 @@ try {
     restoredInputConfig.resyncControllerStateAfterBrowserResume();
     heldControllerButton = 1;
     assert.equal(
-        restoredInputConfig.getPressedNonDirectionalControllerButton(),
+        restoredInputConfig.sampleControllerInputState().button,
         1,
         "a button pressed after browser resume must still produce a fresh input-config edge"
     );
