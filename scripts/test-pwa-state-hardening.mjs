@@ -57,7 +57,7 @@ try {
     const { canRegisteredSimonActionStart, registerPlayerActionMain } = await server.ssrLoadModule("/src/stickvania/PlayerActionPolicy.ts");
 
     assert.equal(GAME_STATE_VERSION, 17);
-    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v17$/);
+    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v18$/);
 
     for (const field of ["releasedJump", "releasedKneel", "releasedWhip"]) {
         assert.equal(
@@ -187,7 +187,7 @@ try {
     );
 
     const snapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
-    assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v17 must not persist derived StopWatch aggregate state");
+    assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v18 must not persist derived StopWatch aggregate state");
     assert.equal(isReasonableStickvaniaGameStateSnapshot(snapshot), true);
 
     for (const timeIncrementor of [0, 90]) {
