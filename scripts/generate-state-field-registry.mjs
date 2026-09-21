@@ -172,6 +172,7 @@ function readReferencePolicyKeys() {
 function validatePersistedValuePolicy(mainInfo, mainPolicy, thingTypeMappings, classes) {
     const mainBooleanFields = readStringSet(valuePolicyPath, "MAIN_BOOLEAN_PERSISTED_STATE_FIELDS");
     const thingBooleanFields = readStringSet(valuePolicyPath, "THING_BOOLEAN_PERSISTED_STATE_FIELDS");
+    const thingNumericFieldOverrides = readStringSet(valuePolicyPath, "THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS");
     const referenceFields = readReferencePolicyKeys();
 
     const expectedMainBooleanFields = new Set();
@@ -192,6 +193,7 @@ function validatePersistedValuePolicy(mainInfo, mainPolicy, thingTypeMappings, c
     }
 
     const expectedThingBooleanFields = new Set();
+    const expectedThingNumericFieldOverrides = new Set();
     const expectedReferenceFields = new Set();
     for (const { id, className } of thingTypeMappings) {
         const fields = inheritedFieldInfo(classes, className);
@@ -202,10 +204,19 @@ function validatePersistedValuePolicy(mainInfo, mainPolicy, thingTypeMappings, c
                 expectedThingBooleanFields.add(field.name);
                 if (!thingBooleanFields.has(field.name))
                     throw new Error(`Persisted Thing boolean ${key} is missing from THING_BOOLEAN_PERSISTED_STATE_FIELDS.`);
+                if (thingNumericFieldOverrides.has(key))
+                    throw new Error(`Persisted Thing boolean ${key} is incorrectly classified as a numeric type override.`);
                 if (referenceFields.has(key)) throw new Error(`Persisted Thing boolean ${key} is incorrectly classified as a reference.`);
             } else if (field.declaredType === "number") {
-                if (thingBooleanFields.has(field.name))
-                    throw new Error(`Persisted Thing numeric field ${key} collides with THING_BOOLEAN_PERSISTED_STATE_FIELDS.`);
+                if (thingBooleanFields.has(field.name)) {
+                    expectedThingNumericFieldOverrides.add(key);
+                    if (!thingNumericFieldOverrides.has(key))
+                        throw new Error(
+                            `Persisted Thing numeric field ${key} collides with THING_BOOLEAN_PERSISTED_STATE_FIELDS without a type-qualified override.`
+                        );
+                } else if (thingNumericFieldOverrides.has(key)) {
+                    throw new Error(`Persisted Thing numeric field ${key} has an unnecessary type-qualified override.`);
+                }
                 if (referenceFields.has(key)) throw new Error(`Persisted Thing numeric field ${key} is incorrectly classified as a reference.`);
             } else {
                 expectedReferenceFields.add(key);
@@ -219,6 +230,10 @@ function validatePersistedValuePolicy(mainInfo, mainPolicy, thingTypeMappings, c
     }
     for (const field of thingBooleanFields) {
         if (!expectedThingBooleanFields.has(field)) throw new Error(`THING_BOOLEAN_PERSISTED_STATE_FIELDS contains stale/non-persisted field ${field}.`);
+    }
+    for (const key of thingNumericFieldOverrides) {
+        if (!expectedThingNumericFieldOverrides.has(key))
+            throw new Error(`THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS contains stale/unnecessary field ${key}.`);
     }
     for (const key of referenceFields) {
         if (!expectedReferenceFields.has(key)) throw new Error(`THING_REFERENCE_FIELD_POLICY contains stale/non-persisted field ${key}.`);
