@@ -4,7 +4,7 @@ import { Thing } from "./Thing.js";
 import { javaFloat } from "./JavaMath.js";
 
 export class Spark extends Thing {
-    private counter = 0;
+    private counter: number = 0;
 
     public constructor(main: Main, x: number, y: number, width: number, height: number);
     public constructor(main: Main, thingThatSparked: Thing);
