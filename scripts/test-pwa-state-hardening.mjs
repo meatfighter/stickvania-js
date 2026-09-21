@@ -38,6 +38,7 @@ try {
     const { SONG_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/AudioRegistry.ts");
     const { MAX_TOTAL_SOUND_VOICES } = await server.ssrLoadModule("/src/stickvania/persistence/GameStateSoundEffects.ts");
     const { StickvaniaGameStateSerializer } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
+    const { Main } = await server.ssrLoadModule("/src/stickvania/Main.ts");
     const { StickvaniaGameStateStore } = await server.ssrLoadModule("/src/stickvania/persistence/StickvaniaGameStateStore.ts");
     const { ButtonMapping } = await server.ssrLoadModule("/src/stickvania/ButtonMapping.ts");
     const { BrowserPreferences } = await server.ssrLoadModule("/src/app/BrowserPreferences.ts");
@@ -93,6 +94,88 @@ try {
     assert.equal(serializer.isThingIdArray([-1], 1), false);
     assert.equal(serializer.isThingIdArray([0.5], 1), false);
     assert.equal(serializer.isThingIdArray([Number.NaN], 1), false);
+
+    const checkpointlessRegion = {
+        min: 0,
+        max: 32,
+        checkpoint: null,
+        thingStack: createThingStack([]),
+        platforms: [],
+        stageNumber: Main.stageNumbers[0][0][1]
+    };
+    assert.equal(
+        serializer.isRegionSnapshotValid(checkpointlessRegion, 1, Main.stageNumbers[0][0][1], new Map()),
+        true,
+        "regions without checkpoint tiles are valid save-state topology"
+    );
+
+    const topologyThings = [
+        { id: 0, type: "Checkpoint", fields: { stageSegmentIndex: 0, regionIndex: 0 } },
+        { id: 1, type: "Simon", fields: {} }
+    ];
+    const topologyThingTypes = new Map([
+        [0, "Checkpoint"],
+        [1, "Simon"]
+    ]);
+    const topologySegments = [
+        {
+            direction: Main.RIGHT,
+            stageSegmentIndex: 0,
+            map: createValidationGrid(1, Main.BLOCK_EMPTY),
+            walls: createValidationGrid(1, Main.WALL_EMPTY),
+            mapWidth: 1,
+            regionIndex: 0,
+            regions: Main.stageNumbers[0][0].map((stageNumber, regionIndex) => ({
+                min: 0,
+                max: 32,
+                checkpoint: regionIndex === 0 ? 0 : null,
+                thingStack: createThingStack([]),
+                platforms: [],
+                stageNumber
+            }))
+        },
+        {
+            direction: Main.RIGHT,
+            stageSegmentIndex: 1,
+            map: createValidationGrid(1, Main.BLOCK_EMPTY),
+            walls: createValidationGrid(1, Main.WALL_EMPTY),
+            mapWidth: 1,
+            regionIndex: 0,
+            regions: Main.stageNumbers[0][1].map((stageNumber) => ({
+                min: 0,
+                max: 32,
+                checkpoint: null,
+                thingStack: createThingStack([]),
+                platforms: [],
+                stageNumber
+            }))
+        }
+    ];
+    const topologyStage = {
+        stageIndex: 0,
+        currentSegmentIndex: 0,
+        checkpoint: 0,
+        simon: 1,
+        door: null,
+        platforms: [],
+        regionThingStack: createThingStack([]),
+        regionStackSwap: createThingStack([]),
+        weaponsStack: createThingStack([]),
+        weaponsStackSwap: createThingStack([]),
+        oldThingStack: createThingStack([]),
+        segments: topologySegments
+    };
+    assert.equal(
+        serializer.isStageSnapshotValid(topologyStage, topologyThingTypes, { stage: Main.stageNumbers[0][0][0], stageIndex: 0 }, topologyThings),
+        true,
+        "stage validation must allow regions that legitimately have no checkpoint"
+    );
+    assert.equal(serializer.isCheckpointTargetValid(0, topologyThings, topologySegments, 0, 0), true);
+    assert.equal(
+        serializer.isCheckpointTargetValid(0, topologyThings, topologySegments, 0, 1),
+        false,
+        "checkpoint topology must point back to the exact region that owns it"
+    );
 
     const snapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v17 must not persist derived StopWatch aggregate state");
@@ -1004,6 +1087,10 @@ function createThingStack(things) {
             things
         }
     };
+}
+
+function createValidationGrid(width, value) {
+    return Array.from({ length: 11 }, () => new Array(width + 1).fill(value));
 }
 
 function createSongPart(songId, suffix) {
