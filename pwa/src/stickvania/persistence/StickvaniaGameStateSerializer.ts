@@ -331,14 +331,18 @@ export class StickvaniaGameStateSerializer {
         }
 
         const checkpointIds = new Set<number>();
-        for (const segment of snapshot.segments) {
-            for (const region of segment.regions) {
-                const checkpointId = region.checkpoint;
-                if (checkpointId === null || checkpointIds.has(checkpointId)) {
+        for (let segmentIndex = 0; segmentIndex < snapshot.segments.length; segmentIndex++) {
+            const segment = snapshot.segments[segmentIndex]!;
+            for (let regionIndex = 0; regionIndex < segment.regions.length; regionIndex++) {
+                const checkpointId = segment.regions[regionIndex]!.checkpoint;
+                if (checkpointId === null) {
+                    continue;
+                }
+                if (checkpointIds.has(checkpointId)) {
                     return false;
                 }
                 checkpointIds.add(checkpointId);
-                if (!this.isCheckpointTargetValid(checkpointId, thingSnapshots, snapshot.segments)) {
+                if (!this.isCheckpointTargetValid(checkpointId, thingSnapshots, snapshot.segments, segmentIndex, regionIndex)) {
                     return false;
                 }
             }
@@ -424,7 +428,7 @@ export class StickvaniaGameStateSerializer {
             snapshot.max < snapshot.min ||
             snapshot.max > mapWidth * 32 ||
             snapshot.stageNumber !== expectedStageNumber ||
-            !this.isThingIdOfType(snapshot.checkpoint, thingTypes, ["Checkpoint"], false) ||
+            !this.isThingIdOfType(snapshot.checkpoint, thingTypes, ["Checkpoint"], true) ||
             !this.isStackSnapshotValid(snapshot.thingStack, thingTypes.size) ||
             !Array.isArray(snapshot.platforms) ||
             !snapshot.platforms.every((id) => this.isThingIdOfType(id, thingTypes, ["MovingPlatform"], false))
@@ -435,22 +439,34 @@ export class StickvaniaGameStateSerializer {
         return true;
     }
 
-    private isCheckpointTargetValid(checkpointId: number, things: readonly ThingSnapshot[], segments: readonly SegmentSnapshot[]): boolean {
+    private isCheckpointTargetValid(
+        checkpointId: number,
+        things: readonly ThingSnapshot[],
+        segments: readonly SegmentSnapshot[],
+        expectedSegmentIndex?: number,
+        expectedRegionIndex?: number
+    ): boolean {
         const checkpoint = things[checkpointId];
         if (checkpoint === undefined || checkpoint.type !== "Checkpoint") {
             return false;
         }
         const segmentIndex = checkpoint.fields.stageSegmentIndex;
         const regionIndex = checkpoint.fields.regionIndex;
+        if (
+            typeof segmentIndex !== "number" ||
+            !Number.isInteger(segmentIndex) ||
+            segmentIndex < 0 ||
+            segmentIndex >= segments.length ||
+            typeof regionIndex !== "number" ||
+            !Number.isInteger(regionIndex) ||
+            regionIndex < 0 ||
+            regionIndex >= segments[segmentIndex]!.regions.length
+        ) {
+            return false;
+        }
         return (
-            typeof segmentIndex === "number" &&
-            Number.isInteger(segmentIndex) &&
-            segmentIndex >= 0 &&
-            segmentIndex < segments.length &&
-            typeof regionIndex === "number" &&
-            Number.isInteger(regionIndex) &&
-            regionIndex >= 0 &&
-            regionIndex < segments[segmentIndex]!.regions.length
+            (expectedSegmentIndex === undefined || segmentIndex === expectedSegmentIndex) &&
+            (expectedRegionIndex === undefined || regionIndex === expectedRegionIndex)
         );
     }
 
