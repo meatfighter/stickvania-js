@@ -6,6 +6,10 @@ import { StickvaniaBufferedGame } from "./stickvania/StickvaniaBufferedGame.js";
 import { StickvaniaGameStateSerializer } from "./stickvania/persistence/StickvaniaGameStateSerializer.js";
 import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
 import { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
+import { isReasonableStickvaniaGameStateSnapshot } from "./stickvania/persistence/GameStateSanity.js";
+import { isStopWatchRepeatStateValid } from "./stickvania/persistence/StopWatchRepeatStatePolicy.js";
+import { isAxeKnightShieldSnapshotStateValid } from "./stickvania/persistence/AxeKnightShieldStatePolicy.js";
+import { isPersistedMainFieldValuesValid, isPersistedThingFieldValuesValid } from "./stickvania/persistence/StateFieldValuePolicy.js";
 
 const result = document.querySelector<HTMLElement>("#result");
 const host = document.querySelector<HTMLElement>("#game-host");
@@ -142,7 +146,32 @@ async function verify(): Promise<void> {
         first.main.watch_tick.restorePlaybackState(soundPlaybackForRef("soundfx/watch_tick.ogg", [0.25], 0));
         first.main.heartbeat.restorePlaybackState(soundPlaybackForRef("soundfx/heartbeat.ogg", [0.2, 0.1], null));
 
-        assert(store.save(first.main, () => true).saved, "Real browser Main did not save successfully.");
+        const validationSerializer = new StickvaniaGameStateSerializer();
+        const validationSnapshot = validationSerializer.createSnapshot(first.main, "browser-verification");
+        const thingTypes = new Map(validationSnapshot.things.map((thing) => [thing.id, thing.type]));
+        const segmentCount = validationSnapshot.stage?.segments.length ?? 0;
+        const invalidThings = validationSnapshot.things
+            .filter((thing) => !isPersistedThingFieldValuesValid(thing, thingTypes, segmentCount))
+            .map((thing) => ({ id: thing.id, type: thing.type }));
+        const validation = {
+            serializerSupported: validationSerializer.isSupportedSnapshot(validationSnapshot),
+            mainFieldsValid: isPersistedMainFieldValuesValid(validationSnapshot.mainFields),
+            invalidThings,
+            sanityValid: isReasonableStickvaniaGameStateSnapshot(validationSnapshot),
+            stopWatchValid: isStopWatchRepeatStateValid(validationSnapshot.mainFields),
+            axeKnightShieldValid: isAxeKnightShieldSnapshotStateValid(validationSnapshot)
+        };
+        assert(
+            validation.serializerSupported &&
+                validation.mainFieldsValid &&
+                validation.invalidThings.length === 0 &&
+                validation.sanityValid &&
+                validation.stopWatchValid &&
+                validation.axeKnightShieldValid,
+            `Real browser save-state validation failed: ${JSON.stringify(validation)}`
+        );
+        const saveResult = store.save(first.main, () => true);
+        assert(saveResult.saved, `Real browser Main did not save successfully: ${JSON.stringify(saveResult)}`);
         assert(store.hasValidSave(), "Saved real browser Main did not validate.");
         const storedText = localStorage.getItem(GAME_STATE_STORAGE_KEY);
         assert(storedText !== null, "Saved state was not written under the current storage key.");
