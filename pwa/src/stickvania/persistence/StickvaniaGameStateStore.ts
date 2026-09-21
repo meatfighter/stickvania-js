@@ -42,11 +42,6 @@ export class StickvaniaGameStateStore {
             return { saved: false, reason: "invalid-snapshot" };
         }
         try {
-            const snapshot = this.serializer.createSnapshot(main, this.appVersion);
-            if (!this.isSnapshotValid(snapshot)) {
-                return { saved: false, reason: "invalid-snapshot" };
-            }
-
             const existing = this.inspectStoredGameState();
             switch (existing.status) {
                 case "read-failed":
@@ -58,6 +53,11 @@ export class StickvaniaGameStateStore {
                 case "missing":
                 case "current":
                     break;
+            }
+
+            const snapshot = this.serializer.createSnapshot(main, this.appVersion);
+            if (!this.isSnapshotValid(snapshot)) {
+                return { saved: false, reason: "invalid-snapshot" };
             }
 
             let text: string;
