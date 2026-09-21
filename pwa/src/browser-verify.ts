@@ -142,7 +142,7 @@ async function verify(): Promise<void> {
         first.main.watch_tick.restorePlaybackState(soundPlaybackForRef("soundfx/watch_tick.ogg", [0.25], 0));
         first.main.heartbeat.restorePlaybackState(soundPlaybackForRef("soundfx/heartbeat.ogg", [0.2, 0.1], null));
 
-        assert(store.save(first.main), "Real browser Main did not save successfully.");
+        assert(store.save(first.main, () => true).saved, "Real browser Main did not save successfully.");
         assert(store.hasValidSave(), "Saved real browser Main did not validate.");
         const storedText = localStorage.getItem(GAME_STATE_STORAGE_KEY);
         assert(storedText !== null, "Saved state was not written under the current storage key.");
@@ -188,7 +188,7 @@ async function verify(): Promise<void> {
     } finally {
         destroyMounted(first);
         destroyMounted(second);
-        store.clear();
+        store.clear(() => true);
         localStorage.clear();
     }
 }
