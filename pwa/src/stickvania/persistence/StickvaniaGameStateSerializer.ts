@@ -320,7 +320,7 @@ export class StickvaniaGameStateSerializer {
             !this.isThingIdOfType(snapshot.checkpoint, thingTypes, ["Checkpoint"], false) ||
             !this.isThingIdOfType(snapshot.simon, thingTypes, ["Simon"], false) ||
             !this.isThingIdOfType(snapshot.door, thingTypes, ["Door"], true) ||
-            !Array.isArray(snapshot.platforms) ||
+            !this.isThingIdArray(snapshot.platforms, thingTypes.size) ||
             !snapshot.platforms.every((id) => this.isThingIdOfType(id, thingTypes, ["MovingPlatform"], false)) ||
             !this.isStackSnapshotValid(snapshot.regionThingStack, thingTypes.size) ||
             !this.isStackSnapshotValid(snapshot.regionStackSwap, thingTypes.size) ||
@@ -362,7 +362,19 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
 
-        return this.isThingGraphFullyReachable(snapshot, thingSnapshots);
+        return this.isThingGraphFullyReachable(
+            snapshot.checkpoint,
+            snapshot.simon,
+            snapshot.door,
+            snapshot.platforms,
+            snapshot.regionThingStack,
+            snapshot.regionStackSwap,
+            snapshot.weaponsStack,
+            snapshot.weaponsStackSwap,
+            snapshot.oldThingStack,
+            snapshot.segments,
+            thingSnapshots
+        );
     }
 
     private isSegmentSnapshotValid(
@@ -382,22 +394,24 @@ export class StickvaniaGameStateSerializer {
         if (expectedStageNumbers === undefined || snapshot.regions.length !== expectedStageNumbers.length) {
             return false;
         }
+        const mapWidth = snapshot.mapWidth;
         if (
             (snapshot.direction !== Main.LEFT && snapshot.direction !== Main.RIGHT) ||
             snapshot.stageSegmentIndex !== segmentIndex ||
-            !this.isFiniteInteger(snapshot.mapWidth) ||
-            snapshot.mapWidth <= 0 ||
-            !this.isMapGridSnapshot(snapshot.map, snapshot.mapWidth) ||
-            !this.isWallGridSnapshot(snapshot.walls, snapshot.mapWidth) ||
+            !this.isFiniteInteger(mapWidth) ||
+            mapWidth <= 0 ||
+            !this.isMapGridSnapshot(snapshot.map, mapWidth) ||
+            !this.isWallGridSnapshot(snapshot.walls, mapWidth) ||
             !this.isFiniteInteger(snapshot.regionIndex) ||
             snapshot.regionIndex < 0 ||
             snapshot.regionIndex >= snapshot.regions.length
         ) {
             return false;
         }
-        return snapshot.regions.every((region, regionIndex) =>
-            this.isRegionSnapshotValid(region, snapshot.mapWidth, expectedStageNumbers[regionIndex]!, thingTypes)
-        );
+        return snapshot.regions.every((region, regionIndex) => {
+            const expectedStageNumber = expectedStageNumbers[regionIndex];
+            return expectedStageNumber !== undefined && this.isRegionSnapshotValid(region, mapWidth, expectedStageNumber, thingTypes);
+        });
     }
 
     private isRegionSnapshotValid(
@@ -449,7 +463,19 @@ export class StickvaniaGameStateSerializer {
         );
     }
 
-    private isThingGraphFullyReachable(stage: StageSnapshot, things: readonly ThingSnapshot[]): boolean {
+    private isThingGraphFullyReachable(
+        checkpoint: number | null,
+        simon: number | null,
+        door: number | null,
+        platforms: readonly (number | null)[],
+        regionThingStack: ThingStackSnapshot,
+        regionStackSwap: ThingStackSnapshot,
+        weaponsStack: ThingStackSnapshot,
+        weaponsStackSwap: ThingStackSnapshot,
+        oldThingStack: ThingStackSnapshot,
+        segments: readonly SegmentSnapshot[],
+        things: readonly ThingSnapshot[]
+    ): boolean {
         const reachable = new Set<number>();
         const queue: number[] = [];
         const add = (id: number | null): void => {
@@ -465,16 +491,16 @@ export class StickvaniaGameStateSerializer {
             for (const id of ids) add(id);
         };
 
-        add(stage.checkpoint);
-        add(stage.simon);
-        add(stage.door);
-        addIds(stage.platforms ?? []);
-        addStack(stage.regionThingStack);
-        addStack(stage.regionStackSwap);
-        addStack(stage.weaponsStack);
-        addStack(stage.weaponsStackSwap);
-        addStack(stage.oldThingStack);
-        for (const segment of stage.segments) {
+        add(checkpoint);
+        add(simon);
+        add(door);
+        addIds(platforms);
+        addStack(regionThingStack);
+        addStack(regionStackSwap);
+        addStack(weaponsStack);
+        addStack(weaponsStackSwap);
+        addStack(oldThingStack);
+        for (const segment of segments) {
             for (const region of segment.regions) {
                 add(region.checkpoint);
                 addIds(region.platforms);
@@ -757,7 +783,7 @@ export class StickvaniaGameStateSerializer {
             return Object.keys(value).length === 1 && this.isNullableMusicId((value as { $music: unknown }).$music);
         }
         if (this.hasOwn(value, "$stack")) {
-            return Object.keys(value).length === 1 && this.isStackSnapshotValid(value as unknown as ThingStackSnapshot, limits.thingCount);
+            return Object.keys(value).length === 1 && this.isStackSnapshotValid(value, limits.thingCount);
         }
 
         return Object.values(value).every((child) => this.isEncodedValueReferencesValid(child as EncodedValue, limits));
