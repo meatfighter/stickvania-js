@@ -12,7 +12,7 @@ function source(path) {
 }
 
 test("controller input hot path uses scalar state instead of transient result objects", () => {
-    const source = readFileSync(join(rootDir, "pwa", "src", "stickvania", "StickvaniaInput.ts"), "utf8");
+    const source = readFileSync(join(root, "pwa", "src", "stickvania", "StickvaniaInput.ts"), "utf8");
     assert.doesNotMatch(source, /type ControllerBindingState/);
     assert.doesNotMatch(source, /type ControllerReadContext/);
     assert.doesNotMatch(source, /return \{ down: anyDown, pressed: anyPressed \}/);
@@ -42,19 +42,27 @@ test("release-safe persistence and unused-local guardrails remain enabled", () =
     const preflight = source("pwa/src/stickvania/persistence/GameStatePreflight.ts");
     const mapping = source("pwa/src/stickvania/ButtonMapping.ts");
     const serializer = source("pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
-    assert.match(schema, /GAME_STATE_VERSION = 16/);
+    assert.match(schema, /GAME_STATE_VERSION = 17/);
     assert.doesNotMatch(schema, /FIRST_PUBLIC_GAME_STATE_VERSION|MIN_SUPPORTED_GAME_STATE_VERSION|SUPPORTED_GAME_STATE_VERSIONS/);
 
-    // Development cutover: only the current schema epoch is restorable.
-    assert.match(store, /typedSnapshot\.version !== GAME_STATE_VERSION/);
-    assert.doesNotMatch(store, /FIRST_PUBLIC_GAME_STATE_VERSION|hasProtectedStoredSnapshot/);
+    // Development cutover: only the current exact schema is restorable, while
+    // reads remain non-destructive and future/invalid data blocks automatic writes.
+    assert.match(store, /status: "unsupported-future"/);
+    assert.match(store, /typedSnapshot\.version === GAME_STATE_VERSION/);
     assert.match(store, /Reads never mutate storage; only an owned Save, New Game, or Reset writes/);
+    assert.match(store, /public clear\(isAuthorized: \(\) => boolean\)/);
+    assert.match(store, /if \(!isAuthorized\(\)\) \{\s*return false;/);
 
-    assert.match(preflight, /snapshot\.version !== GAME_STATE_VERSION/);
-    assert.doesNotMatch(preflight, /FIRST_PUBLIC_GAME_STATE_VERSION|FutureVersion/);
+    assert.match(preflight, /status: "unsupported-future"/);
+    assert.match(preflight, /isPotentialStickvaniaGameStateSnapshot\(snapshot\) \? \{ status: "current" \} : \{ status: "invalid" \}/);
     assert.match(preflight, /Menu preflight has no write capability and never migrates or deletes saves/);
-    assert.match(mapping, /version !== null && version > ButtonMapping\.VERSION/);
-    assert.match(mapping, /hasProtectedStoredSnapshot/);
+
+    assert.match(mapping, /FIRST_PUBLIC_VERSION = 7/);
+    assert.match(mapping, /storageWriteProtected = true/);
+    assert.match(mapping, /hasProtectedStoredSnapshot\(\)/);
+    assert.match(mapping, /save\(isAuthorized: \(\) => boolean, replaceProtected: boolean = false\)/);
+    assert.match(mapping, /reason: "stale-session"/);
+
     assert.match(serializer, /areRecordFieldNamesExact/);
     assert.match(serializer, /fields\.length !== expected\.length/);
     assert.doesNotMatch(serializer, /areRecordFieldNamesAllowed/);
