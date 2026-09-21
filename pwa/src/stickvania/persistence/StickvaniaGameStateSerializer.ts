@@ -342,7 +342,7 @@ export class StickvaniaGameStateSerializer {
                     return false;
                 }
                 checkpointIds.add(checkpointId);
-                if (!this.isCheckpointTargetValid(checkpointId, thingSnapshots, snapshot.segments, segmentIndex, regionIndex)) {
+                if (!this.isCheckpointTargetValid(checkpointId, thingSnapshots, snapshot.segments)) {
                     return false;
                 }
             }
@@ -439,34 +439,22 @@ export class StickvaniaGameStateSerializer {
         return true;
     }
 
-    private isCheckpointTargetValid(
-        checkpointId: number,
-        things: readonly ThingSnapshot[],
-        segments: readonly SegmentSnapshot[],
-        expectedSegmentIndex?: number,
-        expectedRegionIndex?: number
-    ): boolean {
+    private isCheckpointTargetValid(checkpointId: number, things: readonly ThingSnapshot[], segments: readonly SegmentSnapshot[]): boolean {
         const checkpoint = things[checkpointId];
         if (checkpoint === undefined || checkpoint.type !== "Checkpoint") {
             return false;
         }
         const segmentIndex = checkpoint.fields.stageSegmentIndex;
         const regionIndex = checkpoint.fields.regionIndex;
-        if (
-            typeof segmentIndex !== "number" ||
-            !Number.isInteger(segmentIndex) ||
-            segmentIndex < 0 ||
-            segmentIndex >= segments.length ||
-            typeof regionIndex !== "number" ||
-            !Number.isInteger(regionIndex) ||
-            regionIndex < 0 ||
-            regionIndex >= segments[segmentIndex]!.regions.length
-        ) {
-            return false;
-        }
         return (
-            (expectedSegmentIndex === undefined || segmentIndex === expectedSegmentIndex) &&
-            (expectedRegionIndex === undefined || regionIndex === expectedRegionIndex)
+            typeof segmentIndex === "number" &&
+            Number.isInteger(segmentIndex) &&
+            segmentIndex >= 0 &&
+            segmentIndex < segments.length &&
+            typeof regionIndex === "number" &&
+            Number.isInteger(regionIndex) &&
+            regionIndex >= 0 &&
+            regionIndex < segments[segmentIndex]!.regions.length
         );
     }
 
