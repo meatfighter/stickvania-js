@@ -144,6 +144,7 @@ function verifyPolicyMatchesTypeScript(fields, policy, thingTypes) {
     assert.deepEqual([...policy.MAIN_BOOLEAN_PERSISTED_STATE_FIELDS].sort(), [...expectedMainBooleans].sort(), "Main boolean policy must be exact");
 
     const expectedThingBooleans = new Set();
+    const expectedThingNumericOverrides = new Set();
     const expectedReferences = new Set();
     for (const [typeId, constructor] of Object.entries(thingTypes)) {
         const classFields = fieldsForClass(model, constructor.name);
@@ -153,10 +154,17 @@ function verifyPolicyMatchesTypeScript(fields, policy, thingTypes) {
             assert.ok(type, "missing " + typeId + "." + name + " declaration");
             if (type === "boolean") {
                 expectedThingBooleans.add(name);
-                assert.equal(policy.THING_BOOLEAN_PERSISTED_STATE_FIELDS.has(name), true, typeId + "." + name + " policy type");
+                assert.equal(policy.isThingBooleanPersistedStateField(typeId, name), true, typeId + "." + name + " policy type");
+                assert.equal(policy.THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS.has(typeId + "." + name), false);
                 assert.equal(Object.hasOwn(referencePolicy, name), false);
             } else if (type === "number") {
-                assert.equal(policy.THING_BOOLEAN_PERSISTED_STATE_FIELDS.has(name), false, typeId + "." + name + " numeric collision");
+                assert.equal(policy.isThingBooleanPersistedStateField(typeId, name), false, typeId + "." + name + " numeric collision");
+                if (policy.THING_BOOLEAN_PERSISTED_STATE_FIELDS.has(name)) {
+                    expectedThingNumericOverrides.add(typeId + "." + name);
+                    assert.equal(policy.THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS.has(typeId + "." + name), true);
+                } else {
+                    assert.equal(policy.THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS.has(typeId + "." + name), false);
+                }
                 assert.equal(Object.hasOwn(referencePolicy, name), false, typeId + "." + name + " numeric reference collision");
             } else {
                 expectedReferences.add(typeId + "." + name);
@@ -165,6 +173,11 @@ function verifyPolicyMatchesTypeScript(fields, policy, thingTypes) {
         }
     }
     assert.deepEqual([...policy.THING_BOOLEAN_PERSISTED_STATE_FIELDS].sort(), [...expectedThingBooleans].sort(), "Thing boolean policy must be exact");
+    assert.deepEqual(
+        [...policy.THING_NUMERIC_PERSISTED_STATE_FIELD_KEYS].sort(),
+        [...expectedThingNumericOverrides].sort(),
+        "Thing numeric primitive overrides must be exact"
+    );
     const actualReferences = [];
     for (const [typeId, referencePolicy] of Object.entries(policy.THING_REFERENCE_FIELD_POLICY)) {
         for (const name of Object.keys(referencePolicy)) actualReferences.push(typeId + "." + name);
@@ -287,7 +300,7 @@ function createThingSnapshot(type, id, fields, policy, overrides = {}) {
         } else if (reference?.kind === "song") {
             values[name] = reference.nullable ? { $song: null } : { $song: "stage_1_1" };
         } else {
-            values[name] = policy.THING_BOOLEAN_PERSISTED_STATE_FIELDS.has(name) ? false : 0;
+            values[name] = policy.isThingBooleanPersistedStateField(type, name) ? false : 0;
         }
     }
     Object.assign(values, overrides);
