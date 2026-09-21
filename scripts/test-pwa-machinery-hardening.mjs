@@ -108,10 +108,7 @@ test("difficulty and browser preference persistence is shell-owned", () => {
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("appContainer.setAlwaysRender"));
     assert.match(launch, /mainGame\.difficulty = preferences\.difficulty/);
     assert.match(launch, /mainGame\.setDifficultyChangedHandler\(\(difficulty\) =>/);
-    assert.match(
-        launch,
-        /preferences\.setDifficulty\(\s*difficulty,\s*\(\) => ownership\.owned && isCurrentGameSession\(session\) && game === mainGame\s*\)/s
-    );
+    assert.match(launch, /preferences\.setDifficulty\(\s*difficulty,\s*\(\) => ownership\.owned && isCurrentGameSession\(session\) && game === mainGame\s*\)/s);
 
     assert.match(mainSource, /preferences\.setVolume\(value, persist, currentPreferenceWriteAuthorized\)/);
     assert.match(mainSource, /preferences\.setDisplayMode\(value, currentPreferenceWriteAuthorized\)/);
@@ -128,10 +125,7 @@ test("input mapping persistence is shell-owned and rechecks the current session 
         gameMainSource,
         /private static readonly inputMappingChangedHandlers = new WeakMap<Main, \(replaceProtected: boolean\) => MappingWriteResult>\(\)/
     );
-    assert.match(
-        gameMainSource,
-        /public setInputMappingChangedHandler\(handler: \(\(replaceProtected: boolean\) => MappingWriteResult\) \| null\): void/
-    );
+    assert.match(gameMainSource, /public setInputMappingChangedHandler\(handler: \(\(replaceProtected: boolean\) => MappingWriteResult\) \| null\): void/);
     assert.match(gameMainSource, /public notifyInputMappingChanged\(replaceProtected: boolean = false\): MappingWriteResult/);
 
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("appContainer.setAlwaysRender"));

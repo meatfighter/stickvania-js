@@ -439,11 +439,7 @@ test("retired positive haptic playback cannot fall back after a rejected native 
         }
     };
 
-    const playing = playPulseOnGamepad(
-        { vibrationActuator: primary, hapticActuators: [fallback] },
-        { duration: 80, strong: 0.5, weak: 0.5 },
-        () => current
-    );
+    const playing = playPulseOnGamepad({ vibrationActuator: primary, hapticActuators: [fallback] }, { duration: 80, strong: 0.5, weak: 0.5 }, () => current);
     current = false;
     rejectPlay(new Error("late native rejection"));
 

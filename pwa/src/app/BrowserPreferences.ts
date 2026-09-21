@@ -153,9 +153,7 @@ export class BrowserPreferences {
 
     private readDifficulty(): number {
         try {
-            return Number.parseInt(localStorage.getItem(DIFFICULTY_STORAGE_KEY) ?? "", 10) === HARD_DIFFICULTY
-                ? HARD_DIFFICULTY
-                : DEFAULT_DIFFICULTY;
+            return Number.parseInt(localStorage.getItem(DIFFICULTY_STORAGE_KEY) ?? "", 10) === HARD_DIFFICULTY ? HARD_DIFFICULTY : DEFAULT_DIFFICULTY;
         } catch {
             return DEFAULT_DIFFICULTY;
         }

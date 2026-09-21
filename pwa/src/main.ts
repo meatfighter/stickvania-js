@@ -334,16 +334,10 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
         if (!isCurrentGameSession(session) || game !== mainGame) {
             return { saved: false, reason: "stale-session" };
         }
-        return mainGame.buttonMapping.save(
-            () => ownership.owned && isCurrentGameSession(session) && game === mainGame,
-            replaceProtected
-        );
+        return mainGame.buttonMapping.save(() => ownership.owned && isCurrentGameSession(session) && game === mainGame, replaceProtected);
     });
     mainGame.setDifficultyChangedHandler((difficulty) =>
-        preferences.setDifficulty(
-            difficulty,
-            () => ownership.owned && isCurrentGameSession(session) && game === mainGame
-        )
+        preferences.setDifficulty(difficulty, () => ownership.owned && isCurrentGameSession(session) && game === mainGame)
     );
     viewport.attach(appContainer, session);
     appContainer.setGraphicsLifecycleHandler((state) => {

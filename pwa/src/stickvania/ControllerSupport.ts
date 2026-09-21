@@ -84,11 +84,7 @@ export class ControllerSupport {
     }
 
     public static isButtonDownOnController(input: Input, button: number, controller: number): boolean {
-        return (
-            button >= 0 &&
-            button < ControllerSupport.getButtonScanLimitForController(input, controller) &&
-            input.isButtonPressed(button, controller)
-        );
+        return button >= 0 && button < ControllerSupport.getButtonScanLimitForController(input, controller) && input.isButtonPressed(button, controller);
     }
 
     public static isDirectionalButton(input: Input, button: number, controller: number): boolean {

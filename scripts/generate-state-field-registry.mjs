@@ -179,7 +179,8 @@ function validatePersistedValuePolicy(mainInfo, mainPolicy, thingTypeMappings, c
         if (mainPolicy.get(field.name) !== "persisted") continue;
         if (field.declaredType === "boolean") {
             expectedMainBooleanFields.add(field.name);
-            if (!mainBooleanFields.has(field.name)) throw new Error(`Persisted Main boolean ${field.name} is missing from MAIN_BOOLEAN_PERSISTED_STATE_FIELDS.`);
+            if (!mainBooleanFields.has(field.name))
+                throw new Error(`Persisted Main boolean ${field.name} is missing from MAIN_BOOLEAN_PERSISTED_STATE_FIELDS.`);
         } else if (field.declaredType === "number") {
             if (mainBooleanFields.has(field.name)) throw new Error(`Persisted Main numeric field ${field.name} is incorrectly classified as boolean.`);
         } else {
@@ -199,15 +200,19 @@ function validatePersistedValuePolicy(mainInfo, mainPolicy, thingTypeMappings, c
             const key = `${id}.${field.name}`;
             if (field.declaredType === "boolean") {
                 expectedThingBooleanFields.add(field.name);
-                if (!thingBooleanFields.has(field.name)) throw new Error(`Persisted Thing boolean ${key} is missing from THING_BOOLEAN_PERSISTED_STATE_FIELDS.`);
+                if (!thingBooleanFields.has(field.name))
+                    throw new Error(`Persisted Thing boolean ${key} is missing from THING_BOOLEAN_PERSISTED_STATE_FIELDS.`);
                 if (referenceFields.has(key)) throw new Error(`Persisted Thing boolean ${key} is incorrectly classified as a reference.`);
             } else if (field.declaredType === "number") {
-                if (thingBooleanFields.has(field.name)) throw new Error(`Persisted Thing numeric field ${key} collides with THING_BOOLEAN_PERSISTED_STATE_FIELDS.`);
+                if (thingBooleanFields.has(field.name))
+                    throw new Error(`Persisted Thing numeric field ${key} collides with THING_BOOLEAN_PERSISTED_STATE_FIELDS.`);
                 if (referenceFields.has(key)) throw new Error(`Persisted Thing numeric field ${key} is incorrectly classified as a reference.`);
             } else {
                 expectedReferenceFields.add(key);
                 if (!referenceFields.has(key)) {
-                    throw new Error(`Persisted Thing reference/collection ${key} (${field.declaredType || "inferred"}) is missing from THING_REFERENCE_FIELD_POLICY.`);
+                    throw new Error(
+                        `Persisted Thing reference/collection ${key} (${field.declaredType || "inferred"}) is missing from THING_REFERENCE_FIELD_POLICY.`
+                    );
                 }
             }
         }

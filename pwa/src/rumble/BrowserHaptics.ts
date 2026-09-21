@@ -84,11 +84,7 @@ export function getActuatorDescriptions(gamepad: Gamepad): string[] {
     return descriptions;
 }
 
-export async function playPulseOnGamepad(
-    gamepad: Gamepad,
-    pulse: RumblePulseStep,
-    isCurrent: () => boolean = () => true
-): Promise<string> {
+export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseStep, isCurrent: () => boolean = () => true): Promise<string> {
     if (!isCurrent()) {
         return RETIRED_MESSAGE;
     }

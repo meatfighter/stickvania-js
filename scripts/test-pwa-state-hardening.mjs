@@ -322,7 +322,6 @@ try {
     duplicateCompletedInputConfig.assignedKeys = [200, 200];
     assert.equal(serializer.isInputConfigSnapshotShape(duplicateCompletedInputConfig), false);
 
-
     assert.deepEqual(
         Object.keys(liveInputConfigSnapshot).sort(),
         ["armDelay", "assignedControllerButtons", "assignedKeys", "doneDelay", "draft", "finished", "message", "stepIndex"].sort(),
@@ -557,7 +556,6 @@ try {
     assert.equal(restoredFinishedMapping.keyUp, 200, "finished restore must reapply the committed draft in memory");
     assert.equal(restoredFinishedMapping.controllerAttack, 2, "finished restore must preserve the live committed mapping even after preference-save failure");
 
-
     const storage = createStorage();
 
     const obsolete = createPotentialSnapshot(GAME_STATE_VERSION - 1);
@@ -623,25 +621,43 @@ try {
         const volumeKey = getBrowserStorageKey("volume");
         const difficultyKey = getBrowserStorageKey("difficulty");
 
-        assert.equal(prefs.setVolume(0.5, true, () => false), false);
+        assert.equal(
+            prefs.setVolume(0.5, true, () => false),
+            false
+        );
         assert.equal(prefs.volume, 0.5, "authorization failure must not roll back the live preference");
         assert.equal(preferenceStorage.getItem(volumeKey), null);
 
-        assert.equal(prefs.setVolume(0.6, true, () => true), true);
+        assert.equal(
+            prefs.setVolume(0.6, true, () => true),
+            true
+        );
         assert.equal(preferenceStorage.getItem(volumeKey), "60");
 
-        assert.equal(prefs.setDifficulty(1, () => false), false);
+        assert.equal(
+            prefs.setDifficulty(1, () => false),
+            false
+        );
         assert.equal(prefs.difficulty, 1);
         assert.equal(preferenceStorage.getItem(difficultyKey), null);
 
-        assert.equal(prefs.setDifficulty(1, () => true), true);
+        assert.equal(
+            prefs.setDifficulty(1, () => true),
+            true
+        );
         assert.equal(preferenceStorage.getItem(difficultyKey), "1");
 
-        assert.equal(prefs.reset(() => false), false);
+        assert.equal(
+            prefs.reset(() => false),
+            false
+        );
         assert.equal(preferenceStorage.getItem(volumeKey), "60");
         assert.equal(preferenceStorage.getItem(difficultyKey), "1");
 
-        assert.equal(prefs.reset(() => true), true);
+        assert.equal(
+            prefs.reset(() => true),
+            true
+        );
         assert.equal(preferenceStorage.getItem(volumeKey), null);
         assert.equal(preferenceStorage.getItem(difficultyKey), null, "PWA Reset must clear the difficulty preference");
         assert.equal(prefs.difficulty, 0);
@@ -716,35 +732,53 @@ try {
             "a candidate that fails after serializer restore must not replace the prior input-side action owner"
         );
 
-        stateStorage.setItem(
-            GAME_STATE_STORAGE_KEY,
-            JSON.stringify({ version: GAME_STATE_VERSION + 1, valid: false, marker: "future" })
-        );
+        stateStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify({ version: GAME_STATE_VERSION + 1, valid: false, marker: "future" }));
         assert.deepEqual(store.inspectStoredGameState(), {
             status: "unsupported-future",
             version: GAME_STATE_VERSION + 1
         });
-        assert.deepEqual(store.save(main, () => true), { saved: false, reason: "unsupported-future" });
+        assert.deepEqual(
+            store.save(main, () => true),
+            { saved: false, reason: "unsupported-future" }
+        );
         assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "future");
 
         stateStorage.setItem(GAME_STATE_STORAGE_KEY, "{");
         assert.deepEqual(store.inspectStoredGameState(), { status: "invalid" });
-        assert.deepEqual(store.save(main, () => true), { saved: false, reason: "invalid-existing" });
+        assert.deepEqual(
+            store.save(main, () => true),
+            { saved: false, reason: "invalid-existing" }
+        );
         assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), "{");
 
         stateStorage.removeItem(GAME_STATE_STORAGE_KEY);
         assert.deepEqual(store.inspectStoredGameState(), { status: "missing" });
-        assert.deepEqual(store.save(main, () => false), { saved: false, reason: "not-authorized" });
+        assert.deepEqual(
+            store.save(main, () => false),
+            { saved: false, reason: "not-authorized" }
+        );
         assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), null);
 
-        assert.deepEqual(store.save(main, () => true), { saved: true });
+        assert.deepEqual(
+            store.save(main, () => true),
+            { saved: true }
+        );
         assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "new");
         const beforeUnauthorizedClear = stateStorage.getItem(GAME_STATE_STORAGE_KEY);
-        assert.equal(store.clear(() => false), false);
+        assert.equal(
+            store.clear(() => false),
+            false
+        );
         assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), beforeUnauthorizedClear);
-        assert.equal(store.clear(() => true), true);
+        assert.equal(
+            store.clear(() => true),
+            true
+        );
         assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), null);
-        assert.deepEqual(store.save(main, () => true), { saved: true });
+        assert.deepEqual(
+            store.save(main, () => true),
+            { saved: true }
+        );
 
         globalThis.localStorage = {
             getItem() {
@@ -761,7 +795,10 @@ try {
         console.warn = () => {};
         try {
             assert.deepEqual(store.inspectStoredGameState(), { status: "read-failed" });
-            assert.deepEqual(store.save(main, () => true), { saved: false, reason: "read-failed" });
+            assert.deepEqual(
+                store.save(main, () => true),
+                { saved: false, reason: "read-failed" }
+            );
         } finally {
             console.warn = quietWarn;
         }
@@ -784,7 +821,10 @@ try {
         const mapping = new ButtonMapping();
         mapping.keyJump = 57;
         assert.equal(ButtonMapping.isReservedKey(57), false);
-        assert.deepEqual(mapping.save(() => true), { saved: true });
+        assert.deepEqual(
+            mapping.save(() => true),
+            { saved: true }
+        );
         const restored = ButtonMapping.load();
         assert.equal(restored.keyJump, 57);
         assert.equal(restored.keyboardLabelFor("JUMP"), "SPACE");
@@ -797,7 +837,10 @@ try {
         const exactShapeFallback = ButtonMapping.load();
         assert.equal(exactShapeFallback.keyJump, 45, "same-version invalid mappings must fall back in memory");
         assert.equal(mappingStorage.getItem(mappingKey), sameVersionInvalidText);
-        assert.deepEqual(mapping.save(() => true), { saved: false, reason: "protected" });
+        assert.deepEqual(
+            mapping.save(() => true),
+            { saved: false, reason: "protected" }
+        );
         assert.equal(mappingStorage.getItem(mappingKey), sameVersionInvalidText);
 
         mappingStorage.setItem(mappingKey, "{");
@@ -806,7 +849,10 @@ try {
         const quietMappingWarn = console.warn;
         console.warn = () => {};
         try {
-            assert.deepEqual(mapping.save(() => true), { saved: false, reason: "protected" });
+            assert.deepEqual(
+                mapping.save(() => true),
+                { saved: false, reason: "protected" }
+            );
         } finally {
             console.warn = quietMappingWarn;
         }
@@ -822,7 +868,10 @@ try {
         const quietUnknownWarn = console.warn;
         console.warn = () => {};
         try {
-            assert.deepEqual(mapping.save(() => true), { saved: false, reason: "protected" });
+            assert.deepEqual(
+                mapping.save(() => true),
+                { saved: false, reason: "protected" }
+            );
         } finally {
             console.warn = quietUnknownWarn;
         }
@@ -843,20 +892,34 @@ try {
         assert.equal(mappingStorage.getItem(mappingKey), null, "explicitly obsolete prepublic mapping versions may be discarded");
 
         mapping.keyJump = 57;
-        assert.deepEqual(mapping.save(() => true), { saved: true });
+        assert.deepEqual(
+            mapping.save(() => true),
+            { saved: true }
+        );
 
         mapping.keyJump = 1; // Slick KEY_ESCAPE
         assert.equal(ButtonMapping.isReservedKey(1), true);
         assert.equal(ButtonMapping.isValidKeyBinding(1), false);
-        assert.deepEqual(mapping.save(() => true), { saved: false, reason: "invalid" }, "reserved keys must not enter the persisted mapping store");
+        assert.deepEqual(
+            mapping.save(() => true),
+            { saved: false, reason: "invalid" },
+            "reserved keys must not enter the persisted mapping store"
+        );
 
         mapping.keyJump = 57;
         const beforeUnauthorized = mappingStorage.getItem(mappingKey);
-        assert.deepEqual(mapping.save(() => false), { saved: false, reason: "stale-session" });
+        assert.deepEqual(
+            mapping.save(() => false),
+            { saved: false, reason: "stale-session" }
+        );
         assert.equal(mappingStorage.getItem(mappingKey), beforeUnauthorized, "stale mapping save must preserve prior bytes");
 
         mapping.keyAttack = 57;
-        assert.deepEqual(mapping.save(() => true), { saved: false, reason: "invalid" }, "duplicate key mappings must not be persisted");
+        assert.deepEqual(
+            mapping.save(() => true),
+            { saved: false, reason: "invalid" },
+            "duplicate key mappings must not be persisted"
+        );
 
         mapping.keyAttack = 44;
         mapping.controllerJump = 12;

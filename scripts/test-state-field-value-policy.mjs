@@ -141,11 +141,7 @@ function verifyPolicyMatchesTypeScript(fields, policy, thingTypes) {
             assert.equal(policy.MAIN_BOOLEAN_PERSISTED_STATE_FIELDS.has(name), false, "Main." + name + " cannot be boolean policy");
         }
     }
-    assert.deepEqual(
-        [...policy.MAIN_BOOLEAN_PERSISTED_STATE_FIELDS].sort(),
-        [...expectedMainBooleans].sort(),
-        "Main boolean policy must be exact"
-    );
+    assert.deepEqual([...policy.MAIN_BOOLEAN_PERSISTED_STATE_FIELDS].sort(), [...expectedMainBooleans].sort(), "Main boolean policy must be exact");
 
     const expectedThingBooleans = new Set();
     const expectedReferences = new Set();
@@ -168,11 +164,7 @@ function verifyPolicyMatchesTypeScript(fields, policy, thingTypes) {
             }
         }
     }
-    assert.deepEqual(
-        [...policy.THING_BOOLEAN_PERSISTED_STATE_FIELDS].sort(),
-        [...expectedThingBooleans].sort(),
-        "Thing boolean policy must be exact"
-    );
+    assert.deepEqual([...policy.THING_BOOLEAN_PERSISTED_STATE_FIELDS].sort(), [...expectedThingBooleans].sort(), "Thing boolean policy must be exact");
     const actualReferences = [];
     for (const [typeId, referencePolicy] of Object.entries(policy.THING_REFERENCE_FIELD_POLICY)) {
         for (const name of Object.keys(referencePolicy)) actualReferences.push(typeId + "." + name);
@@ -183,10 +175,7 @@ function verifyPolicyMatchesTypeScript(fields, policy, thingTypes) {
 function createValidStageSnapshot(version, fields, policy, songIds) {
     const things = [];
     const checkpointIds = [];
-    const stageNumbers = [
-        [1, 1, 2, 3, 3],
-        [2]
-    ];
+    const stageNumbers = [[1, 1, 2, 3, 3], [2]];
     for (let segment = 0; segment < stageNumbers.length; segment++) {
         for (let region = 0; region < stageNumbers[segment].length; region++) {
             const id = things.length;
@@ -307,10 +296,34 @@ function createThingSnapshot(type, id, fields, policy, overrides = {}) {
 
 function createAudio(songIds) {
     const musicIds = new Set([
-        "game_over", "map_1", "map_2", "map_3", "map_4", "prologue", "simon_killed", "stage_cleared", "dracula_dead",
-        "boss_1.intro", "boss_1.loop", "boss_2.intro", "boss_2.loop", "ending.loop", "stage_1_1.loop",
-        "stage_1_2.intro", "stage_1_2.loop", "stage_2_1.intro", "stage_2_1.loop", "stage_3_1.intro", "stage_3_1.loop",
-        "stage_4_1.loop", "stage_4_2.loop", "stage_5_1.intro", "stage_5_1.loop", "stage_6_1.loop", "stage_6_2.intro", "stage_6_2.loop"
+        "game_over",
+        "map_1",
+        "map_2",
+        "map_3",
+        "map_4",
+        "prologue",
+        "simon_killed",
+        "stage_cleared",
+        "dracula_dead",
+        "boss_1.intro",
+        "boss_1.loop",
+        "boss_2.intro",
+        "boss_2.loop",
+        "ending.loop",
+        "stage_1_1.loop",
+        "stage_1_2.intro",
+        "stage_1_2.loop",
+        "stage_2_1.intro",
+        "stage_2_1.loop",
+        "stage_3_1.intro",
+        "stage_3_1.loop",
+        "stage_4_1.loop",
+        "stage_4_2.loop",
+        "stage_5_1.intro",
+        "stage_5_1.loop",
+        "stage_6_1.loop",
+        "stage_6_2.intro",
+        "stage_6_2.loop"
     ]);
     const part = (songId, suffix) => {
         const id = songId + "." + suffix;
@@ -336,10 +349,7 @@ function createLoadedResourceMain(Main, width) {
         return { direction, stage };
     };
     return {
-        loadedSegments: [
-            [makeRaw(Main.RIGHT, [1, 2, 3, 4]), makeRaw(Main.RIGHT, [])],
-            [], [], [], [], []
-        ]
+        loadedSegments: [[makeRaw(Main.RIGHT, [1, 2, 3, 4]), makeRaw(Main.RIGHT, [])], [], [], [], [], []]
     };
 }
 

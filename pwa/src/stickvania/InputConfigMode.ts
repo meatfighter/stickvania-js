@@ -43,33 +43,30 @@ export type InputConfigModeSnapshot = {
 };
 
 export function isInputConfigModeSnapshot(value: unknown): value is InputConfigModeSnapshot {
-    if (!isPlainRecord(value) || !hasExactFields(value, [
-        "stepIndex",
-        "doneDelay",
-        "armDelay",
-        "message",
-        "finished",
-        "draft",
-        "assignedKeys",
-        "assignedControllerButtons"
-    ])) {
+    if (
+        !isPlainRecord(value) ||
+        !hasExactFields(value, ["stepIndex", "doneDelay", "armDelay", "message", "finished", "draft", "assignedKeys", "assignedControllerButtons"])
+    ) {
         return false;
     }
     const draft = value.draft;
-    if (!isPlainRecord(draft) || !hasExactFields(draft, [
-        "keyJump",
-        "keyAttack",
-        "keyUp",
-        "keyDown",
-        "keyLeft",
-        "keyRight",
-        "controllerJump",
-        "controllerAttack",
-        "controllerUp",
-        "controllerDown",
-        "controllerLeft",
-        "controllerRight"
-    ])) {
+    if (
+        !isPlainRecord(draft) ||
+        !hasExactFields(draft, [
+            "keyJump",
+            "keyAttack",
+            "keyUp",
+            "keyDown",
+            "keyLeft",
+            "keyRight",
+            "controllerJump",
+            "controllerAttack",
+            "controllerUp",
+            "controllerDown",
+            "controllerLeft",
+            "controllerRight"
+        ])
+    ) {
         return false;
     }
 
@@ -102,10 +99,7 @@ export function isInputConfigModeSnapshot(value: unknown): value is InputConfigM
 export function isInputConfigLogicalStateConsistent(snapshot: InputConfigModeSnapshot): boolean {
     const assignedKeys = snapshot.assignedKeys;
     const assignedControllerButtons = snapshot.assignedControllerButtons;
-    if (
-        new Set(assignedKeys).size !== assignedKeys.length ||
-        new Set(assignedControllerButtons).size !== assignedControllerButtons.length
-    ) {
+    if (new Set(assignedKeys).size !== assignedKeys.length || new Set(assignedControllerButtons).size !== assignedControllerButtons.length) {
         return false;
     }
 

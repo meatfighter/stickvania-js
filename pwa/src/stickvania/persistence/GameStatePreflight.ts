@@ -81,9 +81,7 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         isRecord(mainFieldsValue) && mainFieldsValue.weaponType === WEAPON_TYPE_STOP_WATCH && mainFieldsValue.weaponRepeats !== WEAPON_REPEATS_SINGLE;
     return (
         (stageRequired ? hasStageShape : stageValue === null && snapshot.things.length === 0) &&
-        (isInputConfigGameStateMode(snapshot.mode)
-            ? isInputConfigModeSnapshot(snapshot.inputConfigMode)
-            : snapshot.inputConfigMode == null) &&
+        (isInputConfigGameStateMode(snapshot.mode) ? isInputConfigModeSnapshot(snapshot.inputConfigMode) : snapshot.inputConfigMode == null) &&
         isRecord(mainFieldsValue) &&
         mainFieldsValue.mode === snapshot.mode &&
         isRecord(snapshot.random) &&
@@ -104,7 +102,8 @@ function hasActiveStopWatch(snapshot: Record<string, unknown>): boolean {
         return false;
     }
     return snapshot.things.some(
-        (thing) => isRecord(thing) && thing.type === "StopWatch" && isRecord(thing.fields) && typeof thing.fields.lifeTime === "number" && thing.fields.lifeTime > 0
+        (thing) =>
+            isRecord(thing) && thing.type === "StopWatch" && isRecord(thing.fields) && typeof thing.fields.lifeTime === "number" && thing.fields.lifeTime > 0
     );
 }
 

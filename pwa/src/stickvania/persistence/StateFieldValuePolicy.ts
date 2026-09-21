@@ -108,11 +108,7 @@ export function isPersistedMainFieldValuesValid(fields: EncodedRecord): boolean 
     return true;
 }
 
-export function isPersistedThingFieldValuesValid(
-    snapshot: ThingSnapshot,
-    thingTypes: ReadonlyMap<number, ThingTypeId>,
-    segmentCount: number
-): boolean {
+export function isPersistedThingFieldValuesValid(snapshot: ThingSnapshot, thingTypes: ReadonlyMap<number, ThingTypeId>, segmentCount: number): boolean {
     const referencePolicy = THING_REFERENCE_FIELD_POLICY[snapshot.type] ?? {};
     for (const name of THING_PERSISTED_STATE_FIELD_NAMES[snapshot.type]) {
         const value = snapshot.fields[name];
@@ -192,7 +188,14 @@ function isThingNumberValid(type: ThingTypeId, name: string, value: number): boo
             return Number.isInteger(value) && values.includes(value);
         }
     }
-    if (name === "spriteIndex" || name === "spriteIndexIncrementor" || name.endsWith("Delay") || name.endsWith("Timer") || name === "hits" || name === "count") {
+    if (
+        name === "spriteIndex" ||
+        name === "spriteIndexIncrementor" ||
+        name.endsWith("Delay") ||
+        name.endsWith("Timer") ||
+        name === "hits" ||
+        name === "count"
+    ) {
         return Number.isInteger(value) && Math.abs(value) <= 1_000_000;
     }
     if (name === "lifeTime" && type === "StopWatch") {
@@ -212,12 +215,7 @@ function inferStaticIntegerValues(type: ThingTypeId, prefix: string): readonly n
     return values.length === 0 ? null : values;
 }
 
-function isReferenceValueValid(
-    value: EncodedValue,
-    policy: ThingReferencePolicy,
-    thingTypes: ReadonlyMap<number, ThingTypeId>,
-    segmentCount: number
-): boolean {
+function isReferenceValueValid(value: EncodedValue, policy: ThingReferencePolicy, thingTypes: ReadonlyMap<number, ThingTypeId>, segmentCount: number): boolean {
     switch (policy.kind) {
         case "thing": {
             const reference = asThingReference(value);
@@ -232,11 +230,7 @@ function isReferenceValueValid(
             const ids: number[] = [];
             for (const entry of value) {
                 const reference = asThingReference(entry);
-                if (
-                    reference === null ||
-                    reference.$thing === null ||
-                    !policy.targets.includes(thingTypes.get(reference.$thing) as ThingTypeId)
-                ) {
+                if (reference === null || reference.$thing === null || !policy.targets.includes(thingTypes.get(reference.$thing) as ThingTypeId)) {
                     return false;
                 }
                 ids.push(reference.$thing);
@@ -258,20 +252,14 @@ function isReferenceValueValid(
 }
 
 function asThingReference(value: unknown): { readonly $thing: number | null } | null {
-    if (
-        !isExactSingleKeyRecord(value, "$thing") ||
-        !(value.$thing === null || (typeof value.$thing === "number" && Number.isInteger(value.$thing)))
-    ) {
+    if (!isExactSingleKeyRecord(value, "$thing") || !(value.$thing === null || (typeof value.$thing === "number" && Number.isInteger(value.$thing)))) {
         return null;
     }
     return value as { readonly $thing: number | null };
 }
 
 function asSegmentReference(value: unknown): { readonly $segment: number | null } | null {
-    if (
-        !isExactSingleKeyRecord(value, "$segment") ||
-        !(value.$segment === null || (typeof value.$segment === "number" && Number.isInteger(value.$segment)))
-    ) {
+    if (!isExactSingleKeyRecord(value, "$segment") || !(value.$segment === null || (typeof value.$segment === "number" && Number.isInteger(value.$segment)))) {
         return null;
     }
     return value as { readonly $segment: number | null };

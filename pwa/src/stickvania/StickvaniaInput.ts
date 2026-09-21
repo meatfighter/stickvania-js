@@ -70,14 +70,8 @@ export class StickvaniaInput {
     private static readonly CONTROLLER_STATE_PRESSED = 2;
     private previous: InputState = createEmptyState();
     private current: InputState = createEmptyState();
-    private readonly controllerBindingDown: boolean[][] = Array.from(
-        { length: StickvaniaInput.CONTROLLER_BINDING_SLOT_COUNT },
-        () => []
-    );
-    private readonly controllerBindingBlockedUntilRelease: boolean[][] = Array.from(
-        { length: StickvaniaInput.CONTROLLER_BINDING_SLOT_COUNT },
-        () => []
-    );
+    private readonly controllerBindingDown: boolean[][] = Array.from({ length: StickvaniaInput.CONTROLLER_BINDING_SLOT_COUNT }, () => []);
+    private readonly controllerBindingBlockedUntilRelease: boolean[][] = Array.from({ length: StickvaniaInput.CONTROLLER_BINDING_SLOT_COUNT }, () => []);
     private readonly controllerConnectionGenerations: number[] = [];
     private readonly controllerGenerationChanged: boolean[] = [];
     private controllerSampleValid = false;
@@ -145,17 +139,11 @@ export class StickvaniaInput {
     }
 
     public isMenuUpPressed(): boolean {
-        return (
-            StickvaniaInput.pressed(this.current.menuUpKeyboard, this.previous.menuUpKeyboard) ||
-            this.current.menuUpControllerPressed
-        );
+        return StickvaniaInput.pressed(this.current.menuUpKeyboard, this.previous.menuUpKeyboard) || this.current.menuUpControllerPressed;
     }
 
     public isMenuDownPressed(): boolean {
-        return (
-            StickvaniaInput.pressed(this.current.menuDownKeyboard, this.previous.menuDownKeyboard) ||
-            this.current.menuDownControllerPressed
-        );
+        return StickvaniaInput.pressed(this.current.menuDownKeyboard, this.previous.menuDownKeyboard) || this.current.menuDownControllerPressed;
     }
 
     public isMenuSelectPressed(): boolean {
@@ -247,12 +235,7 @@ export class StickvaniaInput {
         }
     }
 
-    private readControllerBinding(
-        binding: number,
-        slot: number,
-        discreteAction: boolean,
-        suppressEdges: boolean
-    ): number {
+    private readControllerBinding(binding: number, slot: number, discreteAction: boolean, suppressEdges: boolean): number {
         if (binding === ButtonMapping.NO_BINDING) {
             return 0;
         }
@@ -284,16 +267,10 @@ export class StickvaniaInput {
                 anyDown ||= discreteAction ? previous[controller] === true : rawDown;
             }
         }
-        return (
-            (anyDown ? StickvaniaInput.CONTROLLER_STATE_DOWN : 0) |
-            (anyPressed ? StickvaniaInput.CONTROLLER_STATE_PRESSED : 0)
-        );
+        return (anyDown ? StickvaniaInput.CONTROLLER_STATE_DOWN : 0) | (anyPressed ? StickvaniaInput.CONTROLLER_STATE_PRESSED : 0);
     }
 
-    private readAnyNonDirectionalControllerState(
-        slot: number,
-        suppressEdges: boolean
-    ): number {
+    private readAnyNonDirectionalControllerState(slot: number, suppressEdges: boolean): number {
         let anyDown = false;
         let anyPressed = false;
         const previous = this.controllerBindingDown[slot]!;
@@ -331,10 +308,7 @@ export class StickvaniaInput {
             }
         }
 
-        return (
-            (anyDown ? StickvaniaInput.CONTROLLER_STATE_DOWN : 0) |
-            (anyPressed ? StickvaniaInput.CONTROLLER_STATE_PRESSED : 0)
-        );
+        return (anyDown ? StickvaniaInput.CONTROLLER_STATE_DOWN : 0) | (anyPressed ? StickvaniaInput.CONTROLLER_STATE_PRESSED : 0);
     }
 
     private resizeControllerTracking(controllerCount: number): void {

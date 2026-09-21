@@ -29,10 +29,7 @@ import {
 import { GAME_STATE_VERSION } from "./GameStateSchema.js";
 import { captureSoundEffects, isSoundEffectSnapshotsShape, restoreSoundEffects } from "./GameStateSoundEffects.js";
 import { MAIN_PERSISTED_STATE_FIELD_NAMES, THING_PERSISTED_STATE_FIELD_NAMES } from "./StateFieldRegistry.generated.js";
-import {
-    isPersistedMainFieldValuesValid,
-    isPersistedThingFieldValuesValid
-} from "./StateFieldValuePolicy.js";
+import { isPersistedMainFieldValuesValid, isPersistedThingFieldValuesValid } from "./StateFieldValuePolicy.js";
 import { getThingTypeId, isThingTypeId, THING_TYPES, type ThingTypeId } from "./ThingTypeRegistry.js";
 import { rehydrateThingAfterStateRestore } from "./ThingRehydrationRegistry.js";
 import { isInputConfigGameStateMode, isRestorableGameStateMode, isStageRequiredGameStateMode } from "./GameStatePolicy.js";
@@ -260,9 +257,7 @@ export class StickvaniaGameStateSerializer {
             if (
                 expectedRegionBounds.length !== saved.regions.length ||
                 saved.regions.some(
-                    (region, regionIndex) =>
-                        region.min !== expectedRegionBounds[regionIndex]!.min ||
-                        region.max !== expectedRegionBounds[regionIndex]!.max
+                    (region, regionIndex) => region.min !== expectedRegionBounds[regionIndex]!.min || region.max !== expectedRegionBounds[regionIndex]!.max
                 )
             ) {
                 return false;
@@ -440,11 +435,7 @@ export class StickvaniaGameStateSerializer {
         return true;
     }
 
-    private isCheckpointTargetValid(
-        checkpointId: number,
-        things: readonly ThingSnapshot[],
-        segments: readonly SegmentSnapshot[]
-    ): boolean {
+    private isCheckpointTargetValid(checkpointId: number, things: readonly ThingSnapshot[], segments: readonly SegmentSnapshot[]): boolean {
         const checkpoint = things[checkpointId];
         if (checkpoint === undefined || checkpoint.type !== "Checkpoint") {
             return false;
@@ -726,11 +717,7 @@ export class StickvaniaGameStateSerializer {
         );
     }
 
-    private createSnapshotReferenceLimits(
-        stage: StageSnapshot | null,
-        thingCount: number,
-        stairsCounts: number[] | null = null
-    ): SnapshotReferenceLimits {
+    private createSnapshotReferenceLimits(stage: StageSnapshot | null, thingCount: number, stairsCounts: number[] | null = null): SnapshotReferenceLimits {
         return {
             thingCount,
             segmentCount: stage === null ? 0 : stage.segments.length,

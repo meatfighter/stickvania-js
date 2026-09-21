@@ -301,8 +301,7 @@ export class ButtonMapping {
         return (
             typeof value === "number" &&
             Number.isInteger(value) &&
-            (value === ButtonMapping.NO_BINDING ||
-                (Input.isBrowserKeyCodeSupported(value) && !ButtonMapping.isReservedKey(value)))
+            (value === ButtonMapping.NO_BINDING || (Input.isBrowserKeyCodeSupported(value) && !ButtonMapping.isReservedKey(value)))
         );
     }
 
@@ -310,9 +309,7 @@ export class ButtonMapping {
         return (
             typeof value === "number" &&
             Number.isInteger(value) &&
-            (value === ButtonMapping.NO_BINDING ||
-                ButtonMapping.isControllerDirection(value) ||
-                (value >= 0 && value < Input.BROWSER_CONTROLLER_BUTTON_LIMIT))
+            (value === ButtonMapping.NO_BINDING || ButtonMapping.isControllerDirection(value) || (value >= 0 && value < Input.BROWSER_CONTROLLER_BUTTON_LIMIT))
         );
     }
 
@@ -421,14 +418,7 @@ export class ButtonMapping {
             ButtonMapping.isValidControllerBinding(value.controllerDown) &&
             ButtonMapping.isValidControllerBinding(value.controllerLeft) &&
             ButtonMapping.isValidControllerBinding(value.controllerRight) &&
-            ButtonMapping.hasUniqueNonBindingValues([
-                value.keyJump,
-                value.keyAttack,
-                value.keyUp,
-                value.keyDown,
-                value.keyLeft,
-                value.keyRight
-            ]) &&
+            ButtonMapping.hasUniqueNonBindingValues([value.keyJump, value.keyAttack, value.keyUp, value.keyDown, value.keyLeft, value.keyRight]) &&
             ButtonMapping.hasUniqueNonBindingValues([
                 value.controllerJump,
                 value.controllerAttack,
