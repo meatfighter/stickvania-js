@@ -202,6 +202,8 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
     class Main {
         clearInputPressedRecords() {}
         setBrowserSuspended() {}
+        setInputMappingChangedHandler() {}
+        setDifficultyChangedHandler() {}
         stopAllSounds() {}
         isStateSaveReady() {
             return true;
