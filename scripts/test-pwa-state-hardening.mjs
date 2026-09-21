@@ -520,6 +520,7 @@ try {
 
     const inputSnapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     inputSnapshot.inputConfigMode = createInputConfigSnapshot();
+    inputSnapshot.inputConfigMode.armDelay = 0;
     inputSnapshot.inputConfigMode.message = "ALREADY USED";
     assert.equal(isReasonableStickvaniaGameStateSnapshot(inputSnapshot), true, "sanity validation must accept logical input-config state");
 
