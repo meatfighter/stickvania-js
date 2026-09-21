@@ -485,14 +485,6 @@ export class InputConfigMode implements KeyListener {
         };
     }
 
-    private getPressedControllerDirection(): number {
-        return this.sampleControllerInputState().direction;
-    }
-
-    private getPressedNonDirectionalControllerButton(): number {
-        return this.sampleControllerInputState().button;
-    }
-
     private bindKey(key: number): boolean {
         if (this.assignedKeys.has(key)) {
             return false;
