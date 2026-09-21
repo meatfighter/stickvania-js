@@ -153,10 +153,44 @@ async function verify(): Promise<void> {
         const invalidThings = validationSnapshot.things
             .filter((thing) => !isPersistedThingFieldValuesValid(thing, thingTypes, segmentCount))
             .map((thing) => ({ id: thing.id, type: thing.type }));
+        const serializerInternals = validationSerializer as unknown as Record<string, (...args: unknown[]) => unknown>;
+        const stageValid =
+            validationSnapshot.stage !== null &&
+            (serializerInternals.isStageSnapshotValid?.call(
+                validationSerializer,
+                validationSnapshot.stage,
+                thingTypes,
+                validationSnapshot.mainFields,
+                validationSnapshot.things
+            ) === true);
+        const randomValid = serializerInternals.isRandomSnapshotShape?.call(validationSerializer, validationSnapshot.random) === true;
+        const audioValid = serializerInternals.isAudioSnapshotShape?.call(validationSerializer, validationSnapshot.audio) === true;
+        const references = serializerInternals.createSnapshotReferenceLimits?.call(
+            validationSerializer,
+            validationSnapshot.stage,
+            validationSnapshot.things.length
+        );
+        const mainReferencesValid =
+            references !== undefined &&
+            serializerInternals.isEncodedRecordReferencesValid?.call(validationSerializer, validationSnapshot.mainFields, references) === true;
+        const invalidReferenceThings =
+            references === undefined
+                ? validationSnapshot.things.map((thing) => ({ id: thing.id, type: thing.type }))
+                : validationSnapshot.things
+                      .filter(
+                          (thing) =>
+                              serializerInternals.isEncodedRecordReferencesValid?.call(validationSerializer, thing.fields, references) !== true
+                      )
+                      .map((thing) => ({ id: thing.id, type: thing.type }));
         const validation = {
             serializerSupported: validationSerializer.isSupportedSnapshot(validationSnapshot),
             mainFieldsValid: isPersistedMainFieldValuesValid(validationSnapshot.mainFields),
             invalidThings,
+            stageValid,
+            randomValid,
+            audioValid,
+            mainReferencesValid,
+            invalidReferenceThings,
             sanityValid: isReasonableStickvaniaGameStateSnapshot(validationSnapshot),
             stopWatchValid: isStopWatchRepeatStateValid(validationSnapshot.mainFields),
             axeKnightShieldValid: isAxeKnightShieldSnapshotStateValid(validationSnapshot)
@@ -165,6 +199,11 @@ async function verify(): Promise<void> {
             validation.serializerSupported &&
                 validation.mainFieldsValid &&
                 validation.invalidThings.length === 0 &&
+                validation.stageValid &&
+                validation.randomValid &&
+                validation.audioValid &&
+                validation.mainReferencesValid &&
+                validation.invalidReferenceThings.length === 0 &&
                 validation.sanityValid &&
                 validation.stopWatchValid &&
                 validation.axeKnightShieldValid,
