@@ -163,6 +163,55 @@ async function verify(): Promise<void> {
                 validationSnapshot.mainFields,
                 validationSnapshot.things
             ) === true);
+        const stageDiagnostics =
+            validationSnapshot.stage === null
+                ? null
+                : {
+                      segmentValidity: validationSnapshot.stage.segments.map(
+                          (segment, index) =>
+                              serializerInternals.isSegmentSnapshotValid?.call(
+                                  validationSerializer,
+                                  segment,
+                                  index,
+                                  validationSnapshot.stage!.stageIndex,
+                                  thingTypes
+                              ) === true
+                      ),
+                      currentSegmentIndex: validationSnapshot.stage.currentSegmentIndex,
+                      currentRegionIndex:
+                          validationSnapshot.stage.currentSegmentIndex === null
+                              ? null
+                              : validationSnapshot.stage.segments[validationSnapshot.stage.currentSegmentIndex]?.regionIndex ?? null,
+                      checkpointId: validationSnapshot.stage.checkpoint,
+                      platformIds: validationSnapshot.stage.platforms,
+                      checkpointTargetsValid: validationSnapshot.stage.segments.every((segment) =>
+                          segment.regions.every(
+                              (region) =>
+                                  region.checkpoint !== null &&
+                                  serializerInternals.isCheckpointTargetValid?.call(
+                                      validationSerializer,
+                                      region.checkpoint,
+                                      validationSnapshot.things,
+                                      validationSnapshot.stage!.segments
+                                  ) === true
+                          )
+                      ),
+                      graphReachable:
+                          serializerInternals.isThingGraphFullyReachable?.call(
+                              validationSerializer,
+                              validationSnapshot.stage.checkpoint,
+                              validationSnapshot.stage.simon,
+                              validationSnapshot.stage.door,
+                              validationSnapshot.stage.platforms,
+                              validationSnapshot.stage.regionThingStack,
+                              validationSnapshot.stage.regionStackSwap,
+                              validationSnapshot.stage.weaponsStack,
+                              validationSnapshot.stage.weaponsStackSwap,
+                              validationSnapshot.stage.oldThingStack,
+                              validationSnapshot.stage.segments,
+                              validationSnapshot.things
+                          ) === true
+                  };
         const randomValid = serializerInternals.isRandomSnapshotShape?.call(validationSerializer, validationSnapshot.random) === true;
         const audioValid = serializerInternals.isAudioSnapshotShape?.call(validationSerializer, validationSnapshot.audio) === true;
         const references = serializerInternals.createSnapshotReferenceLimits?.call(
@@ -187,6 +236,7 @@ async function verify(): Promise<void> {
             mainFieldsValid: isPersistedMainFieldValuesValid(validationSnapshot.mainFields),
             invalidThings,
             stageValid,
+            stageDiagnostics,
             randomValid,
             audioValid,
             mainReferencesValid,
