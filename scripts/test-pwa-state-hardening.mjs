@@ -170,11 +170,20 @@ try {
         true,
         "stage validation must allow regions that legitimately have no checkpoint"
     );
-    assert.equal(serializer.isCheckpointTargetValid(0, topologyThings, topologySegments, 0, 0), true);
+    assert.equal(serializer.isCheckpointTargetValid(0, topologyThings, topologySegments), true);
+    const retargetedTopologyThings = structuredClone(topologyThings);
+    retargetedTopologyThings[0].fields.stageSegmentIndex = 1;
+    retargetedTopologyThings[0].fields.regionIndex = 0;
     assert.equal(
-        serializer.isCheckpointTargetValid(0, topologyThings, topologySegments, 0, 1),
+        serializer.isCheckpointTargetValid(0, retargetedTopologyThings, topologySegments),
+        true,
+        "checkpoint respawn descriptors may retarget to another real segment/region"
+    );
+    retargetedTopologyThings[0].fields.regionIndex = 99;
+    assert.equal(
+        serializer.isCheckpointTargetValid(0, retargetedTopologyThings, topologySegments),
         false,
-        "checkpoint topology must point back to the exact region that owns it"
+        "checkpoint respawn targets must remain within real stage topology"
     );
 
     const snapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
