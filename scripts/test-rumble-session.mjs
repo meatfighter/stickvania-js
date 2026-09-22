@@ -276,6 +276,10 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
 
     const input = { pause: noop, resume: noop };
     class Container {
+        lifetime = new globalThis.AbortController();
+        getBrowserLifetimeSignal() {
+            return this.lifetime.signal;
+        }
         destroyed = false;
         loopSuspended = false;
         constructor(buffered) {
@@ -322,6 +326,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         setMusicVolume() {}
         stopSoundEffects() {}
         destroy() {
+            this.lifetime.abort();
             this.destroyed = true;
         }
     }
