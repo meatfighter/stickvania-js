@@ -447,6 +447,13 @@ function startApplication(): void {
             if (!publishedToShell) {
                 sessionCleanup.run(() => candidateContainer?.destroy());
                 if (!sessionCleanup.safe) showCleanupFailure();
+            } else if (!sessionCleanup.safe) {
+                if (container === candidateContainer) {
+                    destroyGame();
+                } else {
+                    sessionCleanup.run(() => candidateContainer?.destroy());
+                    showCleanupFailure();
+                }
             }
         }
     }
