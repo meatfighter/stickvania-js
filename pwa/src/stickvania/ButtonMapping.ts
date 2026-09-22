@@ -1,7 +1,8 @@
+import { captureAndWriteSnapshot, readCurrentJson } from "../app/BrowserPersistence.js";
 import { Input } from "slick2d-ts";
 import { getBrowserStorageKey } from "./BrowserStorageKeys.js";
 
-export type MappingWriteFailureReason = "unavailable" | "protected" | "invalid" | "stale-session";
+export type MappingWriteFailureReason = "unavailable" | "invalid" | "stale-session";
 export type MappingWriteResult = { readonly saved: true } | { readonly saved: false; readonly reason: MappingWriteFailureReason };
 
 type ButtonMappingSnapshot = {
@@ -23,7 +24,7 @@ type ButtonMappingSnapshot = {
 export class ButtonMapping {
     private static readonly STORAGE_KEY = getBrowserStorageKey("input-mapping");
     private static readonly VERSION = 7;
-    private static readonly FIRST_PUBLIC_VERSION = 7;
+
     public static readonly NO_BINDING = -1;
     public static readonly CONTROLLER_DIRECTION_UP = -2;
     public static readonly CONTROLLER_DIRECTION_DOWN = -3;
@@ -92,27 +93,13 @@ export class ButtonMapping {
     public controllerDown: number = ButtonMapping.DEFAULT_CONTROLLER_DOWN;
     public controllerLeft: number = ButtonMapping.DEFAULT_CONTROLLER_LEFT;
     public controllerRight: number = ButtonMapping.DEFAULT_CONTROLLER_RIGHT;
-    private storageWriteProtected = false;
 
     public static load(): ButtonMapping {
         const mapping = new ButtonMapping();
-        try {
-            const text = localStorage.getItem(ButtonMapping.STORAGE_KEY);
-            if (text === null) {
-                return mapping;
-            }
-            const snapshot = JSON.parse(text) as unknown;
-            const version = ButtonMapping.getSnapshotVersion(snapshot);
-            if (version !== ButtonMapping.VERSION || !ButtonMapping.isSupportedSnapshot(snapshot)) {
-                if (version !== null && version >= 1 && version < ButtonMapping.FIRST_PUBLIC_VERSION) {
-                    try {
-                        localStorage.removeItem(ButtonMapping.STORAGE_KEY);
-                    } catch {}
-                } else {
-                    mapping.storageWriteProtected = true;
-                }
-                return mapping;
-            }
+        const snapshot = readCurrentJson(ButtonMapping.STORAGE_KEY, ButtonMapping.MAX_TEXT_LENGTH, (value): value is ButtonMappingSnapshot =>
+            ButtonMapping.isSupportedSnapshot(value)
+        );
+        if (snapshot !== null) {
             mapping.keyJump = snapshot.keyJump;
             mapping.keyAttack = snapshot.keyAttack;
             mapping.keyUp = snapshot.keyUp;
@@ -125,32 +112,21 @@ export class ButtonMapping {
             mapping.controllerDown = snapshot.controllerDown;
             mapping.controllerLeft = snapshot.controllerLeft;
             mapping.controllerRight = snapshot.controllerRight;
-        } catch (error) {
-            console.warn("Unable to load Stickvania input mapping.", error);
         }
         return mapping;
     }
 
-    public save(isAuthorized: () => boolean, replaceProtected: boolean = false): MappingWriteResult {
-        if (!replaceProtected && (this.storageWriteProtected || ButtonMapping.hasProtectedStoredSnapshot())) {
-            console.warn("Existing Stickvania input-mapping data is protected; leaving it unchanged.");
-            return { saved: false, reason: "protected" };
-        }
-        try {
-            const snapshot = this.toSnapshot();
-            if (!ButtonMapping.isSupportedSnapshot(snapshot)) {
-                return { saved: false, reason: "invalid" };
-            }
-            if (!isAuthorized()) {
-                return { saved: false, reason: "stale-session" };
-            }
-            localStorage.setItem(ButtonMapping.STORAGE_KEY, JSON.stringify(snapshot));
-            this.storageWriteProtected = false;
-            return { saved: true };
-        } catch (error) {
-            console.warn("Unable to save Stickvania input mapping.", error);
-            return { saved: false, reason: "unavailable" };
-        }
+    public save(isAuthorized: () => boolean): MappingWriteResult {
+        const result = captureAndWriteSnapshot(
+            "Stickvania input mapping",
+            ButtonMapping.STORAGE_KEY,
+            () => this.toSnapshot(),
+            (snapshot) => ButtonMapping.isSupportedSnapshot(snapshot),
+            ButtonMapping.MAX_TEXT_LENGTH,
+            isAuthorized
+        );
+        if (result.saved) return result;
+        return { saved: false, reason: result.reason === "not-authorized" ? "stale-session" : result.reason === "write-failed" ? "unavailable" : "invalid" };
     }
 
     public resetToDefaults(): void {
@@ -343,39 +319,9 @@ export class ButtonMapping {
         };
     }
 
-    private static hasProtectedStoredSnapshot(): boolean {
-        let text: string | null;
-        try {
-            text = localStorage.getItem(ButtonMapping.STORAGE_KEY);
-        } catch {
-            return true;
-        }
-        if (text === null) {
-            return false;
-        }
-        try {
-            const snapshot = JSON.parse(text) as unknown;
-            if (ButtonMapping.isSupportedSnapshot(snapshot)) {
-                return false;
-            }
-            const version = ButtonMapping.getSnapshotVersion(snapshot);
-            return !(version !== null && version >= 1 && version < ButtonMapping.FIRST_PUBLIC_VERSION);
-        } catch {
-            return true;
-        }
-    }
-
     public static hasUniqueNonBindingValues(values: readonly unknown[]): boolean {
         const assigned = values.filter((value): value is number => typeof value === "number" && value !== ButtonMapping.NO_BINDING);
         return new Set(assigned).size === assigned.length;
-    }
-
-    private static getSnapshotVersion(snapshot: unknown): number | null {
-        if (typeof snapshot !== "object" || snapshot === null || !("version" in snapshot)) {
-            return null;
-        }
-        const version = (snapshot as { version?: unknown }).version;
-        return typeof version === "number" && Number.isInteger(version) ? version : null;
     }
 
     private static isSupportedSnapshot(snapshot: unknown): snapshot is ButtonMappingSnapshot {
@@ -429,4 +375,27 @@ export class ButtonMapping {
             ])
         );
     }
+
+    public copyFrom(source: ButtonMapping): void {
+        this.keyJump = source.keyJump;
+        this.keyAttack = source.keyAttack;
+        this.keyUp = source.keyUp;
+        this.keyDown = source.keyDown;
+        this.keyLeft = source.keyLeft;
+        this.keyRight = source.keyRight;
+        this.controllerJump = source.controllerJump;
+        this.controllerAttack = source.controllerAttack;
+        this.controllerUp = source.controllerUp;
+        this.controllerDown = source.controllerDown;
+        this.controllerLeft = source.controllerLeft;
+        this.controllerRight = source.controllerRight;
+    }
+
+    public clone(): ButtonMapping {
+        const mapping = new ButtonMapping();
+        mapping.copyFrom(this);
+        return mapping;
+    }
+
+    public static readonly MAX_TEXT_LENGTH = 4096;
 }

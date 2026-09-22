@@ -13,11 +13,7 @@ type GameStateStorage = {
 };
 
 export type PotentialStoredStickvaniaGameStateInspection =
-    | { readonly status: "read-failed" }
-    | { readonly status: "missing" }
-    | { readonly status: "invalid" }
-    | { readonly status: "unsupported-future"; readonly version: number }
-    | { readonly status: "current" };
+    { readonly status: "read-failed" } | { readonly status: "missing" } | { readonly status: "invalid" } | { readonly status: "current" };
 
 /** Menu preflight has no write capability and never migrates or deletes saves. */
 export function inspectPotentialStoredStickvaniaGameState(
@@ -43,13 +39,11 @@ export function inspectPotentialStoredStickvaniaGameState(
     } catch {
         return { status: "invalid" };
     }
-    if (isRecord(snapshot)) {
-        const version = snapshot.version;
-        if (typeof version === "number" && Number.isInteger(version) && version > GAME_STATE_VERSION) {
-            return { status: "unsupported-future", version };
-        }
+    try {
+        return isPotentialStickvaniaGameStateSnapshot(snapshot) ? { status: "current" } : { status: "invalid" };
+    } catch {
+        return { status: "invalid" };
     }
-    return isPotentialStickvaniaGameStateSnapshot(snapshot) ? { status: "current" } : { status: "invalid" };
 }
 
 export function hasPotentialStoredStickvaniaGameState(storage: GameStateStorage, storageKey: string = GAME_STATE_STORAGE_KEY): boolean {

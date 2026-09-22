@@ -1,3 +1,4 @@
+import { verifyAuthoritativeSave } from "./PersistenceContractVerification.js";
 import { AppGameContainer, Display, ResourceLoader, SoundStore, type SoundPlaybackSnapshot } from "slick2d-ts";
 import { getStickvaniaResourceVersion } from "./ResourceVersions.generated.js";
 import { STICKVANIA_RESOURCE_REFS } from "./resources.js";
@@ -124,6 +125,7 @@ async function verify(): Promise<void> {
     let second: Awaited<ReturnType<typeof mountMain>> | null = null;
     try {
         first = await mountMain(null);
+        verifyAuthoritativeSave(GAME_STATE_STORAGE_KEY, first.main, (main) => store.save(main, () => true));
         first.main.createStageForStateRestore(0);
         first.main.mode = Main.MODE_PLAYING;
         first.main.playerPower = 16;

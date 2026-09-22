@@ -136,9 +136,7 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
             return;
         }
         currentDisplayMode = value;
-        if (!callbacks.onDisplayModeChange(value)) {
-            showPersistenceError(menu);
-        }
+        callbacks.onDisplayModeChange(value);
         updateDisplayModeUi(displayModePicker, currentDisplayMode);
         setPickerOpen(displayModePicker, displayModeButton, displayModePopup, false, "display-mode", currentDisplayMode);
         displayModeButton.focus();
@@ -171,9 +169,7 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
             return;
         }
         currentScaling = value;
-        if (!callbacks.onScalingChange(value)) {
-            showPersistenceError(menu);
-        }
+        callbacks.onScalingChange(value);
         updateScalingUi(scalingPicker, currentScaling);
         setPickerOpen(scalingPicker, scalingButton, scalingPopup, false, "scaling-mode", currentScaling);
         scalingButton.focus();
@@ -224,9 +220,7 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
             return;
         }
         currentRumble = !currentRumble;
-        if (!callbacks.onRumbleChange(currentRumble)) {
-            showPersistenceError(menu);
-        }
+        callbacks.onRumbleChange(currentRumble);
         updateRumbleUi(rumbleSwitchButton, currentRumble);
     });
     fullscreenSwitchButton.addEventListener("click", () => {
@@ -234,9 +228,7 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
             return;
         }
         currentFullscreen = !currentFullscreen;
-        if (!callbacks.onFullscreenChange(currentFullscreen)) {
-            showPersistenceError(menu);
-        }
+        callbacks.onFullscreenChange(currentFullscreen);
         updateFullscreenUi(fullscreenSwitchButton, currentFullscreen);
     });
     volumeInput.addEventListener("input", () => {
@@ -246,9 +238,7 @@ export function renderMenu(parent: HTMLElement, state: MenuState, callbacks: Men
     });
     volumeInput.addEventListener("change", () => {
         currentVolume = Number(volumeInput.value) / 100;
-        if (!callbacks.onVolumeCommit(currentVolume)) {
-            showPersistenceError(menu);
-        }
+        callbacks.onVolumeCommit(currentVolume);
     });
     newGameButton.addEventListener("click", () => {
         callbacks.onNewGame();
@@ -516,14 +506,6 @@ function horizontalSpacing(style: CSSStyleDeclaration, includeBorder: boolean): 
 function parseCssPixels(value: string): number {
     const pixels = Number.parseFloat(value);
     return Number.isFinite(pixels) ? pixels : 0;
-}
-
-function showPersistenceError(menu: HTMLElement): void {
-    const error = menu.querySelector<HTMLElement>("[data-menu-error]");
-    if (error !== null) {
-        error.textContent = "Unable to save settings in this browser.";
-        error.hidden = false;
-    }
 }
 
 function requiredElement<T extends Element>(parent: ParentNode, selector: string): T {

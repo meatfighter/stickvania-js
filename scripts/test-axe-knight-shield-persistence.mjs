@@ -174,8 +174,12 @@ try {
     assert.match(preflight, /isAxeKnightShieldSnapshotStateValid\(snapshot\)/);
     assert.match(store, /private isSnapshotValid\(snapshot: StickvaniaGameStateSnapshot\): boolean/);
     assert.match(store, /isAxeKnightShieldSnapshotStateValid\(snapshot\)/);
-    assert.match(store, /if \(!this\.isSnapshotValid\(snapshot\)\)/, "save-time validation must use the shared semantic validator");
-    assert.match(store, /this\.isSnapshotValid\(typedSnapshot\)/, "read-time validation must use the shared semantic validator");
+    assert.match(
+        store,
+        /captureAndWriteSnapshot\([\s\S]*?\(snapshot\) => this\.isSnapshotValid\(snapshot\)/,
+        "save-time validation must use the shared semantic validator"
+    );
+    assert.match(store, /this\.isSnapshotValid\(snapshot as StickvaniaGameStateSnapshot\)/, "read-time validation must use the shared semantic validator");
 
     console.log("AxeKnight shield save-state semantic validation and graph round-trip checks passed.");
 } finally {

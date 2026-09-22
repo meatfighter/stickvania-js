@@ -489,11 +489,11 @@ export class Main extends BasicGame {
     public requestedSong: Song | null = null;
     public currentMusic: Music | null = null;
     public loadingCompleteHandler: ((gc: GameContainer) => boolean) | null = null;
-    private static readonly inputMappingChangedHandlers = new WeakMap<Main, (replaceProtected: boolean) => MappingWriteResult>();
+    private static readonly inputMappingChangedHandlers = new WeakMap<Main, () => MappingWriteResult>();
     private static readonly difficultyChangedHandlers = new WeakMap<Main, (difficulty: number) => boolean>();
     private browserSuspended: boolean = false;
     private input: Input | null = null;
-    public buttonMapping: ButtonMapping = ButtonMapping.load();
+    public buttonMapping: ButtonMapping = new ButtonMapping();
     public difficulty: number = Main.DIFFICULTY_NORMAL;
     public controlInput: StickvaniaInput | null = null;
     private inputConfigMode: InputConfigMode | null = null;
@@ -2739,11 +2739,12 @@ export class Main extends BasicGame {
     }
 
     public finishInputConfig(): void {
+        Main.mappingResetResults.delete(this);
         this.invalidateTitleInputMappingCache();
         this.initTitleScreen();
     }
 
-    public setInputMappingChangedHandler(handler: ((replaceProtected: boolean) => MappingWriteResult) | null): void {
+    public setInputMappingChangedHandler(handler: (() => MappingWriteResult) | null): void {
         if (handler === null) {
             Main.inputMappingChangedHandlers.delete(this);
         } else {
@@ -2751,8 +2752,8 @@ export class Main extends BasicGame {
         }
     }
 
-    public notifyInputMappingChanged(replaceProtected: boolean = false): MappingWriteResult {
-        return Main.inputMappingChangedHandlers.get(this)?.(replaceProtected) ?? { saved: false, reason: "unavailable" };
+    public notifyInputMappingChanged(): MappingWriteResult {
+        return Main.inputMappingChangedHandlers.get(this)?.() ?? { saved: false, reason: "unavailable" };
     }
 
     private completeStartup(gc: GameContainer): void {
@@ -3923,7 +3924,8 @@ export class Main extends BasicGame {
                     this.fadeReason = Main.FADE_REASON_SHOW_INPUT_CONFIG;
                 } else if (this.titleSelectedIndex == 1) {
                     this.buttonMapping.resetToDefaults();
-                    this.notifyInputMappingChanged(true);
+                    const result = this.notifyInputMappingChanged();
+                    Main.mappingResetResults.set(this, result.saved ? "SAVED" : "NOT SAVED");
                     this.invalidateTitleInputMappingCache();
                     this.setTitleMenu(Main.TITLE_MENU_INPUT, 1);
                 } else {
@@ -3940,6 +3942,9 @@ export class Main extends BasicGame {
     private setTitleMenu(menu: number): void;
     private setTitleMenu(menu: number, selectedIndex: number): void;
     private setTitleMenu(menu: number, selectedIndex: number = 0): void {
+        if (this.titleMenu === Main.TITLE_MENU_INPUT && menu !== Main.TITLE_MENU_INPUT) {
+            Main.mappingResetResults.delete(this);
+        }
         this.titleMenu = menu;
         this.titleSelectedIndex = selectedIndex;
         const optionCount = this.getTitleOptionCount();
@@ -3980,6 +3985,9 @@ export class Main extends BasicGame {
             this.drawString(Main.TITLE_INPUT_OPTIONS[i], optionX, Main.TITLE_INPUT_MENU_Y + i * Main.MENU_ROW_HEIGHT);
         }
         this.drawString("^", optionX - 32, Main.TITLE_INPUT_MENU_Y + this.titleSelectedIndex * Main.MENU_ROW_HEIGHT);
+
+        const status = Main.mappingResetResults.get(this);
+        if (status !== undefined) this.drawCenteredString(status, 432);
     }
 
     private renderTitleDifficultyMenu(): void {
@@ -4232,4 +4240,6 @@ export class Main extends BasicGame {
     public static main(_args: string[]): void {
         throw new Error("Use the PWA bootstrap in src/main.ts instead of Main.main().");
     }
+
+    private static readonly mappingResetResults = new WeakMap<Main, string>();
 }

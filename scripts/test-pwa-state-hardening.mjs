@@ -56,8 +56,8 @@ try {
     const { THING_PERSISTED_STATE_FIELD_NAMES } = await server.ssrLoadModule("/src/stickvania/persistence/StateFieldRegistry.generated.ts");
     const { canRegisteredSimonActionStart, registerPlayerActionMain } = await server.ssrLoadModule("/src/stickvania/PlayerActionPolicy.ts");
 
-    assert.equal(GAME_STATE_VERSION, 17);
-    assert.match(GAME_STATE_STORAGE_KEY, /game-state-v18$/);
+    assert.ok(Number.isInteger(GAME_STATE_VERSION));
+    assert.match(GAME_STATE_STORAGE_KEY, /:game-state$/);
 
     for (const field of ["releasedJump", "releasedKneel", "releasedWhip"]) {
         assert.equal(
@@ -646,8 +646,9 @@ try {
     };
     const restoredFinishedInputConfig = new InputConfigMode(finishedMain);
     restoredFinishedInputConfig.restoreSnapshot({ getInput: () => restoredInput }, finishedInputConfig);
-    assert.equal(restoredFinishedMapping.keyUp, 200, "finished restore must reapply the committed draft in memory");
-    assert.equal(restoredFinishedMapping.controllerAttack, 2, "finished restore must preserve the live committed mapping even after preference-save failure");
+    assert.equal(restoredFinishedMapping.keyUp, 99, "game restore must retain the independent current mapping");
+    assert.equal(restoredFinishedMapping.controllerAttack, 7, "game restore must not resurrect a failed preference write");
+    assert.equal(restoredFinishedInputConfig.completionMessage(), "DONE");
 
     const storage = createStorage();
 
@@ -661,10 +662,7 @@ try {
     const futureText = JSON.stringify(future);
     storage.setItem(GAME_STATE_STORAGE_KEY, futureText);
     assert.equal(hasPotentialStoredStickvaniaGameState(storage), false);
-    assert.deepEqual(inspectPotentialStoredStickvaniaGameState(storage), {
-        status: "unsupported-future",
-        version: GAME_STATE_VERSION + 1
-    });
+    assert.deepEqual(inspectPotentialStoredStickvaniaGameState(storage), { status: "invalid" });
     assert.equal(storage.getItem(GAME_STATE_STORAGE_KEY), futureText);
 
     const missingPreflightSounds = createPotentialSnapshot(GAME_STATE_VERSION);
@@ -714,36 +712,43 @@ try {
         const volumeKey = getBrowserStorageKey("volume");
         const difficultyKey = getBrowserStorageKey("difficulty");
 
+        const initialVolume = prefs.volume;
+        const initialDifficulty = prefs.difficulty;
+
         assert.equal(
             prefs.setVolume(0.5, true, () => false),
             false
         );
-        assert.equal(prefs.volume, 0.5, "authorization failure must not roll back the live preference");
+        assert.equal(prefs.volume, initialVolume, "stale authorization must not mutate the live volume preference");
         assert.equal(preferenceStorage.getItem(volumeKey), null);
 
         assert.equal(
             prefs.setVolume(0.6, true, () => true),
             true
         );
+        assert.equal(prefs.volume, 0.6);
         assert.equal(preferenceStorage.getItem(volumeKey), "60");
 
         assert.equal(
             prefs.setDifficulty(1, () => false),
             false
         );
-        assert.equal(prefs.difficulty, 1);
+        assert.equal(prefs.difficulty, initialDifficulty, "stale authorization must not mutate the live difficulty preference");
         assert.equal(preferenceStorage.getItem(difficultyKey), null);
 
         assert.equal(
             prefs.setDifficulty(1, () => true),
             true
         );
+        assert.equal(prefs.difficulty, 1);
         assert.equal(preferenceStorage.getItem(difficultyKey), "1");
 
         assert.equal(
             prefs.reset(() => false),
             false
         );
+        assert.equal(prefs.volume, 0.6);
+        assert.equal(prefs.difficulty, 1);
         assert.equal(preferenceStorage.getItem(volumeKey), "60");
         assert.equal(preferenceStorage.getItem(difficultyKey), "1");
 
@@ -771,7 +776,7 @@ try {
         store.serializer = {
             createSnapshot(main) {
                 if (main.throwOnSnapshot === true) {
-                    throw new Error("snapshot creation must not run for protected storage");
+                    throw new Error("injected outgoing snapshot capture failure");
                 }
                 return {
                     version: GAME_STATE_VERSION,
@@ -791,17 +796,12 @@ try {
             }
         };
 
-        const priorGameStateKey = GAME_STATE_STORAGE_KEY.replace(/game-state-v\d+$/, `game-state-v${GAME_STATE_VERSION - 1}`);
-        const priorGameStateText = JSON.stringify({ version: GAME_STATE_VERSION - 1, obsoleteShape: true });
-        stateStorage.setItem(priorGameStateKey, priorGameStateText);
+        stateStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify({ version: GAME_STATE_VERSION - 1, obsoleteShape: true }));
         assert.deepEqual(
             store.save(main, () => true),
-            { saved: true },
-            "prior development schema storage must not block the current schema save"
+            { saved: true }
         );
-        assert.equal(stateStorage.getItem(priorGameStateKey), priorGameStateText, "prior development schema bytes must remain untouched");
         assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).version, GAME_STATE_VERSION);
-
         const previousActionOwner = {
             mode: 4,
             stageIndex: 0,
@@ -839,31 +839,28 @@ try {
             "a candidate that fails after serializer restore must not replace the prior input-side action owner"
         );
 
-        stateStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify({ version: GAME_STATE_VERSION + 1, valid: false, marker: "future" }));
-        assert.deepEqual(store.inspectStoredGameState(), {
-            status: "unsupported-future",
-            version: GAME_STATE_VERSION + 1
-        });
-        assert.deepEqual(
-            store.save(main, () => true),
-            { saved: false, reason: "unsupported-future" }
-        );
-        assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "future");
-        assert.deepEqual(
-            store.save({ ...main, throwOnSnapshot: true }, () => true),
-            { saved: false, reason: "unsupported-future" },
-            "protected future storage must be inspected before snapshot creation"
-        );
-        assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "future");
-
-        stateStorage.setItem(GAME_STATE_STORAGE_KEY, "{");
-        assert.deepEqual(store.inspectStoredGameState(), { status: "invalid" });
-        assert.deepEqual(
-            store.save(main, () => true),
-            { saved: false, reason: "invalid-existing" }
-        );
-        assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), "{");
-
+        for (const oldText of ["{", JSON.stringify({ version: GAME_STATE_VERSION + 1, valid: false, marker: "future" })]) {
+            stateStorage.setItem(GAME_STATE_STORAGE_KEY, oldText);
+            assert.deepEqual(store.inspectStoredGameState(), { status: "invalid" });
+            assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), oldText);
+            assert.deepEqual(
+                store.save(main, () => true),
+                { saved: true }
+            );
+            assert.equal(JSON.parse(stateStorage.getItem(GAME_STATE_STORAGE_KEY)).marker, "new");
+        }
+        const previous = stateStorage.getItem(GAME_STATE_STORAGE_KEY);
+        const captureWarn = console.warn;
+        console.warn = () => {};
+        try {
+            assert.deepEqual(
+                store.save({ ...main, throwOnSnapshot: true }, () => true),
+                { saved: false, reason: "capture-failed" }
+            );
+        } finally {
+            console.warn = captureWarn;
+        }
+        assert.equal(stateStorage.getItem(GAME_STATE_STORAGE_KEY), previous);
         stateStorage.removeItem(GAME_STATE_STORAGE_KEY);
         assert.deepEqual(store.inspectStoredGameState(), { status: "missing" });
         assert.deepEqual(
@@ -910,7 +907,7 @@ try {
             assert.deepEqual(store.inspectStoredGameState(), { status: "read-failed" });
             assert.deepEqual(
                 store.save(main, () => true),
-                { saved: false, reason: "read-failed" }
+                { saved: false, reason: "write-failed" }
             );
         } finally {
             console.warn = quietWarn;
@@ -943,67 +940,28 @@ try {
         assert.equal(restored.keyboardLabelFor("JUMP"), "SPACE");
 
         const mappingKey = getBrowserStorageKey("input-mapping");
-        const sameVersionSnapshot = JSON.parse(mappingStorage.getItem(mappingKey));
-        sameVersionSnapshot.obsoleteField = true;
-        const sameVersionInvalidText = JSON.stringify(sameVersionSnapshot);
-        mappingStorage.setItem(mappingKey, sameVersionInvalidText);
-        const exactShapeFallback = ButtonMapping.load();
-        assert.equal(exactShapeFallback.keyJump, 45, "same-version invalid mappings must fall back in memory");
-        assert.equal(mappingStorage.getItem(mappingKey), sameVersionInvalidText);
-        assert.deepEqual(
-            mapping.save(() => true),
-            { saved: false, reason: "protected" }
-        );
-        assert.equal(mappingStorage.getItem(mappingKey), sameVersionInvalidText);
-
-        mappingStorage.setItem(mappingKey, "{");
-        const malformedFallback = ButtonMapping.load();
-        assert.equal(malformedFallback.keyJump, 45);
-        const quietMappingWarn = console.warn;
-        console.warn = () => {};
-        try {
+        const currentMapping = JSON.parse(mappingStorage.getItem(mappingKey));
+        for (const oldText of [
+            "{",
+            JSON.stringify({ ...currentMapping, obsoleteField: true }),
+            JSON.stringify({ ...currentMapping, version: 0 }),
+            JSON.stringify({ ...currentMapping, version: currentMapping.version - 1 }),
+            JSON.stringify({ ...currentMapping, version: currentMapping.version + 1 })
+        ]) {
+            mappingStorage.setItem(mappingKey, oldText);
+            assert.equal(ButtonMapping.load().keyJump, 45);
+            assert.equal(mappingStorage.getItem(mappingKey), oldText, "reads never delete unknown mapping bytes");
             assert.deepEqual(
                 mapping.save(() => true),
-                { saved: false, reason: "protected" }
+                { saved: true }
             );
-        } finally {
-            console.warn = quietMappingWarn;
+            assert.equal(JSON.parse(mappingStorage.getItem(mappingKey)).version, currentMapping.version);
         }
-        assert.equal(mappingStorage.getItem(mappingKey), "{");
-
-        const unknownVersion = { ...sameVersionSnapshot, version: 0 };
-        delete unknownVersion.obsoleteField;
-        const unknownVersionText = JSON.stringify(unknownVersion);
-        mappingStorage.setItem(mappingKey, unknownVersionText);
-        const unknownVersionFallback = ButtonMapping.load();
-        assert.equal(unknownVersionFallback.keyJump, 45);
-        assert.equal(mappingStorage.getItem(mappingKey), unknownVersionText);
-        const quietUnknownWarn = console.warn;
-        console.warn = () => {};
-        try {
-            assert.deepEqual(
-                mapping.save(() => true),
-                { saved: false, reason: "protected" }
-            );
-        } finally {
-            console.warn = quietUnknownWarn;
-        }
-        assert.equal(mappingStorage.getItem(mappingKey), unknownVersionText);
-
         mapping.resetToDefaults();
         assert.deepEqual(
-            mapping.save(() => true, true),
-            { saved: true },
-            "explicit user reset may replace protected mapping data"
+            mapping.save(() => true),
+            { saved: true }
         );
-        assert.equal(JSON.parse(mappingStorage.getItem(mappingKey)).version, 7);
-
-        const obsoletePrepublic = { ...sameVersionSnapshot, version: 6 };
-        delete obsoletePrepublic.obsoleteField;
-        mappingStorage.setItem(mappingKey, JSON.stringify(obsoletePrepublic));
-        ButtonMapping.load();
-        assert.equal(mappingStorage.getItem(mappingKey), null, "explicitly obsolete prepublic mapping versions may be discarded");
-
         mapping.keyJump = 57;
         assert.deepEqual(
             mapping.save(() => true),

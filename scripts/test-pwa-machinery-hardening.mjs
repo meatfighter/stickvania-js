@@ -17,14 +17,15 @@ test("new game requires prepared resources and destroys the old session before f
     const startGame = mainSource.slice(mainSource.indexOf("async function startGame"), mainSource.indexOf("async function launchPreparedGame"));
     assert.match(startGame, /const runtime = runtimeLoader\.getPreparedRuntime\(\);/);
     assert.match(startGame, /if \(runtime === null\) \{\s*startPwaMenu\(\);\s*return;\s*\}/);
+
     const runtimePrepared = startGame.indexOf("const runtime = runtimeLoader.getPreparedRuntime();");
-    const destroyOldSession = startGame.indexOf("if (!destroyGame())");
+    const destroyOldSession = startGame.indexOf("if (!destroyGame()) return;");
     const beginSession = startGame.indexOf("const session = sessions.begin();");
     const shell = startGame.indexOf("viewport.createShell(session)");
-    const beginAudio = startGame.indexOf("const audio = beginGameAudio();");
+    const beginAudio = startGame.indexOf("audio = beginGameAudio();");
     const fullscreen = startGame.indexOf("requestPreferredFullscreen();");
     const firstAwait = startGame.indexOf("await audio.ready");
-    assert.match(startGame, /if \(!destroyGame\(\)\) \{\s*return;\s*\}/);
+
     assert.ok(destroyOldSession > runtimePrepared, "old-session cleanup must happen after prepared-resource validation");
     assert.ok(beginSession > destroyOldSession, "a new session must not begin until old-session cleanup succeeds");
     assert.ok(shell > beginSession, "game shell must be owned by the new session");
@@ -66,7 +67,7 @@ test("live-menu retention has no mode-specific Input Config exclusion", () => {
 
 test("live-menu transition freezes rumble/gameplay and retires playback before saving", () => {
     const liveMenu = mainSource.slice(mainSource.indexOf("function showLiveMenuOverlay"), mainSource.indexOf("async function resumeLiveGameFromMenu"));
-    assert.ok(liveMenu.indexOf("suspendGameForMenu();") < liveMenu.indexOf("saveCurrentGameState"));
+    assert.ok(liveMenu.indexOf("suspendGameForMenu()") < liveMenu.indexOf("saveCurrentGameState"));
     const suspend = mainSource.slice(mainSource.indexOf("function suspendGameForMenu"), mainSource.indexOf("function requestPwaMenu"));
     assert.match(suspend, /setLoopSuspended\(true\)/);
     assert.match(suspend, /setBrowserSuspended\(true\)/);
@@ -75,32 +76,37 @@ test("live-menu transition freezes rumble/gameplay and retires playback before s
     assert.match(suspend, /releaseGameAudio\(\)/);
 });
 
-test("live-menu presentation exits fullscreen before publishing recoverable save state", () => {
+test("live-menu presentation exits fullscreen before publishing a quiet retained menu", () => {
     const liveMenu = mainSource.slice(mainSource.indexOf("function showLiveMenuOverlay"), mainSource.indexOf("async function resumeLiveGameFromMenu"));
-    assert.match(liveMenu, /const saved = sessionCleanup\.trySave\(saveCurrentGameState\)/);
-    assert.match(liveMenu, /Progress could not be saved\. Continue still preserves this live game\./);
+    assert.match(liveMenu, /trySave\(saveCurrentGameState\)/);
+    assert.doesNotMatch(liveMenu, /Progress could not be saved|const saved =/);
     const exitIndex = liveMenu.indexOf("await viewport.exitFullscreenForMenu()");
-    const renderIndex = liveMenu.indexOf("menuOverlay = renderMenuForParent");
+    const renderIndex = liveMenu.indexOf("menuOverlay =");
     const publishIndex = liveMenu.indexOf('pwaSessionState = "menu";');
     assert.ok(exitIndex >= 0 && renderIndex > exitIndex && publishIndex > renderIndex);
-    const destroyIndex = liveMenu.indexOf("destroyGame();");
-    assert.ok(destroyIndex < 0 || destroyIndex < exitIndex || destroyIndex > renderIndex, "ordinary save failure must not destroy the retained game");
 });
 
-test("title default-mapping reset uses the same shell-owned persistence path", () => {
+test("title default-mapping reset uses one shell-owned persistence path", () => {
     const selectTitle = gameMainSource.slice(
         gameMainSource.indexOf("private selectTitleMenuOption"),
         gameMainSource.indexOf("private setTitleMenu", gameMainSource.indexOf("private selectTitleMenuOption"))
     );
-    assert.match(selectTitle, /this\.buttonMapping\.resetToDefaults\(\)/);
-    assert.match(selectTitle, /this\.notifyInputMappingChanged\(true\)/);
-    assert.doesNotMatch(selectTitle, /this\.buttonMapping\.save\(/);
+    assert.match(selectTitle, /notifyInputMappingChanged\(\)/);
+    assert.doesNotMatch(selectTitle, /notifyInputMappingChanged\(true\)|\.save\(/);
+    assert.match(selectTitle, /mappingResetResults\.set/);
+
+    const setTitleMenu = gameMainSource.slice(
+        gameMainSource.indexOf("private setTitleMenu(menu: number, selectedIndex: number = 0)"),
+        gameMainSource.indexOf("private renderTitleMainMenu")
+    );
+    assert.match(setTitleMenu, /this\.titleMenu === Main\.TITLE_MENU_INPUT && menu !== Main\.TITLE_MENU_INPUT[\s\S]*?mappingResetResults\.delete\(this\)/);
 });
 
 test("difficulty and browser preference persistence is shell-owned", () => {
     const difficultyStart = gameMainSource.indexOf("public setDifficulty(difficulty: number): void");
     const difficultyEnd = gameMainSource.indexOf("public override init", difficultyStart);
     const difficulty = gameMainSource.slice(difficultyStart, difficultyEnd);
+
     assert.match(difficulty, /Main\.difficultyChangedHandlers\.get\(this\)\?\.\(this\.difficulty\)/);
     assert.doesNotMatch(difficulty, /localStorage|DIFFICULTY_STORAGE_KEY/);
     assert.doesNotMatch(gameMainSource, /DIFFICULTY_STORAGE_KEY/);
@@ -115,42 +121,49 @@ test("difficulty and browser preference persistence is shell-owned", () => {
     assert.match(mainSource, /preferences\.setScaling\(value, currentPreferenceWriteAuthorized\)/);
     assert.match(mainSource, /preferences\.setRumbleEnabled\(value, currentPreferenceWriteAuthorized\)/);
     assert.match(mainSource, /preferences\.setFullscreen\(value, currentPreferenceWriteAuthorized\)/);
-    assert.match(mainSource, /preferences\.reset\(currentPreferenceWriteAuthorized\)/);
+
+    const reset = mainSource.slice(mainSource.indexOf("function resetPwaState"), mainSource.indexOf("async function startGame"));
+    assert.match(reset, /const epoch = ownership\.epoch/);
+    assert.match(reset, /preferences\.reset\(\(\) => ownership\.isCurrent\(epoch\)\)/);
+    assert.match(reset, /if \(!ownership\.isCurrent\(epoch\)\) return;/);
 });
 
 test("input mapping persistence is shell-owned and rechecks the current session at write time", () => {
     assert.match(inputConfigSource, /this\.main\.notifyInputMappingChanged\(\)\.saved/);
     assert.doesNotMatch(inputConfigSource, /buttonMapping\.save\(/);
-    assert.match(
-        gameMainSource,
-        /private static readonly inputMappingChangedHandlers = new WeakMap<Main, \(replaceProtected: boolean\) => MappingWriteResult>\(\)/
-    );
-    assert.match(gameMainSource, /public setInputMappingChangedHandler\(handler: \(\(replaceProtected: boolean\) => MappingWriteResult\) \| null\): void/);
-    assert.match(gameMainSource, /public notifyInputMappingChanged\(replaceProtected: boolean = false\): MappingWriteResult/);
+
+    assert.match(gameMainSource, /private static readonly inputMappingChangedHandlers = new WeakMap<Main, \(\) => MappingWriteResult>\(\)/);
+    assert.match(gameMainSource, /public setInputMappingChangedHandler\(handler: \(\(\) => MappingWriteResult\) \| null\): void/);
+    assert.match(gameMainSource, /public notifyInputMappingChanged\(\): MappingWriteResult/);
+    assert.doesNotMatch(gameMainSource, /replaceProtected/);
 
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("appContainer.setAlwaysRender"));
-    assert.match(launch, /mainGame\.setInputMappingChangedHandler\(\(replaceProtected\) => \{/);
-    assert.match(launch, /if \(!isCurrentGameSession\(session\) \|\| game !== mainGame\)/);
-    assert.match(
-        launch,
-        /mainGame\.buttonMapping\.save\(\s*\(\) => ownership\.owned && isCurrentGameSession\(session\) && game === mainGame,\s*replaceProtected\s*\)/s
-    );
+
+    assert.match(launch, /mainGame\.setInputMappingChangedHandler\(\(\) => \{/);
+    assert.match(launch, /if \(!isCurrentGameSession\(session\) \|\| game !== mainGame\) return \{ saved: false, reason: "stale-session" \}/);
+    assert.match(launch, /sessionMapping\.copyFrom\(mainGame\.buttonMapping\)/);
+    assert.match(launch, /sessionMapping\.save\(\(\) => isCurrentGameSession\(session\) && game === mainGame\)/);
+    assert.doesNotMatch(launch, /replaceProtected/);
 });
 
 test("New Game game-state removal rechecks ownership at the storage boundary", () => {
     const clear = mainSource.slice(mainSource.indexOf("function clearStoredGameState"), mainSource.indexOf("function syncScreenWakeLock"));
     assert.match(clear, /if \(!currentPreferenceWriteAuthorized\(\)\) \{\s*return;\s*\}/);
     assert.match(clear, /store\.clear\(currentPreferenceWriteAuthorized\)/);
-    assert.ok((clear.match(/currentPreferenceWriteAuthorized\(\)/g) ?? []).length >= 2);
-    assert.match(clear, /localStorage\.removeItem\(GAME_STATE_STORAGE_KEY\)/);
+    assert.equal((clear.match(/currentPreferenceWriteAuthorized\(\)/g) ?? []).length, 1);
+    assert.match(clear, /store\.clear\(currentPreferenceWriteAuthorized\)/);
+    assert.match(clear, /removePreference\("Stickvania saved game", GAME_STATE_STORAGE_KEY, currentPreferenceWriteAuthorized\)/);
+    assert.match(clear, /removePreference\("Stickvania saved game", GAME_STATE_STORAGE_KEY, currentPreferenceWriteAuthorized\)/);
+    assert.doesNotMatch(clear, /localStorage\.removeItem/);
 });
 
 test("ownership relinquishment performs the final save before destructive cleanup", () => {
     const release = mainSource.slice(mainSource.indexOf("function releaseOwnedSession"), mainSource.indexOf("function showCleanupFailure"));
+    assert.ok(release.indexOf("trySave(saveCurrentGameState)") < release.indexOf("destroyGame()"));
     const save = mainSource.slice(mainSource.indexOf("function saveCurrentGameState"), mainSource.indexOf("function clearStoredGameState"));
-    assert.ok(release.indexOf("sessionCleanup.trySave(saveCurrentGameState);") < release.indexOf("destroyGame();"));
-    assert.match(save, /if \(!ownership\?\.owned \|\| mainGame === null/);
-    assert.match(save, /store\.save\(mainGame, \(\) => ownership\?\.owned === true && game === mainGame\)/);
+    assert.match(save, /ownership/);
+    assert.match(save, /persistence\.canSave\(mainGame\)/);
+    assert.doesNotMatch(save, /canReadStored|inspectStored|hasValidSave/);
 });
 
 test("Stickvania Song sequencing uses logical transport and has no browser recovery authority", () => {
@@ -237,14 +250,25 @@ test("synchronous post-commit viewport hooks are rechecked before RUNNING", () =
     );
 });
 
-test("failed Continue candidates are contained before they can affect a newer session", () => {
+test("failed Continue candidates are rejected and stale candidates are contained before publication", () => {
+    const startGame = mainSource.slice(mainSource.indexOf("async function startGame"), mainSource.indexOf("async function launchPreparedGame"));
+
+    assert.match(startGame, /const restoreAttempt = new RestoreAttempt\(\)/);
+    assert.match(startGame, /await launchPreparedGame\(runtime, restoreSavedGame, session, audio, restoreAttempt\)/);
+    assert.match(startGame, /if \(restoreAttempt\.rejected\) \{\s*persistence\.rejectStored\(\);\s*showMenu\(\);\s*\}/);
+    assert.doesNotMatch(startGame, /Unable to restore the saved game/);
+
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("function refreshVisibleBootProgress"));
+
+    assert.match(launch, /if \(!getGameStateStore\(runtime\)\.restore\(mainGame, gc\)\) restoreAttempt\.reject\(\)/);
+
     const start = launch.indexOf("await appContainer.start();");
     const staleGuard = launch.indexOf("if (!isStartingGameSession(session, audio))", start);
     const staleRetire = launch.indexOf("retireStaleContainer(appContainer);", staleGuard);
-    const restoreFailure = launch.indexOf("if (restoreFailed)", staleRetire);
-    const failureMenu = launch.indexOf('showMenu("Unable to restore the saved game.', restoreFailure);
-    assert.ok(start >= 0 && staleGuard > start && staleRetire > staleGuard && restoreFailure > staleRetire && failureMenu > restoreFailure);
+    const accept = launch.indexOf("persistence.accept(mainGame);");
+
+    assert.ok(start >= 0 && staleGuard > start && staleRetire > staleGuard);
+    assert.ok(accept > staleRetire, "candidate must not become save-authoritative until after stale-session containment");
 
     const showMenu = mainSource.slice(mainSource.indexOf("function showMenu"), mainSource.indexOf("function renderRootMenu"));
     assert.match(showMenu, /if \(!ownership\?\.isCurrent\(ownership\.epoch\)\) \{\s*return;\s*\}/);

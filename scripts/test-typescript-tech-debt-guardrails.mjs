@@ -45,23 +45,27 @@ test("release-safe persistence and unused-local guardrails remain enabled", () =
     assert.match(schema, /GAME_STATE_VERSION = 18/);
     assert.doesNotMatch(schema, /FIRST_PUBLIC_GAME_STATE_VERSION|MIN_SUPPORTED_GAME_STATE_VERSION|SUPPORTED_GAME_STATE_VERSIONS/);
 
-    // Development cutover: only the current exact schema is restorable, while
-    // reads remain non-destructive and future/invalid data blocks automatic writes.
-    assert.match(store, /status: "unsupported-future"/);
-    assert.match(store, /typedSnapshot\.version === GAME_STATE_VERSION/);
-    assert.match(store, /Reads never mutate storage; only an owned Save, New Game, or Reset writes/);
+    // Reads accept only the exact current schema and never mutate storage.
+    // Writes validate only the outgoing value and never protect existing bytes by version.
+    assert.doesNotMatch(store, /unsupported-future|invalid-existing|FIRST_PUBLIC|writeProtected/);
+    assert.match(store, /captureAndWriteSnapshot/);
+    assert.match(store, /public inspectStoredGameState\(\)/);
+    assert.match(store, /status: "current"/);
+    assert.match(store, /status: "invalid"/);
     assert.match(store, /public clear\(isAuthorized: \(\) => boolean\)/);
-    assert.match(store, /if \(!isAuthorized\(\)\) \{\s*return false;/);
 
-    assert.match(preflight, /status: "unsupported-future"/);
-    assert.match(preflight, /isPotentialStickvaniaGameStateSnapshot\(snapshot\) \? \{ status: "current" \} : \{ status: "invalid" \}/);
+    assert.doesNotMatch(preflight, /unsupported-future/);
+    assert.match(preflight, /isPotentialStickvaniaGameStateSnapshot\(snapshot\)/);
+    assert.match(preflight, /return \{ status: "invalid" \}/);
     assert.match(preflight, /Menu preflight has no write capability and never migrates or deletes saves/);
 
-    assert.match(mapping, /FIRST_PUBLIC_VERSION = 7/);
-    assert.match(mapping, /storageWriteProtected = true/);
-    assert.match(mapping, /hasProtectedStoredSnapshot\(\)/);
-    assert.match(mapping, /save\(isAuthorized: \(\) => boolean, replaceProtected: boolean = false\)/);
-    assert.match(mapping, /reason: "stale-session"/);
+    assert.doesNotMatch(mapping, /FIRST_PUBLIC_VERSION|storageWriteProtected|hasProtectedStoredSnapshot|replaceProtected/);
+    assert.match(mapping, /readCurrentJson/);
+    assert.match(mapping, /captureAndWriteSnapshot/);
+    assert.match(mapping, /MAX_TEXT_LENGTH/);
+    assert.match(mapping, /save\(isAuthorized: \(\) => boolean\)/);
+    assert.match(mapping, /MappingWriteFailureReason = "unavailable" \| "invalid" \| "stale-session"/);
+    assert.match(mapping, /result\.reason === "not-authorized" \? "stale-session"/);
 
     assert.match(serializer, /areRecordFieldNamesExact/);
     assert.match(serializer, /fields\.length !== expected\.length/);

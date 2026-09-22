@@ -1,3 +1,6 @@
+import { removePreference } from "./app/BrowserPersistence.js";
+import { ButtonMapping } from "./stickvania/ButtonMapping.js";
+import { PersistenceSession, RestoreAttempt } from "./app/PersistenceSession.js";
 import { SessionCleanup } from "./app/SessionCleanup.js";
 import {
     beginGameAudio,
@@ -46,7 +49,10 @@ let menuRequestSerial = 0;
 let rumbleManager: RumbleManager | null = null;
 let gameStateStore: StickvaniaGameStateStore | null = null;
 
-const preferences = new BrowserPreferences();
+const preferences = new BrowserPreferences(false);
+const persistence = new PersistenceSession<Main>();
+let activeMenu: HTMLElement | null = null;
+let sessionMapping = new ButtonMapping();
 const sessions = new SessionGeneration();
 const runtimeLoader = new StickvaniaRuntimeLoader(refreshVisibleBootProgress);
 const screenWakeLock = new ScreenWakeLockManager();
@@ -84,7 +90,7 @@ function isStartingGameSession(session: number, audio: GameAudioAttempt): boolea
 }
 
 function currentPreferenceWriteAuthorized(): boolean {
-    return ownership?.owned === true;
+    return ownership?.isCurrent(ownership.epoch) === true;
 }
 
 function setAudioVolume(value: number, persist = true): boolean {
@@ -163,11 +169,11 @@ function showBoot(progress = 0): void {
     app.innerHTML = `<main class="boot-screen" role="status" aria-label="Loading"><section class="load-progress-panel" aria-live="polite"><div class="progress-shell" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" data-boot-progress="true"><div class="progress-bar" style="--progress: ${percent}%"></div></div></section></main>`;
 }
 
-function showLoadError(title: string, message: string, retryHandler: () => void): void {
+function showLoadError(title: string, message: string, retryHandler: () => void, action: "Retry" | "Reload" = "Retry"): void {
     if (!ownership?.owned) {
         return;
     }
-    app.innerHTML = `<main class="boot-screen boot-failed" role="alert"><section class="load-error-panel" aria-label="${escapeHtml(title)}"><div class="failure-icon" aria-hidden="true">&#x1F480;</div><div class="boot-title">${escapeHtml(title)}</div><p class="boot-error">${escapeHtml(message)}</p><button id="retry-button" class="retry-button" type="button">Retry</button></section></main>`;
+    app.innerHTML = `<main class="boot-screen boot-failed" role="alert"><section class="load-error-panel" aria-label="${escapeHtml(title)}"><div class="failure-icon" aria-hidden="true">&#x1F480;</div><div class="boot-title">${escapeHtml(title)}</div><p class="boot-error">${escapeHtml(message)}</p><button id="retry-button" class="retry-button" type="button">${action}</button></section></main>`;
     document.getElementById("retry-button")?.addEventListener("click", retryHandler);
 }
 
@@ -176,7 +182,7 @@ function showError(message: string): void {
         return;
     }
     pwaSessionState = "menu";
-    showLoadError("Unable to continue.", message, () => window.location.reload());
+    showLoadError("Unable to continue.", message, () => window.location.reload(), "Reload");
 }
 
 function showMenu(errorText = ""): void {
@@ -195,7 +201,7 @@ function renderRootMenu(errorText = ""): HTMLElement {
 }
 
 function renderMenuForParent(parent: HTMLElement, canContinue: boolean, errorText: string, overlay: boolean): HTMLElement {
-    return renderMenu(
+    const menu = renderMenu(
         parent,
         {
             canContinue,
@@ -235,78 +241,79 @@ function renderMenuForParent(parent: HTMLElement, canContinue: boolean, errorTex
             onReset: resetPwaState
         }
     );
+    guardMenuEvents(menu);
+    return menu;
 }
 
 function resetPwaState(): void {
-    if (!canActivateFromMenu()) {
-        return;
-    }
-    if (!destroyGame()) {
-        return;
-    }
-    pwaSessionState = "menu";
-    const cleared = preferences.reset(currentPreferenceWriteAuthorized);
+    if (!canActivateFromMenu()) return;
+    const epoch = ownership.epoch;
+    persistence.abandonStored();
+    if (!destroyGame()) return;
+    const cleared = preferences.reset(() => ownership.isCurrent(epoch));
+    if (!ownership.isCurrent(epoch)) return;
+    sessionMapping.resetToDefaults();
     applyApplicationAudioPreferences();
     const manager = getRumbleManager();
     manager.setEnabled(preferences.rumbleEnabled);
     manager.setSuspended(true);
-    renderRootMenu(cleared ? "" : "Some browser settings could not be cleared.");
+    pwaSessionState = "menu";
+    renderRootMenu(cleared ? "" : "Some settings could not be reset.");
 }
 
 async function startGame(restoreSavedGame: boolean): Promise<void> {
-    if (!canActivateFromMenu()) {
-        return;
-    }
+    if (!canActivateFromMenu()) return;
     const runtime = runtimeLoader.getPreparedRuntime();
     if (runtime === null) {
         startPwaMenu();
         return;
     }
-    if (!destroyGame()) {
-        return;
-    }
-    applyApplicationAudioPreferences();
+    if (!destroyGame()) return;
     gameOwnershipEpoch = ownership.epoch;
     const session = sessions.begin();
     activeGameSession = session;
     pwaSessionState = "starting";
     gameLaunchInProgress = true;
-    syncScreenWakeLock();
-    if (!isCurrentGameSession(session) || pwaSessionState !== "starting") {
-        return;
-    }
-
-    const host = viewport.createShell(session);
-    runtime.slick.Display.setParent(host);
-    const audio = beginGameAudio();
-    requestPreferredFullscreen();
+    const restoreAttempt = new RestoreAttempt();
+    let audio: GameAudioAttempt | null = null;
     try {
-        if (!(await audio.ready) || !isStartingGameSession(session, audio)) {
+        applyApplicationAudioPreferences();
+        syncScreenWakeLock();
+        if (!isCurrentGameSession(session)) return;
+        const host = viewport.createShell(session);
+        runtime.slick.Display.setParent(host);
+        audio = beginGameAudio();
+        requestPreferredFullscreen();
+        if (!(await audio.ready) || !isStartingGameSession(session, audio)) return;
+        if (restoreSavedGame && !hasPotentialSavedGameState()) {
+            showMenu();
             return;
         }
-        if (restoreSavedGame && !getGameStateStore(runtime).hasValidSave()) {
-            showMenu("Unable to restore the saved game. Try Continue again or start a new game.");
-            return;
-        }
-        await launchPreparedGame(runtime, restoreSavedGame, session, audio);
+        await launchPreparedGame(runtime, restoreSavedGame, session, audio, restoreAttempt);
     } catch (error) {
-        if (!isCurrentGameSession(session)) {
-            return;
+        if (!isCurrentGameSession(session)) return;
+        if (restoreAttempt.rejected) {
+            persistence.rejectStored();
+            showMenu();
+        } else {
+            console.error(error);
+            if (!destroyGame()) return;
+            pwaSessionState = "menu";
+            showLoadError("Unable to start.", "The game could not be started. Try again.", startPwaMenu);
         }
-        console.error(error);
-        if (!destroyGame()) {
-            return;
-        }
-        pwaSessionState = "menu";
-        showLoadError("Unable to start.", "Check your connection and try again.", startPwaMenu);
     } finally {
-        if (isGameAudioLatest(audio) && isCurrentGameSession(session) && pwaSessionState === "starting") {
-            requestPwaMenu("start-failed");
-        }
+        if (isCurrentGameSession(session) && pwaSessionState === "starting" && (audio === null || isGameAudioLatest(audio)))
+            requestPwaMenu("start-not-accepted");
     }
 }
 
-async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: boolean, session: number, audio: GameAudioAttempt): Promise<void> {
+async function launchPreparedGame(
+    runtime: PreparedRuntime,
+    restoreSavedGame: boolean,
+    session: number,
+    audio: GameAudioAttempt,
+    restoreAttempt: RestoreAttempt
+): Promise<void> {
     if (!isStartingGameSession(session, audio)) {
         return;
     }
@@ -315,7 +322,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
         throw new Error("Stickvania game host is unavailable during startup.");
     }
     const mainGame = new runtime.Main();
-    let restoreFailed = false;
+    mainGame.buttonMapping.copyFrom(sessionMapping);
     mainGame.difficulty = preferences.difficulty;
     applyDisplayModePreference(mainGame);
     mainGame.rumble = getRumbleManager();
@@ -330,11 +337,10 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     container = appContainer;
     game = mainGame;
     activeBufferedGame = bufferedGame;
-    mainGame.setInputMappingChangedHandler((replaceProtected) => {
-        if (!isCurrentGameSession(session) || game !== mainGame) {
-            return { saved: false, reason: "stale-session" };
-        }
-        return mainGame.buttonMapping.save(() => ownership.owned && isCurrentGameSession(session) && game === mainGame, replaceProtected);
+    mainGame.setInputMappingChangedHandler(() => {
+        if (!isCurrentGameSession(session) || game !== mainGame) return { saved: false, reason: "stale-session" };
+        sessionMapping.copyFrom(mainGame.buttonMapping);
+        return sessionMapping.save(() => isCurrentGameSession(session) && game === mainGame);
     });
     mainGame.setDifficultyChangedHandler((difficulty) =>
         preferences.setDifficulty(difficulty, () => ownership.owned && isCurrentGameSession(session) && game === mainGame)
@@ -347,10 +353,8 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     });
     if (restoreSavedGame) {
         mainGame.loadingCompleteHandler = (gc) => {
-            if (!isStartingGameSession(session, audio) || !getGameStateStore(runtime).restore(mainGame, gc)) {
-                restoreFailed = true;
-                return false;
-            }
+            if (!isStartingGameSession(session, audio)) return false;
+            if (!getGameStateStore(runtime).restore(mainGame, gc)) restoreAttempt.reject();
             applyDisplayModePreference(mainGame);
             return true;
         };
@@ -370,10 +374,6 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
         retireStaleContainer(appContainer);
         return;
     }
-    if (restoreFailed) {
-        showMenu("Unable to restore the saved game. Try Continue again or start a new game.");
-        return;
-    }
     appContainer.setErrorHandler((error: unknown) => {
         if (!isCurrentGameSession(session)) {
             return;
@@ -383,7 +383,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
             return;
         }
         pwaSessionState = "menu";
-        showLoadError("Unable to continue.", "Reload the page and try again.", () => window.location.reload());
+        showLoadError("Unable to continue.", "Reload the page and try again.", () => window.location.reload(), "Reload");
     });
     applyAudioVolume(preferences.volume);
     if (!(await commitGameAudio(audio)) || !isStartingGameSession(session, audio)) {
@@ -405,6 +405,7 @@ async function launchPreparedGame(runtime: PreparedRuntime, restoreSavedGame: bo
     if (!isCurrentGameSession(session) || !isGameAudioCurrent(audio) || pwaSessionState !== "running" || game !== mainGame || container !== appContainer) {
         return;
     }
+    persistence.accept(mainGame);
     appContainer.setLoopSuspended(false);
     viewport.startHamburgerVisibilityMonitor();
     syncScreenWakeLock();
@@ -446,7 +447,7 @@ function getLoadedGameStateStore(): StickvaniaGameStateStore | null {
 }
 
 function hasPotentialSavedGameState(): boolean {
-    return hasPotentialBrowserStoredStickvaniaGameState();
+    return persistence.canReadStored() && hasPotentialBrowserStoredStickvaniaGameState();
 }
 
 function returnToMenu(): void {
@@ -475,8 +476,8 @@ function requestPwaMenu(_reason: string): void {
     const session = activeGameSession;
     pwaSessionState = "stopping";
     sessionCleanup.run(() => syncScreenWakeLock());
-    suspendGameForMenu();
-    sessionCleanup.trySave(saveCurrentGameState);
+    const suspended = suspendGameForMenu();
+    if (suspended && !retainExistingOverlay) sessionCleanup.trySave(saveCurrentGameState);
     if (!sessionCleanup.safe) {
         destroyGame();
         return;
@@ -511,8 +512,7 @@ async function showLiveMenuOverlay(): Promise<void> {
     pwaSessionState = "stopping";
     liveMenuOpen = true;
     sessionCleanup.run(() => syncScreenWakeLock());
-    suspendGameForMenu();
-    const saved = sessionCleanup.trySave(saveCurrentGameState);
+    if (suspendGameForMenu()) sessionCleanup.trySave(saveCurrentGameState);
     sessionCleanup.run(
         () => viewport.stopHamburgerVisibilityMonitor(),
         () => viewport.hideHamburger(),
@@ -530,7 +530,7 @@ async function showLiveMenuOverlay(): Promise<void> {
     }
     if (
         !sessionCleanup.run(() => {
-            menuOverlay = renderMenuForParent(app, true, saved ? "" : "Progress could not be saved. Continue still preserves this live game.", true);
+            menuOverlay = renderMenuForParent(app, true, "", true);
         })
     ) {
         destroyGame();
@@ -635,14 +635,19 @@ function removeMenuOverlay(): void {
 
 function saveCurrentGameState(): boolean {
     const mainGame = game;
-    if (!ownership?.owned || mainGame === null || !mainGame.isStateSaveReady()) {
+    if (
+        !sessionCleanup.safe ||
+        !ownership?.owned ||
+        mainGame === null ||
+        !persistence.canSave(mainGame) ||
+        container?.isLoopSuspended() !== true ||
+        !mainGame.isStateSaveReady()
+    )
         return false;
-    }
     const store = getLoadedGameStateStore();
-    if (store === null) {
-        return false;
-    }
-    const result = store.save(mainGame, () => ownership?.owned === true && game === mainGame);
+    if (store === null) return false;
+    const result = store.save(mainGame, () => ownership.owned && game === mainGame && persistence.canSave(mainGame));
+    if (result.saved) persistence.didSave();
     return result.saved;
 }
 
@@ -650,19 +655,13 @@ function clearStoredGameState(): void {
     if (!currentPreferenceWriteAuthorized()) {
         return;
     }
+    persistence.abandonStored();
     const store = getLoadedGameStateStore();
     if (store !== null) {
         store.clear(currentPreferenceWriteAuthorized);
         return;
     }
-    if (!currentPreferenceWriteAuthorized()) {
-        return;
-    }
-    try {
-        localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-    } catch (error) {
-        console.warn("Unable to clear Stickvania saved game.", error);
-    }
+    removePreference("Stickvania saved game", GAME_STATE_STORAGE_KEY, currentPreferenceWriteAuthorized);
 }
 
 function syncScreenWakeLock(): void {
@@ -679,6 +678,8 @@ function destroyGame(): boolean {
     activeGameSession = 0;
     gameLaunchInProgress = false;
     const oldGame = game;
+    persistence.retire(oldGame);
+    activeMenu = null;
     const oldContainer = container;
     sessionCleanup.run(
         () => syncScreenWakeLock(),
@@ -719,6 +720,7 @@ function startPwaMenu(): void {
     if (!sessionCleanup.safe || !ownership.isCurrent(epoch)) {
         return;
     }
+    refreshOwnedSettings();
     const request = ++menuRequestSerial;
     pwaSessionState = "booting";
     applyApplicationAudioPreferences();
@@ -811,8 +813,7 @@ function releaseOwnedSession(): void {
     sessions.invalidate();
     menuRequestSerial++;
     sessionCleanup.run(() => syncScreenWakeLock());
-    suspendGameForMenu();
-    sessionCleanup.trySave(saveCurrentGameState);
+    if (suspendGameForMenu()) sessionCleanup.trySave(saveCurrentGameState);
     destroyGame();
     if (sessionCleanup.safe) {
         pwaSessionState = "menu";
@@ -835,4 +836,21 @@ function showCleanupFailure(): void {
     } catch (error) {
         console.error("Unable to display the reload message.", error);
     }
+}
+
+function guardMenuEvents(menu: HTMLElement): void {
+    const epoch = ownership.epoch;
+    activeMenu = menu;
+    const guard = (event: Event): void => {
+        if (activeMenu === menu && menu.isConnected && ownership.isCurrent(epoch) && pwaSessionState === "menu") return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    };
+    for (const name of ["click", "input", "change", "keydown", "pointerdown"]) menu.addEventListener(name, guard, true);
+}
+
+function refreshOwnedSettings(): void {
+    if (!persistence.beginOwnership(ownership.epoch)) return;
+    preferences.reload();
+    sessionMapping = ButtonMapping.load();
 }

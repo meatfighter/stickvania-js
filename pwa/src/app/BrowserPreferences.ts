@@ -1,3 +1,5 @@
+import { removePreference } from "./BrowserPersistence.js";
+import { writePreference } from "./BrowserPersistence.js";
 import { isDisplayModePreference, type DisplayModePreference } from "../DisplayThemes.js";
 import { getBrowserStorageKey } from "../stickvania/BrowserStorageKeys.js";
 import { GAME_STATE_STORAGE_KEY } from "../stickvania/persistence/GameStateSchema.js";
@@ -31,67 +33,62 @@ const PWA_RESET_STORAGE_KEYS = [
 ] as const;
 
 export class BrowserPreferences {
-    public volume = this.readVolume();
-    public displayMode = this.readDisplayMode();
-    public scaling = this.readScaling();
-    public rumbleEnabled = this.readRumbleEnabled();
-    public fullscreen = this.readFullscreen();
-    public difficulty = this.readDifficulty();
+    public volume = DEFAULT_VOLUME;
+    public displayMode: DisplayModePreference = DEFAULT_DISPLAY_MODE;
+    public scaling: StickvaniaScalingPreference = DEFAULT_SCALING_PREFERENCE;
+    public rumbleEnabled = DEFAULT_RUMBLE_ENABLED;
+    public fullscreen = DEFAULT_FULLSCREEN_PREFERENCE;
+    public difficulty: number = DEFAULT_DIFFICULTY;
 
     public setVolume(value: number, persist: boolean, isAuthorized: () => boolean): boolean {
+        if (!isAuthorized()) return false;
         this.volume = BrowserPreferences.clampVolume(value);
         return !persist || this.write(VOLUME_STORAGE_KEY, String(Math.round(this.volume * 100)), "volume", isAuthorized);
     }
 
     public setDisplayMode(value: DisplayModePreference, isAuthorized: () => boolean): boolean {
+        if (!isAuthorized()) return false;
         this.displayMode = value;
         return this.write(DISPLAY_MODE_STORAGE_KEY, value, "display theme", isAuthorized);
     }
 
     public setScaling(value: StickvaniaScalingPreference, isAuthorized: () => boolean): boolean {
+        if (!isAuthorized()) return false;
         this.scaling = value;
         return this.write(SCALING_STORAGE_KEY, value, "scaling preference", isAuthorized);
     }
 
     public setRumbleEnabled(value: boolean, isAuthorized: () => boolean): boolean {
+        if (!isAuthorized()) return false;
         this.rumbleEnabled = value;
         return this.write(RUMBLE_STORAGE_KEY, String(value), "rumble preference", isAuthorized);
     }
 
     public setFullscreen(value: boolean, isAuthorized: () => boolean): boolean {
+        if (!isAuthorized()) return false;
         this.fullscreen = value;
         return this.write(FULLSCREEN_STORAGE_KEY, String(value), "fullscreen preference", isAuthorized);
     }
 
     public setDifficulty(value: number, isAuthorized: () => boolean): boolean {
+        if (!isAuthorized()) return false;
         this.difficulty = value === HARD_DIFFICULTY ? HARD_DIFFICULTY : DEFAULT_DIFFICULTY;
         return this.write(DIFFICULTY_STORAGE_KEY, String(this.difficulty), "difficulty preference", isAuthorized);
     }
 
     public reset(isAuthorized: () => boolean): boolean {
+        if (!isAuthorized()) return false;
+        this.resetInMemory();
         let success = true;
         for (const key of PWA_RESET_STORAGE_KEYS) {
-            if (!isAuthorized()) {
-                return false;
-            }
-            try {
-                localStorage.removeItem(key);
-            } catch (error) {
-                success = false;
-                console.warn(`Unable to clear Stickvania browser storage key ${key}.`, error);
-            }
+            if (!isAuthorized()) return false;
+            success = removePreference("Stickvania browser setting", key, isAuthorized) && success;
         }
-        this.volume = DEFAULT_VOLUME;
-        this.displayMode = DEFAULT_DISPLAY_MODE;
-        this.scaling = DEFAULT_SCALING_PREFERENCE;
-        this.rumbleEnabled = DEFAULT_RUMBLE_ENABLED;
-        this.fullscreen = DEFAULT_FULLSCREEN_PREFERENCE;
-        this.difficulty = DEFAULT_DIFFICULTY;
         return success;
     }
 
     public static clampVolume(value: number): number {
-        return Math.max(0, Math.min(1, value));
+        return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : DEFAULT_VOLUME;
     }
 
     private readVolume(): number {
@@ -160,15 +157,28 @@ export class BrowserPreferences {
     }
 
     private write(key: string, value: string, label: string, isAuthorized: () => boolean): boolean {
-        if (!isAuthorized()) {
-            return false;
-        }
-        try {
-            localStorage.setItem(key, value);
-            return true;
-        } catch (error) {
-            console.warn(`Unable to save Stickvania ${label}.`, error);
-            return false;
-        }
+        return writePreference("Stickvania " + label, key, value, isAuthorized);
+    }
+
+    public constructor(loadStored = true) {
+        if (loadStored) this.reload();
+    }
+
+    public reload(): void {
+        this.volume = this.readVolume();
+        this.displayMode = this.readDisplayMode();
+        this.scaling = this.readScaling();
+        this.rumbleEnabled = this.readRumbleEnabled();
+        this.fullscreen = this.readFullscreen();
+        this.difficulty = this.readDifficulty();
+    }
+
+    public resetInMemory(): void {
+        this.volume = DEFAULT_VOLUME;
+        this.displayMode = DEFAULT_DISPLAY_MODE;
+        this.scaling = DEFAULT_SCALING_PREFERENCE;
+        this.rumbleEnabled = DEFAULT_RUMBLE_ENABLED;
+        this.fullscreen = DEFAULT_FULLSCREEN_PREFERENCE;
+        this.difficulty = DEFAULT_DIFFICULTY;
     }
 }

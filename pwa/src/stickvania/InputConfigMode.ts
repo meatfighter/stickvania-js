@@ -228,6 +228,7 @@ export class InputConfigMode implements KeyListener {
     public constructor(private readonly main: Main) {}
 
     public init(gc: GameContainer): void {
+        InputConfigMode.restoredCompletion.delete(this);
         this.input = gc.getInput();
         ControllerSupport.configureInput(this.input);
         this.input.addKeyListener(this);
@@ -274,13 +275,12 @@ export class InputConfigMode implements KeyListener {
         for (const button of snapshot.assignedControllerButtons) {
             this.assignedControllerButtons.add(button);
         }
-        if (this.finished) {
-            // The draft was already committed before the snapshot was captured.
-            // Restore the same in-memory mapping without replaying the preference write.
-            this.commitDraft();
-        }
+        // Restoring the editor is never a preference commit. The shell's current
+        // session mapping remains authoritative, even if this draft differs.
         this.syncControllerInputState(true);
         this.main.clearInputPressedRecords();
+
+        InputConfigMode.restoredCompletion.add(this);
     }
 
     public dispose(): void {
@@ -310,7 +310,7 @@ export class InputConfigMode implements KeyListener {
         g.setColor(Color.white);
         g.fillRect(64, 32, 512, 416);
         if (this.finished) {
-            this.main.drawString(this.message, this.centerX(this.message), InputConfigMode.MESSAGE_Y);
+            this.main.drawString(this.completionMessage(), this.centerX(this.completionMessage()), InputConfigMode.MESSAGE_Y);
             return;
         }
         const currentStep = this.getCurrentStep();
@@ -624,6 +624,7 @@ export class InputConfigMode implements KeyListener {
         if (this.stepIndex == InputConfigMode.STEPS.length) {
             this.finished = true;
             this.commitDraft();
+            InputConfigMode.restoredCompletion.delete(this);
             this.message = this.main.notifyInputMappingChanged().saved ? "SAVED" : "NOT SAVED";
             this.main.controlInput?.clearPressedState();
             this.doneDelay = InputConfigMode.DONE_DELAY;
@@ -683,5 +684,10 @@ export class InputConfigMode implements KeyListener {
             input.sampleControllersForBaseline();
         }
         this.sampleControllerInputState(true);
+    }
+
+    private static readonly restoredCompletion = new WeakSet<InputConfigMode>();
+    public completionMessage(): string {
+        return this.finished && InputConfigMode.restoredCompletion.has(this) ? "DONE" : this.message;
     }
 }

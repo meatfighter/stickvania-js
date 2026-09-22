@@ -1,3 +1,4 @@
+import { captureAndWriteSnapshot, removePreference, type SnapshotWriteResult } from "../../app/BrowserPersistence.js";
 import type { GameContainer } from "slick2d-ts";
 import type { Main } from "../Main.js";
 import { registerPlayerActionMain } from "../PlayerActionPolicy.js";
@@ -6,7 +7,7 @@ import { reconcileStopWatchMusic, resetStopWatchMusicHold } from "../StopWatchMu
 import { isAxeKnightShieldSnapshotStateValid } from "./AxeKnightShieldStatePolicy.js";
 import type { StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isReasonableStickvaniaGameStateSnapshot } from "./GameStateSanity.js";
-import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
+import { GAME_STATE_STORAGE_KEY, MAX_GAME_STATE_TEXT_LENGTH } from "./GameStateSchema.js";
 import { StickvaniaGameStateSerializer } from "./StickvaniaGameStateSerializer.js";
 import { isStopWatchRepeatStateValid } from "./StopWatchRepeatStatePolicy.js";
 
@@ -14,23 +15,9 @@ export type StoredStickvaniaGameStateInspection =
     | { readonly status: "read-failed" }
     | { readonly status: "missing" }
     | { readonly status: "invalid" }
-    | { readonly status: "unsupported-future"; readonly version: number }
     | { readonly status: "current"; readonly snapshot: StickvaniaGameStateSnapshot };
 
-export type StickvaniaGameStateWriteResult =
-    | { readonly saved: true }
-    | {
-          readonly saved: false;
-          readonly reason:
-              | "not-authorized"
-              | "invalid-snapshot"
-              | "read-failed"
-              | "invalid-existing"
-              | "unsupported-future"
-              | "encode-failed"
-              | "too-large"
-              | "write-failed";
-      };
+export type StickvaniaGameStateWriteResult = SnapshotWriteResult;
 
 export class StickvaniaGameStateStore {
     private readonly serializer = new StickvaniaGameStateSerializer();
@@ -38,51 +25,15 @@ export class StickvaniaGameStateStore {
     public constructor(private readonly appVersion: string) {}
 
     public save(main: Main, isAuthorized: () => boolean): StickvaniaGameStateWriteResult {
-        if (!main.isStateSaveReady()) {
-            return { saved: false, reason: "invalid-snapshot" };
-        }
-        try {
-            const existing = this.inspectStoredGameState();
-            switch (existing.status) {
-                case "read-failed":
-                    return { saved: false, reason: "read-failed" };
-                case "invalid":
-                    return { saved: false, reason: "invalid-existing" };
-                case "unsupported-future":
-                    return { saved: false, reason: "unsupported-future" };
-                case "missing":
-                case "current":
-                    break;
-            }
-
-            const snapshot = this.serializer.createSnapshot(main, this.appVersion);
-            if (!this.isSnapshotValid(snapshot)) {
-                return { saved: false, reason: "invalid-snapshot" };
-            }
-
-            let text: string;
-            try {
-                text = JSON.stringify(snapshot);
-            } catch {
-                return { saved: false, reason: "encode-failed" };
-            }
-            if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
-                return { saved: false, reason: "too-large" };
-            }
-            if (!isAuthorized()) {
-                return { saved: false, reason: "not-authorized" };
-            }
-            try {
-                localStorage.setItem(GAME_STATE_STORAGE_KEY, text);
-                return { saved: true };
-            } catch (error) {
-                console.warn("Unable to save Stickvania game state.", error);
-                return { saved: false, reason: "write-failed" };
-            }
-        } catch (error) {
-            console.warn("Unable to save Stickvania game state.", error);
-            return { saved: false, reason: "encode-failed" };
-        }
+        if (!main.isStateSaveReady()) return { saved: false, reason: "invalid-snapshot" };
+        return captureAndWriteSnapshot(
+            "Stickvania game state",
+            GAME_STATE_STORAGE_KEY,
+            () => this.serializer.createSnapshot(main, this.appVersion),
+            (snapshot) => this.isSnapshotValid(snapshot),
+            MAX_GAME_STATE_TEXT_LENGTH,
+            isAuthorized
+        );
     }
 
     /** Success means every logical game/audio field is already restored. */
@@ -120,53 +71,26 @@ export class StickvaniaGameStateStore {
     }
 
     public clear(isAuthorized: () => boolean): boolean {
-        if (!isAuthorized()) {
-            return false;
-        }
-        try {
-            localStorage.removeItem(GAME_STATE_STORAGE_KEY);
-            return true;
-        } catch (error) {
-            console.warn("Unable to clear Stickvania game state.", error);
-            return false;
-        }
+        return removePreference("Stickvania game state", GAME_STATE_STORAGE_KEY, isAuthorized);
     }
 
-    /** Reads never mutate storage; only an owned Save, New Game, or Reset writes. */
     public inspectStoredGameState(): StoredStickvaniaGameStateInspection {
         let text: string | null;
         try {
-            text = localStorage.getItem(GAME_STATE_STORAGE_KEY);
-        } catch (error) {
-            console.warn("Unable to read Stickvania game state.", error);
+            text = globalThis.localStorage.getItem(GAME_STATE_STORAGE_KEY);
+        } catch {
             return { status: "read-failed" };
         }
-        if (text === null) {
-            return { status: "missing" };
-        }
-        if (text.length > MAX_GAME_STATE_TEXT_LENGTH) {
-            return { status: "invalid" };
-        }
-
-        let snapshot: unknown;
+        if (text === null) return { status: "missing" };
+        if (text.length > MAX_GAME_STATE_TEXT_LENGTH) return { status: "invalid" };
         try {
-            snapshot = JSON.parse(text) as unknown;
+            const snapshot: unknown = JSON.parse(text);
+            return this.isSnapshotValid(snapshot as StickvaniaGameStateSnapshot)
+                ? { status: "current", snapshot: snapshot as StickvaniaGameStateSnapshot }
+                : { status: "invalid" };
         } catch {
             return { status: "invalid" };
         }
-        if (snapshot === null || typeof snapshot !== "object" || Array.isArray(snapshot)) {
-            return { status: "invalid" };
-        }
-
-        const version = Reflect.get(snapshot, "version");
-        if (typeof version === "number" && Number.isInteger(version) && version > GAME_STATE_VERSION) {
-            return { status: "unsupported-future", version };
-        }
-
-        const typedSnapshot = snapshot as StickvaniaGameStateSnapshot;
-        return typedSnapshot.version === GAME_STATE_VERSION && this.isSnapshotValid(typedSnapshot)
-            ? { status: "current", snapshot: typedSnapshot }
-            : { status: "invalid" };
     }
 
     private isSnapshotValid(snapshot: StickvaniaGameStateSnapshot): boolean {

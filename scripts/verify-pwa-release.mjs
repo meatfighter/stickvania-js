@@ -17,6 +17,7 @@ const serviceWorkerPath = join(distPwaDir, "sw.js");
 const mainSourcePath = join(rootDir, "pwa", "src", "main.ts");
 const displayThemesSourcePath = join(rootDir, "pwa", "src", "DisplayThemes.ts");
 const browserPreferencesSourcePath = join(rootDir, "pwa", "src", "app", "BrowserPreferences.ts");
+const browserPersistenceSourcePath = join(rootDir, "pwa", "src", "app", "BrowserPersistence.ts");
 const menuViewSourcePath = join(rootDir, "pwa", "src", "app", "MenuView.ts");
 const serviceWorkerRegistrarSourcePath = join(rootDir, "pwa", "src", "app", "ServiceWorkerRegistrar.ts");
 const resourceVersions = JSON.parse(readFileSync(join(rootDir, "pwa", "resource-versions.generated.json"), "utf8"));
@@ -390,6 +391,10 @@ function writeTranspiledModule(sourcePath, outputPath) {
     }).outputText;
     writeFileSync(outputPath, compiled);
 }
+
+const browserPersistenceTempDirectory = join(tempRoot, "app");
+mkdirSync(browserPersistenceTempDirectory, { recursive: true });
+writeTranspiledModule(browserPersistenceSourcePath, join(browserPersistenceTempDirectory, "BrowserPersistence.js"));
 
 function validMappingSnapshot(overrides = {}) {
     return {
@@ -921,7 +926,7 @@ test("PWA browser storage keys are scoped to the deployed path", async () => {
     const productionCacheBustUrl = "https://example.test/stickvania/?v=two";
     const stagingUrl = "https://example.test/stickvania-staging/?v=one";
     const productionIndexUrl = "https://example.test/stickvania/index.html?v=one";
-    const names = ["game-state-v18", "volume", "display-mode", "scaling", "rumble", "difficulty", "input-mapping"];
+    const names = ["game-state", "volume", "display-mode", "scaling", "rumble", "difficulty", "input-mapping"];
 
     assert.equal(getBrowserStorageScopePath(productionUrl), "/stickvania/");
     assert.equal(getBrowserStorageScopePath(productionIndexUrl), "/stickvania/");
@@ -964,7 +969,7 @@ test("PWA browser storage source uses scoped keys for saves and preferences", ()
     assert.match(sourceText, /getBrowserStorageKey\("rumble"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("input-mapping"\)/);
     assert.match(sourceText, /getBrowserStorageKey\("difficulty"\)/);
-    assert.match(sourceText, /getBrowserStorageKey\("game-state-v18"\)/);
+    assert.match(sourceText, /getBrowserStorageKey\("game-state"\)/);
 });
 
 test("PWA game-state Thing type IDs are stable through production minification", () => {
@@ -975,7 +980,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const mainSource = readFileSync(mainSourcePath, "utf8");
     const builtSource = builtJavaScript();
 
-    assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state-v18"\);/);
+    assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
     assert.match(schemaSource, /export const GAME_STATE_VERSION = 18;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
@@ -1042,10 +1047,18 @@ test("PWA Continue launch failures preserve saved games", () => {
 
     assert.equal(mainClearCalls.length, 1, "The PWA shell should only clear saved game state from the New Game action.");
     assert.ok(newGameClearIndex >= 0 && mainClearCalls[0] > newGameClearIndex, "The remaining shell save clear should stay in the New Game handler.");
+    const startGameSource = mainSource.slice(mainSource.indexOf("async function startGame"), mainSource.indexOf("async function launchPreparedGame"));
+
+    assert.match(startGameSource, /const restoreAttempt = new RestoreAttempt\(\)/);
     assert.match(
-        mainSource,
-        /showLoadError\("Unable to start\.", "Check your connection and try again\.", startPwaMenu\)/,
-        "A failed launch should return to the menu before another explicit activation."
+        startGameSource,
+        /if \(restoreAttempt\.rejected\) \{\s*persistence\.rejectStored\(\);\s*showMenu\(\);\s*\}/,
+        "A rejected stored candidate should return to the ordinary menu without deleting or rewriting it."
+    );
+    assert.match(
+        startGameSource,
+        /showLoadError\("Unable to start\.", "The game could not be started\. Try again\.", startPwaMenu\)/,
+        "An unrelated startup failure should use the normal recoverable startup error."
     );
     assert.doesNotMatch(mainSource, /\(\) => void startGame\(restoreSavedGame\)/, "A failed launch must not automatically replay New Game or Continue.");
     assert.match(
@@ -1058,8 +1071,8 @@ test("PWA Continue launch failures preserve saved games", () => {
 test("PWA root-menu preflight scopes reads without mutating deployment saves", async () => {
     const { GAME_STATE_VERSION, hasPotentialStoredStickvaniaGameState } = await importGameStatePreflight();
     const storage = createLocalStorageMock();
-    const stagingStorageKey = expectedBrowserStorageKey("game-state-v18", "https://example.test/stickvania-staging/");
-    const productionStorageKey = expectedBrowserStorageKey("game-state-v18", "https://example.test/stickvania/");
+    const stagingStorageKey = expectedBrowserStorageKey("game-state", "https://example.test/stickvania-staging/");
+    const productionStorageKey = expectedBrowserStorageKey("game-state", "https://example.test/stickvania/");
 
     storage.setItem(stagingStorageKey, "{");
     storage.setItem(productionStorageKey, JSON.stringify(validPotentialGameStateSnapshot(GAME_STATE_VERSION)));
@@ -1133,7 +1146,7 @@ test("ButtonMapping rejects malformed persisted bindings", async () => {
     }
 });
 
-test("ButtonMapping preserves future-version mappings instead of overwriting them", async () => {
+test("ButtonMapping rejects future-version mappings on read but later authorized save overwrites the stable slot", async () => {
     globalThis.localStorage = createLocalStorageMock();
     const { ButtonMapping } = await importButtonMapping();
     const future = validMappingSnapshot({ version: inputMappingVersion + 1, keyAttack: 12345 });
@@ -1141,9 +1154,14 @@ test("ButtonMapping preserves future-version mappings instead of overwriting the
 
     const mapping = ButtonMapping.load();
     assert.equal(mapping.keyAttack, 44);
+
     assert.deepEqual(
         mapping.save(() => true),
-        { saved: false, reason: "protected" }
+        { saved: true }
     );
-    assert.equal(localStorage.getItem(inputMappingStorageKey), JSON.stringify(future));
+
+    const saved = JSON.parse(localStorage.getItem(inputMappingStorageKey));
+    assert.equal(saved.version, inputMappingVersion);
+    assert.equal(saved.keyAttack, mapping.keyAttack);
+    assert.notDeepEqual(saved, future);
 });
