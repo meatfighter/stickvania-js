@@ -36,13 +36,17 @@ if (bootstrap === undefined || bootstrap.claim()) {
     try {
         startApplication();
     } catch (error) {
-        console.error("Application startup failed.", error);
-        const root = document.getElementById("app");
-        if (root !== null) {
-            root.innerHTML =
-                '<main role="alert" class="boot-screen boot-failed"><section class="load-error-panel"><p>Unable to start. Reload this tab.</p><a href="">Reload</a></section></main>';
-            if (document.hasFocus()) root.querySelector<HTMLAnchorElement>("a")?.focus();
-        }
+        reportApplicationStartupFailure(error);
+    }
+}
+
+function reportApplicationStartupFailure(error: unknown): void {
+    console.error("Application startup failed.", error);
+    const root = document.getElementById("app");
+    if (root !== null) {
+        root.innerHTML =
+            '<main role="alert" class="boot-screen boot-failed"><section class="load-error-panel"><p>Unable to start. Reload this tab.</p><a href="">Reload</a></section></main>';
+        if (document.hasFocus()) root.querySelector<HTMLAnchorElement>("a")?.focus();
     }
 }
 
@@ -364,6 +368,10 @@ function startApplication(): void {
             container = appContainer;
             game = mainGame;
             publishedToShell = true;
+            const initializationOwner = {
+                signal: appContainer.getBrowserLifetimeSignal(),
+                isCurrent: () => isStartingGameSession(session, audio) && game === mainGame && container === appContainer
+            };
             activeBufferedGame = bufferedGame;
             mainGame.setInputMappingChangedHandler(() => {
                 if (!isCurrentGameSession(session) || game !== mainGame) return { saved: false, reason: "stale-session" };
@@ -392,12 +400,16 @@ function startApplication(): void {
             appContainer.setSmoothDeltas(false);
             appContainer.setShowFPS(false);
             appContainer.setClearEachFrame(true);
-            await initializeWithDeadline(Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false)), sessionCleanup);
+            await initializeWithDeadline(
+                Promise.resolve(appContainer.setDisplayMode(displayMode.width, displayMode.height, false)),
+                sessionCleanup,
+                initializationOwner
+            );
             if (!isStartingGameSession(session, audio)) {
                 retireStaleContainer(appContainer);
                 return;
             }
-            await initializeWithDeadline(appContainer.start(), sessionCleanup);
+            await initializeWithDeadline(appContainer.start(), sessionCleanup, initializationOwner);
             if (!isStartingGameSession(session, audio)) {
                 retireStaleContainer(appContainer);
                 return;
@@ -806,8 +818,14 @@ function startApplication(): void {
                 if (request !== menuRequestSerial || !ownership.isCurrent(epoch) || pwaSessionState !== "booting") {
                     return;
                 }
-                pwaSessionState = "menu";
-                renderRootMenu();
+                try {
+                    pwaSessionState = "menu";
+                    renderRootMenu();
+                } catch (error) {
+                    if (request !== menuRequestSerial || !ownership.isCurrent(epoch)) return;
+                    console.error("Unable to display the game menu.", error);
+                    showLoadError("Unable to start.", "The menu could not be displayed. Reload this tab.", () => window.location.reload(), "Reload");
+                }
             })
             .catch((error) => {
                 if (request !== menuRequestSerial || !ownership.isCurrent(epoch) || pwaSessionState !== "booting") {
@@ -845,7 +863,7 @@ function startApplication(): void {
         }
     };
 
-    async function boot(): Promise<void> {
+    function boot(): void {
         app = requiredElement<HTMLElement>(document, "#app");
         viewport = new GameViewportController(app, {
             isSessionCurrent: isCurrentGameSession,
@@ -877,10 +895,20 @@ function startApplication(): void {
         return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
+    const runBoot = (): void => {
+        try {
+            boot();
+        } catch (error) {
+            menuRequestSerial++;
+            pwaSessionState = "error";
+            sessionCleanup.run(() => ownership?.dispose());
+            reportApplicationStartupFailure(error);
+        }
+    };
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", () => void boot(), { once: true });
+        document.addEventListener("DOMContentLoaded", runBoot, { once: true });
     } else {
-        void boot();
+        runBoot();
     }
 
     function releaseOwnedSession(): void {

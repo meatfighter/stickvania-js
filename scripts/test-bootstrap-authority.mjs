@@ -1,3 +1,4 @@
+import ts from "typescript";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -89,3 +90,75 @@ test("failure before DOM ready installs only one deferred renderer", () => {
     f.listeners.get("DOMContentLoaded")();
     assert.equal(f.failed(), 1);
 });
+
+for (const readyState of ["loading", "complete"]) {
+    for (const fault of ["element", "ownership-start"]) {
+        test("application boot contains " + fault + " failure with document " + readyState, () => {
+            const listeners = new Map();
+            let disposed = 0,
+                focused = 0,
+                failures = 0;
+            const root = {
+                innerHTML: "",
+                querySelector: () => ({
+                    focus() {
+                        focused++;
+                    }
+                })
+            };
+            const document = {
+                readyState,
+                hasFocus: () => true,
+                getElementById: () => root,
+                querySelector: () => {
+                    if (fault === "element") throw new Error("missing root");
+                    return root;
+                },
+                addEventListener: (name, callback) => listeners.set(name, callback)
+            };
+            class Empty {}
+            class Owner {
+                start() {
+                    throw new Error("partial owner startup");
+                }
+                dispose() {
+                    disposed++;
+                }
+            }
+            class Cleanup {
+                run(...steps) {
+                    for (const step of steps) step();
+                    return true;
+                }
+            }
+            const exports = new Proxy(
+                { GameSessionOwnership: Owner, SessionCleanup: Cleanup, setGameAudioInterruptionHandler() {} },
+                {
+                    get(target, key) {
+                        return target[key] ?? Empty;
+                    }
+                }
+            );
+            const source = readFileSync("pwa/src/main.ts", "utf8");
+            vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
+                exports: {},
+                require: () => exports,
+                document,
+                window: { addEventListener() {} },
+                console: {
+                    error() {
+                        failures++;
+                    }
+                }
+            });
+            if (readyState === "loading") {
+                assert.equal(failures, 0);
+                listeners.get("DOMContentLoaded")();
+            }
+            assert.equal(failures, 1);
+            assert.match(root.innerHTML, /Reload/);
+            assert.equal(focused, 1);
+            assert.equal(disposed, fault === "ownership-start" ? 1 : 0);
+        });
+    }
+}
