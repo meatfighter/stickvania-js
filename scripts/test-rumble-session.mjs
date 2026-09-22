@@ -199,7 +199,61 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         }
     }
 
+    class Mapping {
+        static load() {
+            return new Mapping();
+        }
+        copyFrom() {}
+        resetToDefaults() {}
+        save(authorized) {
+            return authorized() ? { saved: true } : { saved: false, reason: "stale-session" };
+        }
+    }
+
+    class PersistenceSession {
+        epoch = -1;
+        accepted = null;
+        rejected = false;
+        beginOwnership(epoch) {
+            if (epoch === this.epoch) return false;
+            this.epoch = epoch;
+            this.accepted = null;
+            this.rejected = false;
+            return true;
+        }
+        accept(game) {
+            this.accepted = game;
+        }
+        retire(game) {
+            if (this.accepted === game) this.accepted = null;
+        }
+        canSave(game) {
+            return this.accepted === game;
+        }
+        rejectStored() {
+            this.rejected = true;
+        }
+        abandonStored() {
+            this.rejected = true;
+        }
+        didSave() {
+            this.rejected = false;
+        }
+        canReadStored() {
+            return !this.rejected;
+        }
+    }
+
+    class RestoreAttempt {
+        rejected = false;
+        reject() {
+            this.rejected = true;
+            throw new Error("Stored game restoration was rejected.");
+        }
+    }
+
     class Main {
+        buttonMapping = new Mapping();
         clearInputPressedRecords() {}
         setBrowserSuspended() {}
         setInputMappingChangedHandler() {}
@@ -316,6 +370,9 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
     };
 
     const imports = {
+        "./app/BrowserPersistence.js": { removePreference: () => true },
+        "./stickvania/ButtonMapping.js": { ButtonMapping: Mapping },
+        "./app/PersistenceSession.js": { PersistenceSession, RestoreAttempt },
         "./app/SessionCleanup.js": { SessionCleanup: Cleanup },
         "./app/PlaybackSession.js": playback,
         "./app/GameSessionOwnership.js": { GameSessionOwnership: class {} },
