@@ -221,7 +221,7 @@ test("playback and fullscreen activation are attempt-scoped for live Continue", 
 test("synchronous post-commit viewport hooks are rechecked before RUNNING", () => {
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("function refreshVisibleBootProgress"));
     const launchPause = launch.indexOf("appContainer.getInput().pause();");
-    const launchStart = launch.indexOf("await initializeWithDeadline(appContainer.start(), sessionCleanup);");
+    const launchStart = launch.indexOf("await initializeWithDeadline(appContainer.start(), sessionCleanup, initializationOwner);");
     const launchFocus = launch.indexOf("viewport.focusCanvas();");
     const launchGuard = launch.indexOf("if (!isStartingGameSession(session, audio) || game !== mainGame || container !== appContainer)", launchFocus);
     const launchResume = launch.indexOf("appContainer.getInput().resume();", launchGuard);
@@ -268,7 +268,7 @@ test("failed Continue candidates are rejected and stale candidates are contained
 
     assert.match(launch, /if \(!getGameStateStore\(runtime\)\.restore\(mainGame, gc\)\) restoreAttempt\.reject\(\)/);
 
-    const start = launch.indexOf("await initializeWithDeadline(appContainer.start(), sessionCleanup);");
+    const start = launch.indexOf("await initializeWithDeadline(appContainer.start(), sessionCleanup, initializationOwner);");
     const staleGuard = launch.indexOf("if (!isStartingGameSession(session, audio))", start);
     const staleRetire = launch.indexOf("retireStaleContainer(appContainer);", staleGuard);
     const accept = launch.indexOf("persistence.accept(mainGame);");
