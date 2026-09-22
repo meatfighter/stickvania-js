@@ -75,7 +75,7 @@ export function shellSubject(path, names, env, owner = null) {
 export function memoryStorage() {
     const values = new Map();
     const calls = { get: [], set: [], remove: [] };
-    const faults = { get: false, set: false, remove: false };
+    const faults = { get: false, set: false, remove: false, removeKeys: new Set() };
     return {
         values,
         calls,
@@ -95,7 +95,7 @@ export function memoryStorage() {
         },
         removeItem(key) {
             calls.remove.push(key);
-            if (faults.remove) throw new Error("injected remove failure");
+            if (faults.remove || faults.removeKeys.has(key)) throw new Error("injected remove failure");
             values.delete(key);
         }
     };

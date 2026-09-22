@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { loadTypeScript, memoryStorage } from "./persistence-test-loader.mjs";
 const policy = await loadTypeScript("pwa/src/app/BrowserPersistence.ts");
@@ -203,4 +204,19 @@ test("reads, preference writes, and removes remain separate key-scoped operation
         console.warn = warn;
         restore();
     }
+});
+
+
+test("transition matrix reaches real mapping completion outcomes without polling", () => {
+    const source = readFileSync("pwa/src/PersistenceMatrix.ts", "utf8");
+    assert.match(source, /let sessionMapping = new ButtonMapping\(\)/);
+    assert.match(source, /main\.buttonMapping\.copyFrom\(sessionMapping\)/);
+    assert.match(source, /main\.setInputMappingChangedHandler\(\(\) => \{/);
+    assert.match(source, /sessionMapping\.copyFrom\(main\.buttonMapping\)/);
+    assert.match(source, /sessionMapping\.save\(authorized\)/);
+    assert.match(source, /Input finished NOT SAVED/);
+    assert.match(source, /Injected mapping write failure/);
+    assert.match(source, /queueMicrotask\(\(\) => \{/);
+    assert.match(source, /captureInputConfigModeState\(\)/);
+    assert.doesNotMatch(source, /requestAnimationFrame/);
 });

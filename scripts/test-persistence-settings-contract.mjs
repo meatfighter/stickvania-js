@@ -96,20 +96,59 @@ test("partial Reset still installs coherent in-memory defaults and attempts the 
     globalThis.window = { location: globalThis.location };
     const { BrowserPreferences, DEFAULT_VOLUME, DEFAULT_SCALING_PREFERENCE, DEFAULT_FULLSCREEN_PREFERENCE } = await loadTypeScript(preferencesPath);
     const preferences = new BrowserPreferences(false);
-    preferences.volume = 0.9;
-    preferences.fullscreen = false;
-    fake.faults.remove = true;
+
+    fake.clearCalls();
+    assert.equal(
+        preferences.reset(() => true),
+        true
+    );
+    const keys = [...fake.calls.remove];
+    assert.equal(keys.length, 8);
+    assert.equal(new Set(keys).size, keys.length, "Reset allowlist must not contain duplicate keys.");
+
+    const seed = () => {
+        fake.values.clear();
+        for (const key of keys) fake.values.set(key, "persisted");
+        fake.clearCalls();
+        preferences.volume = 0.9;
+        preferences.fullscreen = false;
+    };
+    const assertDefaults = () => {
+        assert.equal(preferences.volume, DEFAULT_VOLUME);
+        assert.equal(preferences.scaling, DEFAULT_SCALING_PREFERENCE);
+        assert.equal(preferences.fullscreen, DEFAULT_FULLSCREEN_PREFERENCE);
+    };
+
+    for (const failedKey of keys) {
+        seed();
+        fake.faults.removeKeys.add(failedKey);
+        await quiet(() =>
+            assert.equal(
+                preferences.reset(() => true),
+                false
+            )
+        );
+        fake.faults.removeKeys.clear();
+        assert.deepEqual(fake.calls.remove, keys, "A failed removal must not prevent later authorized Reset removals.");
+        assert.equal(fake.calls.get.length, 0);
+        for (const key of keys) {
+            assert.equal(fake.values.has(key), key === failedKey, `Unexpected durable Reset result for ${key} when ${failedKey} fails.`);
+        }
+        assertDefaults();
+    }
+
+    seed();
     await quiet(() =>
         assert.equal(
-            preferences.reset(() => true),
+            preferences.reset(() => fake.calls.remove.length === 0),
             false
         )
     );
-    assert.equal(preferences.volume, DEFAULT_VOLUME);
-    assert.equal(preferences.scaling, DEFAULT_SCALING_PREFERENCE);
-    assert.equal(preferences.fullscreen, DEFAULT_FULLSCREEN_PREFERENCE);
-    assert.equal(fake.calls.remove.length, game === "stickvania" ? 8 : 4);
+    assert.deepEqual(fake.calls.remove, [keys[0]], "Reset must stop storage mutations once ownership is lost.");
+    assert.equal(fake.values.has(keys[0]), false);
+    for (const key of keys.slice(1)) assert.equal(fake.values.get(key), "persisted");
     assert.equal(fake.calls.get.length, 0);
+    assertDefaults();
 });
 
 test("obsolete menu listeners are fenced before their target handlers can change a setting", () => {

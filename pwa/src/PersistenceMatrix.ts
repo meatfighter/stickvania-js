@@ -4,6 +4,7 @@ import { StickvaniaRuntimeLoader } from "./app/RuntimeLoader.js";
 import { StickvaniaGameStateSerializer } from "./stickvania/persistence/StickvaniaGameStateSerializer.js";
 import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
 import { getBrowserStorageKey } from "./stickvania/BrowserStorageKeys.js";
+import { ButtonMapping } from "./stickvania/ButtonMapping.js";
 
 if (!import.meta.env.DEV || !["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)) {
     throw new Error("Persistence matrix is a local development fixture only.");
@@ -40,6 +41,7 @@ const records: Array<Record<string, unknown>> = [];
 let mounted: Mounted | null = null;
 let busy = false;
 let lockHeld = false;
+let sessionMapping = new ButtonMapping();
 let clock = 1_000_000;
 const originalNow = Date.now;
 const originalTime = Sys.getTime;
@@ -57,6 +59,46 @@ type Mounted = { main: Main; container: AppGameContainer };
 const serializer = new StickvaniaGameStateSerializer();
 type Snapshot = ReturnType<StickvaniaGameStateSerializer["createSnapshot"]>;
 let store: InstanceType<Awaited<ReturnType<StickvaniaRuntimeLoader["ensurePrepared"]>>["StickvaniaGameStateStore"]>;
+const mappingStorageKey = getBrowserStorageKey("input-mapping");
+
+function selectedFinishedMappingResult(): "SAVED" | "NOT SAVED" | null {
+    if (casePicker.value === "Input finished SAVED") return "SAVED";
+    if (casePicker.value === "Input finished NOT SAVED") return "NOT SAVED";
+    return null;
+}
+
+function persistSessionMapping(main: Main) {
+    const authorized = () => lockHeld && mounted?.main === main;
+    if (selectedFinishedMappingResult() !== "NOT SAVED") return sessionMapping.save(authorized);
+
+    const storage = localStorage;
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (this: Storage, key: string, value: string): void {
+        if (this === storage && key === mappingStorageKey) {
+            throw new DOMException("Injected mapping write failure", "QuotaExceededError");
+        }
+        setItem.call(this, key, value);
+    };
+    try {
+        return sessionMapping.save(authorized);
+    } finally {
+        Storage.prototype.setItem = setItem;
+    }
+}
+
+function scheduleFinishedMappingPause(main: Main, result: "SAVED" | "NOT SAVED"): void {
+    const expected = selectedFinishedMappingResult();
+    if (expected !== result) return;
+    queueMicrotask(() => {
+        if (busy || !lockHeld || mounted?.main !== main) return;
+        const inputState = main.captureInputConfigModeState();
+        if (inputState === null || !inputState.finished || inputState.message !== result) return;
+        freeze();
+        resumeButton.disabled = false;
+        status.textContent = `Auto-paused on real ${result} input-configuration completion. Add evidence notes, then verify.`;
+    });
+}
+
 async function prepare(): Promise<void> {
     runtime = await loader.ensurePrepared();
     store = new runtime.StickvaniaGameStateStore(label);
@@ -65,6 +107,7 @@ async function mount(restore: boolean): Promise<Mounted> {
     gameHost.replaceChildren();
     runtime.slick.Display.setParent(gameHost);
     const main = new runtime.Main();
+    main.buttonMapping.copyFrom(sessionMapping);
     const game = new runtime.StickvaniaBufferedGame(main, "crisp");
     const container = new runtime.slick.AppGameContainer(game, 800, 650, false);
     container.setPreserveAudioCacheOnDestroy(true);
@@ -75,6 +118,13 @@ async function mount(restore: boolean): Promise<Mounted> {
             return true;
         };
     mounted = { main, container };
+    main.setInputMappingChangedHandler(() => {
+        if (!lockHeld || mounted?.main !== main) return { saved: false, reason: "stale-session" };
+        sessionMapping.copyFrom(main.buttonMapping);
+        const result = persistSessionMapping(main);
+        scheduleFinishedMappingPause(main, result.saved ? "SAVED" : "NOT SAVED");
+        return result;
+    });
     await container.start();
     await runtime.slick.ResourceLoader.waitForAll();
     assert(main.isStateSaveReady(), "Stickvania init did not become save-ready.");
@@ -103,6 +153,7 @@ function retire(): void {
     const previous = mounted;
     mounted = null;
     if (!previous) return;
+    previous.main.setInputMappingChangedHandler(null);
     previous.main.stopAllSounds();
 
     previous.container.destroy();
@@ -179,6 +230,12 @@ verifyButton.addEventListener(
             assert(mounted, "No runtime.");
             const name = casePicker.value;
             assert(notes.value.trim().length > 0, "Record the actual stage/phase/transition evidence before verifying.");
+            if (name === "Input finished SAVED" || name === "Input finished NOT SAVED") {
+                const expectedResult = name === "Input finished SAVED" ? "SAVED" : "NOT SAVED";
+                const inputState = mounted.main.captureInputConfigModeState();
+                assert(inputState !== null && inputState.finished, `${name} requires a real finished input-configuration state.`);
+                assert(inputState.message === expectedResult, `${name} requires the real ${expectedResult} completion result.`);
+            }
             freeze();
             assert(mounted.main.isStateSaveReady(), "This phase is not save-ready.");
             const mappingBefore = localStorage.getItem(getBrowserStorageKey("input-mapping"));
@@ -278,6 +335,7 @@ void navigator.locks.request(`persistence-matrix:${location.pathname}`, { ifAvai
         return;
     }
     lockHeld = true;
+    sessionMapping = ButtonMapping.load();
     await new Promise<void>((resolve) =>
         window.addEventListener(
             "pagehide",

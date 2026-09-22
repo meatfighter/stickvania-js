@@ -31,7 +31,8 @@ test("new game requires prepared resources and destroys the old session before f
     assert.ok(shell > beginSession, "game shell must be owned by the new session");
     assert.ok(beginAudio > shell, "fresh playback activation must follow shell creation");
     assert.ok(fullscreen > beginAudio && firstAwait > fullscreen, "fullscreen request must stay inside the original activation before the first await");
-    assert.ok(startGame.indexOf('pwaSessionState = "starting";') < beginAudio);
+    const startingState = startGame.indexOf('pwaSessionState = "starting";');
+    assert.ok(startingState >= 0 && beginAudio > startingState);
     assert.doesNotMatch(startGame, /unlockAudio|ensurePrepared|showBoot/);
 });
 
@@ -67,7 +68,9 @@ test("live-menu retention has no mode-specific Input Config exclusion", () => {
 
 test("live-menu transition freezes rumble/gameplay and retires playback before saving", () => {
     const liveMenu = mainSource.slice(mainSource.indexOf("function showLiveMenuOverlay"), mainSource.indexOf("async function resumeLiveGameFromMenu"));
-    assert.ok(liveMenu.indexOf("suspendGameForMenu()") < liveMenu.indexOf("saveCurrentGameState"));
+    const suspendIndex = liveMenu.indexOf("suspendGameForMenu()");
+    const saveIndex = liveMenu.indexOf("saveCurrentGameState");
+    assert.ok(suspendIndex >= 0 && saveIndex > suspendIndex);
     const suspend = mainSource.slice(mainSource.indexOf("function suspendGameForMenu"), mainSource.indexOf("function requestPwaMenu"));
     assert.match(suspend, /setLoopSuspended\(true\)/);
     assert.match(suspend, /setBrowserSuspended\(true\)/);
@@ -126,6 +129,7 @@ test("difficulty and browser preference persistence is shell-owned", () => {
     assert.match(reset, /const epoch = ownership\.epoch/);
     assert.match(reset, /preferences\.reset\(\(\) => ownership\.isCurrent\(epoch\)\)/);
     assert.match(reset, /if \(!ownership\.isCurrent\(epoch\)\) return;/);
+    assert.doesNotMatch(reset, /refreshOwnedSettings|preferences\.reload|ButtonMapping\.load/);
 });
 
 test("input mapping persistence is shell-owned and rechecks the current session at write time", () => {
@@ -151,15 +155,15 @@ test("New Game game-state removal rechecks ownership at the storage boundary", (
     assert.match(clear, /if \(!currentPreferenceWriteAuthorized\(\)\) \{\s*return;\s*\}/);
     assert.match(clear, /store\.clear\(currentPreferenceWriteAuthorized\)/);
     assert.equal((clear.match(/currentPreferenceWriteAuthorized\(\)/g) ?? []).length, 1);
-    assert.match(clear, /store\.clear\(currentPreferenceWriteAuthorized\)/);
-    assert.match(clear, /removePreference\("Stickvania saved game", GAME_STATE_STORAGE_KEY, currentPreferenceWriteAuthorized\)/);
     assert.match(clear, /removePreference\("Stickvania saved game", GAME_STATE_STORAGE_KEY, currentPreferenceWriteAuthorized\)/);
     assert.doesNotMatch(clear, /localStorage\.removeItem/);
 });
 
 test("ownership relinquishment performs the final save before destructive cleanup", () => {
     const release = mainSource.slice(mainSource.indexOf("function releaseOwnedSession"), mainSource.indexOf("function showCleanupFailure"));
-    assert.ok(release.indexOf("trySave(saveCurrentGameState)") < release.indexOf("destroyGame()"));
+    const releaseSaveIndex = release.indexOf("trySave(saveCurrentGameState)");
+    const releaseDestroyIndex = release.indexOf("destroyGame()");
+    assert.ok(releaseSaveIndex >= 0 && releaseDestroyIndex > releaseSaveIndex);
     const save = mainSource.slice(mainSource.indexOf("function saveCurrentGameState"), mainSource.indexOf("function clearStoredGameState"));
     assert.match(save, /ownership/);
     assert.match(save, /persistence\.canSave\(mainGame\)/);
@@ -205,7 +209,9 @@ test("playback and fullscreen activation are attempt-scoped for live Continue", 
     const resume = mainSource.slice(mainSource.indexOf("async function resumeLiveGameFromMenu"), mainSource.indexOf("function removeMenuOverlay"));
     assert.match(resume, /const audio = beginGameAudio\(\)/);
     assert.match(resume, /requestPreferredFullscreen\(\)/);
-    assert.ok(resume.indexOf("requestPreferredFullscreen()") < resume.indexOf("await audio.ready"));
+    const fullscreenRequest = resume.indexOf("requestPreferredFullscreen()");
+    const audioReady = resume.indexOf("await audio.ready");
+    assert.ok(fullscreenRequest >= 0 && audioReady > fullscreenRequest);
     assert.match(resume, /commitGameAudio\(audio\)/);
     assert.match(resume, /isGameAudioLatest\(audio\)/);
     assert.equal((resume.match(/isGameAudioLatest\(audio\)/g) ?? []).length, 2, "Continue catch and finally must both reject stale attempts.");

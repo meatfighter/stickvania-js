@@ -220,7 +220,9 @@ test("actual live-menu transition has no persistence UI and never destroys a hea
     assert.equal(state.game, env.game);
     assert.equal(state.container, env.container);
     assert.equal(state.pwaSessionState, "menu");
-    assert.ok(env.events.indexOf("suspend") < env.events.indexOf("save"));
+    const suspendIndex = env.events.indexOf("suspend");
+    const saveIndex = env.events.indexOf("save");
+    assert.ok(suspendIndex >= 0 && saveIndex > suspendIndex);
     assert.equal(env.events.includes("destroy"), false);
     const render = env.events.find((value) => Array.isArray(value));
     assert.ok(render);
