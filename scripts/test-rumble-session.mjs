@@ -276,6 +276,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
     const input = { pause: noop, resume: noop };
     class Container {
         destroyed = false;
+        loopSuspended = false;
         constructor(buffered) {
             this.game = buffered.game;
         }
@@ -296,9 +297,13 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         }
         setErrorHandler() {}
         setLoopSuspended(suspended) {
+            this.loopSuspended = suspended;
             if (!suspended) {
                 events.loopResumes++;
             }
+        }
+        isLoopSuspended() {
+            return this.loopSuspended;
         }
         getInput() {
             return input;
@@ -406,7 +411,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         "./app/SessionGeneration.js": { SessionGeneration: Sessions },
         "./DisplayThemes.js": { createDisplayMonochromePalette: () => null },
         "./rumble/RumbleManager.js": rumbleContext.exports,
-        "./stickvania/persistence/GameStatePreflight.js": { hasPotentialBrowserStoredStickvaniaGameState: () => false },
+        "./stickvania/persistence/GameStatePreflight.js": { hasPotentialBrowserStoredStickvaniaGameState: () => true },
         "./stickvania/persistence/GameStateSchema.js": { GAME_STATE_STORAGE_KEY: "test-state" },
         "./styles.css": {}
     };
