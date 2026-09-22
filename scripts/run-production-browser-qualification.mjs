@@ -65,7 +65,7 @@ try {
     for (const [name, browserType] of Object.entries(browserTypes)) {
         generation = "A";
         const browser = await browserType.launch({
-            headless: false,
+            headless: name === "firefox" && process.env.PWA_FIREFOX_HEADLESS === "1",
             ...(name === "chromium" ? { args: ["--use-angle=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"] } : {})
         });
         const context = await browser.newContext();
