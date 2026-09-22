@@ -8,7 +8,7 @@ function read(relativePath) {
 
 const buttonMapping = read("pwa/src/stickvania/ButtonMapping.ts");
 const translatedMain = read("pwa/src/stickvania/Main.ts");
-const webApp = read("pwa/src/main.ts");
+const webApp = read("pwa/src/main.ts").replace(/^ {4}/gm, "");
 const viewport = read("pwa/src/app/GameViewportController.ts");
 const preferences = read("pwa/src/app/BrowserPreferences.ts");
 const menuView = read("pwa/src/app/MenuView.ts");
@@ -55,7 +55,7 @@ test("New Game and retained Continue request fullscreen before the first await",
 
     const liveContinue =
         webApp.match(/async function resumeLiveGameFromMenu\([\s\S]*?\n}\n\nasync function restoreExistingLiveMenuAfterInterruptedResume/)?.[0] ?? "";
-    const liveAudio = liveContinue.indexOf("const audio = beginGameAudio();");
+    const liveAudio = liveContinue.indexOf("audio = beginGameAudio();");
     const liveFullscreen = liveContinue.indexOf("requestPreferredFullscreen();");
     const liveAwait = liveContinue.indexOf("await audio.ready");
     assert.ok(liveAudio >= 0 && liveFullscreen > liveAudio && liveAwait > liveFullscreen);
@@ -164,7 +164,7 @@ test("abandoned fullscreen suppression clears only after native settlement", () 
     const helper = viewport.slice(start, end);
 
     assert.ok(start >= 0 && end > start);
-    assert.match(helper, /promise\.finally/);
+    assert.match(helper, /promise\.then\(settled, settled\)/);
     assert.match(helper, /this\.fullscreenSuppressedPresentation === presentation/);
     assert.match(helper, /this\.presentationGeneration === presentation/);
     assert.match(helper, /this\.shell === shell/);

@@ -171,6 +171,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
 
         scheduleResize() {}
 
+        focusMenuPanel() {}
         focusCanvas() {
             runtimeControls.focus();
         }
@@ -375,6 +376,8 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
     };
 
     const imports = {
+        "./app/FocusOwnership.js": { focusOwnedPanel: noop },
+        "./app/PreparationDeadline.js": { initializeWithDeadline: (promise) => promise, ReloadRequiredError: class extends Error {} },
         "./app/BrowserPersistence.js": { removePreference: () => true },
         "./stickvania/ButtonMapping.js": { ButtonMapping: Mapping },
         "./app/PersistenceSession.js": { PersistenceSession, RestoreAttempt },
@@ -441,7 +444,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
             state: () => ({ phase: pwaSessionState, game, container })
         };
     `;
-    vm.runInNewContext(compile(mainSource) + bridge, context);
+    vm.runInNewContext(compile(mainSource.replace(/}\s*$/, bridge + "\n}")), context);
     return { ...context.harness, events, runtimeControls, hapticControls };
 }
 

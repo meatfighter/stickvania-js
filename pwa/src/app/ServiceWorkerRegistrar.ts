@@ -1,18 +1,24 @@
 const SERVICE_WORKER_STARTUP_TIMEOUT_MS = 3000;
 
-export async function registerStickvaniaServiceWorker(cacheVersion: string): Promise<void> {
+let registrationPromise: Promise<void> | null = null;
+export function registerStickvaniaServiceWorker(): Promise<void> {
+    registrationPromise ??= registerOnce().catch((error: unknown) => {
+        console.warn("Unable to register Stickvania service worker.", error);
+    });
+    return registrationPromise;
+}
+async function registerOnce(): Promise<void> {
     if (!("serviceWorker" in navigator) || import.meta.env.DEV || location.protocol === "file:") {
         return;
     }
-    const version = encodeURIComponent(cacheVersion);
-    const serviceWorkerUrl = new URL(`./sw.js?v=${version}`, window.location.href);
+    const serviceWorkerUrl = new URL("./sw.js", window.location.href);
     let timeout: ReturnType<typeof setTimeout> | undefined;
     let removeControllerListener = () => {};
     let expired = false;
     try {
         await Promise.race([
             (async () => {
-                await navigator.serviceWorker.register(serviceWorkerUrl.href, { scope: "./" });
+                await navigator.serviceWorker.register(serviceWorkerUrl.href, { scope: "./", updateViaCache: "none" });
                 if (expired) return;
                 await navigator.serviceWorker.ready;
                 if (expired || navigator.serviceWorker.controller !== null) return;

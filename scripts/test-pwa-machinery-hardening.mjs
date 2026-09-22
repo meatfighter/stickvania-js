@@ -207,7 +207,7 @@ test("Stickvania Main no longer owns browser audio preferences or recovery", () 
 
 test("playback and fullscreen activation are attempt-scoped for live Continue", () => {
     const resume = mainSource.slice(mainSource.indexOf("async function resumeLiveGameFromMenu"), mainSource.indexOf("function removeMenuOverlay"));
-    assert.match(resume, /const audio = beginGameAudio\(\)/);
+    assert.match(resume, /audio = beginGameAudio\(\)/);
     assert.match(resume, /requestPreferredFullscreen\(\)/);
     const fullscreenRequest = resume.indexOf("requestPreferredFullscreen()");
     const audioReady = resume.indexOf("await audio.ready");
@@ -221,7 +221,7 @@ test("playback and fullscreen activation are attempt-scoped for live Continue", 
 test("synchronous post-commit viewport hooks are rechecked before RUNNING", () => {
     const launch = mainSource.slice(mainSource.indexOf("async function launchPreparedGame"), mainSource.indexOf("function refreshVisibleBootProgress"));
     const launchPause = launch.indexOf("appContainer.getInput().pause();");
-    const launchStart = launch.indexOf("await appContainer.start();");
+    const launchStart = launch.indexOf("await initializeWithDeadline(appContainer.start(), sessionCleanup);");
     const launchFocus = launch.indexOf("viewport.focusCanvas();");
     const launchGuard = launch.indexOf("if (!isStartingGameSession(session, audio) || game !== mainGame || container !== appContainer)", launchFocus);
     const launchResume = launch.indexOf("appContainer.getInput().resume();", launchGuard);
@@ -268,7 +268,7 @@ test("failed Continue candidates are rejected and stale candidates are contained
 
     assert.match(launch, /if \(!getGameStateStore\(runtime\)\.restore\(mainGame, gc\)\) restoreAttempt\.reject\(\)/);
 
-    const start = launch.indexOf("await appContainer.start();");
+    const start = launch.indexOf("await initializeWithDeadline(appContainer.start(), sessionCleanup);");
     const staleGuard = launch.indexOf("if (!isStartingGameSession(session, audio))", start);
     const staleRetire = launch.indexOf("retireStaleContainer(appContainer);", staleGuard);
     const accept = launch.indexOf("persistence.accept(mainGame);");
@@ -293,24 +293,18 @@ test("stale container retirement uses the shared cleanup latch", () => {
     assert.doesNotMatch(launch, /if \(!isStartingGameSession\(session, audio\)\) \{\s*appContainer\.destroy\(\);/);
 });
 
-test("runtime preload waits for both resource branches before exposing failure", () => {
-    assert.match(runtimeLoaderSource, /const results = await Promise\.allSettled\(\[/);
-    assert.match(runtimeLoaderSource, /results\.find\(\(result\): result is PromiseRejectedResult => result\.status === "rejected"\)/);
-    assert.match(runtimeLoaderSource, /if \(failure !== undefined\) \{\s*throw failure\.reason;\s*\}/);
-    assert.match(runtimeLoaderSource, /if \(signal\.aborted\) \{\s*throw signal\.reason/);
-    assert.doesNotMatch(
-        runtimeLoaderSource,
-        /await Promise\.all\(\[\s*ResourceLoader\.preloadResources[\s\S]*?SoundStore\.get\(\)\.preloadAudioBuffers/,
-        "Audio and non-audio preload branches must not fail-fast and leave sibling work running behind a retry screen."
-    );
+test("runtime preload observes both settled batches and aborts on first failure", () => {
+    assert.match(runtimeLoaderSource, /await Promise\.all\(\[/);
+    assert.match(runtimeLoaderSource, /runSettledBatch\(resources, RESOURCE_PRELOAD_CONCURRENCY, runRequired\)/);
+    assert.match(runtimeLoaderSource, /runSettledBatch\(audio, AUDIO_PRELOAD_CONCURRENCY, runRequired\)/);
+    assert.match(runtimeLoaderSource, /controller\.abort\(error\)/);
+    assert.match(runtimeLoaderSource, /if \(failed\) throw firstFailure/);
 });
 
-test("service worker treats HTTP failures like network failures", () => {
-    assert.match(serviceWorkerSource, /async function fetchOnce\(request\)/);
-    assert.match(serviceWorkerSource, /if \(!response\.ok\) \{\s*throw new Error\(`HTTP \$\{response\.status\}`\);\s*\}/);
-    assert.match(serviceWorkerSource, /event\.respondWith\(fetchOnce\(request\)\.catch\(/);
+test("service worker routes bounded navigation and discards failed response bodies", () => {
+    assert.match(serviceWorkerSource, /serveNavigation\(request\)/);
+    assert.match(serviceWorkerSource, /discardResponse\(response\)/);
     assert.match(serviceWorkerSource, /return cached \|\| fetchOnce\(request\);/);
-    assert.doesNotMatch(serviceWorkerSource, /event\.respondWith\(fetch\(request\)\.catch\(/);
 });
 
 test("settings rows wrap instead of compressing measured controls", () => {

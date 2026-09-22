@@ -191,6 +191,12 @@ function evaluateBuiltServiceWorker(locationVersion = cacheVersion, scopeUrl = d
     let skipWaitingCount = 0;
     const workerUrl = new URL(`./sw.js?v=${encodeURIComponent(locationVersion)}`, scopeUrl);
     const context = {
+        AbortController,
+        Request,
+        Response,
+        Headers,
+        setTimeout,
+        clearTimeout,
         URL,
         console,
         self: {
@@ -217,7 +223,7 @@ function evaluateBuiltServiceWorker(locationVersion = cacheVersion, scopeUrl = d
                 openedCaches.push(name);
                 return Promise.resolve({
                     addAll(urls) {
-                        addAllCalls.push([...urls]);
+                        addAllCalls.push([...urls].map((request) => (typeof request === "string" ? request : request.url)));
                         return Promise.resolve();
                     },
                     put(url, response) {
@@ -701,9 +707,9 @@ test("PWA service worker registration is relative to the current PWA page", () =
 
     assert.doesNotMatch(mainSource, /BASE_URL/);
     assert.doesNotMatch(registrarSource, /BASE_URL/);
-    assert.match(registrarSource, /new URL\(`\.\/sw\.js\?v=\$\{version\}`, window\.location\.href\)/);
-    assert.match(registrarSource, /navigator\.serviceWorker\.register\(serviceWorkerUrl\.href, \{ scope: "\.\/" \}\)/);
-    assert.match(mainSource, /registerStickvaniaServiceWorker\(__CACHE_VERSION__\)/);
+    assert.match(registrarSource, /new URL\("\.\/sw\.js", window\.location\.href\)/);
+    assert.match(registrarSource, /navigator\.serviceWorker\.register\(serviceWorkerUrl\.href, \{ scope: "\.\/", updateViaCache: "none" \}\)/);
+    assert.match(mainSource, /registerStickvaniaServiceWorker\(\)/);
 });
 
 test("PWA runtime error screen requires safe teardown before replacing the UI", () => {
@@ -1057,7 +1063,7 @@ test("PWA Continue launch failures preserve saved games", () => {
     );
     assert.match(
         startGameSource,
-        /showLoadError\("Unable to start\.", "The game could not be started\. Try again\.", startPwaMenu\)/,
+        /showLoadError\([\s\S]*?"Unable to start\."[\s\S]*?"The game could not be started\. Try again\."[\s\S]*?: startPwaMenu/,
         "An unrelated startup failure should use the normal recoverable startup error."
     );
     assert.doesNotMatch(mainSource, /\(\) => void startGame\(restoreSavedGame\)/, "A failed launch must not automatically replay New Game or Continue.");

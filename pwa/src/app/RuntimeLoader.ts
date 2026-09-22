@@ -1,3 +1,5 @@
+import { runSettledBatch } from "slick2d-ts/slick/util/BatchLoader";
+import { prepareWithDeadline, ReloadRequiredError, settleRequired } from "./PreparationDeadline.js";
 import * as SlickRuntimeModule from "slick2d-ts";
 import { getStickvaniaResourceVersion } from "../ResourceVersions.generated.js";
 import { STICKVANIA_RESOURCE_REFS } from "../resources.js";
@@ -21,166 +23,129 @@ const AUDIO_PRELOAD_CONCURRENCY = 4;
 const { ResourceLoader, SoundStore } = SlickRuntimeModule;
 
 export class StickvaniaRuntimeLoader {
-    private preparedRuntime: PreparedRuntime | null = null;
-    private preparationPromise: Promise<PreparedRuntime> | null = null;
-    private preparationError: unknown = null;
-    private preparationProgress = 0;
-    private preparationGeneration = 0;
-    private abortController: AbortController | null = null;
+    public prepared: PreparedRuntime | null = null;
+    public error: unknown = null;
+    public progress = 0;
+    private pending: Promise<PreparedRuntime> | null = null;
+    private controller: AbortController | null = null;
+    private reloadFailure: ReloadRequiredError | null = null;
+    public constructor(private readonly progressChanged: (progress: number) => void) {}
+
     private readinessBarrier: Promise<void> | null = null;
-
-    public constructor(private readonly onProgress: (progress: number) => void) {}
-
-    public setReadinessBarrier(readinessBarrier: Promise<void> | null): void {
-        this.readinessBarrier = readinessBarrier;
+    public setReadinessBarrier(barrier: Promise<void> | null): void {
+        this.readinessBarrier = barrier;
     }
 
     public getProgress(): number {
-        return this.preparationProgress;
+        return this.progress;
     }
 
     public getPreparedRuntime(): PreparedRuntime | null {
-        return this.preparedRuntime;
+        return this.prepared;
     }
 
     public hasError(): boolean {
-        return this.preparationError !== null;
-    }
-
-    public async ensurePrepared(forceRetry = false): Promise<PreparedRuntime> {
-        if (this.preparedRuntime !== null) {
-            return this.preparedRuntime;
-        }
-        if (forceRetry && this.preparationPromise !== null) {
-            this.abortController?.abort(new Error("Stickvania runtime preparation superseded by retry."));
-            try {
-                await this.preparationPromise;
-            } catch {
-                // The replacement preparation below owns the user-visible result.
-            }
-        }
-        if (this.preparationPromise !== null) {
-            return this.preparationPromise;
-        }
-        if (!forceRetry && this.preparationError !== null) {
-            throw this.preparationError;
-        }
-
-        if (forceRetry) {
-            this.preparationError = null;
-            this.setProgress(0);
-        }
-        if (this.readinessBarrier !== null) {
-            await this.readinessBarrier.catch(() => undefined);
-            if (this.preparationPromise !== null) return this.preparationPromise;
-            if (this.preparedRuntime !== null) return this.preparedRuntime;
-        }
-
-        ResourceLoader.clearFailures();
-        ResourceLoader.setCacheVersionResolver((ref) => getStickvaniaResourceVersion(ref));
-        ResourceLoader.setRetryOptions(RESOURCE_CACHE_RETRY_COUNT, RESOURCE_CACHE_RETRY_DELAY_MS);
-
-        const generation = ++this.preparationGeneration;
-        const abortController = new AbortController();
-        this.abortController = abortController;
-        const promise = this.prepareRuntime(generation, abortController.signal)
-            .then((runtime) => {
-                if (generation !== this.preparationGeneration) {
-                    throw new Error("Stickvania runtime preparation was superseded.");
-                }
-                this.preparedRuntime = runtime;
-                Reflect.set(window, "__gameResourcesPrepared", true);
-                this.preparationError = null;
-                this.setProgress(1);
-                return runtime;
-            })
-            .catch((error) => {
-                if (generation === this.preparationGeneration && !abortController.signal.aborted) {
-                    this.preparationError = error;
-                }
-                throw error;
-            })
-            .finally(() => {
-                if (generation === this.preparationGeneration) {
-                    this.preparationPromise = null;
-                    this.abortController = null;
-                }
-            });
-        this.preparationPromise = promise;
-        return promise;
+        return this.error !== null;
     }
 
     public cancelPendingPreparation(): void {
-        if (this.preparationPromise === null) {
-            return;
-        }
-        this.preparationGeneration++;
-        this.abortController?.abort(new Error("Stickvania runtime preparation cancelled."));
-        this.abortController = null;
-        this.preparationPromise = null;
+        this.controller?.abort(new DOMException("Preparation cancelled", "AbortError"));
     }
 
-    private async prepareRuntime(generation: number, signal: AbortSignal): Promise<PreparedRuntime> {
-        const [mainModule, bufferedGameModule, gameStateStoreModule] = await Promise.all([
-            import("../stickvania/Main.js"),
-            import("../stickvania/StickvaniaBufferedGame.js"),
-            import("../stickvania/persistence/StickvaniaGameStateStore.js")
-        ]);
-        if (generation !== this.preparationGeneration) {
-            throw new Error("Stickvania runtime preparation was superseded.");
+    public async ensurePrepared(forceRetry = false): Promise<PreparedRuntime> {
+        if (this.reloadFailure !== null) throw this.reloadFailure;
+        if (this.prepared !== null) return this.prepared;
+        if (forceRetry && this.pending !== null) {
+            this.controller?.abort(new DOMException("Preparation superseded", "AbortError"));
+            await this.pending.catch(() => undefined);
+            return this.ensurePrepared(true);
         }
-        await this.preloadResources(STICKVANIA_RESOURCE_REFS, signal);
-        return {
-            slick: SlickRuntimeModule,
-            Main: mainModule.Main,
-            StickvaniaBufferedGame: bufferedGameModule.StickvaniaBufferedGame,
-            StickvaniaGameStateStore: gameStateStoreModule.StickvaniaGameStateStore
-        };
-    }
-
-    private async preloadResources(resourceRefs: readonly string[], signal: AbortSignal): Promise<void> {
-        const audioRefs = resourceRefs.filter(isAudioResourceRef);
-        const nonAudioRefs = resourceRefs.filter((ref) => !isAudioResourceRef(ref));
-        const total = audioRefs.length + nonAudioRefs.length;
-        let audioLoaded = 0;
-        let nonAudioLoaded = 0;
-        const updateProgress = () => this.setProgress(total === 0 ? 1 : (audioLoaded + nonAudioLoaded) / total);
-        updateProgress();
-
-        const results = await Promise.allSettled([
-            ResourceLoader.preloadResources(nonAudioRefs, {
-                signal,
-                concurrency: RESOURCE_PRELOAD_CONCURRENCY,
-                onProgress: (progress) => {
-                    nonAudioLoaded = progress.loaded;
-                    updateProgress();
-                }
-            }),
-            SoundStore.get().preloadAudioBuffers(audioRefs, {
-                signal,
-                concurrency: AUDIO_PRELOAD_CONCURRENCY,
-                onProgress: (progress) => {
-                    audioLoaded = progress.loaded;
-                    updateProgress();
-                }
+        if (this.pending !== null) return this.pending;
+        if (!forceRetry && this.error !== null) throw this.error;
+        const controller = new AbortController();
+        this.controller = controller;
+        this.error = null;
+        const work = prepareWithDeadline(controller, async () => {
+            await this.readinessBarrier;
+            controller.signal.throwIfAborted();
+            ResourceLoader.clearFailures();
+            ResourceLoader.setCacheVersionResolver(getStickvaniaResourceVersion);
+            ResourceLoader.setRetryOptions(RESOURCE_CACHE_RETRY_COUNT, RESOURCE_CACHE_RETRY_DELAY_MS);
+            this.setProgress(0, controller.signal);
+            const [mainModule, bufferedModule, storeModule] = await settleRequired(
+                [
+                    import("../stickvania/Main.js"),
+                    import("../stickvania/StickvaniaBufferedGame.js"),
+                    import("../stickvania/persistence/StickvaniaGameStateStore.js")
+                ],
+                controller
+            );
+            controller.signal.throwIfAborted();
+            await this.preloadResources(STICKVANIA_RESOURCE_REFS, controller);
+            controller.signal.throwIfAborted();
+            return {
+                slick: SlickRuntimeModule,
+                Main: mainModule.Main,
+                StickvaniaBufferedGame: bufferedModule.StickvaniaBufferedGame,
+                StickvaniaGameStateStore: storeModule.StickvaniaGameStateStore
+            };
+        });
+        const pending = work
+            .then((runtime) => {
+                controller.signal.throwIfAborted();
+                if (this.controller !== controller) throw new DOMException("Preparation superseded", "AbortError");
+                this.prepared = runtime;
+                Reflect.set(window, "__gameResourcesPrepared", true);
+                this.setProgress(1, controller.signal);
+                return runtime;
             })
+            .catch((error: unknown) => {
+                if (error instanceof ReloadRequiredError) this.reloadFailure = error;
+                if (this.controller === controller) this.error = error;
+                throw error;
+            })
+            .finally(() => {
+                if (this.pending === pending) this.pending = null;
+                if (this.controller === controller) this.controller = null;
+            });
+        this.pending = pending;
+        return pending;
+    }
+
+    private async preloadResources(refs: readonly string[], controller: AbortController): Promise<void> {
+        const signal = controller.signal;
+        const unique = Array.from(new Set(refs));
+        const audio = unique.filter((ref) => ref.toLowerCase().endsWith(".ogg"));
+        const resources = unique.filter((ref) => !ref.toLowerCase().endsWith(".ogg"));
+        let loaded = 0;
+        let failed = false;
+        let firstFailure: unknown;
+        const runRequired = async (ref: string): Promise<void> => {
+            signal.throwIfAborted();
+            try {
+                if (ref.toLowerCase().endsWith(".ogg")) await SoundStore.get().preloadAudioBuffer(ref, { signal });
+                else await ResourceLoader.loadResource(ref, { signal });
+                this.setProgress(++loaded / unique.length, signal);
+            } catch (error) {
+                if (!failed) {
+                    failed = true;
+                    firstFailure = error;
+                    controller.abort(error);
+                }
+                throw error;
+            }
+        };
+        await Promise.all([
+            runSettledBatch(resources, RESOURCE_PRELOAD_CONCURRENCY, runRequired),
+            runSettledBatch(audio, AUDIO_PRELOAD_CONCURRENCY, runRequired)
         ]);
-        const failure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
-        if (failure !== undefined) {
-            throw failure.reason;
-        }
-        if (signal.aborted) {
-            throw signal.reason ?? new Error("Stickvania runtime preparation was aborted.");
-        }
-        this.setProgress(1);
+        if (failed) throw firstFailure;
+        signal.throwIfAborted();
     }
 
-    private setProgress(progress: number): void {
-        this.preparationProgress = Math.max(0, Math.min(1, progress));
-        this.onProgress(this.preparationProgress);
+    private setProgress(value: number, signal: AbortSignal): void {
+        if (signal.aborted || this.controller?.signal !== signal) return;
+        this.progress = value;
+        this.progressChanged(value);
     }
-}
-
-function isAudioResourceRef(ref: string): boolean {
-    return ref.toLowerCase().endsWith(".ogg");
 }

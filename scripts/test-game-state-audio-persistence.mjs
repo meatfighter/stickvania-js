@@ -331,7 +331,7 @@ try {
 
         const fresh = functionSource(source, "async function launchPreparedGame", "function retireStaleContainer");
         const restoreHook = fresh.indexOf("mainGame.loadingCompleteHandler");
-        const start = fresh.indexOf("await appContainer.start()");
+        const start = fresh.indexOf("await initializeWithDeadline(appContainer.start()");
         const freshCommit = fresh.indexOf("commitGameAudio(audio)");
         const freshBrowserResume = fresh.indexOf("mainGame.setBrowserSuspended(false)");
         const freshLoopResume = fresh.indexOf("appContainer.setLoopSuspended(false)");
