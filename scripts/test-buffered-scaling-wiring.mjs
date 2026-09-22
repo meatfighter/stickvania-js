@@ -74,27 +74,34 @@ test("the PWA menu has a full local reset escape hatch", () => {
     assert.match(preferencesSource, /DISPLAY_MODE_STORAGE_KEY/);
     assert.match(preferencesSource, /SCALING_STORAGE_KEY/);
     assert.match(preferencesSource, /RUMBLE_STORAGE_KEY/);
+    assert.match(preferencesSource, /FULLSCREEN_STORAGE_KEY/);
     assert.match(preferencesSource, /DIFFICULTY_STORAGE_KEY/);
     assert.match(preferencesSource, /INPUT_MAPPING_STORAGE_KEY/);
     assert.match(menuSource, /id="reset-button" class="reset-button"/);
     assert.match(menuSource, /resetButton\.addEventListener\("click", callbacks\.onReset\)/);
     assert.match(mainSource, /function resetPwaState\(\): void/);
     const resetStart = mainSource.indexOf("function resetPwaState(): void");
-    const resetEnd = mainSource.indexOf("function showGameShell", resetStart);
+    const resetEnd = mainSource.indexOf("async function startGame", resetStart);
     const reset = mainSource.slice(resetStart, resetEnd);
-    assert.match(reset, /if \(!canActivateFromMenu\(\)\) \{\s*return;\s*\}/);
-    assert.match(reset, /if \(!destroyGame\(\)\) \{\s*return;\s*\}/);
-    assert.ok(
-        reset.indexOf("const cleared = preferences.reset(currentPreferenceWriteAuthorized);") > reset.indexOf("if (!destroyGame())"),
-        "preferences must reset only after destructive cleanup succeeds"
-    );
-    assert.match(reset, /preferences\.reset\(currentPreferenceWriteAuthorized\)/, "reset must retain the ownership authorization boundary");
+    assert.match(reset, /if \(!canActivateFromMenu\(\)\) return;/);
+    assert.match(reset, /const epoch = ownership\.epoch;/);
+    assert.match(reset, /if \(!destroyGame\(\)\) return;/);
+    const destroyIndex = reset.indexOf("if (!destroyGame()) return;");
+    const resetIndex = reset.indexOf("const cleared = preferences.reset(() => ownership.isCurrent(epoch));");
+    assert.ok(destroyIndex >= 0 && resetIndex > destroyIndex, "preferences must reset only after destructive cleanup succeeds");
+    assert.match(reset, /preferences\.reset\(\(\) => ownership\.isCurrent\(epoch\)\)/, "reset must retain the captured-epoch authorization boundary");
+    assert.match(reset, /if \(!ownership\.isCurrent\(epoch\)\) return;/);
+    assert.match(reset, /sessionMapping\.resetToDefaults\(\)/);
+    assert.match(reset, /renderRootMenu\(cleared \? "" : "Some settings could not be reset\."\)/);
     assert.match(preferencesSource, /this\.volume = DEFAULT_VOLUME;/);
     assert.match(preferencesSource, /this\.displayMode = DEFAULT_DISPLAY_MODE;/);
     assert.match(preferencesSource, /this\.scaling = DEFAULT_SCALING_PREFERENCE;/);
     assert.match(preferencesSource, /this\.rumbleEnabled = DEFAULT_RUMBLE_ENABLED;/);
+    assert.match(preferencesSource, /this\.fullscreen = DEFAULT_FULLSCREEN_PREFERENCE;/);
+    assert.match(preferencesSource, /this\.difficulty = DEFAULT_DIFFICULTY;/);
     assert.match(preferencesSource, /for \(const key of PWA_RESET_STORAGE_KEYS\)/);
-    assert.match(preferencesSource, /localStorage\.removeItem\(key\)/);
+    assert.match(preferencesSource, /removePreference\("Stickvania browser setting", key, isAuthorized\)/);
+    assert.doesNotMatch(preferencesSource, /localStorage\.removeItem\(key\)/);
     assert.match(stylesSource, /\.settings-row/);
     assert.match(stylesSource, /\.reset-button/);
 });
