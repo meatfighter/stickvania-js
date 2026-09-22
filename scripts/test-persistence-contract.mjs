@@ -206,7 +206,6 @@ test("reads, preference writes, and removes remain separate key-scoped operation
     }
 });
 
-
 test("transition matrix reaches real mapping completion outcomes without polling", () => {
     const source = readFileSync("pwa/src/PersistenceMatrix.ts", "utf8");
     assert.match(source, /let sessionMapping = new ButtonMapping\(\)/);
