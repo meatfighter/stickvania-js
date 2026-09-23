@@ -21,12 +21,25 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
     const events = { pulses: 0, restores: 0, saves: 0, continuous: 0, loopResumes: 0, silencePredicates: [], playPredicates: [] };
     const runtimeControls = { display: () => Promise.resolve(), focus: noop };
     const hapticControls = { deferSilence: false, pendingSilenceResolves: [] };
-    const node = () => ({ addEventListener: noop, removeEventListener: noop, remove: noop });
+    const node = () => ({
+        parentElement: null,
+        get isConnected() {
+            return this.parentElement !== null;
+        },
+        addEventListener: noop,
+        removeEventListener: noop,
+        remove() {
+            this.parentElement = null;
+        }
+    });
     const shell = node();
     const host = node();
     const hamburger = node();
     const root = {
         innerHTML: "",
+        contains(element) {
+            return element.parentElement === this;
+        },
         querySelector: (selector) => (selector === "#game-shell" ? shell : selector === "#game-host" ? host : hamburger)
     };
     const document = {
@@ -402,7 +415,13 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         },
         "./app/BrowserPreferences.js": { BrowserPreferences: Preferences },
         "./app/GameViewportController.js": { GameViewportController: Viewport },
-        "./app/MenuView.js": { renderMenu: () => node() },
+        "./app/MenuView.js": {
+            renderMenu: (parent) => {
+                const menu = node();
+                menu.parentElement = parent;
+                return menu;
+            }
+        },
         "./app/RuntimeLoader.js": {
             StickvaniaRuntimeLoader: class {
                 getPreparedRuntime() {
