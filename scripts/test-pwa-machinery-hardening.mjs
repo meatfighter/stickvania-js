@@ -1,4 +1,5 @@
 import { sourceMember } from "./persistence-test-loader.mjs";
+import "./test-input-menu-reset.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -99,13 +100,7 @@ test("title default-mapping reset uses one shell-owned persistence path", () => 
     );
     assert.match(selectTitle, /notifyInputMappingChanged\(\)/);
     assert.doesNotMatch(selectTitle, /notifyInputMappingChanged\(true\)|\.save\(/);
-    assert.match(selectTitle, /mappingResetResults\.set/);
-
-    const setTitleMenu = gameMainSource.slice(
-        gameMainSource.indexOf("private setTitleMenu(menu: number, selectedIndex: number = 0)"),
-        gameMainSource.indexOf("private renderTitleMainMenu")
-    );
-    assert.match(setTitleMenu, /this\.titleMenu === Main\.TITLE_MENU_INPUT && menu !== Main\.TITLE_MENU_INPUT[\s\S]*?mappingResetResults\.delete\(this\)/);
+    assert.doesNotMatch(gameMainSource, /mappingResetResults/);
 });
 
 test("difficulty and browser preference persistence is shell-owned", () => {
