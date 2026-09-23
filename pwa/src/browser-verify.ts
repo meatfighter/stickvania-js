@@ -328,7 +328,8 @@ function verifyControllerResume(main: Main, container: AppGameContainer): void {
             if (scenario === "invalid") invalid = true;
             input.resume();
             main.setBrowserSuspended(false);
-            for (let i = 0; i < 12; i++) tick();
+            // Finish arming without extra neutral ticks that could hide the stale-gate defect.
+            while (main.captureInputConfigModeState()!.armDelay > 0) tick();
             assert(count() === 1, "Resume baseline manufactured an assignment");
             if (scenario === "replacement") {
                 identity += "-new";
@@ -337,10 +338,14 @@ function verifyControllerResume(main: Main, container: AppGameContainer): void {
                 tick();
                 assert(count() === 1, "Same-slot replacement manufactured an edge");
             }
-            invalid = false;
-            held = -1;
-            tick();
-            tick();
+            if (scenario !== "neutral") {
+                tick();
+                assert(count() === 1, "Held or invalid input bypassed the neutral gate");
+                invalid = false;
+                held = -1;
+                tick();
+                tick();
+            }
             assert(count() === 1, "Neutral sample assigned a control");
             held = 1;
             tick();
