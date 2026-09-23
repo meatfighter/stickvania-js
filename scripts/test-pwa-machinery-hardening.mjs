@@ -201,7 +201,7 @@ test("Stickvania Main no longer owns browser audio preferences or recovery", () 
     assert.match(suspension, /this\.mode == Main\.MODE_PLAYING/);
     assert.match(suspension, /this\.simon\?\.resetInputReleaseLatches\(\)/);
     assert.match(suspension, /this\.mode == Main\.MODE_INPUT_CONFIG/);
-    assert.match(suspension, /this\.inputConfigMode\?\.resyncControllerStateAfterBrowserResume\(\)/);
+    assert.match(suspension, /this\.inputConfigMode\?\.resyncInputAfterBrowserResume\(\)/);
     assert.doesNotMatch(suspension, /setMusicOn|setSoundOn|resumeMusic|Music|Song/);
 });
 

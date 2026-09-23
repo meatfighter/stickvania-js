@@ -602,7 +602,7 @@ try {
         "controller state present at restore time must become the baseline, not a fresh binding"
     );
     heldControllerButton = -1;
-    restoredInputConfig.resyncControllerStateAfterBrowserResume();
+    restoredInputConfig.resyncInputAfterBrowserResume();
     heldControllerButton = 1;
     assert.equal(
         restoredInputConfig.sampleControllerInputState().button,

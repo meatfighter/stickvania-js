@@ -281,7 +281,7 @@ function startApplication(): void {
             }
         );
         guardMenuEvents(menu);
-        viewport.focusMenuPanel(menu);
+        if (!overlay) viewport.focusMenuPanel(menu);
         return menu;
     }
 
@@ -598,23 +598,7 @@ function startApplication(): void {
             destroyGame();
             return;
         }
-        if (!(await viewport.exitFullscreenForMenu())) {
-            return;
-        }
-        if (!isCurrentGameSession(session) || pwaSessionState !== "stopping" || game === null || container === null) {
-            return;
-        }
-        if (
-            !sessionCleanup.run(() => {
-                menuOverlay = renderMenuForParent(app, true, "", true);
-            })
-        ) {
-            destroyGame();
-            return;
-        }
-        pwaSessionState = "menu";
-        if (menuOverlay !== null) viewport.focusMenuPanel(menuOverlay);
-        syncScreenWakeLock();
+        await finishLiveMenuPresentation(session, null);
     }
 
     async function resumeLiveGameFromMenu(): Promise<void> {
@@ -715,15 +699,90 @@ function startApplication(): void {
     }
 
     async function restoreExistingLiveMenuAfterInterruptedResume(session: number): Promise<void> {
-        if (!(await viewport.exitFullscreenForMenu())) {
-            return;
+        const overlay = menuOverlay;
+        if (overlay === null) return;
+        await finishLiveMenuPresentation(session, overlay);
+    }
+
+    async function finishLiveMenuPresentation(session: number, existingOverlay: HTMLElement | null): Promise<void> {
+        const epoch = ownership.epoch;
+        const request = menuRequestSerial;
+        const liveGame = game;
+        const liveContainer = container;
+        let expectedOverlay = existingOverlay;
+        const isCurrent = (): boolean =>
+            isCurrentGameSession(session) &&
+            ownership.isCurrent(epoch) &&
+            request === menuRequestSerial &&
+            game === liveGame &&
+            container === liveContainer &&
+            liveMenuOpen &&
+            menuOverlay === expectedOverlay;
+        if (liveGame === null || liveContainer === null || !isCurrent() || pwaSessionState !== "stopping" || menuOverlay !== existingOverlay) return;
+
+        try {
+            if (!(await viewport.exitFullscreenForMenu()) || !isCurrent() || pwaSessionState !== "stopping") return;
+            const overlay = existingOverlay ?? renderMenuForParent(app, true, "", true);
+            if (!isCurrent() || pwaSessionState !== "stopping" || menuOverlay !== existingOverlay) {
+                if (existingOverlay === null && menuOverlay !== overlay && activeMenu !== overlay) {
+                    try {
+                        overlay.remove();
+                    } catch (error) {
+                        console.warn("Unable to remove an obsolete menu node.", error);
+                    }
+                }
+                return;
+            }
+            if (!overlay.isConnected || !app.contains(overlay)) throw new Error("The live menu is no longer attached to its application.");
+            expectedOverlay = overlay;
+            menuOverlay = overlay;
+            pwaSessionState = "menu";
+            viewport.focusMenuPanel(overlay);
+            if (!isCurrent() || pwaSessionState !== "menu" || menuOverlay !== overlay) return;
+            syncScreenWakeLock();
+        } catch (error) {
+            if (!isCurrent() || (pwaSessionState !== "stopping" && pwaSessionState !== "menu")) return;
+            activeMenu = null;
+            console.error("Unable to display the live game menu.", error);
+            let stopped: boolean;
+            try {
+                stopped = destroyGame();
+            } catch (teardownError) {
+                sessionCleanup.run(() => {
+                    throw teardownError;
+                });
+                try {
+                    showCleanupFailure();
+                } catch (recoveryError) {
+                    console.error("Unable to display live-menu cleanup recovery.", recoveryError);
+                }
+                return;
+            }
+            if (!stopped) return;
+            if (!ownership.isCurrent(epoch) || game !== null || container !== null || pwaSessionState !== "stopping") return;
+            const recoveryRequest = menuRequestSerial;
+            pwaSessionState = "menu";
+            const recoveryIsCurrent = (): boolean =>
+                sessionCleanup.safe &&
+                ownership.isCurrent(epoch) &&
+                menuRequestSerial === recoveryRequest &&
+                pwaSessionState === "menu" &&
+                game === null &&
+                container === null;
+            try {
+                // Unlike Jackal, this renderer does not perform another teardown.
+                showLoadError(
+                    "Unable to display the menu.",
+                    "The menu could not be displayed. Reload this tab.",
+                    () => {
+                        if (recoveryIsCurrent()) window.location.reload();
+                    },
+                    "Reload"
+                );
+            } catch (recoveryError) {
+                console.error("Unable to display live-menu recovery.", recoveryError);
+            }
         }
-        if (!isCurrentGameSession(session) || pwaSessionState !== "stopping" || !liveMenuOpen || menuOverlay === null || game === null || container === null) {
-            return;
-        }
-        pwaSessionState = "menu";
-        if (menuOverlay !== null) viewport.focusMenuPanel(menuOverlay);
-        syncScreenWakeLock();
     }
 
     function removeMenuOverlay(): void {

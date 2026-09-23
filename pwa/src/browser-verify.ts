@@ -188,6 +188,7 @@ async function verify(): Promise<void> {
         assert(second.main.mode === Main.MODE_PLAYING && second.main.simon !== null, "Fresh Main must restore active gameplay.");
         advanceFrames(second, 12);
         assert(gameplaySnapshot(serializer, second.main) === expected, "Restored stage diverged from uninterrupted gameplay after 12 simulation frames.");
+        verifyEditorResume(second.main, second.container);
     } finally {
         destroyMounted(first);
         destroyMounted(second);
@@ -207,3 +208,148 @@ void verify().then(
         result.textContent = error instanceof Error ? (error.stack ?? error.message) : String(error);
     }
 );
+
+/** Exercise real DOM -> Slick Input -> Main resume -> editor boundaries. */
+function verifyEditorResume(main: Main, container: AppGameContainer): void {
+    container.setLoopSuspended(true);
+    const input = container.getInput();
+    const canvas = document.querySelector("canvas");
+    assert(canvas !== null, "Missing actual input canvas");
+
+    const start = () => {
+        main.initInputConfig(container);
+    };
+    const update = () => {
+        main.updateInputConfig(container);
+    };
+    const count = () => main.captureInputConfigModeState()!.assignedKeys.length;
+    const poll = () => input.poll(1024, 960);
+    const event = (target: EventTarget, type: string, code = "KeyQ", key = "q", repeat = false) =>
+        target.dispatchEvent(new KeyboardEvent(type, { code, key, repeat, bubbles: true }));
+    for (const scenario of ["released", "held", "queued", "menu-only"]) {
+        input.resume();
+        main.setBrowserSuspended(false);
+        canvas.focus();
+        start();
+        if (scenario !== "menu-only") {
+            event(canvas, "keydown");
+            poll();
+        }
+        if (scenario === "queued") {
+            event(canvas, "keyup");
+            event(canvas, "keydown");
+            event(canvas, "keyup");
+        }
+        assert(count() === 0, "Arming must not bind");
+        main.setBrowserSuspended(true);
+        input.pause();
+        if (scenario === "released") event(window, "keyup");
+        if (scenario === "menu-only") {
+            event(window, "keydown");
+            event(window, "keyup");
+        }
+        for (const [code, key] of [
+            ["Enter", "Enter"],
+            ["Space", " "]
+        ]) {
+            event(window, "keydown", code, key);
+            event(window, "keyup", code, key);
+        }
+        input.resume();
+        main.setBrowserSuspended(false);
+        canvas.focus();
+        for (let i = 0; i < 12; i++) {
+            poll();
+            update();
+        }
+        assert(count() === 0, "Paused/queued activation leaked: " + scenario);
+        if (scenario === "held") {
+            event(canvas, "keydown", "KeyQ", "q", true);
+            poll();
+            update();
+            assert(count() === 0, "Held repeat bound after resume");
+            event(canvas, "keyup");
+            poll();
+        }
+        event(canvas, "keydown");
+        poll();
+        update();
+        assert(count() === 1, "First fresh released key rejected: " + scenario);
+        event(canvas, "keydown", "KeyQ", "q", true);
+        poll();
+        update();
+        assert(count() === 1, "Repeat advanced editor twice");
+        event(canvas, "keyup");
+        poll();
+    }
+    verifyControllerResume(main, container);
+}
+
+function verifyControllerResume(main: Main, container: AppGameContainer): void {
+    const input = container.getInput();
+    const previous = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
+    let held = -1,
+        invalid = false,
+        identity = "fixture-pad";
+    Object.defineProperty(navigator, "getGamepads", {
+        configurable: true,
+        value: () => {
+            if (invalid) throw new Error("Injected enumeration failure");
+            return [
+                {
+                    id: identity,
+                    index: 0,
+                    connected: true,
+                    mapping: "standard",
+                    timestamp: 1,
+                    axes: [0, 0],
+                    buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: i === held, touched: i === held, value: i === held ? 1 : 0 }))
+                }
+            ];
+        }
+    });
+    const tick = () => {
+        input.poll(1024, 960);
+        main.updateInputConfig(container);
+    };
+    const count = () => main.captureInputConfigModeState()!.assignedControllerButtons.length;
+    try {
+        for (const scenario of ["neutral", "held", "invalid", "replacement"]) {
+            held = -1;
+            invalid = false;
+            main.initInputConfig(container);
+            for (let i = 0; i < 12; i++) tick();
+            held = 0;
+            tick();
+            assert(count() === 1, "First controller assignment missing");
+            main.setBrowserSuspended(true);
+            input.pause();
+            if (scenario === "neutral") held = -1;
+            if (scenario === "invalid") invalid = true;
+            input.resume();
+            main.setBrowserSuspended(false);
+            for (let i = 0; i < 12; i++) tick();
+            assert(count() === 1, "Resume baseline manufactured an assignment");
+            if (scenario === "replacement") {
+                identity += "-new";
+                held = 1;
+                tick();
+                tick();
+                assert(count() === 1, "Same-slot replacement manufactured an edge");
+            }
+            invalid = false;
+            held = -1;
+            tick();
+            tick();
+            assert(count() === 1, "Neutral sample assigned a control");
+            held = 1;
+            tick();
+            assert(count() === 2, "First fresh controller edge lost: " + scenario);
+            tick();
+            assert(count() === 2, "Held controller assigned twice");
+        }
+    } finally {
+        if (previous) Object.defineProperty(navigator, "getGamepads", previous);
+        else Reflect.deleteProperty(navigator, "getGamepads");
+    }
+}

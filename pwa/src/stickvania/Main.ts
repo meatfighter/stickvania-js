@@ -2639,7 +2639,7 @@ export class Main extends BasicGame {
                 this.simon?.resetInputReleaseLatches();
             }
             if (this.mode == Main.MODE_INPUT_CONFIG) {
-                this.inputConfigMode?.resyncControllerStateAfterBrowserResume();
+                this.inputConfigMode?.resyncInputAfterBrowserResume();
             }
         }
         this.resetNextFrameTime();

@@ -239,8 +239,11 @@ export class InputConfigMode implements KeyListener {
         this.main.clearInputPressedRecords();
     }
 
-    public resyncControllerStateAfterBrowserResume(): void {
-        this.syncControllerInputState(true);
+    public resyncInputAfterBrowserResume(): void {
+        this.blockedKeysUntilRelease.clear();
+        this.captureEpochUsed = false;
+        const baseline = this.syncControllerInputState(true);
+        this.awaitingControllerNeutral = !baseline.valid || baseline.anyDown;
     }
 
     public createSnapshot(): InputConfigModeSnapshot {
@@ -675,15 +678,15 @@ export class InputConfigMode implements KeyListener {
         }
     }
 
-    private syncControllerInputState(requestAuthoritativeBaseline: boolean = false): void {
+    private syncControllerInputState(requestAuthoritativeBaseline: boolean = false): ControllerCaptureSample {
         const input = this.input;
         if (input === null) {
-            return;
+            return { direction: ButtonMapping.NO_BINDING, button: ButtonMapping.NO_BINDING, anyDown: false, valid: false };
         }
         if (requestAuthoritativeBaseline) {
             input.sampleControllersForBaseline();
         }
-        this.sampleControllerInputState(true);
+        return this.sampleControllerInputState(true);
     }
 
     private static readonly restoredCompletion = new WeakSet<InputConfigMode>();

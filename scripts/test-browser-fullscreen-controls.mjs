@@ -1,3 +1,4 @@
+import { sourceMember } from "./persistence-test-loader.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -63,13 +64,16 @@ test("New Game and retained Continue request fullscreen before the first await",
 
 test("menu publication is behind exact-shell fullscreen exit", () => {
     const liveMenu = webApp.match(/async function showLiveMenuOverlay\([\s\S]*?\n}\n\nasync function resumeLiveGameFromMenu/)?.[0] ?? "";
-    const exit = liveMenu.indexOf("await viewport.exitFullscreenForMenu()");
-    const render = liveMenu.indexOf("renderMenuForParent(app", exit);
+    assert.match(liveMenu, /await finishLiveMenuPresentation\(session, null\)/);
+    const presenter = sourceMember("pwa/src/main.ts", "finishLiveMenuPresentation");
+    const exit = presenter.indexOf("await viewport.exitFullscreenForMenu()");
+    const render = presenter.indexOf("renderMenuForParent(app", exit);
     assert.ok(exit >= 0 && render > exit);
 
     const interrupted = webApp.match(/async function restoreExistingLiveMenuAfterInterruptedResume\([\s\S]*?\n}\n\nfunction removeMenuOverlay/)?.[0] ?? "";
-    const interruptedExit = interrupted.indexOf("await viewport.exitFullscreenForMenu()");
-    const menuState = interrupted.indexOf('pwaSessionState = "menu"', interruptedExit);
+    assert.match(interrupted, /await finishLiveMenuPresentation\(session, overlay\)/);
+    const interruptedExit = presenter.indexOf("await viewport.exitFullscreenForMenu()");
+    const menuState = presenter.indexOf('pwaSessionState = "menu"', interruptedExit);
     assert.ok(interruptedExit >= 0 && menuState > interruptedExit);
 });
 
