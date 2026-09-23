@@ -1,8 +1,10 @@
 import { verifyAuthoritativeSave } from "./PersistenceContractVerification.js";
-import { AppGameContainer, Display, ResourceLoader, SoundStore, type SoundPlaybackSnapshot } from "slick2d-ts";
+import { AppGameContainer, Display, Input, ResourceLoader, SoundStore, type SoundPlaybackSnapshot } from "slick2d-ts";
 import { getStickvaniaResourceVersion } from "./ResourceVersions.generated.js";
 import { STICKVANIA_RESOURCE_REFS } from "./resources.js";
 import { Main } from "./stickvania/Main.js";
+import { ButtonMapping } from "./stickvania/ButtonMapping.js";
+import { INPUT_CONFIG_ARM_DELAY, INPUT_CONFIG_DONE_DELAY, isInputConfigModeSnapshot } from "./stickvania/InputConfigMode.js";
 import { StickvaniaBufferedGame } from "./stickvania/StickvaniaBufferedGame.js";
 import { StickvaniaGameStateSerializer } from "./stickvania/persistence/StickvaniaGameStateSerializer.js";
 import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
@@ -188,6 +190,7 @@ async function verify(): Promise<void> {
         assert(second.main.mode === Main.MODE_PLAYING && second.main.simon !== null, "Fresh Main must restore active gameplay.");
         advanceFrames(second, 12);
         assert(gameplaySnapshot(serializer, second.main) === expected, "Restored stage diverged from uninterrupted gameplay after 12 simulation frames.");
+        verifyMappingCompletionPollBoundary(second.main, second.container);
         verifyEditorResume(second.main, second.container);
     } finally {
         destroyMounted(first);
@@ -208,6 +211,199 @@ void verify().then(
         result.textContent = error instanceof Error ? (error.stack ?? error.message) : String(error);
     }
 );
+
+/** Complete mapping through real DOM -> Input.poll -> editor -> Main transition. */
+function verifyMappingCompletionPollBoundary(main: Main, container: AppGameContainer): void {
+    container.setLoopSuspended(true);
+    const input = container.getInput();
+    const controls = main.controlInput;
+    const canvas = gameHost.querySelector("canvas");
+    assert(controls !== null, "Completion fixture requires real StickvaniaInput.");
+    assert(canvas instanceof HTMLCanvasElement, "Completion fixture requires the real input canvas.");
+
+    const originalMapping = main.buttonMapping.clone();
+    const gamepadsDescriptor = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
+    const store = new StickvaniaGameStateStore("browser-verification");
+    let padPresent = false;
+    let heldButton = -1;
+    const digits = [
+        { code: "Digit8", key: "8", binding: Input.KEY_8 },
+        { code: "Digit2", key: "2", binding: Input.KEY_2 },
+        { code: "Digit4", key: "4", binding: Input.KEY_4 },
+        { code: "Digit6", key: "6", binding: Input.KEY_6 },
+        { code: "KeyF", key: "f", binding: Input.KEY_F },
+        { code: "KeyG", key: "g", binding: Input.KEY_G }
+    ];
+    const numpad = [
+        { code: "Numpad8", key: "8", binding: Input.KEY_NUMPAD8 },
+        { code: "Numpad2", key: "2", binding: Input.KEY_NUMPAD2 },
+        { code: "Numpad4", key: "4", binding: Input.KEY_NUMPAD4 },
+        { code: "Numpad6", key: "6", binding: Input.KEY_NUMPAD6 },
+        { code: "KeyF", key: "f", binding: Input.KEY_F },
+        { code: "KeyG", key: "g", binding: Input.KEY_G }
+    ];
+    const scenarios = [
+        { name: "digits / keyboard final / no pad", keys: digits, controllerFinal: false, withPad: false },
+        { name: "numpad / keyboard final / held pad", keys: numpad, controllerFinal: false, withPad: true },
+        { name: "digits / controller final", keys: digits, controllerFinal: true, withPad: true }
+    ];
+    const send = (type: string, key: { code: string; key: string }, repeat = false): void => {
+        canvas.dispatchEvent(new KeyboardEvent(type, { code: key.code, key: key.key, repeat, bubbles: true }));
+    };
+    const poll = (): void => input.poll(1024, 832);
+    const frame = (): void => advanceFrames({ main, container }, 1);
+    const tick = (): void => {
+        poll();
+        frame();
+    };
+    const state = () => {
+        const snapshot = main.captureInputConfigModeState();
+        assert(snapshot !== null, "Completion fixture lost its actual editor.");
+        return snapshot;
+    };
+
+    Object.defineProperty(navigator, "getGamepads", {
+        configurable: true,
+        value: () =>
+            padPresent
+                ? [
+                      {
+                          id: "mapping-completion-fixture",
+                          index: 0,
+                          connected: true,
+                          mapping: "standard",
+                          timestamp: 1,
+                          axes: [0, 0],
+                          buttons: Array.from({ length: 17 }, (_, i) => ({
+                              pressed: i === heldButton,
+                              touched: i === heldButton,
+                              value: i === heldButton ? 1 : 0
+                          }))
+                      }
+                  ]
+                : []
+    });
+
+    try {
+        for (const persistenceSucceeds of [true, false]) {
+            for (const scenario of scenarios) {
+                const label = `${scenario.name}; saved=${persistenceSucceeds}`;
+                for (const key of [...digits, ...numpad]) send("keyup", key);
+                heldButton = -1;
+                padPresent = scenario.withPad;
+                main.setInputMappingChangedHandler(null);
+                main.buttonMapping.resetToDefaults();
+                const defaults = main.buttonMapping.clone();
+                assert(defaults.save(() => true).saved, "Unable to seed fixture mapping storage.");
+                main.fade = Main.FADE_DONE;
+                main.fadeState = Main.FADE_DONE;
+                canvas.focus();
+                input.resume();
+                main.setBrowserSuspended(false);
+                main.initInputConfig(container);
+
+                let writes = 0;
+                main.setInputMappingChangedHandler(() => {
+                    writes++;
+                    // Control the failure outcome, not Input/StickvaniaInput behavior.
+                    if (!persistenceSucceeds) return { saved: false, reason: "unavailable" };
+                    const outcome = main.buttonMapping.save(() => true);
+                    assert(outcome.saved, `${label}: real fixture mapping save failed.`);
+                    return outcome;
+                });
+                for (let tickIndex = 0; tickIndex < INPUT_CONFIG_ARM_DELAY; tickIndex++) tick();
+                assert(state().armDelay === 0, `${label}: editor did not arm.`);
+
+                // The first five assignments also enter through the real event queue.
+                for (let i = 0; i < 5; i++) {
+                    const key = scenario.keys[i]!;
+                    send("keydown", key);
+                    poll();
+                    assert(state().stepIndex === i + 1 && !state().finished, `${label}: wrong intermediate step ${i}.`);
+                    assert(writes === 0, `${label}: mapping committed before the final assignment.`);
+                    send("keyup", key);
+                    tick();
+                }
+
+                const finalKey = scenario.keys[5]!;
+                if (scenario.withPad) heldButton = 2;
+                if (scenario.controllerFinal) {
+                    tick(); // Controller capture occurs during actual post-poll Main.updateFrame.
+                } else {
+                    send("keydown", finalKey);
+                    // The old production implementation must throw HERE, on the sixth poll.
+                    poll();
+                }
+
+                const completed = state();
+                assert(completed.finished && completed.stepIndex === 6, `${label}: completion was not reached.`);
+                assert(completed.doneDelay === INPUT_CONFIG_DONE_DELAY, `${label}: completion delay changed.`);
+                assert(completed.message === (persistenceSucceeds ? "SAVED" : "NOT SAVED"), `${label}: wrong completion result.`);
+                assert(isInputConfigModeSnapshot(completed), `${label}: current producer emitted invalid editor state.`);
+                assert(writes === 1, `${label}: completion must notify exactly once.`);
+                assert(completed.assignedKeys.length === (scenario.controllerFinal ? 5 : 6), `${label}: wrong keyboard assignment count.`);
+                assert(completed.assignedControllerButtons.length === (scenario.controllerFinal ? 1 : 0), `${label}: wrong controller assignment count.`);
+                const expectedKeys = scenario.keys.slice(0, 5).map(({ binding }) => binding);
+                expectedKeys.push(scenario.controllerFinal ? defaults.keyAttack : finalKey.binding);
+                const actualKeys = [
+                    main.buttonMapping.keyUp,
+                    main.buttonMapping.keyDown,
+                    main.buttonMapping.keyLeft,
+                    main.buttonMapping.keyRight,
+                    main.buttonMapping.keyJump,
+                    main.buttonMapping.keyAttack
+                ];
+                assert(sameSnapshot(actualKeys, expectedKeys), `${label}: committed keyboard mapping differs.`);
+                if (scenario.controllerFinal) assert(main.buttonMapping.controllerAttack === 2, `${label}: controller ATTACK missing.`);
+                const expectedStoredMapping = persistenceSucceeds ? main.buttonMapping : defaults;
+                assert(sameSnapshot(ButtonMapping.load(), expectedStoredMapping), `${label}: mapping persistence outcome differs.`);
+                assert(store.save(main, () => true).saved && store.hasValidSave(), `${label}: completed editor must remain game-saveable.`);
+
+                // Keep the final keyboard key and/or controller button held throughout.
+                for (let elapsed = 1; elapsed < INPUT_CONFIG_DONE_DELAY; elapsed++) {
+                    tick();
+                    assert(state().doneDelay === INPUT_CONFIG_DONE_DELAY - elapsed, `${label}: countdown drift.`);
+                    assert(state().message === completed.message, `${label}: completion message changed early.`);
+                }
+                tick();
+                assert(main.mode === Main.MODE_TITLE_SCREEN, `${label}: did not return to the title screen.`);
+                assert(main.captureInputConfigModeState() === null, `${label}: completed editor/listener was not retired.`);
+                assert(!controls.isMenuSelectPressed(), `${label}: title transition exposed a held completion edge.`);
+                if (!scenario.controllerFinal) send("keydown", finalKey, true);
+                for (let i = 0; i < 3; i++) tick();
+                assert(main.fadeState === Main.FADE_DONE, `${label}: held completion input accidentally selected START.`);
+                assert(Reflect.get(main, "titleMenu") === Main.TITLE_MENU_MAIN, `${label}: held input changed the title menu.`);
+                assert(Reflect.get(main, "titleSelectedIndex") === 0, `${label}: held input moved the title cursor.`);
+                assert(writes === 1, `${label}: countdown/title return replayed the mapping write.`);
+
+                // A real release followed by a new press must still work; do not fix by blocking forever.
+                heldButton = -1;
+                send("keyup", finalKey);
+                tick();
+                assert(!controls.isMenuSelectPressed(), `${label}: release manufactured a selection.`);
+                if (scenario.controllerFinal) heldButton = 2;
+                else send("keydown", finalKey);
+                tick();
+                assert(
+                    main.fadeState === Main.FADE_OUT && main.fadeReason === Main.FADE_REASON_SHOW_INTRO,
+                    `${label}: fresh post-release input did not select START.`
+                );
+                heldButton = -1;
+                send("keyup", finalKey);
+                poll(); // Drain release; do not advance into another scene.
+                assert(writes === 1, `${label}: fresh title input replayed the mapping write.`);
+            }
+        }
+    } finally {
+        main.setInputMappingChangedHandler(null);
+        heldButton = -1;
+        for (const key of [...digits, ...numpad]) send("keyup", key);
+        main.buttonMapping.copyFrom(originalMapping);
+        if (gamepadsDescriptor) Object.defineProperty(navigator, "getGamepads", gamepadsDescriptor);
+        else Reflect.deleteProperty(navigator, "getGamepads");
+    }
+    console.log("Mapping completion passed through real input polling, current validation/storage, completion countdown, and held/fresh title input.");
+}
 
 /** Exercise real DOM -> Slick Input -> Main resume -> editor boundaries. */
 function verifyEditorResume(main: Main, container: AppGameContainer): void {

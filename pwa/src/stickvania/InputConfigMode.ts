@@ -629,7 +629,8 @@ export class InputConfigMode implements KeyListener {
             this.commitDraft();
             InputConfigMode.restoredCompletion.delete(this);
             this.message = this.main.notifyInputMappingChanged().saved ? "SAVED" : "NOT SAVED";
-            this.main.controlInput?.clearPressedState();
+            // Keyboard completion runs inside Input.poll(); do not resample here.
+            // finish() -> Main.initTitleScreen() clears/rebaselines input after poll.
             this.doneDelay = InputConfigMode.DONE_DELAY;
         }
     }
