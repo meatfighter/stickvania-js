@@ -213,12 +213,30 @@ function startApplication(): void {
         if (!destroyGame()) {
             return;
         }
-        pwaSessionState = "menu";
         renderRootMenu(errorText);
     }
 
-    function renderRootMenu(errorText = ""): HTMLElement {
-        return renderMenuForParent(app, hasPotentialSavedGameState(), errorText, false);
+    function renderRootMenu(errorText = "", readCanContinue: () => boolean = hasPotentialSavedGameState): void {
+        const epoch = ownership.epoch;
+        const request = menuRequestSerial;
+        const isCurrent = (): boolean => sessionCleanup.safe && ownership.isCurrent(epoch) && request === menuRequestSerial;
+        if (!isCurrent()) return;
+
+        try {
+            pwaSessionState = "menu";
+            const canContinue = readCanContinue();
+            if (!isCurrent() || pwaSessionState !== "menu") return;
+            renderMenuForParent(app, canContinue, errorText, false);
+        } catch (error) {
+            if (!isCurrent()) return;
+            activeMenu = null;
+            console.error("Unable to display the game menu.", error);
+            try {
+                showLoadError("Unable to start.", "The menu could not be displayed. Reload this tab.", () => window.location.reload(), "Reload");
+            } catch (recoveryError) {
+                console.error("Unable to display menu recovery.", recoveryError);
+            }
+        }
     }
 
     function renderMenuForParent(parent: HTMLElement, canContinue: boolean, errorText: string, overlay: boolean): HTMLElement {
@@ -279,8 +297,7 @@ function startApplication(): void {
         const manager = getRumbleManager();
         manager.setEnabled(preferences.rumbleEnabled);
         manager.setSuspended(true);
-        pwaSessionState = "menu";
-        renderRootMenu(cleared ? "" : "Some settings could not be reset.");
+        renderRootMenu(cleared ? "" : "Some settings could not be reset.", () => false);
     }
 
     async function startGame(restoreSavedGame: boolean): Promise<void> {
@@ -818,14 +835,7 @@ function startApplication(): void {
                 if (request !== menuRequestSerial || !ownership.isCurrent(epoch) || pwaSessionState !== "booting") {
                     return;
                 }
-                try {
-                    pwaSessionState = "menu";
-                    renderRootMenu();
-                } catch (error) {
-                    if (request !== menuRequestSerial || !ownership.isCurrent(epoch)) return;
-                    console.error("Unable to display the game menu.", error);
-                    showLoadError("Unable to start.", "The menu could not be displayed. Reload this tab.", () => window.location.reload(), "Reload");
-                }
+                renderRootMenu();
             })
             .catch((error) => {
                 if (request !== menuRequestSerial || !ownership.isCurrent(epoch) || pwaSessionState !== "booting") {
