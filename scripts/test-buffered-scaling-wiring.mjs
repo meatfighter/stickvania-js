@@ -92,7 +92,7 @@ test("the PWA menu has a full local reset escape hatch", () => {
     assert.match(reset, /preferences\.reset\(\(\) => ownership\.isCurrent\(epoch\)\)/, "reset must retain the captured-epoch authorization boundary");
     assert.match(reset, /if \(!ownership\.isCurrent\(epoch\)\) return;/);
     assert.match(reset, /sessionMapping\.resetToDefaults\(\)/);
-    assert.match(reset, /renderRootMenu\(cleared \? "" : "Some settings could not be reset\."\)/);
+    assert.match(reset, /renderRootMenu\(cleared \? "" : "Some settings could not be reset\.", \(\) => false\)/);
     assert.match(preferencesSource, /this\.volume = DEFAULT_VOLUME;/);
     assert.match(preferencesSource, /this\.displayMode = DEFAULT_DISPLAY_MODE;/);
     assert.match(preferencesSource, /this\.scaling = DEFAULT_SCALING_PREFERENCE;/);
