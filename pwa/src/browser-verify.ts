@@ -366,32 +366,58 @@ function verifyMappingCompletionPollBoundary(main: Main, container: AppGameConta
                     assert(state().message === completed.message, `${label}: completion message changed early.`);
                 }
                 tick();
-                assert(main.mode === Main.MODE_TITLE_SCREEN, `${label}: did not return to the title screen.`);
+                const assertReviewMenu = (): void => {
+                    assert(main.mode === Main.MODE_TITLE_SCREEN, `${label}: review is not in title mode.`);
+                    assert(Reflect.get(main, "titleMenu") === Main.TITLE_MENU_INPUT, `${label}: expected the Input review table.`);
+                    assert(Reflect.get(main, "titleSelectedIndex") === 2, `${label}: Done must be selected for review.`);
+                    assert(main.fadeState === Main.FADE_DONE, `${label}: review unexpectedly left the menu.`);
+                };
+                assertReviewMenu();
                 assert(main.captureInputConfigModeState() === null, `${label}: completed editor/listener was not retired.`);
-                assert(!controls.isMenuSelectPressed(), `${label}: title transition exposed a held completion edge.`);
+                assert(!controls.isMenuSelectPressed(), `${label}: review transition exposed a held completion edge.`);
+                assert(store.save(main, () => true).saved && store.hasValidSave(), `${label}: Input/Done review must remain game-saveable.`);
                 if (!scenario.controllerFinal) send("keydown", finalKey, true);
                 for (let i = 0; i < 3; i++) tick();
-                assert(main.fadeState === Main.FADE_DONE, `${label}: held completion input accidentally selected START.`);
-                assert(Reflect.get(main, "titleMenu") === Main.TITLE_MENU_MAIN, `${label}: held input changed the title menu.`);
-                assert(Reflect.get(main, "titleSelectedIndex") === 0, `${label}: held input moved the title cursor.`);
-                assert(writes === 1, `${label}: countdown/title return replayed the mapping write.`);
+                assertReviewMenu();
+                assert(writes === 1, `${label}: countdown/review replayed the mapping write.`);
 
-                // A real release followed by a new press must still work; do not fix by blocking forever.
+                // The first release/fresh press activates DONE, not START.
                 heldButton = -1;
                 send("keyup", finalKey);
                 tick();
                 assert(!controls.isMenuSelectPressed(), `${label}: release manufactured a selection.`);
+                assertReviewMenu();
+                if (scenario.controllerFinal) heldButton = 2;
+                else send("keydown", finalKey);
+                tick();
+                assert(Reflect.get(main, "titleMenu") === Main.TITLE_MENU_MAIN, `${label}: fresh input did not activate Done.`);
+                assert(Reflect.get(main, "titleSelectedIndex") === 0, `${label}: Done must return to root/Start.`);
+                assert(main.mode === Main.MODE_TITLE_SCREEN && main.fadeState === Main.FADE_DONE, `${label}: Done also started gameplay.`);
+                assert(writes === 1, `${label}: activating Done replayed the mapping write.`);
+
+                // Keeping that same activation held cannot carry through to START.
+                if (!scenario.controllerFinal) send("keydown", finalKey, true);
+                for (let i = 0; i < 3; i++) tick();
+                assert(Reflect.get(main, "titleMenu") === Main.TITLE_MENU_MAIN, `${label}: held Done activation changed the root menu.`);
+                assert(Reflect.get(main, "titleSelectedIndex") === 0, `${label}: held Done activation moved the cursor.`);
+                assert(main.fadeState === Main.FADE_DONE, `${label}: held Done activation selected Start.`);
+
+                // A SECOND release/fresh press may now select START normally.
+                heldButton = -1;
+                send("keyup", finalKey);
+                tick();
+                assert(!controls.isMenuSelectPressed(), `${label}: second release manufactured a selection.`);
                 if (scenario.controllerFinal) heldButton = 2;
                 else send("keydown", finalKey);
                 tick();
                 assert(
                     main.fadeState === Main.FADE_OUT && main.fadeReason === Main.FADE_REASON_SHOW_INTRO,
-                    `${label}: fresh post-release input did not select START.`
+                    `${label}: fresh input after Done did not select Start.`
                 );
                 heldButton = -1;
                 send("keyup", finalKey);
                 poll(); // Drain release; do not advance into another scene.
-                assert(writes === 1, `${label}: fresh title input replayed the mapping write.`);
+                assert(writes === 1, `${label}: review/Done/Start replayed the mapping write.`);
             }
         }
     } finally {
@@ -402,7 +428,7 @@ function verifyMappingCompletionPollBoundary(main: Main, container: AppGameConta
         if (gamepadsDescriptor) Object.defineProperty(navigator, "getGamepads", gamepadsDescriptor);
         else Reflect.deleteProperty(navigator, "getGamepads");
     }
-    console.log("Mapping completion passed through real input polling, current validation/storage, completion countdown, and held/fresh title input.");
+    console.log("Mapping completion passed through real polling, Input/Done review, and separate fresh Done/Start activations.");
 }
 
 /** Exercise real DOM -> Slick Input -> Main resume -> editor boundaries. */

@@ -2741,6 +2741,11 @@ export class Main extends BasicGame {
     public finishInputConfig(): void {
         this.invalidateTitleInputMappingCache();
         this.initTitleScreen();
+
+        // Let the player review the active mappings before leaving Input.
+        // initTitleScreen already cleared/rebaselined input at this post-poll boundary.
+        this.titleMenu = Main.TITLE_MENU_INPUT;
+        this.titleSelectedIndex = 2;
     }
 
     public setInputMappingChangedHandler(handler: (() => MappingWriteResult) | null): void {

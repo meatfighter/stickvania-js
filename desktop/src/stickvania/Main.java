@@ -2991,6 +2991,11 @@ public final class Main extends BasicGame {
 
   public void finishInputConfig() {
     initTitleScreen();
+
+    // Let the player review the active mappings before leaving Input.
+    // initTitleScreen already cleared input for the destination menu.
+    titleMenu = TITLE_MENU_INPUT;
+    titleSelectedIndex = 2;
   }
 
   public void addPlayers(int players) {

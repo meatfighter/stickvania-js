@@ -175,6 +175,43 @@ assert.equal(Math.trunc(90 * 0.7), 62, "The old browser-double calculation shoul
 assert.equal(javaInt(Math.fround(90 * Math.fround(0.7))), 63, "Java float cooldown calculation must produce 63");
 
 const javaMainSource = readProjectFile("desktop", "src", "stickvania", "Main.java");
+
+// This is a narrow source-parity guard, not a substitute for browser/desktop execution.
+function normalizeInputReviewBody(body) {
+    assert.equal(typeof body, "string", "Missing finishInputConfig method body");
+    return body
+        .replace(/\/\/[^\r\n]*/g, "")
+        .replace(/\bthis\./g, "")
+        .replace(/\bMain\./g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+const tsFinishInputBody = mainSource.match(/public finishInputConfig\(\): void \{([\s\S]*?)\n    \}/)?.[1];
+const javaFinishInputBody = javaMainSource.match(/public void finishInputConfig\(\) \{([\s\S]*?)\n  \}/)?.[1];
+const expectedInputReviewBody = "initTitleScreen(); titleMenu = TITLE_MENU_INPUT; titleSelectedIndex = 2;";
+assert.equal(
+    normalizeInputReviewBody(tsFinishInputBody),
+    "invalidateTitleInputMappingCache(); " + expectedInputReviewBody,
+    "TS completion must invalidate rows and select Input/Done after one existing title initialization"
+);
+assert.equal(
+    normalizeInputReviewBody(javaFinishInputBody),
+    expectedInputReviewBody,
+    "Java completion must select the same Input/Done destination without a second input reset"
+);
+const tsInputOptions = mainSource.match(/TITLE_INPUT_OPTIONS[^=]*=\s*\[([\s\S]*?)\];/)?.[1];
+const javaInputOptions = javaMainSource.match(/TITLE_INPUT_OPTIONS[^=]*=\s*\{([\s\S]*?)\};/)?.[1];
+for (const [label, options] of [
+    ["TS", tsInputOptions],
+    ["Java", javaInputOptions]
+]) {
+    assert.equal(typeof options, "string", `${label}: missing Input option declaration`);
+    assert.deepEqual(
+        [...options.matchAll(/"([^"]*)"/g)].map((match) => match[1]),
+        ["CHANGE", "RESET", "DONE"],
+        `${label}: selected index 2 must still mean Done`
+    );
+}
 assert.match(mainSource, /const attributionText = "2010, 2026 MEATFIGHTER\.COM";/);
 assert.match(mainSource, /this\.drawString\(attributionText, this\.centerTextX\(attributionText\), 430\);/);
 assert.doesNotMatch(mainSource, /@ 2010, 2026 MEATFIGHTER\.COM/);
