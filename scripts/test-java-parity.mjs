@@ -360,3 +360,11 @@ console.log(
         2
     )
 );
+
+// Narrow source guards complement the executing TS regressions and real Java build.
+const orbBoundaryJava = readProjectFile("desktop", "src", "stickvania", "Main.java");
+assert.match(orbBoundaryJava, /public void hurtSimon\(int power\) \{\s*if \(beatStage\) \{\s*return;\s*\}\s*syncSimonPhysicsProfile\(\);/);
+for (const method of ["intersectsWeapon", "intersectsSimon"]) {
+    assert.match(orbBoundaryJava, new RegExp("public boolean " + method + "\\(int[^}]+if \\(beatStage \\|\\| playerPower == 0\\)"));
+}
+assert.match(orbBoundaryJava, /if \(beatStage \|\| !simon\.whipping \|\| simon\.whipIndex != 2 \|\| simon\.throwing\s*\|\| playerPower == 0\)/);

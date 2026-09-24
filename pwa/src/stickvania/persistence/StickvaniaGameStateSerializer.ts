@@ -229,12 +229,22 @@ export class StickvaniaGameStateSerializer {
 
             let stairs = 0;
             const expectedRegionBounds: Array<{ min: number; max: number }> = [{ min: 0, max: width << 5 }];
+            // Stage three's first segment is initially converted facing RIGHT,
+            // then createStage changes its direction to LEFT. Later checkpoint
+            // conversions use LEFT. Both exact resource-derived partitions are
+            // reachable; the durable direction itself must still be LEFT.
+            const initialStageThreeBounds: Array<{ min: number; max: number }> | null =
+                snapshot.stage.stageIndex === 2 && segmentIndex === 0 ? [{ min: 0, max: width << 5 }] : null;
             // Mirror convertStage(): columns are authoritative because a door
             // finalizes the current Region as soon as that tile is encountered.
             for (let x = 0; x < width; x++) {
                 for (let y = 0; y < loaded.stage.length; y++) {
                     const tile = loaded.stage[y]![x];
                     if (tile === Main.TILE_DOOR) {
+                        if (initialStageThreeBounds !== null) {
+                            initialStageThreeBounds[initialStageThreeBounds.length - 1]!.max = (x << 5) + 32;
+                            initialStageThreeBounds.push({ min: (x << 5) + 32, max: width << 5 });
+                        }
                         if (effectiveDirection === Main.RIGHT) {
                             expectedRegionBounds[expectedRegionBounds.length - 1]!.max = (x << 5) + 32;
                             expectedRegionBounds.push({ min: (x << 5) + 32, max: width << 5 });
@@ -254,12 +264,10 @@ export class StickvaniaGameStateSerializer {
                     }
                 }
             }
-            if (
-                expectedRegionBounds.length !== saved.regions.length ||
-                saved.regions.some(
-                    (region, regionIndex) => region.min !== expectedRegionBounds[regionIndex]!.min || region.max !== expectedRegionBounds[regionIndex]!.max
-                )
-            ) {
+            const matchesBounds = (bounds: Array<{ min: number; max: number }>): boolean =>
+                bounds.length === saved.regions.length &&
+                saved.regions.every((region, index) => region.min === bounds[index]!.min && region.max === bounds[index]!.max);
+            if (!matchesBounds(expectedRegionBounds) && (initialStageThreeBounds === null || !matchesBounds(initialStageThreeBounds))) {
                 return false;
             }
             stairsCounts.push(stairs);

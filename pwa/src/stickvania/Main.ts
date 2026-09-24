@@ -2857,6 +2857,9 @@ export class Main extends BasicGame {
     }
 
     public hurtSimon(power: number): void {
+        if (this.beatStageFlag) {
+            return;
+        }
         this.syncSimonPhysicsProfile();
 
         if (this.simon!.hurt || this.simon!.invincible > 0 || this.playerPower == 0) {
@@ -2998,7 +3001,7 @@ export class Main extends BasicGame {
     }
 
     private intersectsWeaponRect(x1: number, y1: number, x2: number, y2: number, rumbleImpact: boolean): boolean {
-        if (this.playerPower === 0) {
+        if (this.beatStageFlag || this.playerPower === 0) {
             return false;
         }
         const weapons = this.weaponsStack.things;
@@ -3044,7 +3047,7 @@ export class Main extends BasicGame {
     }
 
     private intersectsWhipRect(x1: number, y1: number, x2: number, y2: number, rumbleImpact: boolean): boolean {
-        if (!this.simon!.whipping || this.simon!.whipIndex !== 2 || this.simon!.throwing || this.playerPower === 0) {
+        if (this.beatStageFlag || !this.simon!.whipping || this.simon!.whipIndex !== 2 || this.simon!.throwing || this.playerPower === 0) {
             return false;
         }
 
@@ -3110,7 +3113,7 @@ export class Main extends BasicGame {
         }
 
         const x1 = thingOrX1;
-        if (this.playerPower === 0) {
+        if (this.beatStageFlag || this.playerPower === 0) {
             return false;
         }
         return this.intersects(

@@ -33,7 +33,7 @@
         "generate:state-fields": "node scripts/generate-state-field-registry.mjs",
         "check:state-fields": "node scripts/generate-state-field-registry.mjs --check",
         "test:axe-knight-shield": "node scripts/test-axe-knight-shield.mjs && node scripts/test-axe-knight-shield-ping-pong.mjs && node scripts/test-axe-knight-shield-post-death.mjs && node scripts/test-axe-knight-shield-persistence.mjs",
-        "test:gameplay-transition-hardening": "node scripts/test-stage-clear-action-preservation.mjs && node scripts/test-stage-clear-stopwatch.mjs && node scripts/test-timeout-pit-death.mjs",
+        "test:gameplay-transition-hardening": "node scripts/test-stage-clear-action-preservation.mjs && node scripts/test-stage-clear-interaction-boundary.mjs && node scripts/test-stage-clear-stopwatch.mjs && node scripts/test-timeout-pit-death.mjs",
         "test:demo-audio-retirement": "node scripts/test-demo-audio-retirement.mjs",
         "test:production-promotion-cleanup": "node scripts/test-production-promotion-cleanup.mjs",
         "test:about-page": "node scripts/test-about-page.mjs",

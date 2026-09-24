@@ -3050,6 +3050,9 @@ public final class Main extends BasicGame {
   }
 
   public void hurtSimon(int power) {
+    if (beatStage) {
+      return;
+    }
 
     syncSimonPhysicsProfile();
 
@@ -3185,7 +3188,7 @@ public final class Main extends BasicGame {
   }
 
   public boolean intersectsWeapon(int x1, int y1, int x2, int y2) {
-    if (playerPower == 0) {
+    if (beatStage || playerPower == 0) {
       return false;
     }
     Thing[] weapons = weaponsStack.things;
@@ -3213,7 +3216,7 @@ public final class Main extends BasicGame {
   }
 
   public boolean intersectsWhip(int x1, int y1, int x2, int y2) {
-    if (!simon.whipping || simon.whipIndex != 2 || simon.throwing
+    if (beatStage || !simon.whipping || simon.whipIndex != 2 || simon.throwing
         || playerPower == 0) {
       return false;
     }
@@ -3273,7 +3276,7 @@ public final class Main extends BasicGame {
   }
 
   public boolean intersectsSimon(int x1, int y1, int x2, int y2) {
-    if (playerPower == 0) {
+    if (beatStage || playerPower == 0) {
       return false;
     }
     return intersects(

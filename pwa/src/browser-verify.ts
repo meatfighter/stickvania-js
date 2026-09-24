@@ -1,3 +1,5 @@
+import { Orb } from "./stickvania/Orb.js";
+import { StopWatch } from "./stickvania/StopWatch.js";
 import { verifyAuthoritativeSave } from "./PersistenceContractVerification.js";
 import { AppGameContainer, Display, Input, ResourceLoader, SoundStore, type SoundPlaybackSnapshot } from "slick2d-ts";
 import { getStickvaniaResourceVersion } from "./ResourceVersions.generated.js";
@@ -192,6 +194,9 @@ async function verify(): Promise<void> {
         assert(gameplaySnapshot(serializer, second.main) === expected, "Restored stage diverged from uninterrupted gameplay after 12 simulation frames.");
         verifyMappingCompletionPollBoundary(second.main, second.container);
         verifyEditorResume(second.main, second.container);
+        destroyMounted(second);
+        second = null;
+        await verifyOrbRestore();
     } finally {
         destroyMounted(first);
         destroyMounted(second);
@@ -578,5 +583,133 @@ function verifyControllerResume(main: Main, container: AppGameContainer): void {
     } finally {
         if (previous) Object.defineProperty(navigator, "getGamepads", previous);
         else Reflect.deleteProperty(navigator, "getGamepads");
+    }
+}
+
+/** Current-schema stage-clear poses retain presentation but never reacquire hits. */
+async function verifyOrbRestore(): Promise<void> {
+    const store = new StickvaniaGameStateStore("orb-browser");
+    const serializer = new StickvaniaGameStateSerializer();
+    let mounted: Awaited<ReturnType<typeof mountMain>> | null = null;
+    const retire = (): void => {
+        destroyMounted(mounted);
+        mounted = null;
+    };
+    const action = (main: Main): string => {
+        const s = main.simon;
+        assert(s !== null, "Missing Simon");
+        return JSON.stringify([s.whipping, s.throwing, s.whipIndex, s.whipIncrementor, s.releasedWhip, s.whipType]);
+    };
+    try {
+        for (const [stage, reentered] of [
+            [0, false],
+            [2, false],
+            [2, true]
+        ] as const)
+            for (const throwing of [false, true]) {
+                mounted = await mountMain(null);
+                const source = mounted.main;
+                source.createStageForStateRestore(stage);
+                if (reentered) source.createStageForStateRestore(stage);
+                source.mode = Main.MODE_PLAYING;
+                source.fadeState = Main.FADE_DONE;
+                source.playerPower = 16;
+                source.time = 1;
+                source.hearts = 1;
+                const simon = source.simon;
+                assert(simon !== null, "Orb stage missing Simon");
+                simon.hurt = false;
+                simon.dead = 0;
+                simon.invincible = 0;
+                Object.assign(simon, { whipping: true, throwing, whipIndex: throwing ? 1 : 2, whipIncrementor: throwing ? 12 : 25, releasedWhip: false });
+                source.weaponType = Main.WEAPON_TYPE_STOP_WATCH;
+                source.weaponRepeats = Main.WEAPON_REPEATS_SINGLE;
+                const watch = new StopWatch(source);
+                source.weaponsStack.push(watch);
+                assert(watch.lifeTime > 0 && source.timeFrozen > 0, "Active watch fixture failed");
+                const orb = new Orb(source, simon.x + 20, simon.y + 8, 0);
+                orb.fadeIn = 91;
+                let frozen = "";
+                const updateOrb = orb.update;
+                orb.update = (gc) => {
+                    const alive = updateOrb.call(orb, gc);
+                    assert(!alive && source.beatStageFlag, "Real Orb did not establish boundary");
+                    frozen = action(source);
+                    // Existing policy rejects the transient pre-cleanup watch state.
+                    assert(!store.save(source, () => true).saved, "Terminal active-watch state must not be persisted");
+                    return alive;
+                };
+                source.regionThingStack.push(orb);
+                advanceFrames(mounted, 1);
+                orb.update = updateOrb;
+                assert(frozen !== "" && action(source) === frozen, "Orb weapon pass changed frozen action");
+                assert(source.timeFrozen === 0 && watch.lifeTime === 0, "Orb weapon pass skipped StopWatch cleanup");
+                const beforeSave = serializer.createSnapshot(source, "orb-browser");
+                assert(serializer.isSupportedSnapshotForLoadedResources(source, beforeSave), "Source loaded-resource validation failed stage " + stage);
+                const malformed = structuredClone(beforeSave);
+                assert(malformed.stage !== null, "Missing saved resource graph");
+                malformed.stage.segments[0]!.regions[0]!.max++;
+                assert(!serializer.isSupportedSnapshotForLoadedResources(source, malformed), "Malformed region boundary accepted");
+                assert(store.save(source, () => true).saved, "Frozen pose/current watch save rejected");
+                retire();
+                mounted = await mountMain((fresh, gc) => {
+                    const ok = store.restore(fresh, gc);
+                    assert(ok, "Orb restore rejected valid saved state");
+                    if (ok) {
+                        assert(fresh !== source && fresh.beatStageFlag, "Fresh Orb restore missing");
+                        assert(action(fresh) === frozen, "Frozen action changed on restore");
+                    }
+                    return ok;
+                });
+                const fresh = mounted.main;
+                assert(fresh.simon !== null, "Restored Simon missing");
+                assert(fresh.timeFrozen === 0, "Restored stage-clear watch retained freeze");
+                for (const stack of [fresh.weaponsStack, fresh.weaponsStackSwap])
+                    for (let i = 0; i <= stack.top; i++) {
+                        const thing = stack.things[i];
+                        if (thing instanceof StopWatch) assert(thing.lifeTime === 0, "Restored watch remained active");
+                    }
+                const rect = [fresh.simon.x - 128, fresh.simon.y - 128, fresh.simon.x + 256, fresh.simon.y + 256] as const;
+                assert(
+                    !fresh.intersectsSimon(...rect) && !fresh.intersectsWhip(...rect) && !fresh.intersectsWeapon(...rect),
+                    "Fresh restore acquired an interaction " +
+                        JSON.stringify({
+                            stage,
+                            throwing,
+                            flag: fresh.beatStageFlag,
+                            mode: fresh.mode,
+                            delay: fresh.beatStageDelay,
+                            simon: fresh.intersectsSimon(...rect),
+                            whip: fresh.intersectsWhip(...rect),
+                            weapon: fresh.intersectsWeapon(...rect)
+                        })
+                );
+                fresh.hurtSimon(16);
+                assert(fresh.playerPower === 16 && !fresh.simon.hurt && action(fresh) === frozen, "Restored Orb damage was not a no-op");
+                const snapshot = serializer.createSnapshot(fresh, "orb-browser");
+                assert(
+                    serializer.isSupportedSnapshot(snapshot) && serializer.isSupportedSnapshotForLoadedResources(fresh, snapshot),
+                    "Restored stage clear rejected"
+                );
+                if (stage === 2) {
+                    for (let i = 0; i < 600 && fresh.beatStageFlag; i++) advanceFrames(mounted, 1);
+                    assert(!fresh.beatStageFlag && fresh.floorBreaking, "Stage-three tally failed to resume");
+                    assert(fresh.intersectsSimon(...rect), "Stage-three interactions stayed locked");
+                    if (!throwing) assert(fresh.intersectsWhip(...rect), "Stage-three frozen whip lost interaction");
+                    assert(action(fresh) === frozen, "Tally mutated frozen pose");
+                } else {
+                    advanceFrames(mounted, 10);
+                    assert(fresh.beatStageFlag && action(fresh) === frozen, "Stage-clear pose did not remain frozen");
+                }
+                const continued = serializer.createSnapshot(fresh, "orb-browser");
+                assert(
+                    serializer.isSupportedSnapshot(continued) && serializer.isSupportedSnapshotForLoadedResources(fresh, continued),
+                    "Tally continuation became unsaveable"
+                );
+                retire();
+            }
+    } finally {
+        retire();
+        store.clear(() => true);
     }
 }
