@@ -23,6 +23,44 @@ type ButtonMappingSnapshot = {
 };
 
 export class ButtonMapping {
+    private static readonly STANDARD_GAMEPAD_LABELS: readonly string[] = [
+        "GP-BOT",
+        "GP-RGT",
+        "GP-LFT",
+        "GP-TOP",
+        "GP-LB",
+        "GP-RB",
+        "GP-LT",
+        "GP-RT",
+        "GP-BACK",
+        "GP-START",
+        "GP-LS",
+        "GP-RS",
+        "GP-UP",
+        "GP-DOWN",
+        "GP-LEFT",
+        "GP-RIGHT",
+        "GP-HOME"
+    ];
+
+    public static usesStandardGamepadLabels(input: Pick<Input, "getControllerSampleStatus" | "getControllerCount" | "getControllerMapping">): boolean {
+        try {
+            const status = input.getControllerSampleStatus();
+            if (!status.available || !status.valid) return false;
+            const sequence = status.sequence;
+            const count = input.getControllerCount();
+            if (!Number.isInteger(count) || count <= 0) return false;
+            for (let controller = 0; controller < count; controller++) {
+                if (input.getControllerMapping(controller) !== "standard") return false;
+            }
+            const after = input.getControllerSampleStatus();
+            return after.available && after.valid && after.sequence === sequence;
+        } catch {
+            // Uncertain presentation metadata must not interrupt the input menu.
+            return false;
+        }
+    }
+
     private static readonly STORAGE_KEY = getBrowserStorageKey("input-mapping");
     private static readonly VERSION = 8;
 
@@ -145,20 +183,20 @@ export class ButtonMapping {
         }
     }
 
-    public controllerLabelFor(action: string): string {
+    public controllerLabelFor(action: string, standardLayout: boolean = false): string {
         switch (action) {
             case "UP":
-                return ButtonMapping.getGamepadButtonText(this.controllerUp);
+                return ButtonMapping.getGamepadButtonText(this.controllerUp, standardLayout);
             case "DOWN":
-                return ButtonMapping.getGamepadButtonText(this.controllerDown);
+                return ButtonMapping.getGamepadButtonText(this.controllerDown, standardLayout);
             case "LEFT":
-                return ButtonMapping.getGamepadButtonText(this.controllerLeft);
+                return ButtonMapping.getGamepadButtonText(this.controllerLeft, standardLayout);
             case "RIGHT":
-                return ButtonMapping.getGamepadButtonText(this.controllerRight);
+                return ButtonMapping.getGamepadButtonText(this.controllerRight, standardLayout);
             case "JUMP":
-                return ButtonMapping.getGamepadButtonText(this.controllerJump);
+                return ButtonMapping.getGamepadButtonText(this.controllerJump, standardLayout);
             case "ATTACK":
-                return ButtonMapping.getGamepadButtonText(this.controllerAttack);
+                return ButtonMapping.getGamepadButtonText(this.controllerAttack, standardLayout);
             default:
                 return "";
         }
@@ -418,7 +456,7 @@ export class ButtonMapping {
         }
     }
 
-    public static getGamepadButtonText(button: number): string {
+    public static getGamepadButtonText(button: number, standardLayout: boolean = false): string {
         switch (button) {
             case ButtonMapping.NO_BINDING:
                 return "GP-NONE";
@@ -431,7 +469,12 @@ export class ButtonMapping {
             case ButtonMapping.CONTROLLER_DIRECTION_RIGHT:
                 return "GP-RIGHT";
         }
-        return button >= 0 ? "GP-B" + (button + 1) : "GP-" + button;
+        if (!Number.isInteger(button) || button < 0 || button >= NesInputProfile.RAW_BUTTON_LIMIT) return "GP-UNK";
+        if (standardLayout) {
+            const label = ButtonMapping.STANDARD_GAMEPAD_LABELS[button];
+            if (label !== undefined) return label;
+        }
+        return "GP-B" + (button + 1);
     }
 
     public static isControllerDirection(value: number): boolean {

@@ -748,7 +748,10 @@ async function verifyNesMapping(): Promise<void> {
             b.pressed = b.touched = false;
             b.value = 0;
         }
-        if (binding !== null) {
+        pad.axes[0] = pad.axes[1] = 0;
+        if (binding !== null && binding < 0 && pad.mapping !== "standard") {
+            pad.axes[binding === -2 || binding === -3 ? 1 : 0] = binding === -2 || binding === -4 ? -1 : 1;
+        } else if (binding !== null) {
             const b = pad.buttons[binding < 0 ? 10 - binding : binding]!;
             b.pressed = b.touched = true;
             b.value = 1;
@@ -822,8 +825,18 @@ async function verifyNesMapping(): Promise<void> {
         mounted.container.getInput().poll(1024, 960);
         mounted.container.getInput().clearControlPressedRecord();
         await verifyCompactLabels(mounted);
+        let resets = 0;
         const wanted = [7, 6, 3, 0, -2, -3];
         for (let cycle = 0; cycle < 2; cycle++) {
+            pad.mapping = cycle === 0 ? "standard" : "";
+            hardware(null);
+            tick();
+            Reflect.set(mounted.main, "titleMenu", Main.TITLE_MENU_INPUT);
+            Reflect.set(mounted.main, "titleSelectedIndex", 1);
+            Reflect.get(mounted.main, "selectTitleMenuOption").call(mounted.main);
+            resets++;
+            assert(writes === cycle + resets, "Reset must persist once under either style");
+            verifyGamepadLabelTransitions(mounted);
             hardware(null);
             tick();
             mounted.main.initInputConfig(mounted.container);
@@ -833,7 +846,7 @@ async function verifyNesMapping(): Promise<void> {
                 assert(state().stepIndex === i + 1, `NES capture ${cycle}/${i}`);
                 save();
             }
-            assert(writes === cycle + 1 && state().finished, "Repeated mapping did not commit once");
+            assert(writes === cycle + 1 + resets && state().finished, "Repeated mapping did not commit once");
             const loaded = ButtonMapping.load();
             assert(loaded.controllerJump === -2 && loaded.controllerAttack === -3 && loaded.controllerUp === 7, "Logical mapping did not persist");
             assert(!Object.hasOwn(loaded, "controllerStart"), "Hidden Start mapping appeared");
@@ -852,8 +865,21 @@ async function verifyNesMapping(): Promise<void> {
         save();
         hardware(null);
         tick();
+        const mappingBeforeRestore = JSON.stringify(mounted.main.buttonMapping);
+        const writesBeforeRestore = writes;
+        pad.mapping = "standard";
+        assert(store.restore(mounted.main, mounted.container), "Same-instance editor restore failed");
+        assert(
+            JSON.stringify(mounted.main.buttonMapping) === mappingBeforeRestore && writes === writesBeforeRestore,
+            "Same-instance restore changed mapping authority or persisted"
+        );
+        verifyGamepadLabelTransitions(mounted);
+        pad.mapping = "";
+        mounted.container.getInput().poll(1024, 960);
+        save();
         const oldMain = mounted.main;
         const authority = oldMain.buttonMapping.clone();
+        pad.mapping = "standard";
         destroyMounted(mounted);
         mounted = null;
         mounted = await mountMain((fresh, gc) => {
@@ -863,13 +889,13 @@ async function verifyNesMapping(): Promise<void> {
             assert(fresh !== oldMain, "Reused Main");
             return true;
         });
-        assert(state().stepIndex === 1 && state().draft.controllerDown === -1 && writes === 2, "Restore lost draft or committed preferences");
+        assert(state().stepIndex === 1 && state().draft.controllerDown === -1 && writes === 2 + resets, "Restore lost draft or committed preferences");
         assert(sameSnapshot(mounted.main.buttonMapping, authority), "Restore replaced session authority");
         for (const binding of [7, 0, 3, -3, -2]) {
             press(binding);
             save();
         }
-        assert(Number(writes) === 3 && state().finished, "Fresh transaction failed to finish once");
+        assert(Number(writes) === 3 + resets && state().finished, "Fresh transaction failed to finish once");
         for (let i = 0; i < INPUT_CONFIG_DONE_DELAY + 3; i++) tick();
         review();
         await verifyCompactLabels(mounted);
@@ -949,6 +975,18 @@ async function verifyNesMapping(): Promise<void> {
 
 async function verifyCompactLabels(mounted: Awaited<ReturnType<typeof mountMain>>): Promise<void> {
     const { main, container } = mounted;
+    verifyGamepadLabelTransitions(mounted);
+    const provider = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
+    const labelPad = {
+        id: "label-presentation",
+        index: 0,
+        connected: true,
+        mapping: "standard",
+        axes: [0, 0],
+        timestamp: 1,
+        buttons: Array.from({ length: 64 }, () => ({ pressed: false, touched: false, value: 0 }))
+    };
+    Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => [labelPad] });
     const original = main.buttonMapping.clone();
     const input = container.getInput();
     const canvas = gameHost.querySelector("canvas");
@@ -1004,52 +1042,197 @@ async function verifyCompactLabels(mounted: Awaited<ReturnType<typeof mountMain>
             for (const c of ButtonMapping.getKeyText(key)) {
                 assert(main.symbols[c.charCodeAt(0)] !== null && main.symbols[c.charCodeAt(0)] !== undefined, `Loaded bitmap glyph ${c}`);
             }
-        for (const row of NesInputProfile.INPUTS) {
-            main.buttonMapping[row.key] = Input.KEY_SEMICOLON;
-            main.buttonMapping[row.controller] = -5;
+        for (const standard of [false, true])
+            for (const binding of [-6, -5, -4, -3, -2, -1, ...Array.from({ length: 64 }, (_, i) => i)]) {
+                for (const c of ButtonMapping.getGamepadButtonText(binding, standard))
+                    assert(main.symbols[c.charCodeAt(0)] !== null && main.symbols[c.charCodeAt(0)] !== undefined, `Loaded controller glyph ${c}`);
+            }
+        for (const standard of [false, true]) {
+            labelPad.mapping = standard ? "standard" : "";
+            input.poll(1024, 960);
+            for (const row of NesInputProfile.INPUTS) {
+                main.buttonMapping[row.key] = Input.KEY_SEMICOLON;
+                main.buttonMapping[row.controller] = -5;
+            }
+            refresh();
+            const lines: unknown = Reflect.get(owner, linesName);
+            const x: unknown = Reflect.get(owner, xName);
+            assert(Array.isArray(lines) && lines.length === NesInputProfile.INPUTS.length && typeof x === "number", "Actual mapping cache shape");
+            for (const line of lines) {
+                assert(
+                    typeof line === "string" && line.includes("SEMICOLON") && line.includes("GP-RIGHT") && x >= left && x + line.length * cell <= right,
+                    "Painted mapping row bounds"
+                );
+                for (const c of line) assert(main.symbols[c.charCodeAt(0)] !== null && main.symbols[c.charCodeAt(0)] !== undefined, `Loaded row glyph ${c}`);
+            }
         }
+        const rawBindings = [0, 2, 9, 15, 17, 63, 12];
+        for (let i = 0; i < NesInputProfile.INPUTS.length; i++) main.buttonMapping[NesInputProfile.INPUTS[i]!.controller] = rawBindings[i]!;
         refresh();
-        const lines: unknown = Reflect.get(owner, linesName);
-        const x: unknown = Reflect.get(owner, xName);
-        assert(Array.isArray(lines) && lines.length === NesInputProfile.INPUTS.length && typeof x === "number", "Actual mapping cache shape");
-        for (const line of lines) {
-            assert(
-                typeof line === "string" && line.includes("SEMICOLON") && line.includes("GP-RIGHT") && x >= left && x + line.length * cell <= right,
-                "Painted mapping row bounds"
-            );
-            for (const c of line) assert(main.symbols[c.charCodeAt(0)] !== null && main.symbols[c.charCodeAt(0)] !== undefined, `Loaded row glyph ${c}`);
-        }
-
-        const originalWidth = container.getWidth(),
-            originalHeight = container.getHeight();
-        const bodyStyle = document.body.getAttribute("style");
-        document.body.style.margin = "0";
-        document.body.style.overflow = "hidden";
-        const update = main.update;
-        main.update = () => {};
-        try {
-            container.setLoopSuspended(false);
-            await new Promise<void>((resolve) => {
-                Reflect.set(window, "compactLabelCapture", {
-                    game: "stickvania",
-                    resolve,
-                    resize: async (width: number, height: number): Promise<void> => {
-                        await container.setDisplayMode(width, height, false);
-                    }
+        for (const presentation of ["standard", "generic", "transition"] as const) {
+            labelPad.mapping = presentation === "generic" ? "" : "standard";
+            input.poll(1024, 960);
+            const originalWidth = container.getWidth(),
+                originalHeight = container.getHeight();
+            const bodyStyle = document.body.getAttribute("style");
+            document.body.style.margin = "0";
+            document.body.style.overflow = "hidden";
+            const update = main.update;
+            main.update = () => {};
+            try {
+                container.setLoopSuspended(false);
+                await new Promise<void>((resolve) => {
+                    Reflect.set(window, "compactLabelCapture", {
+                        game: "stickvania-" + presentation,
+                        resolve,
+                        resize: async (width: number, height: number): Promise<void> => {
+                            await container.setDisplayMode(width, height, false);
+                        }
+                    });
                 });
-            });
-        } finally {
-            container.setLoopSuspended(true);
-            main.update = update;
-            await container.setDisplayMode(originalWidth, originalHeight, false);
-            if (bodyStyle === null) document.body.removeAttribute("style");
-            else document.body.setAttribute("style", bodyStyle);
+            } finally {
+                container.setLoopSuspended(true);
+                main.update = update;
+                await container.setDisplayMode(originalWidth, originalHeight, false);
+                if (bodyStyle === null) document.body.removeAttribute("style");
+                else document.body.setAttribute("style", bodyStyle);
+            }
         }
     } finally {
+        if (provider) Object.defineProperty(navigator, "getGamepads", provider);
+        else Reflect.deleteProperty(navigator, "getGamepads");
+        input.poll(1024, 960);
         main.buttonMapping.copyFrom(original);
         Reflect.set(main, "titleMenu", oldMenu);
         refresh();
         input.clearKeyPressedRecord();
         input.clearControlPressedRecord();
+    }
+}
+
+/** Real polled metadata must refresh the actual renderer without a cache-dirty shortcut. */
+function verifyGamepadLabelTransitions(mounted: Awaited<ReturnType<typeof mountMain>>): void {
+    const { main, container } = mounted;
+    const input = container.getInput();
+    const owner = main;
+    const provider = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
+    const disabled = Reflect.get(Input, "controllersDisabled");
+    const nativeSet = Storage.prototype.setItem;
+    const notification = Object.getOwnPropertyDescriptor(main, "notifyInputMappingChanged");
+    let writes = 0,
+        notifications = 0,
+        fail = false;
+    const pad = {
+        id: "unbranded-label-fixture",
+        index: 3,
+        connected: true,
+        mapping: "standard",
+        timestamp: 1,
+        axes: [0, 0],
+        buttons: Array.from({ length: 64 }, () => ({ pressed: false, touched: false, value: 0 }))
+    };
+    const second = { ...pad, index: 5, buttons: pad.buttons.map((b) => ({ ...b })) };
+    let pads: (typeof pad | null)[] = [];
+    const state = () => JSON.stringify({ mapping: main.buttonMapping, workflow: main.captureInputConfigModeState() });
+    const before = state();
+    const preferences = JSON.stringify(Object.entries(localStorage).sort());
+    const draw = (standard: boolean): void => {
+        const render = Reflect.get(owner, "renderTitleInputMenu");
+        assert(typeof render === "function", "Real Input renderer");
+        render.call(owner, container, container.getGraphics());
+        const rows: unknown = Reflect.get(owner, "titleInputMappingLines");
+        assert(Array.isArray(rows), "Rendered row cache");
+        for (let i = 0; i < NesInputProfile.INPUTS.length; i++) {
+            const binding = main.buttonMapping[NesInputProfile.INPUTS[i]!.controller];
+            assert(rows[i].endsWith(", " + ButtonMapping.getGamepadButtonText(binding, standard)), "Automatic label refresh " + rows[i]);
+        }
+        assert(state() === before, "Label rendering changed mapping/editor transaction");
+        assert(writes === 0 && notifications === 0 && JSON.stringify(Object.entries(localStorage).sort()) === preferences, "Label rendering persisted state");
+    };
+    const sample = (standard: boolean): void => {
+        pad.timestamp++;
+        input.poll(1024, 960);
+        draw(standard);
+    };
+    try {
+        Reflect.set(Input, "controllersDisabled", false);
+        Object.defineProperty(navigator, "getGamepads", {
+            configurable: true,
+            value: () => {
+                if (fail) throw new Error("label enumeration");
+                return pads;
+            }
+        });
+        Storage.prototype.setItem = function (key, value) {
+            writes++;
+            return nativeSet.call(this, key, value);
+        };
+        Object.defineProperty(main, "notifyInputMappingChanged", {
+            configurable: true,
+            value: () => {
+                notifications++;
+                return { saved: false, reason: "unavailable" };
+            }
+        });
+        sample(false);
+        pads = [null, null, null, pad];
+        sample(true);
+        assert(input.getControllerCount() === 1 && input.getControllerMapping(0) === "standard", "Sparse browser indexes must become dense Slick slots");
+        pads = [null, pad, null, second];
+        sample(true);
+        second.mapping = "";
+        sample(false);
+        pads = [second, null, pad];
+        sample(false);
+        pad.mapping = "";
+        sample(false);
+        pads = [pad];
+        pad.mapping = "standard";
+        sample(true);
+        pad.mapping = "";
+        sample(false);
+        pad.mapping = "standard";
+        sample(true);
+        const topology = input.getControllerSampleStatus().topologyGeneration;
+        fail = true;
+        sample(false);
+        assert(input.getControllerSampleStatus().topologyGeneration === topology, "Invalid sample changed topology fixture");
+        fail = false;
+        sample(true);
+        Input.disableControllers();
+        sample(false);
+        Reflect.set(Input, "controllersDisabled", false);
+        sample(true);
+        input.poll(1024, 960);
+        for (const raw of [0, 12, 13, 14, 15, 17, 63]) {
+            pad.buttons[raw]!.pressed = true;
+            pad.buttons[raw]!.value = 1;
+            input.poll(1024, 960);
+            assert(input.isButtonPressed(raw, 0), "Fresh physical button before label draw");
+            const control = raw >= 12 && raw <= 15 ? [2, 3, 0, 1][raw - 12]! : 4 + raw;
+            draw(true);
+            assert(input.isButtonPressed(raw, 0) && input.isControlPressed(control, 0), `Label draw changed physical level or drained edge ${raw}`);
+            assert(!input.isControlPressed(control, 0), "Press must remain consumptive");
+            pad.buttons[raw]!.pressed = false;
+            pad.buttons[raw]!.value = 0;
+            input.poll(1024, 960);
+        }
+        pads = [];
+        sample(false);
+    } finally {
+        for (const b of pad.buttons) {
+            b.pressed = false;
+            b.value = 0;
+        }
+        fail = false;
+        pads = [];
+        input.poll(1024, 960);
+        if (provider) Object.defineProperty(navigator, "getGamepads", provider);
+        else Reflect.deleteProperty(navigator, "getGamepads");
+        Reflect.set(Input, "controllersDisabled", disabled);
+        Storage.prototype.setItem = nativeSet;
+        if (notification) Object.defineProperty(main, "notifyInputMappingChanged", notification);
+        else Reflect.deleteProperty(main, "notifyInputMappingChanged");
+        input.poll(1024, 960);
     }
 }

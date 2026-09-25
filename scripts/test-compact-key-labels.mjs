@@ -31,21 +31,23 @@ try {
         assert.equal(text, key === -1 ? "NONE" : (expected.get(key) ?? `KEY ${key}`));
         assert.ok(text.length > 0 && text.length <= 9);
         assert.match(text, /^[A-Z0-9 ]+$/);
-        for (const binding of [-5, -4, -3, -2, -1, ...Array.from({ length: 64 }, (_, i) => i)]) {
-            const controller = ButtonMapping.getGamepadButtonText(binding);
-            if (game === "jackal") {
-                const mapping = new ButtonMapping();
-                mapping.keyGrenade = key;
-                mapping.controllerGrenade = binding;
-                const line = mapping.inputMappingLine("GRENADE", ButtonMapping.ACTION_GRENADE);
-                assert.ok(line.length <= 32, line);
-                assert.ok((1024 - line.length * 32) / 2 >= 0);
-            } else {
-                // Pure budget check; actual Main formatter/render coverage is also required below.
-                const line = "ATTACK".padEnd(7, " ") + "= " + text + ", " + controller;
-                assert.ok(line.length <= 32, line);
-                const x = Math.max(64, (640 - line.length * 16) >> 1);
-                assert.ok(x >= 64 && x + line.length * 16 <= 576, line);
+        for (const standardLayout of [false, true]) {
+            for (const binding of [-5, -4, -3, -2, -1, ...Array.from({ length: 64 }, (_, i) => i)]) {
+                const controller = ButtonMapping.getGamepadButtonText(binding, standardLayout);
+                if (game === "jackal") {
+                    const mapping = new ButtonMapping();
+                    mapping.keyGrenade = key;
+                    mapping.controllerGrenade = binding;
+                    const line = mapping.inputMappingLine("GRENADE", ButtonMapping.ACTION_GRENADE, standardLayout);
+                    assert.ok(line.length <= 32, line);
+                    assert.ok((1024 - line.length * 32) / 2 >= 0);
+                } else {
+                    // Pure budget check; actual Main formatter/render coverage is also required below.
+                    const line = "ATTACK".padEnd(7, " ") + "= " + text + ", " + controller;
+                    assert.ok(line.length <= 32, line);
+                    const x = Math.max(64, (640 - line.length * 16) >> 1);
+                    assert.ok(x >= 64 && x + line.length * 16 <= 576, line);
+                }
             }
         }
     }

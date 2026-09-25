@@ -317,6 +317,7 @@ export class Main extends BasicGame {
     private titleBatSteps: number = 0;
     private titleMenu: number = Main.TITLE_MENU_MAIN;
     private titleSelectedIndex: number = 0;
+    private static readonly titleInputLabelStyles = new WeakMap<Main, boolean>();
     private titleInputMappingLines: string[] = makeArray<string>(Main.TITLE_INPUT_ACTIONS.length, () => "");
     private titleInputMappingX: number = 64;
     private titleInputMappingCacheDirty: boolean = true;
@@ -3854,7 +3855,7 @@ export class Main extends BasicGame {
         if (this.titleMenu == Main.TITLE_MENU_INPUT) {
             g.setColor(Color.white);
             g.fillRect(64, 32, 512, 416);
-            this.renderTitleInputMenu();
+            this.renderTitleInputMenu(gc);
             return;
         }
 
@@ -3976,9 +3977,9 @@ export class Main extends BasicGame {
         this.drawTitleHeart(optionX - 32, Main.MENU_THREE_OPTION_Y);
     }
 
-    private renderTitleInputMenu(): void {
+    private renderTitleInputMenu(gc: GameContainer): void {
         this.drawCenteredString("INPUT", Main.TITLE_INPUT_TITLE_Y);
-        this.updateTitleInputMappingCache();
+        this.updateTitleInputMappingCache(ButtonMapping.usesStandardGamepadLabels(gc.getInput()));
         const mappingX = this.titleInputMappingX;
         for (let i: number = 0; i < Main.TITLE_INPUT_ACTIONS.length; i++) {
             this.drawString(this.titleInputMappingLines[i], mappingX, Main.TITLE_INPUT_MAPPING_Y + i * Main.TITLE_INPUT_MAPPING_ROW_HEIGHT);
@@ -4005,22 +4006,23 @@ export class Main extends BasicGame {
         this.titleInputMappingCacheDirty = true;
     }
 
-    private updateTitleInputMappingCache(): void {
-        if (!this.titleInputMappingCacheDirty) {
-            return;
-        }
-        let maxLength: number = 0;
-        for (let i: number = 0; i < Main.TITLE_INPUT_ACTIONS.length; i++) {
-            const line = this.createInputMappingLine(Main.TITLE_INPUT_ACTIONS[i]);
+    private updateTitleInputMappingCache(standardLayout: boolean = Main.titleInputLabelStyles.get(this) ?? false): void {
+        if (!this.titleInputMappingCacheDirty && Main.titleInputLabelStyles.get(this) === standardLayout) return;
+        let maxLength = 0;
+        for (let i = 0; i < Main.TITLE_INPUT_ACTIONS.length; i++) {
+            const line = this.createInputMappingLine(Main.TITLE_INPUT_ACTIONS[i], standardLayout);
             this.titleInputMappingLines[i] = line;
             maxLength = Math.max(maxLength, line.length);
         }
         this.titleInputMappingX = Math.max(64, this.centerTextX(maxLength));
         this.titleInputMappingCacheDirty = false;
+        Main.titleInputLabelStyles.set(this, standardLayout);
     }
 
-    private createInputMappingLine(action: string): string {
-        return action.padEnd(7, " ") + "= " + this.buttonMapping.keyboardLabelFor(action) + ", " + this.buttonMapping.controllerLabelFor(action);
+    private createInputMappingLine(action: string, standardLayout: boolean = false): string {
+        return (
+            action.padEnd(7, " ") + "= " + this.buttonMapping.keyboardLabelFor(action) + ", " + this.buttonMapping.controllerLabelFor(action, standardLayout)
+        );
     }
 
     private drawCenteredString(text: string, y: number): void {

@@ -34,7 +34,8 @@ public final class ControllerSupportTest {
     if (scenario.endsWith("-buttons") || scenario.equals("pov-only")) {
       verifyLayout(pad, scenario);
       check(environment.enumerations == 1, "Layout discovery stays startup-only");
-      System.out.println("ok - native layout " + scenario); return;
+      System.out.println("ok - native layout " + scenario);
+      return;
     }
     if (scenario.equals("empty")) {
       environment.controllers = new Controller[] {pad};
@@ -43,11 +44,6 @@ public final class ControllerSupportTest {
       for (int i = 0; i < 2000; i++) {
         ControllerSupport.beginFrame();
         ControllerSupport.initialize();
-    if (scenario.endsWith("-buttons") || scenario.equals("pov-only")) {
-      verifyLayout(pad, scenario);
-      check(environment.enumerations == 1, "Layout discovery stays startup-only");
-      System.out.println("ok - native layout " + scenario); return;
-    }
         check(!ControllerSupport.isUpDown(), "No stale direction without a pad");
         check(!ControllerSupport.isButtonDown(0), "No stale button without a pad");
       }
@@ -132,11 +128,6 @@ public final class ControllerSupportTest {
         for (int i = 0; i < 1000; i++) {
           ControllerSupport.beginFrame();
           ControllerSupport.initialize();
-    if (scenario.endsWith("-buttons") || scenario.equals("pov-only")) {
-      verifyLayout(pad, scenario);
-      check(environment.enumerations == 1, "Layout discovery stays startup-only");
-      System.out.println("ok - native layout " + scenario); return;
-    }
         }
         check(pad.polls == polls, "A failed device must not become a retry loop");
       }

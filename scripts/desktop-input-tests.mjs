@@ -4,6 +4,7 @@ import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
+const preferencesSource = fileURLToPath(new URL("../desktop/test/stickvania/MappingPreferenceVersionTest.java", import.meta.url));
 const labelsSource = fileURLToPath(new URL("../desktop/test/stickvania/CompactKeyLabelsTest.java", import.meta.url));
 const policySource = fileURLToPath(new URL("../desktop/test/stickvania/NativeDpadPolicyTest.java", import.meta.url));
 const profileSource = fileURLToPath(new URL("../desktop/test/stickvania/NesControllerMappingTest.java", import.meta.url));
@@ -31,7 +32,17 @@ export function runDesktopInputTests({ classesDir, classpath, releaseArgs }) {
             testSource,
             profileSource,
             policySource,
-            labelsSource
+            labelsSource,
+            preferencesSource
+        ]);
+        run("java", [
+            "-Djava.awt.headless=true",
+            "-Djava.util.prefs.PreferencesFactory=stickvania.MappingPreferenceVersionTest$MemoryFactory",
+            "-cp",
+            `${testClasses}${delimiter}${productionClasspath}`,
+            "stickvania.MappingPreferenceVersionTest",
+            "9",
+            "8"
         ]);
         // JInput discovery is process-wide, so each scenario needs a fresh JVM.
         for (const scenario of [
