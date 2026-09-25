@@ -1,3 +1,4 @@
+import * as NesInputProfile from "./NesInputProfile.js";
 import { captureAndWriteSnapshot, readCurrentJson } from "../app/BrowserPersistence.js";
 import { Input } from "slick2d-ts";
 import { getBrowserStorageKey } from "./BrowserStorageKeys.js";
@@ -23,13 +24,13 @@ type ButtonMappingSnapshot = {
 
 export class ButtonMapping {
     private static readonly STORAGE_KEY = getBrowserStorageKey("input-mapping");
-    private static readonly VERSION = 7;
+    private static readonly VERSION = 8;
 
-    public static readonly NO_BINDING = -1;
-    public static readonly CONTROLLER_DIRECTION_UP = -2;
-    public static readonly CONTROLLER_DIRECTION_DOWN = -3;
-    public static readonly CONTROLLER_DIRECTION_LEFT = -4;
-    public static readonly CONTROLLER_DIRECTION_RIGHT = -5;
+    public static readonly NO_BINDING = NesInputProfile.NO_BINDING;
+    public static readonly CONTROLLER_DIRECTION_UP = NesInputProfile.DIRECTION_UP;
+    public static readonly CONTROLLER_DIRECTION_DOWN = NesInputProfile.DIRECTION_DOWN;
+    public static readonly CONTROLLER_DIRECTION_LEFT = NesInputProfile.DIRECTION_LEFT;
+    public static readonly CONTROLLER_DIRECTION_RIGHT = NesInputProfile.DIRECTION_RIGHT;
     private static readonly DEFAULT_KEY_JUMP = Input.KEY_X;
     private static readonly DEFAULT_KEY_ATTACK = Input.KEY_Z;
     private static readonly DEFAULT_KEY_UP = Input.KEY_UP;
@@ -265,12 +266,7 @@ export class ButtonMapping {
     }
 
     public static isControllerDirection(value: number): boolean {
-        return (
-            value === ButtonMapping.CONTROLLER_DIRECTION_UP ||
-            value === ButtonMapping.CONTROLLER_DIRECTION_DOWN ||
-            value === ButtonMapping.CONTROLLER_DIRECTION_LEFT ||
-            value === ButtonMapping.CONTROLLER_DIRECTION_RIGHT
-        );
+        return NesInputProfile.isLogicalDirection(value);
     }
 
     public static isValidKeyBinding(value: unknown): value is number {
@@ -282,19 +278,7 @@ export class ButtonMapping {
     }
 
     public static isValidControllerBinding(value: unknown): value is number {
-        return (
-            typeof value === "number" &&
-            Number.isInteger(value) &&
-            (value === ButtonMapping.NO_BINDING || ButtonMapping.isControllerDirection(value) || (value >= 0 && value < Input.BROWSER_CONTROLLER_BUTTON_LIMIT))
-        );
-    }
-
-    public static isValidControllerActionBinding(value: unknown): value is number {
-        return (
-            typeof value === "number" &&
-            Number.isInteger(value) &&
-            (value === ButtonMapping.NO_BINDING || (value >= 0 && value < Input.BROWSER_CONTROLLER_BUTTON_LIMIT))
-        );
+        return NesInputProfile.isControllerBinding(value);
     }
 
     public static isValidBinding(value: unknown): value is number {
@@ -358,8 +342,8 @@ export class ButtonMapping {
             ButtonMapping.isValidKeyBinding(value.keyDown) &&
             ButtonMapping.isValidKeyBinding(value.keyLeft) &&
             ButtonMapping.isValidKeyBinding(value.keyRight) &&
-            ButtonMapping.isValidControllerActionBinding(value.controllerJump) &&
-            ButtonMapping.isValidControllerActionBinding(value.controllerAttack) &&
+            ButtonMapping.isValidControllerBinding(value.controllerJump) &&
+            ButtonMapping.isValidControllerBinding(value.controllerAttack) &&
             ButtonMapping.isValidControllerBinding(value.controllerUp) &&
             ButtonMapping.isValidControllerBinding(value.controllerDown) &&
             ButtonMapping.isValidControllerBinding(value.controllerLeft) &&
@@ -377,18 +361,7 @@ export class ButtonMapping {
     }
 
     public copyFrom(source: ButtonMapping): void {
-        this.keyJump = source.keyJump;
-        this.keyAttack = source.keyAttack;
-        this.keyUp = source.keyUp;
-        this.keyDown = source.keyDown;
-        this.keyLeft = source.keyLeft;
-        this.keyRight = source.keyRight;
-        this.controllerJump = source.controllerJump;
-        this.controllerAttack = source.controllerAttack;
-        this.controllerUp = source.controllerUp;
-        this.controllerDown = source.controllerDown;
-        this.controllerLeft = source.controllerLeft;
-        this.controllerRight = source.controllerRight;
+        NesInputProfile.copyInto(source, this);
     }
 
     public clone(): ButtonMapping {

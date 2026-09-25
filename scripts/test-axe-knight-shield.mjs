@@ -170,7 +170,7 @@ try {
         main.weaponsStack.top = weapons.length - 1;
     }
 
-    assert.equal(GAME_STATE_VERSION, 18);
+    assert.equal(GAME_STATE_VERSION, 19);
     assert.match(GAME_STATE_STORAGE_KEY, /:game-state$/);
     assert.ok(THING_PERSISTED_STATE_FIELD_NAMES.AxeKnight.includes("shieldReflectionsRemaining"));
     for (const field of ["state", "vx", "g", "direction", "shieldBlockedBy"]) {

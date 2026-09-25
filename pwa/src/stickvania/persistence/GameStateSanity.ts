@@ -52,7 +52,7 @@ const TOP_LEVEL_FIELDS = ["version", "appVersion", "savedAt", "mode", "mainField
 const AUDIO_FIELDS = ["currentSong", "requestedSong", "currentMusic", "songs", "sounds"] as const;
 const SONG_FIELDS = ["id", "playing", "intro", "loop"] as const;
 const MUSIC_FIELDS = ["id", "playback"] as const;
-const INPUT_CONFIG_FIELDS = ["stepIndex", "doneDelay", "armDelay", "message", "finished", "draft", "assignedKeys", "assignedControllerButtons"] as const;
+const INPUT_CONFIG_FIELDS = ["stepIndex", "doneDelay", "armDelay", "message", "finished", "draft", "assignedKeys", "assignedControllerBindings"] as const;
 const INPUT_DRAFT_FIELDS = [
     "keyJump",
     "keyAttack",
@@ -270,7 +270,7 @@ function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): bool
         typeof snapshot.finished === "boolean" &&
         isReasonableValue(snapshot.draft, "draft", 0) &&
         isReasonableValue(snapshot.assignedKeys, "assignedKeys", 0) &&
-        isReasonableValue(snapshot.assignedControllerButtons, "assignedControllerButtons", 0) &&
+        isReasonableValue(snapshot.assignedControllerBindings, "assignedControllerBindings", 0) &&
         isInputConfigModeSnapshot(snapshot)
     );
 }

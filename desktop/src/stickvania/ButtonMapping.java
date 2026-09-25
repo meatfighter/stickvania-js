@@ -5,12 +5,12 @@ import org.newdawn.slick.Input;
 
 public class ButtonMapping {
 
-  private static final int VERSION = 7;
-  public static final int NO_BINDING = -1;
-  public static final int CONTROLLER_DIRECTION_UP = -2;
-  public static final int CONTROLLER_DIRECTION_DOWN = -3;
-  public static final int CONTROLLER_DIRECTION_LEFT = -4;
-  public static final int CONTROLLER_DIRECTION_RIGHT = -5;
+  private static final int VERSION = 8;
+  public static final int NO_BINDING = NesInputProfile.NO_BINDING;
+  public static final int CONTROLLER_DIRECTION_UP = NesInputProfile.DIRECTION_UP;
+  public static final int CONTROLLER_DIRECTION_DOWN = NesInputProfile.DIRECTION_DOWN;
+  public static final int CONTROLLER_DIRECTION_LEFT = NesInputProfile.DIRECTION_LEFT;
+  public static final int CONTROLLER_DIRECTION_RIGHT = NesInputProfile.DIRECTION_RIGHT;
 
   private static final int DEFAULT_KEY_JUMP = Input.KEY_X;
   private static final int DEFAULT_KEY_ATTACK = Input.KEY_Z;
@@ -244,5 +244,8 @@ public class ButtonMapping {
       }
     }
     return builder.toString().trim();
+  }
+  public static boolean isValidControllerBinding(int binding) {
+    return NesInputProfile.isControllerBinding(binding);
   }
 }

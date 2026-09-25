@@ -33,7 +33,7 @@ const mainStateFieldPolicySourcePath = join(rootDir, "pwa", "src", "stickvania",
 const gameStateStoreSourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "StickvaniaGameStateStore.ts");
 const thingTypeRegistrySourcePath = join(rootDir, "pwa", "src", "stickvania", "persistence", "ThingTypeRegistry.ts");
 const inputMappingStorageKey = expectedBrowserStorageKey("input-mapping");
-const inputMappingVersion = 7;
+const inputMappingVersion = 8;
 const tempRoot = join(rootDir, "scripts", ".verify-pwa-release-temp");
 const versionInfo = readVersion();
 const cacheVersion = `${versionInfo.version}-${versionInfo.buildStamp}`;
@@ -316,6 +316,7 @@ async function importButtonMapping() {
     rmSync(outputDirectory, { recursive: true, force: true });
     mkdirSync(outputDirectory, { recursive: true });
     writeTranspiledModule(browserStorageKeysSourcePath, browserStorageKeysOutputPath);
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "NesInputProfile.ts"), join(outputDirectory, "NesInputProfile.js"));
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ButtonMapping.ts"), outputPath);
 
     return import(`${pathToFileURL(outputPath).href}?v=${Date.now()}`);
@@ -342,6 +343,7 @@ async function importStickvaniaInput() {
     rmSync(outputDirectory, { recursive: true, force: true });
     mkdirSync(outputDirectory, { recursive: true });
     writeTranspiledModule(browserStorageKeysSourcePath, browserStorageKeysOutputPath);
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "NesInputProfile.ts"), join(outputDirectory, "NesInputProfile.js"));
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ButtonMapping.ts"), buttonMappingOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ControllerSupport.ts"), controllerSupportOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "PlayerActionPolicy.ts"), playerActionPolicyOutputPath);
@@ -366,6 +368,7 @@ async function importGameStatePreflight() {
     mkdirSync(persistenceOutputDirectory, { recursive: true });
     writeTranspiledModule(audioRegistrySourcePath, audioRegistryOutputPath);
     writeTranspiledModule(browserStorageKeysSourcePath, browserStorageKeysOutputPath);
+    writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "NesInputProfile.ts"), join(outputDirectory, "NesInputProfile.js"));
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ButtonMapping.ts"), buttonMappingOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ControllerSupport.ts"), controllerSupportOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "InputConfigMode.ts"), inputConfigModeOutputPath);
@@ -987,7 +990,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const builtSource = builtJavaScript();
 
     assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 18;/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 19;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);

@@ -11,8 +11,10 @@ import org.newdawn.slick.SlickException;
 
 public class InputConfigMode implements KeyListener {
 
-  private static final String[] STEPS = {
-      "UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK" };
+  private static final String[] STEPS = new String[NesInputProfile.ACTIVE_COUNT];
+  static {
+    for (int i = 0; i < STEPS.length; i++) STEPS[i] = NesInputProfile.label(i);
+  }
   private static final int DONE_DELAY = 30;
   private static final int ARM_DELAY = 8;
   private static final String PROMPT_LINE_1 = "ON EITHER YOUR KEYBOARD";
@@ -23,7 +25,7 @@ public class InputConfigMode implements KeyListener {
   private static final int ERROR_Y = 280;
   private final Main main;
   private final Set<Integer> assignedKeys = new HashSet<Integer>();
-  private final Set<Integer> assignedControllerButtons = new HashSet<Integer>();
+  private final Set<Integer> assignedControllerBindings = new HashSet<Integer>();
   private final Set<Integer> blockedKeysUntilRelease = new HashSet<Integer>();
   private final boolean[] controllerButtonDown =
       new boolean[ControllerSupport.GAMEPAD_BUTTON_INDEX_LIMIT];
@@ -39,27 +41,12 @@ public class InputConfigMode implements KeyListener {
   private boolean controllerRightDown;
   private boolean captureEpochUsed;
   private boolean awaitingControllerNeutral;
-  private MappingDraft draft;
+  private ButtonMapping draft;
 
   private static final class ControllerCaptureSample {
     int direction = ButtonMapping.NO_BINDING;
     int button = ButtonMapping.NO_BINDING;
     boolean anyDown;
-  }
-
-  private static final class MappingDraft {
-    int keyJump;
-    int keyAttack;
-    int keyUp;
-    int keyDown;
-    int keyLeft;
-    int keyRight;
-    int controllerJump;
-    int controllerAttack;
-    int controllerUp;
-    int controllerDown;
-    int controllerLeft;
-    int controllerRight;
   }
 
   public InputConfigMode(Main main) {
@@ -71,7 +58,7 @@ public class InputConfigMode implements KeyListener {
     input.addKeyListener(this);
     draft = createDraft();
     assignedKeys.clear();
-    assignedControllerButtons.clear();
+    assignedControllerBindings.clear();
     syncControllerInputState();
     main.clearInputPressedRecords();
   }
@@ -169,26 +156,12 @@ public class InputConfigMode implements KeyListener {
       return;
     }
 
-    if (sample.direction != ButtonMapping.NO_BINDING && !isActionStep()) {
-      if (!bindControllerButton(sample.direction)) {
-        message = "ALREADY USED";
-        return;
-      }
-      captureEpochUsed = true;
-      awaitingControllerNeutral = sample.anyDown;
-      advance();
-      return;
-    }
-
-    if (sample.button != ButtonMapping.NO_BINDING) {
-      if (!bindControllerButton(sample.button)) {
-        message = "ALREADY USED";
-        return;
-      }
-      captureEpochUsed = true;
-      awaitingControllerNeutral = sample.anyDown;
-      advance();
-    }
+    int binding = sample.direction != ButtonMapping.NO_BINDING ? sample.direction : sample.button;
+    if (binding == ButtonMapping.NO_BINDING) return;
+    if (!bindControllerBinding(binding)) { message = "ALREADY USED"; return; }
+    captureEpochUsed = true;
+    awaitingControllerNeutral = sample.anyDown;
+    advance();
   }
 
   private ControllerCaptureSample sampleControllerInputState() {
@@ -225,8 +198,7 @@ public class InputConfigMode implements KeyListener {
       anyButtonDown |= buttonDown;
       if (sample.button == ButtonMapping.NO_BINDING
           && pressed
-          && ControllerSupport.isNonDirectionalButtonDown(button)
-          && !isDraftDirectionButton(button)) {
+          && ControllerSupport.isNonDirectionalButtonDown(button)) {
         sample.button = button;
       }
     }
@@ -234,134 +206,20 @@ public class InputConfigMode implements KeyListener {
     return sample;
   }
 
-  private int getPressedControllerDirection() {
-    return sampleControllerInputState().direction;
-  }
-
-  private int getPressedNonDirectionalControllerButton() {
-    return sampleControllerInputState().button;
-  }
-
   private boolean bindKey(int key) {
-    if (assignedKeys.contains(key)) {
-      return false;
-    }
-    clearDraftKey(key);
-    String step = getCurrentStep();
-    if ("UP".equals(step)) {
-      draft.keyUp = key;
-    } else if ("DOWN".equals(step)) {
-      draft.keyDown = key;
-    } else if ("LEFT".equals(step)) {
-      draft.keyLeft = key;
-    } else if ("RIGHT".equals(step)) {
-      draft.keyRight = key;
-    } else if ("JUMP".equals(step)) {
-      draft.keyJump = key;
-    } else if ("ATTACK".equals(step)) {
-      draft.keyAttack = key;
-    }
-    assignedKeys.add(key);
-    return true;
+    return NesInputProfile.assignKey(draft, stepIndex, key, assignedKeys);
   }
 
-  private boolean bindControllerButton(int button) {
-    if (assignedControllerButtons.contains(button)) {
-      return false;
-    }
-    clearDraftControllerButton(button);
-    String step = getCurrentStep();
-    if ("UP".equals(step)) {
-      draft.controllerUp = button;
-    } else if ("DOWN".equals(step)) {
-      draft.controllerDown = button;
-    } else if ("LEFT".equals(step)) {
-      draft.controllerLeft = button;
-    } else if ("RIGHT".equals(step)) {
-      draft.controllerRight = button;
-    } else if ("JUMP".equals(step)) {
-      draft.controllerJump = button;
-    } else if ("ATTACK".equals(step)) {
-      draft.controllerAttack = button;
-    }
-    assignedControllerButtons.add(button);
-    return true;
+  private boolean bindControllerBinding(int button) {
+    return NesInputProfile.assignController(draft, stepIndex, button, assignedControllerBindings);
   }
 
-  private MappingDraft createDraft() {
-    ButtonMapping mapping = main.buttonMapping;
-    MappingDraft draft = new MappingDraft();
-    draft.keyJump = mapping.keyJump;
-    draft.keyAttack = mapping.keyAttack;
-    draft.keyUp = mapping.keyUp;
-    draft.keyDown = mapping.keyDown;
-    draft.keyLeft = mapping.keyLeft;
-    draft.keyRight = mapping.keyRight;
-    draft.controllerJump = mapping.controllerJump;
-    draft.controllerAttack = mapping.controllerAttack;
-    draft.controllerUp = mapping.controllerUp;
-    draft.controllerDown = mapping.controllerDown;
-    draft.controllerLeft = mapping.controllerLeft;
-    draft.controllerRight = mapping.controllerRight;
-    return draft;
-  }
-
-  private void clearDraftKey(int key) {
-    if (draft.keyJump == key) {
-      draft.keyJump = ButtonMapping.NO_BINDING;
-    }
-    if (draft.keyAttack == key) {
-      draft.keyAttack = ButtonMapping.NO_BINDING;
-    }
-    if (draft.keyUp == key) {
-      draft.keyUp = ButtonMapping.NO_BINDING;
-    }
-    if (draft.keyDown == key) {
-      draft.keyDown = ButtonMapping.NO_BINDING;
-    }
-    if (draft.keyLeft == key) {
-      draft.keyLeft = ButtonMapping.NO_BINDING;
-    }
-    if (draft.keyRight == key) {
-      draft.keyRight = ButtonMapping.NO_BINDING;
-    }
-  }
-
-  private void clearDraftControllerButton(int button) {
-    if (draft.controllerJump == button) {
-      draft.controllerJump = ButtonMapping.NO_BINDING;
-    }
-    if (draft.controllerAttack == button) {
-      draft.controllerAttack = ButtonMapping.NO_BINDING;
-    }
-    if (draft.controllerUp == button) {
-      draft.controllerUp = ButtonMapping.NO_BINDING;
-    }
-    if (draft.controllerDown == button) {
-      draft.controllerDown = ButtonMapping.NO_BINDING;
-    }
-    if (draft.controllerLeft == button) {
-      draft.controllerLeft = ButtonMapping.NO_BINDING;
-    }
-    if (draft.controllerRight == button) {
-      draft.controllerRight = ButtonMapping.NO_BINDING;
-    }
+  private ButtonMapping createDraft() {
+    return NesInputProfile.copy(main.buttonMapping);
   }
 
   private void commitDraft() {
-    ButtonMapping mapping = main.buttonMapping;
-    mapping.keyJump = draft.keyJump;
-    mapping.keyAttack = draft.keyAttack;
-    mapping.keyUp = draft.keyUp;
-    mapping.keyDown = draft.keyDown;
-    mapping.keyLeft = draft.keyLeft;
-    mapping.keyRight = draft.keyRight;
-    mapping.controllerJump = draft.controllerJump;
-    mapping.controllerAttack = draft.controllerAttack;
-    mapping.controllerUp = draft.controllerUp;
-    mapping.controllerDown = draft.controllerDown;
-    mapping.controllerLeft = draft.controllerLeft;
-    mapping.controllerRight = draft.controllerRight;
+    NesInputProfile.copyInto(draft, main.buttonMapping);
   }
 
   private void advance() {
@@ -389,20 +247,8 @@ public class InputConfigMode implements KeyListener {
     return STEPS[stepIndex];
   }
 
-  private boolean isActionStep() {
-    String step = getCurrentStep();
-    return "JUMP".equals(step) || "ATTACK".equals(step);
-  }
-
   private int centerX(String text) {
     return (640 - (text.length() << 4)) >> 1;
-  }
-
-  private boolean isDraftDirectionButton(int button) {
-    return draft.controllerUp == button
-        || draft.controllerDown == button
-        || draft.controllerLeft == button
-        || draft.controllerRight == button;
   }
 
   private void syncControllerInputState() {

@@ -81,8 +81,8 @@ try {
     assert.equal(isWithinStickvaniaGameStateValidationBudget(new Array(524_289).fill(null)), false);
     assert.equal(isWithinStickvaniaGameStateValidationBudget("x".repeat(1_500_001)), false);
 
-    assert.equal(ButtonMapping.isValidControllerActionBinding(63), true);
-    assert.equal(ButtonMapping.isValidControllerActionBinding(64), false);
+    assert.equal(ButtonMapping.isValidControllerBinding(63), true);
+    assert.equal(ButtonMapping.isValidControllerBinding(64), false);
     assert.equal(ButtonMapping.isValidControllerBinding(63), true);
     assert.equal(ButtonMapping.isValidControllerBinding(64), false);
     assert.equal(ButtonMapping.isValidKeyBinding(999), false);
@@ -187,7 +187,7 @@ try {
     );
 
     const snapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
-    assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v18 must not persist derived StopWatch aggregate state");
+    assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v19 must not persist derived StopWatch aggregate state");
     assert.equal(isReasonableStickvaniaGameStateSnapshot(snapshot), true);
 
     for (const timeIncrementor of [0, 90]) {
@@ -416,7 +416,7 @@ try {
 
     assert.deepEqual(
         Object.keys(liveInputConfigSnapshot).sort(),
-        ["armDelay", "assignedControllerButtons", "assignedKeys", "doneDelay", "draft", "finished", "message", "stepIndex"].sort(),
+        ["armDelay", "assignedControllerBindings", "assignedKeys", "doneDelay", "draft", "finished", "message", "stepIndex"].sort(),
         "save state must exclude physical controller-down edge state"
     );
 
@@ -465,7 +465,7 @@ try {
     liveInputConfig.inputStarted();
     liveInputConfig.bindControllerInputPressed();
     assert.equal(liveInputConfig.stepIndex, 5);
-    assert.deepEqual(liveInputConfig.createSnapshot().assignedControllerButtons, [0]);
+    assert.deepEqual(liveInputConfig.createSnapshot().assignedControllerBindings, [0]);
 
     heldControllerButtonForDuplicate = -1;
     liveInputConfig.inputStarted();
@@ -496,7 +496,7 @@ try {
     chordConfig.inputStarted();
     chordConfig.bindControllerInputPressed();
     assert.equal(chordConfig.stepIndex, 1, "one Up+Right gesture must fill only the UP row");
-    assert.deepEqual(chordConfig.createSnapshot().assignedControllerButtons, [ButtonMapping.CONTROLLER_DIRECTION_UP]);
+    assert.deepEqual(chordConfig.createSnapshot().assignedControllerBindings, [ButtonMapping.CONTROLLER_DIRECTION_UP]);
 
     chordConfig.inputStarted();
     chordConfig.bindControllerInputPressed();
@@ -525,7 +525,7 @@ try {
     mixedChordConfig.inputStarted();
     mixedChordConfig.bindControllerInputPressed();
     assert.equal(mixedChordConfig.stepIndex, 1);
-    assert.deepEqual(mixedChordConfig.createSnapshot().assignedControllerButtons, [ButtonMapping.CONTROLLER_DIRECTION_UP]);
+    assert.deepEqual(mixedChordConfig.createSnapshot().assignedControllerBindings, [ButtonMapping.CONTROLLER_DIRECTION_UP]);
 
     mixedChordConfig.inputStarted();
     mixedChordConfig.bindControllerInputPressed();
@@ -561,7 +561,7 @@ try {
     const capturedRuntimeInputConfig = liveInputConfig.createSnapshot();
     assert.equal(capturedRuntimeInputConfig.message, "ALREADY USED");
     assert.deepEqual(capturedRuntimeInputConfig.assignedKeys, [200, 208, 203, 205]);
-    assert.deepEqual(capturedRuntimeInputConfig.assignedControllerButtons, [0]);
+    assert.deepEqual(capturedRuntimeInputConfig.assignedControllerBindings, [0]);
     assert.equal(Object.hasOwn(capturedRuntimeInputConfig, "controllerButtonDown"), false);
     assert.equal(serializer.isInputConfigSnapshotShape(capturedRuntimeInputConfig), true, "duplicate-button runtime snapshot must validate");
 
@@ -592,7 +592,7 @@ try {
     const roundTrippedInputConfig = restoredInputConfig.createSnapshot();
     assert.equal(roundTrippedInputConfig.message, "ALREADY USED");
     assert.deepEqual(roundTrippedInputConfig.assignedKeys, [200, 208, 203, 205]);
-    assert.deepEqual(roundTrippedInputConfig.assignedControllerButtons, [0]);
+    assert.deepEqual(roundTrippedInputConfig.assignedControllerBindings, [0]);
     assert.equal(Object.hasOwn(roundTrippedInputConfig, "controllerButtonDown"), false);
     assert.equal(serializer.isInputConfigSnapshotShape(roundTrippedInputConfig), true, "restored input-config state must remain valid");
 
@@ -634,7 +634,7 @@ try {
     finishedInputConfig.message = "NOT SAVED";
     finishedInputConfig.finished = true;
     finishedInputConfig.assignedKeys = [200, 208, 203, 205];
-    finishedInputConfig.assignedControllerButtons = [0, 2];
+    finishedInputConfig.assignedControllerBindings = [0, 2];
     assert.equal(serializer.isInputConfigSnapshotShape(finishedInputConfig), true);
 
     const restoredFinishedMapping = new ButtonMapping();
@@ -1139,7 +1139,7 @@ function createInputConfigSnapshot() {
             controllerRight: -5
         },
         assignedKeys: [],
-        assignedControllerButtons: []
+        assignedControllerBindings: []
     };
 }
 

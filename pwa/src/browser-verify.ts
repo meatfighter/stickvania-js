@@ -197,6 +197,7 @@ async function verify(): Promise<void> {
         destroyMounted(second);
         second = null;
         await verifyOrbRestore();
+        await verifyNesMapping();
     } finally {
         destroyMounted(first);
         destroyMounted(second);
@@ -347,7 +348,7 @@ function verifyMappingCompletionPollBoundary(main: Main, container: AppGameConta
                 assert(isInputConfigModeSnapshot(completed), `${label}: current producer emitted invalid editor state.`);
                 assert(writes === 1, `${label}: completion must notify exactly once.`);
                 assert(completed.assignedKeys.length === (scenario.controllerFinal ? 5 : 6), `${label}: wrong keyboard assignment count.`);
-                assert(completed.assignedControllerButtons.length === (scenario.controllerFinal ? 1 : 0), `${label}: wrong controller assignment count.`);
+                assert(completed.assignedControllerBindings.length === (scenario.controllerFinal ? 1 : 0), `${label}: wrong controller assignment count.`);
                 const expectedKeys = scenario.keys.slice(0, 5).map(({ binding }) => binding);
                 expectedKeys.push(scenario.controllerFinal ? defaults.keyAttack : finalKey.binding);
                 const actualKeys = [
@@ -539,7 +540,7 @@ function verifyControllerResume(main: Main, container: AppGameContainer): void {
         input.poll(1024, 960);
         main.updateInputConfig(container);
     };
-    const count = () => main.captureInputConfigModeState()!.assignedControllerButtons.length;
+    const count = () => main.captureInputConfigModeState()!.assignedControllerBindings.length;
     try {
         for (const scenario of ["neutral", "held", "invalid", "replacement"]) {
             held = -1;
@@ -711,5 +712,214 @@ async function verifyOrbRestore(): Promise<void> {
     } finally {
         retire();
         store.clear(() => true);
+    }
+}
+/** Exercise the six-slot transaction through actual browser polling and fresh restore. */
+async function verifyNesMapping(): Promise<void> {
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
+    const pad = {
+        id: "nes-mapping-contract-pad",
+        index: 0,
+        connected: true,
+        mapping: "standard",
+        timestamp: 1,
+        axes: [0, 0],
+        buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 }))
+    };
+    let invalid = false;
+    let mounted: Awaited<ReturnType<typeof mountMain>> | null = null;
+    const store = new StickvaniaGameStateStore("nes-mapping");
+    const serializer = new StickvaniaGameStateSerializer();
+    let writes = 0;
+    const state = () => {
+        const value = mounted?.main.captureInputConfigModeState();
+        assert(value !== null && value !== undefined, "NES fixture lost editor");
+        return value;
+    };
+    const tick = (): void => {
+        assert(mounted !== null, "NES fixture unmounted");
+        pad.timestamp++;
+        mounted.container.getInput().poll(1024, 832);
+        advanceFrames(mounted, 1);
+    };
+    const hardware = (binding: number | null): void => {
+        for (const b of pad.buttons) {
+            b.pressed = b.touched = false;
+            b.value = 0;
+        }
+        if (binding !== null) {
+            const b = pad.buttons[binding < 0 ? 10 - binding : binding]!;
+            b.pressed = b.touched = true;
+            b.value = 1;
+        }
+    };
+    const press = (binding: number): void => {
+        hardware(null);
+        tick();
+        hardware(binding);
+        tick();
+    };
+    const save = (): void => {
+        assert(mounted !== null, "Missing mapping runtime");
+        const snapshot = serializer.createSnapshot(mounted.main, "nes-mapping");
+        assert(
+            serializer.isSupportedSnapshot(snapshot) && serializer.isSupportedSnapshotForLoadedResources(mounted.main, snapshot),
+            "NES editor snapshot invalid"
+        );
+        assert(store.save(mounted.main, () => true).saved, "NES editor save failed");
+        const current = state();
+        assert(isInputConfigModeSnapshot(current), "Invalid partial mapping state");
+        const old = { ...current, assignedControllerButtons: current.assignedControllerBindings } as Record<string, unknown>;
+        delete old.assignedControllerBindings;
+        assert(!isInputConfigModeSnapshot(old), "Old assigned-property alias accepted");
+    };
+    const attachWriter = (main: Main): void => {
+        main.setInputMappingChangedHandler(() => {
+            writes++;
+            return main.buttonMapping.save(() => true);
+        });
+    };
+    const review = (): void => {
+        assert(mounted !== null, "Missing review runtime");
+        assert(
+            mounted.main.mode === Main.MODE_TITLE_SCREEN &&
+                Reflect.get(mounted.main, "titleMenu") === Main.TITLE_MENU_INPUT &&
+                Reflect.get(mounted.main, "titleSelectedIndex") === 2 &&
+                mounted.main.fadeState === Main.FADE_DONE,
+            "Held completion left Input/Done review"
+        );
+    };
+    try {
+        Object.defineProperty(navigator, "getGamepads", {
+            configurable: true,
+            value: () => {
+                if (invalid) throw new Error("Injected enumeration failure");
+                return [pad];
+            }
+        });
+        mounted = await mountMain(null);
+        attachWriter(mounted.main);
+        for (let i = 0; i < 30 && mounted.main.fadeState !== Main.FADE_DONE; i++) tick();
+        const wanted = [7, 6, 3, 0, -2, -3];
+        for (let cycle = 0; cycle < 2; cycle++) {
+            hardware(null);
+            tick();
+            mounted.main.initInputConfig(mounted.container);
+            for (let i = 0; i < INPUT_CONFIG_ARM_DELAY; i++) tick();
+            for (let i = 0; i < wanted.length; i++) {
+                press(wanted[i]!);
+                assert(state().stepIndex === i + 1, `NES capture ${cycle}/${i}`);
+                save();
+            }
+            assert(writes === cycle + 1 && state().finished, "Repeated mapping did not commit once");
+            const loaded = ButtonMapping.load();
+            assert(loaded.controllerJump === -2 && loaded.controllerAttack === -3 && loaded.controllerUp === 7, "Logical mapping did not persist");
+            assert(!Object.hasOwn(loaded, "controllerStart"), "Hidden Start mapping appeared");
+            for (let i = 0; i < INPUT_CONFIG_DONE_DELAY + 3; i++) tick();
+            review();
+        }
+        hardware(null);
+        tick();
+        mounted.main.initInputConfig(mounted.container);
+        for (let i = 0; i < INPUT_CONFIG_ARM_DELAY; i++) tick();
+        press(6);
+        assert(state().draft.controllerDown === -1, "Old future owner not displaced");
+        const before = JSON.stringify(state().draft);
+        press(6);
+        assert(state().message === "ALREADY USED" && state().stepIndex === 1 && JSON.stringify(state().draft) === before, "Duplicate changed draft");
+        save();
+        hardware(null);
+        tick();
+        const oldMain = mounted.main;
+        const authority = oldMain.buttonMapping.clone();
+        destroyMounted(mounted);
+        mounted = null;
+        mounted = await mountMain((fresh, gc) => {
+            fresh.buttonMapping.copyFrom(authority);
+            attachWriter(fresh);
+            assert(store.restore(fresh, gc), "Mid-editor fresh restore failed");
+            assert(fresh !== oldMain, "Reused Main");
+            return true;
+        });
+        assert(state().stepIndex === 1 && state().draft.controllerDown === -1 && writes === 2, "Restore lost draft or committed preferences");
+        assert(sameSnapshot(mounted.main.buttonMapping, authority), "Restore replaced session authority");
+        for (const binding of [7, 0, 3, -3, -2]) {
+            press(binding);
+            save();
+        }
+        assert(Number(writes) === 3 && state().finished, "Fresh transaction failed to finish once");
+        for (let i = 0; i < INPUT_CONFIG_DONE_DELAY + 3; i++) tick();
+        review();
+        press(-3);
+        assert(
+            Reflect.get(mounted.main, "titleMenu") === Main.TITLE_MENU_MAIN && mounted.main.fadeState === Main.FADE_DONE,
+            "Logical A did not activate only Done"
+        );
+        for (let i = 0; i < 3; i++) tick();
+        assert(mounted.main.fadeState === Main.FADE_DONE, "Held Done activation also selected Start");
+        press(-3);
+        assert(
+            mounted.main.fadeState === Main.FADE_OUT && mounted.main.fadeReason === Main.FADE_REASON_SHOW_INTRO,
+            "Second fresh logical A did not select Start"
+        );
+        hardware(null);
+        mounted.container.getInput().poll(1024, 832);
+        mounted.main.buttonMapping.copyFrom(authority);
+        mounted.main.createStageForStateRestore(0);
+        mounted.main.mode = Main.MODE_PLAYING;
+        mounted.main.fadeState = Main.FADE_DONE;
+        mounted.main.playerPower = 16;
+        mounted.main.time = 300;
+        const controls = mounted.main.controlInput;
+        assert(controls !== null && mounted.main.simon !== null, "Missing real gameplay input");
+        controls.clearPressedState();
+        const sample = (): void => {
+            pad.timestamp++;
+            mounted!.container.getInput().poll(1024, 832);
+            controls.update();
+        };
+        hardware(-2);
+        sample();
+        assert(controls.isJump() && !controls.isUp() && controls.isMenuSelectPressed(), "Logical Jump gameplay/menu meaning");
+        hardware(null);
+        sample();
+        hardware(-3);
+        sample();
+        assert(controls.isAttack() && !controls.isDown() && controls.isMenuSelectPressed(), "Logical Attack gameplay/menu meaning");
+        hardware(null);
+        sample();
+        hardware(7);
+        sample();
+        assert(controls.isUp() && controls.isMenuUpPressed() && !controls.isMenuSelectPressed(), "Mapped raw movement also confirmed");
+        hardware(-2);
+        pad.id = "nes-replacement";
+        sample();
+        assert(!controls.isJump(), "Replacement held Jump leaked");
+        invalid = true;
+        hardware(null);
+        sample();
+        invalid = false;
+        hardware(-2);
+        sample();
+        assert(!controls.isJump(), "Invalid enumeration manufactured release");
+        hardware(null);
+        sample();
+        hardware(-2);
+        sample();
+        assert(controls.isJump(), "First fresh replacement Jump lost");
+        controls.clearPressedState();
+        sample();
+        assert(!controls.isJump() && !controls.isMenuSelectPressed(), "Held resume action leaked");
+        hardware(null);
+        sample();
+        hardware(-2);
+        sample();
+        assert(controls.isJump(), "First fresh resume Jump lost");
+    } finally {
+        invalid = false;
+        destroyMounted(mounted);
+        store.clear(() => true);
+        if (descriptor) Object.defineProperty(navigator, "getGamepads", descriptor);
+        else Reflect.deleteProperty(navigator, "getGamepads");
     }
 }

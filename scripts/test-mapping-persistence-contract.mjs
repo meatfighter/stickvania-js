@@ -92,3 +92,41 @@ test("real mapping policy: failed persistence keeps session mapping active and l
         restoreStorage();
     }
 });
+
+test("NES logical actions round-trip; invalid and duplicate bindings preserve last good mapping", () => {
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: s });
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+        s.values.clear();
+        s.clearCalls();
+        const mapping = new ButtonMapping();
+        Object.assign(mapping, { controllerUp: 7, controllerDown: 6, controllerLeft: 3, controllerRight: 0, controllerJump: -2, controllerAttack: -3 });
+        assert.equal(save(mapping).saved, true);
+        const slot = s.calls.set.at(-1);
+        const good = s.values.get(slot);
+        assert.equal(JSON.parse(good).version, 8);
+        assert.deepEqual(load(), mapping);
+        for (const bad of [-6, 64, 0.5, NaN, Infinity, -Infinity, "0", null, -3]) {
+            const invalid = mapping.clone();
+            invalid.controllerJump = bad;
+            assert.equal(save(invalid).saved, false, String(bad));
+            assert.equal(s.values.get(slot), good);
+        }
+        const old = JSON.parse(good);
+        old.version--;
+        s.values.set(slot, JSON.stringify(old));
+        assert.deepEqual(load(), new ButtonMapping());
+        assert.equal(save(mapping).saved, true);
+        assert.deepEqual(load(), mapping);
+        s.faults.set = true;
+        mapping.controllerJump = -5;
+        assert.equal(save(mapping).saved, false);
+        assert.equal(mapping.controllerJump, -5, "failed write changed live mapping");
+        assert.equal(s.values.get(slot), good);
+    } finally {
+        s.faults.set = false;
+        console.warn = warn;
+        restoreStorage();
+    }
+});

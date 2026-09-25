@@ -1,9 +1,10 @@
+import * as NesInputProfile from "./NesInputProfile.js";
 import { Color, type GameContainer, type Graphics, Input, type KeyListener } from "slick2d-ts";
 import { ButtonMapping } from "./ButtonMapping.js";
 import { ControllerSupport } from "./ControllerSupport.js";
 import type { Main } from "./Main.js";
 
-type BindingStep = "UP" | "DOWN" | "LEFT" | "RIGHT" | "JUMP" | "ATTACK";
+type BindingStep = (typeof NesInputProfile.INPUTS)[number]["label"];
 
 type ControllerCaptureSample = {
     readonly direction: number;
@@ -12,24 +13,11 @@ type ControllerCaptureSample = {
     readonly valid: boolean;
 };
 
-export const INPUT_CONFIG_STEP_COUNT = 6;
+export const INPUT_CONFIG_STEP_COUNT = NesInputProfile.INPUTS.length;
 export const INPUT_CONFIG_DONE_DELAY = 30;
 export const INPUT_CONFIG_ARM_DELAY = 8;
 
-export type MappingDraft = {
-    keyJump: number;
-    keyAttack: number;
-    keyUp: number;
-    keyDown: number;
-    keyLeft: number;
-    keyRight: number;
-    controllerJump: number;
-    controllerAttack: number;
-    controllerUp: number;
-    controllerDown: number;
-    controllerLeft: number;
-    controllerRight: number;
-};
+export type MappingDraft = NesInputProfile.MappingFields;
 
 export type InputConfigModeSnapshot = {
     stepIndex: number;
@@ -39,13 +27,13 @@ export type InputConfigModeSnapshot = {
     finished: boolean;
     draft: MappingDraft;
     assignedKeys: number[];
-    assignedControllerButtons: number[];
+    assignedControllerBindings: number[];
 };
 
 export function isInputConfigModeSnapshot(value: unknown): value is InputConfigModeSnapshot {
     if (
         !isPlainRecord(value) ||
-        !hasExactFields(value, ["stepIndex", "doneDelay", "armDelay", "message", "finished", "draft", "assignedKeys", "assignedControllerButtons"])
+        !hasExactFields(value, ["stepIndex", "doneDelay", "armDelay", "message", "finished", "draft", "assignedKeys", "assignedControllerBindings"])
     ) {
         return false;
     }
@@ -70,9 +58,8 @@ export function isInputConfigModeSnapshot(value: unknown): value is InputConfigM
         return false;
     }
 
-    const keyFields = ["keyJump", "keyAttack", "keyUp", "keyDown", "keyLeft", "keyRight"] as const;
-    const controllerActionFields = ["controllerJump", "controllerAttack"] as const;
-    const controllerDirectionFields = ["controllerUp", "controllerDown", "controllerLeft", "controllerRight"] as const;
+    const keyFields = NesInputProfile.KEY_FIELDS;
+    const controllerFields = NesInputProfile.CONTROLLER_FIELDS;
     if (
         !isFiniteInteger(value.stepIndex) ||
         !isFiniteInteger(value.doneDelay) ||
@@ -80,15 +67,11 @@ export function isInputConfigModeSnapshot(value: unknown): value is InputConfigM
         typeof value.message !== "string" ||
         typeof value.finished !== "boolean" ||
         !keyFields.every((field) => ButtonMapping.isValidKeyBinding(draft[field])) ||
-        !controllerActionFields.every((field) => ButtonMapping.isValidControllerActionBinding(draft[field])) ||
-        !controllerDirectionFields.every((field) => ButtonMapping.isValidControllerBinding(draft[field])) ||
+        !controllerFields.every((field) => ButtonMapping.isValidControllerBinding(draft[field])) ||
         !ButtonMapping.hasUniqueNonBindingValues(keyFields.map((field) => draft[field])) ||
-        !ButtonMapping.hasUniqueNonBindingValues([
-            ...controllerActionFields.map((field) => draft[field]),
-            ...controllerDirectionFields.map((field) => draft[field])
-        ]) ||
+        !ButtonMapping.hasUniqueNonBindingValues(controllerFields.map((field) => draft[field])) ||
         !isAssignedKeyArray(value.assignedKeys) ||
-        !isAssignedControllerArray(value.assignedControllerButtons)
+        !isAssignedControllerArray(value.assignedControllerBindings)
     ) {
         return false;
     }
@@ -98,12 +81,12 @@ export function isInputConfigModeSnapshot(value: unknown): value is InputConfigM
 
 export function isInputConfigLogicalStateConsistent(snapshot: InputConfigModeSnapshot): boolean {
     const assignedKeys = snapshot.assignedKeys;
-    const assignedControllerButtons = snapshot.assignedControllerButtons;
-    if (new Set(assignedKeys).size !== assignedKeys.length || new Set(assignedControllerButtons).size !== assignedControllerButtons.length) {
+    const assignedControllerBindings = snapshot.assignedControllerBindings;
+    if (new Set(assignedKeys).size !== assignedKeys.length || new Set(assignedControllerBindings).size !== assignedControllerBindings.length) {
         return false;
     }
 
-    const assignmentCount = assignedKeys.length + assignedControllerButtons.length;
+    const assignmentCount = assignedKeys.length + assignedControllerBindings.length;
     const completedSteps = snapshot.finished ? INPUT_CONFIG_STEP_COUNT : snapshot.stepIndex;
     if (!assignmentsMatchDraft(snapshot, completedSteps)) {
         return false;
@@ -149,12 +132,7 @@ function isAssignedControllerArray(value: unknown): value is number[] {
         Array.isArray(value) &&
         value.length <= INPUT_CONFIG_STEP_COUNT &&
         new Set(value).size === value.length &&
-        value.every(
-            (button) =>
-                isFiniteInteger(button) &&
-                button !== ButtonMapping.NO_BINDING &&
-                (ButtonMapping.isControllerDirection(button) || ButtonMapping.isValidControllerActionBinding(button))
-        )
+        value.every((button) => isFiniteInteger(button) && button !== ButtonMapping.NO_BINDING && ButtonMapping.isValidControllerBinding(button))
     );
 }
 
@@ -173,20 +151,11 @@ function isFiniteInteger(value: unknown): value is number {
 
 function assignmentsMatchDraft(snapshot: InputConfigModeSnapshot, completedSteps: number): boolean {
     const assignedKeys = new Set(snapshot.assignedKeys);
-    const assignedControllers = new Set(snapshot.assignedControllerButtons);
-    const fields = [
-        ["keyUp", "controllerUp"],
-        ["keyDown", "controllerDown"],
-        ["keyLeft", "controllerLeft"],
-        ["keyRight", "controllerRight"],
-        ["keyJump", "controllerJump"],
-        ["keyAttack", "controllerAttack"]
-    ] as const;
-
-    for (let i = 0; i < fields.length; i++) {
-        const [keyField, controllerField] = fields[i];
-        const ownsKey = assignedKeys.has(snapshot.draft[keyField]);
-        const ownsController = assignedControllers.has(snapshot.draft[controllerField]);
+    const assignedControllers = new Set(snapshot.assignedControllerBindings);
+    for (let i = 0; i < NesInputProfile.INPUTS.length; i++) {
+        const row = NesInputProfile.INPUTS[i]!;
+        const ownsKey = assignedKeys.has(snapshot.draft[row.key]);
+        const ownsController = assignedControllers.has(snapshot.draft[row.controller]);
         if (i < completedSteps) {
             if (ownsKey === ownsController) {
                 return false;
@@ -199,7 +168,7 @@ function assignmentsMatchDraft(snapshot: InputConfigModeSnapshot, completedSteps
 }
 
 export class InputConfigMode implements KeyListener {
-    private static readonly STEPS: BindingStep[] = ["UP", "DOWN", "LEFT", "RIGHT", "JUMP", "ATTACK"];
+    private static readonly STEPS: BindingStep[] = NesInputProfile.INPUTS.map((row) => row.label);
     private static readonly DONE_DELAY = INPUT_CONFIG_DONE_DELAY;
     private static readonly ARM_DELAY = INPUT_CONFIG_ARM_DELAY;
     private static readonly PROMPT_LINE_1 = "ON EITHER YOUR KEYBOARD";
@@ -217,7 +186,7 @@ export class InputConfigMode implements KeyListener {
     private finished = false;
     private draft: MappingDraft | null = null;
     private readonly assignedKeys = new Set<number>();
-    private readonly assignedControllerButtons = new Set<number>();
+    private readonly assignedControllerBindings = new Set<number>();
     private controllerButtonDown: boolean[] = [];
     private controllerDirectionDown: boolean[] = [];
     private controllerConnectionGenerations: number[] = [];
@@ -234,7 +203,7 @@ export class InputConfigMode implements KeyListener {
         this.input.addKeyListener(this);
         this.draft = this.createDraft();
         this.assignedKeys.clear();
-        this.assignedControllerButtons.clear();
+        this.assignedControllerBindings.clear();
         this.syncControllerInputState(true);
         this.main.clearInputPressedRecords();
     }
@@ -255,7 +224,7 @@ export class InputConfigMode implements KeyListener {
             finished: this.finished,
             draft: this.cloneDraft(this.draft ?? this.createDraft()),
             assignedKeys: Array.from(this.assignedKeys),
-            assignedControllerButtons: Array.from(this.assignedControllerButtons)
+            assignedControllerBindings: Array.from(this.assignedControllerBindings)
         };
     }
 
@@ -274,9 +243,9 @@ export class InputConfigMode implements KeyListener {
         for (const key of snapshot.assignedKeys) {
             this.assignedKeys.add(key);
         }
-        this.assignedControllerButtons.clear();
-        for (const button of snapshot.assignedControllerButtons) {
-            this.assignedControllerButtons.add(button);
+        this.assignedControllerBindings.clear();
+        for (const button of snapshot.assignedControllerBindings) {
+            this.assignedControllerBindings.add(button);
         }
         // Restoring the editor is never a preference commit. The shell's current
         // session mapping remains authoritative, even if this draft differs.
@@ -387,26 +356,15 @@ export class InputConfigMode implements KeyListener {
             return;
         }
 
-        if (sample.direction !== ButtonMapping.NO_BINDING && !this.isActionStep()) {
-            if (!this.bindControllerButton(sample.direction)) {
-                this.message = "ALREADY USED";
-                return;
-            }
-            this.captureEpochUsed = true;
-            this.awaitingControllerNeutral = sample.anyDown;
-            this.advance();
+        const binding = sample.direction !== ButtonMapping.NO_BINDING ? sample.direction : sample.button;
+        if (binding === ButtonMapping.NO_BINDING) return;
+        if (!this.bindControllerBinding(binding)) {
+            this.message = "ALREADY USED";
             return;
         }
-
-        if (sample.button !== ButtonMapping.NO_BINDING) {
-            if (!this.bindControllerButton(sample.button)) {
-                this.message = "ALREADY USED";
-                return;
-            }
-            this.captureEpochUsed = true;
-            this.awaitingControllerNeutral = sample.anyDown;
-            this.advance();
-        }
+        this.captureEpochUsed = true;
+        this.awaitingControllerNeutral = sample.anyDown;
+        this.advance();
     }
 
     private sampleControllerInputState(suppressEdges: boolean = false): ControllerCaptureSample {
@@ -457,12 +415,7 @@ export class InputConfigMode implements KeyListener {
                     this.controllerButtonDown[stateIndex] = down;
                 }
                 anyDown ||= down;
-                if (
-                    pressedButton === ButtonMapping.NO_BINDING &&
-                    pressed &&
-                    !ControllerSupport.isDirectionalButton(input, button, controller) &&
-                    !this.isDraftDirectionButton(button)
-                ) {
+                if (pressedButton === ButtonMapping.NO_BINDING && pressed && !ControllerSupport.isDirectionalButton(input, button, controller)) {
                     pressedButton = button;
                 }
             }
@@ -483,61 +436,11 @@ export class InputConfigMode implements KeyListener {
     }
 
     private bindKey(key: number): boolean {
-        if (this.assignedKeys.has(key)) {
-            return false;
-        }
-        this.clearDraftKey(key);
-        switch (this.getCurrentStep()) {
-            case "UP":
-                this.draft!.keyUp = key;
-                break;
-            case "DOWN":
-                this.draft!.keyDown = key;
-                break;
-            case "LEFT":
-                this.draft!.keyLeft = key;
-                break;
-            case "RIGHT":
-                this.draft!.keyRight = key;
-                break;
-            case "JUMP":
-                this.draft!.keyJump = key;
-                break;
-            case "ATTACK":
-                this.draft!.keyAttack = key;
-                break;
-        }
-        this.assignedKeys.add(key);
-        return true;
+        return NesInputProfile.assignKey(this.draft!, this.stepIndex, key, this.assignedKeys);
     }
 
-    private bindControllerButton(button: number): boolean {
-        if (this.assignedControllerButtons.has(button)) {
-            return false;
-        }
-        this.clearDraftControllerButton(button);
-        switch (this.getCurrentStep()) {
-            case "UP":
-                this.draft!.controllerUp = button;
-                break;
-            case "DOWN":
-                this.draft!.controllerDown = button;
-                break;
-            case "LEFT":
-                this.draft!.controllerLeft = button;
-                break;
-            case "RIGHT":
-                this.draft!.controllerRight = button;
-                break;
-            case "JUMP":
-                this.draft!.controllerJump = button;
-                break;
-            case "ATTACK":
-                this.draft!.controllerAttack = button;
-                break;
-        }
-        this.assignedControllerButtons.add(button);
-        return true;
+    private bindControllerBinding(button: number): boolean {
+        return NesInputProfile.assignController(this.draft!, this.stepIndex, button, this.assignedControllerBindings);
     }
 
     private createDraft(): MappingDraft {
@@ -562,62 +465,8 @@ export class InputConfigMode implements KeyListener {
         return { ...draft };
     }
 
-    private clearDraftKey(key: number): void {
-        if (this.draft!.keyJump == key) {
-            this.draft!.keyJump = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.keyAttack == key) {
-            this.draft!.keyAttack = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.keyUp == key) {
-            this.draft!.keyUp = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.keyDown == key) {
-            this.draft!.keyDown = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.keyLeft == key) {
-            this.draft!.keyLeft = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.keyRight == key) {
-            this.draft!.keyRight = ButtonMapping.NO_BINDING;
-        }
-    }
-
-    private clearDraftControllerButton(button: number): void {
-        if (this.draft!.controllerJump == button) {
-            this.draft!.controllerJump = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.controllerAttack == button) {
-            this.draft!.controllerAttack = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.controllerUp == button) {
-            this.draft!.controllerUp = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.controllerDown == button) {
-            this.draft!.controllerDown = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.controllerLeft == button) {
-            this.draft!.controllerLeft = ButtonMapping.NO_BINDING;
-        }
-        if (this.draft!.controllerRight == button) {
-            this.draft!.controllerRight = ButtonMapping.NO_BINDING;
-        }
-    }
-
     private commitDraft(): void {
-        const mapping = this.main.buttonMapping;
-        mapping.keyJump = this.draft!.keyJump;
-        mapping.keyAttack = this.draft!.keyAttack;
-        mapping.keyUp = this.draft!.keyUp;
-        mapping.keyDown = this.draft!.keyDown;
-        mapping.keyLeft = this.draft!.keyLeft;
-        mapping.keyRight = this.draft!.keyRight;
-        mapping.controllerJump = this.draft!.controllerJump;
-        mapping.controllerAttack = this.draft!.controllerAttack;
-        mapping.controllerUp = this.draft!.controllerUp;
-        mapping.controllerDown = this.draft!.controllerDown;
-        mapping.controllerLeft = this.draft!.controllerLeft;
-        mapping.controllerRight = this.draft!.controllerRight;
+        NesInputProfile.copyInto(this.draft!, this.main.buttonMapping);
     }
 
     private advance(): void {
@@ -644,22 +493,8 @@ export class InputConfigMode implements KeyListener {
         return InputConfigMode.STEPS[this.stepIndex] ?? InputConfigMode.STEPS[InputConfigMode.STEPS.length - 1];
     }
 
-    private isActionStep(): boolean {
-        const step = this.getCurrentStep();
-        return step === "JUMP" || step === "ATTACK";
-    }
-
     private centerX(text: string): number {
         return (640 - (text.length << 4)) >> 1;
-    }
-
-    private isDraftDirectionButton(button: number): boolean {
-        return (
-            this.draft!.controllerUp === button ||
-            this.draft!.controllerDown === button ||
-            this.draft!.controllerLeft === button ||
-            this.draft!.controllerRight === button
-        );
     }
 
     private resizeControllerRuntimeState(controllerCount: number): void {
