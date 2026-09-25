@@ -1,0 +1,617 @@
+[
+    {
+        "code": 1,
+        "constant": "KEY_ESCAPE",
+        "label": "ESCAPE"
+    },
+    {
+        "code": 2,
+        "constant": "KEY_1",
+        "label": "1"
+    },
+    {
+        "code": 3,
+        "constant": "KEY_2",
+        "label": "2"
+    },
+    {
+        "code": 4,
+        "constant": "KEY_3",
+        "label": "3"
+    },
+    {
+        "code": 5,
+        "constant": "KEY_4",
+        "label": "4"
+    },
+    {
+        "code": 6,
+        "constant": "KEY_5",
+        "label": "5"
+    },
+    {
+        "code": 7,
+        "constant": "KEY_6",
+        "label": "6"
+    },
+    {
+        "code": 8,
+        "constant": "KEY_7",
+        "label": "7"
+    },
+    {
+        "code": 9,
+        "constant": "KEY_8",
+        "label": "8"
+    },
+    {
+        "code": 10,
+        "constant": "KEY_9",
+        "label": "9"
+    },
+    {
+        "code": 11,
+        "constant": "KEY_0",
+        "label": "0"
+    },
+    {
+        "code": 12,
+        "constant": "KEY_MINUS",
+        "label": "MINUS"
+    },
+    {
+        "code": 13,
+        "constant": "KEY_EQUALS",
+        "label": "EQUALS"
+    },
+    {
+        "code": 14,
+        "constant": "KEY_BACK",
+        "label": "BKSP"
+    },
+    {
+        "code": 15,
+        "constant": "KEY_TAB",
+        "label": "TAB"
+    },
+    {
+        "code": 16,
+        "constant": "KEY_Q",
+        "label": "Q"
+    },
+    {
+        "code": 17,
+        "constant": "KEY_W",
+        "label": "W"
+    },
+    {
+        "code": 18,
+        "constant": "KEY_E",
+        "label": "E"
+    },
+    {
+        "code": 19,
+        "constant": "KEY_R",
+        "label": "R"
+    },
+    {
+        "code": 20,
+        "constant": "KEY_T",
+        "label": "T"
+    },
+    {
+        "code": 21,
+        "constant": "KEY_Y",
+        "label": "Y"
+    },
+    {
+        "code": 22,
+        "constant": "KEY_U",
+        "label": "U"
+    },
+    {
+        "code": 23,
+        "constant": "KEY_I",
+        "label": "I"
+    },
+    {
+        "code": 24,
+        "constant": "KEY_O",
+        "label": "O"
+    },
+    {
+        "code": 25,
+        "constant": "KEY_P",
+        "label": "P"
+    },
+    {
+        "code": 26,
+        "constant": "KEY_LBRACKET",
+        "label": "L BRKT"
+    },
+    {
+        "code": 27,
+        "constant": "KEY_RBRACKET",
+        "label": "R BRKT"
+    },
+    {
+        "code": 28,
+        "constant": "KEY_RETURN",
+        "label": "ENTER"
+    },
+    {
+        "code": 29,
+        "constant": "KEY_LCONTROL",
+        "label": "L CTRL"
+    },
+    {
+        "code": 30,
+        "constant": "KEY_A",
+        "label": "A"
+    },
+    {
+        "code": 31,
+        "constant": "KEY_S",
+        "label": "S"
+    },
+    {
+        "code": 32,
+        "constant": "KEY_D",
+        "label": "D"
+    },
+    {
+        "code": 33,
+        "constant": "KEY_F",
+        "label": "F"
+    },
+    {
+        "code": 34,
+        "constant": "KEY_G",
+        "label": "G"
+    },
+    {
+        "code": 35,
+        "constant": "KEY_H",
+        "label": "H"
+    },
+    {
+        "code": 36,
+        "constant": "KEY_J",
+        "label": "J"
+    },
+    {
+        "code": 37,
+        "constant": "KEY_K",
+        "label": "K"
+    },
+    {
+        "code": 38,
+        "constant": "KEY_L",
+        "label": "L"
+    },
+    {
+        "code": 39,
+        "constant": "KEY_SEMICOLON",
+        "label": "SEMICOLON"
+    },
+    {
+        "code": 40,
+        "constant": "KEY_APOSTROPHE",
+        "label": "QUOTE"
+    },
+    {
+        "code": 41,
+        "constant": "KEY_GRAVE",
+        "label": "GRAVE"
+    },
+    {
+        "code": 42,
+        "constant": "KEY_LSHIFT",
+        "label": "L SHIFT"
+    },
+    {
+        "code": 43,
+        "constant": "KEY_BACKSLASH",
+        "label": "BSLASH"
+    },
+    {
+        "code": 44,
+        "constant": "KEY_Z",
+        "label": "Z"
+    },
+    {
+        "code": 45,
+        "constant": "KEY_X",
+        "label": "X"
+    },
+    {
+        "code": 46,
+        "constant": "KEY_C",
+        "label": "C"
+    },
+    {
+        "code": 47,
+        "constant": "KEY_V",
+        "label": "V"
+    },
+    {
+        "code": 48,
+        "constant": "KEY_B",
+        "label": "B"
+    },
+    {
+        "code": 49,
+        "constant": "KEY_N",
+        "label": "N"
+    },
+    {
+        "code": 50,
+        "constant": "KEY_M",
+        "label": "M"
+    },
+    {
+        "code": 51,
+        "constant": "KEY_COMMA",
+        "label": "COMMA"
+    },
+    {
+        "code": 52,
+        "constant": "KEY_PERIOD",
+        "label": "PERIOD"
+    },
+    {
+        "code": 53,
+        "constant": "KEY_SLASH",
+        "label": "SLASH"
+    },
+    {
+        "code": 54,
+        "constant": "KEY_RSHIFT",
+        "label": "R SHIFT"
+    },
+    {
+        "code": 55,
+        "constant": "KEY_MULTIPLY",
+        "label": "NUM MUL"
+    },
+    {
+        "code": 56,
+        "constant": "KEY_LMENU",
+        "label": "L ALT"
+    },
+    {
+        "code": 57,
+        "constant": "KEY_SPACE",
+        "label": "SPACE"
+    },
+    {
+        "code": 58,
+        "constant": "KEY_CAPITAL",
+        "label": "CAPS LOCK"
+    },
+    {
+        "code": 59,
+        "constant": "KEY_F1",
+        "label": "F1"
+    },
+    {
+        "code": 60,
+        "constant": "KEY_F2",
+        "label": "F2"
+    },
+    {
+        "code": 61,
+        "constant": "KEY_F3",
+        "label": "F3"
+    },
+    {
+        "code": 62,
+        "constant": "KEY_F4",
+        "label": "F4"
+    },
+    {
+        "code": 63,
+        "constant": "KEY_F5",
+        "label": "F5"
+    },
+    {
+        "code": 64,
+        "constant": "KEY_F6",
+        "label": "F6"
+    },
+    {
+        "code": 65,
+        "constant": "KEY_F7",
+        "label": "F7"
+    },
+    {
+        "code": 66,
+        "constant": "KEY_F8",
+        "label": "F8"
+    },
+    {
+        "code": 67,
+        "constant": "KEY_F9",
+        "label": "F9"
+    },
+    {
+        "code": 68,
+        "constant": "KEY_F10",
+        "label": "F10"
+    },
+    {
+        "code": 69,
+        "constant": "KEY_NUMLOCK",
+        "label": "NUM LOCK"
+    },
+    {
+        "code": 70,
+        "constant": "KEY_SCROLL",
+        "label": "SCR LOCK"
+    },
+    {
+        "code": 71,
+        "constant": "KEY_NUMPAD7",
+        "label": "NUM 7"
+    },
+    {
+        "code": 72,
+        "constant": "KEY_NUMPAD8",
+        "label": "NUM 8"
+    },
+    {
+        "code": 73,
+        "constant": "KEY_NUMPAD9",
+        "label": "NUM 9"
+    },
+    {
+        "code": 74,
+        "constant": "KEY_SUBTRACT",
+        "label": "NUM SUB"
+    },
+    {
+        "code": 75,
+        "constant": "KEY_NUMPAD4",
+        "label": "NUM 4"
+    },
+    {
+        "code": 76,
+        "constant": "KEY_NUMPAD5",
+        "label": "NUM 5"
+    },
+    {
+        "code": 77,
+        "constant": "KEY_NUMPAD6",
+        "label": "NUM 6"
+    },
+    {
+        "code": 78,
+        "constant": "KEY_ADD",
+        "label": "NUM ADD"
+    },
+    {
+        "code": 79,
+        "constant": "KEY_NUMPAD1",
+        "label": "NUM 1"
+    },
+    {
+        "code": 80,
+        "constant": "KEY_NUMPAD2",
+        "label": "NUM 2"
+    },
+    {
+        "code": 81,
+        "constant": "KEY_NUMPAD3",
+        "label": "NUM 3"
+    },
+    {
+        "code": 82,
+        "constant": "KEY_NUMPAD0",
+        "label": "NUM 0"
+    },
+    {
+        "code": 83,
+        "constant": "KEY_DECIMAL",
+        "label": "NUM DEC"
+    },
+    {
+        "code": 87,
+        "constant": "KEY_F11",
+        "label": "F11"
+    },
+    {
+        "code": 88,
+        "constant": "KEY_F12",
+        "label": "F12"
+    },
+    {
+        "code": 100,
+        "constant": "KEY_F13",
+        "label": "F13"
+    },
+    {
+        "code": 101,
+        "constant": "KEY_F14",
+        "label": "F14"
+    },
+    {
+        "code": 102,
+        "constant": "KEY_F15",
+        "label": "F15"
+    },
+    {
+        "code": 112,
+        "constant": "KEY_KANA",
+        "label": "KANA"
+    },
+    {
+        "code": 121,
+        "constant": "KEY_CONVERT",
+        "label": "CONVERT"
+    },
+    {
+        "code": 123,
+        "constant": "KEY_NOCONVERT",
+        "label": "NO CONV"
+    },
+    {
+        "code": 125,
+        "constant": "KEY_YEN",
+        "label": "YEN"
+    },
+    {
+        "code": 141,
+        "constant": "KEY_NUMPADEQUALS",
+        "label": "NUM EQ"
+    },
+    {
+        "code": 144,
+        "constant": "KEY_CIRCUMFLEX",
+        "label": "CARET"
+    },
+    {
+        "code": 145,
+        "constant": "KEY_AT",
+        "label": "AT"
+    },
+    {
+        "code": 146,
+        "constant": "KEY_COLON",
+        "label": "COLON"
+    },
+    {
+        "code": 147,
+        "constant": "KEY_UNDERLINE",
+        "label": "UNDERLINE"
+    },
+    {
+        "code": 148,
+        "constant": "KEY_KANJI",
+        "label": "KANJI"
+    },
+    {
+        "code": 149,
+        "constant": "KEY_STOP",
+        "label": "STOP"
+    },
+    {
+        "code": 150,
+        "constant": "KEY_AX",
+        "label": "AX"
+    },
+    {
+        "code": 151,
+        "constant": "KEY_UNLABELED",
+        "label": "NO LABEL"
+    },
+    {
+        "code": 156,
+        "constant": "KEY_NUMPADENTER",
+        "label": "NUM ENT"
+    },
+    {
+        "code": 157,
+        "constant": "KEY_RCONTROL",
+        "label": "R CTRL"
+    },
+    {
+        "code": 179,
+        "constant": "KEY_NUMPADCOMMA",
+        "label": "NUM COM"
+    },
+    {
+        "code": 181,
+        "constant": "KEY_DIVIDE",
+        "label": "NUM DIV"
+    },
+    {
+        "code": 183,
+        "constant": "KEY_SYSRQ",
+        "label": "PRT SCR"
+    },
+    {
+        "code": 184,
+        "constant": "KEY_RMENU",
+        "label": "R ALT"
+    },
+    {
+        "code": 197,
+        "constant": "KEY_PAUSE",
+        "label": "PAUSE"
+    },
+    {
+        "code": 199,
+        "constant": "KEY_HOME",
+        "label": "HOME"
+    },
+    {
+        "code": 200,
+        "constant": "KEY_UP",
+        "label": "UP"
+    },
+    {
+        "code": 201,
+        "constant": "KEY_PRIOR",
+        "label": "PG UP"
+    },
+    {
+        "code": 203,
+        "constant": "KEY_LEFT",
+        "label": "LEFT"
+    },
+    {
+        "code": 205,
+        "constant": "KEY_RIGHT",
+        "label": "RIGHT"
+    },
+    {
+        "code": 207,
+        "constant": "KEY_END",
+        "label": "END"
+    },
+    {
+        "code": 208,
+        "constant": "KEY_DOWN",
+        "label": "DOWN"
+    },
+    {
+        "code": 209,
+        "constant": "KEY_NEXT",
+        "label": "PG DOWN"
+    },
+    {
+        "code": 210,
+        "constant": "KEY_INSERT",
+        "label": "INSERT"
+    },
+    {
+        "code": 211,
+        "constant": "KEY_DELETE",
+        "label": "DELETE"
+    },
+    {
+        "code": 219,
+        "constant": "KEY_LWIN",
+        "label": "L WIN"
+    },
+    {
+        "code": 220,
+        "constant": "KEY_RWIN",
+        "label": "R WIN"
+    },
+    {
+        "code": 221,
+        "constant": "KEY_APPS",
+        "label": "APP MENU"
+    },
+    {
+        "code": 222,
+        "constant": "KEY_POWER",
+        "label": "POWER"
+    },
+    {
+        "code": 223,
+        "constant": "KEY_SLEEP",
+        "label": "SLEEP"
+    }
+]

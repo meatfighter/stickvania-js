@@ -15,6 +15,13 @@ public final class ControllerSupportTest {
   public static void main(String[] args) throws Throwable {
     String scenario = args[0];
     Pad pad = new Pad();
+    if (scenario.equals("named-ordinary-buttons")) {
+      String[] names = {"Left Trigger", "Right Thumb", "Extra Fire", "Right Bumper"};
+      for (int i=0;i<4;i++) pad.buttons[12+i].name=names[i];
+    }
+    if (scenario.equals("named-direction-buttons")) {
+      pad.buttons[12].name="Hat Down"; pad.buttons[3].name="POV West";
+    }
     Environment environment = new Environment(
         scenario.equals("empty") ? new Controller[0] : new Controller[] {pad});
     environment.fail = scenario.equals("initialization-failure");
@@ -24,6 +31,11 @@ public final class ControllerSupportTest {
     defaultEnvironment.set(null, environment);
     ButtonMapping mapping = new ButtonMapping();
     ControllerSupport.initialize();
+    if (scenario.endsWith("-buttons") || scenario.equals("pov-only")) {
+      verifyLayout(pad, scenario);
+      check(environment.enumerations == 1, "Layout discovery stays startup-only");
+      System.out.println("ok - native layout " + scenario); return;
+    }
     if (scenario.equals("empty")) {
       environment.controllers = new Controller[] {pad};
     }
@@ -31,6 +43,11 @@ public final class ControllerSupportTest {
       for (int i = 0; i < 2000; i++) {
         ControllerSupport.beginFrame();
         ControllerSupport.initialize();
+    if (scenario.endsWith("-buttons") || scenario.equals("pov-only")) {
+      verifyLayout(pad, scenario);
+      check(environment.enumerations == 1, "Layout discovery stays startup-only");
+      System.out.println("ok - native layout " + scenario); return;
+    }
         check(!ControllerSupport.isUpDown(), "No stale direction without a pad");
         check(!ControllerSupport.isButtonDown(0), "No stale button without a pad");
       }
@@ -40,14 +57,14 @@ public final class ControllerSupportTest {
       ControllerSupport.beginFrame();
       check(ControllerSupport.isLeftDown(), "Stick direction");
       check(ControllerSupport.isButtonDown(0), "Action button");
-      check(!ControllerSupport.isDirectionalButton(12),
-          "An unnamed raw button 12 must not be guessed to be a D-pad direction");
+      check(ControllerSupport.isDirectionalButton(12),
+          "An anonymous native button 12 uses legacy D-pad compatibility");
       pad.button.value = 0;
       pad.buttons[12].value = 1;
       ControllerSupport.beginFrame();
       check(ControllerSupport.isButtonDown(12), "Raw button 12 remains usable as an action button");
-      check(ControllerSupport.isNonDirectionalButtonDown(mapping),
-          "Raw button 12 remains a non-directional menu/action input");
+      check(!ControllerSupport.isNonDirectionalButtonDown(mapping),
+          "Legacy direction does not also confirm");
       pad.buttons[12].value = 0;
       pad.button.value = 1;
       ControllerSupport.beginFrame();
@@ -86,9 +103,9 @@ public final class ControllerSupportTest {
           pad.buttons[raw].value = 1;
           ControllerSupport.beginFrame();
           check(ControllerSupport.isButtonDown(raw), "Raw button level " + raw);
-          check(!ControllerSupport.isDirectionalButton(raw), "Raw button classification " + raw);
-          check(!ControllerSupport.isUpDown() && !ControllerSupport.isDownDown()
-              && !ControllerSupport.isLeftDown() && !ControllerSupport.isRightDown(), "Raw button must not fabricate a direction");
+          check(ControllerSupport.isDirectionalButton(raw), "Legacy button classification " + raw);
+          check(ControllerSupport.isDirectionDown(-2-(raw-12)), "Legacy normalized direction");
+          check(!ControllerSupport.isNonDirectionalButtonDown(mapping), "Legacy direction is not generic confirm");
           pad.buttons[raw].value = 0;
           ControllerSupport.beginFrame();
         }
@@ -115,6 +132,11 @@ public final class ControllerSupportTest {
         for (int i = 0; i < 1000; i++) {
           ControllerSupport.beginFrame();
           ControllerSupport.initialize();
+    if (scenario.endsWith("-buttons") || scenario.equals("pov-only")) {
+      verifyLayout(pad, scenario);
+      check(environment.enumerations == 1, "Layout discovery stays startup-only");
+      System.out.println("ok - native layout " + scenario); return;
+    }
         }
         check(pad.polls == polls, "A failed device must not become a retry loop");
       }
@@ -207,6 +229,39 @@ public final class ControllerSupportTest {
     editor.dispose();pad.pov.value=Component.POV.OFF;ControllerSupport.beginFrame();
   }
 
+  private static void verifyLayout(Pad pad, String scenario) throws Throwable {
+    ButtonMapping mapping = new ButtonMapping();
+    ControllerSupport.beginFrame();
+    for (int i=0;i<4;i++) {
+      pad.buttons[12+i].value=1; ControllerSupport.beginFrame();
+      boolean[] directions = { ControllerSupport.isUpDown(), ControllerSupport.isDownDown(), ControllerSupport.isLeftDown(), ControllerSupport.isRightDown() };
+      for(int d=0;d<4;d++) check(directions[d] == (!scenario.equals("named-ordinary-buttons") && d==(scenario.equals("named-direction-buttons") && i==0 ? 1 : i)), "Layout direction " + scenario + "/" + i + "/" + d);
+      check(ControllerSupport.isNonDirectionalButtonDown(mapping) == scenario.equals("named-ordinary-buttons"), "Generic confirm classification");
+      pad.buttons[12+i].value=0; ControllerSupport.beginFrame();
+    }
+    if (scenario.equals("named-direction-buttons")) { pad.buttons[3].value=1; ControllerSupport.beginFrame(); check(ControllerSupport.isLeftDown() && !ControllerSupport.isNonDirectionalButtonDown(mapping), "Named direction outside legacy range"); pad.buttons[3].value=0; }
+    if (scenario.equals("legacy-buttons")) { pad.buttons[12].value=1;pad.buttons[14].value=1;ControllerSupport.beginFrame();check(ControllerSupport.isUpDown() && ControllerSupport.isLeftDown(),"Legacy diagonal");pad.buttons[12].value=0;pad.buttons[14].value=0; }
+
+    if(scenario.equals("legacy-buttons")||scenario.equals("named-ordinary-buttons")){
+      ControllerSupport.beginFrame();
+      int binding=scenario.equals("legacy-buttons")?-2:12;
+      KeyboardInput keyboard=new KeyboardInput();HeadlessContainer gc=new HeadlessContainer(keyboard);
+      mapping.controllerUp=7;mapping.controllerDown=6;mapping.controllerLeft=3;mapping.controllerRight=0;
+      mapping.controllerJump=binding;mapping.controllerAttack=-3;StickvaniaInput human=new StickvaniaInput(keyboard,mapping);
+      pad.buttons[12].value=1;ControllerSupport.beginFrame();human.update();check(human.isJump()&&!human.isUp()&&human.isMenuSelectPressed(),"Classified Jump virtual meaning");human.update();check(!human.isMenuSelectPressed(),"Held classified Jump");
+      pad.buttons[12].value=0;ControllerSupport.beginFrame();
+      Main main=new Main();main.mode=Main.MODE_INPUT_CONFIG;main.buttonMapping=mapping;InputConfigMode editor=new InputConfigMode(main);editor.init(gc);
+      for(int i=0;i<8;i++){editor.inputStarted();editor.update(gc);}set(editor,"stepIndex",4);
+      pad.buttons[12].value=1;ControllerSupport.beginFrame();editor.inputStarted();editor.update(gc);
+      check(((Integer)get(editor,"stepIndex"))==5&&((ButtonMapping)get(editor,"draft")).controllerJump==binding,"Actual editor canonical action capture");editor.dispose();
+      pad.buttons[12].value=0;ControllerSupport.beginFrame();
+    }
+
+    float[] povs={Component.POV.UP,Component.POV.DOWN,Component.POV.LEFT,Component.POV.RIGHT,Component.POV.UP_LEFT,Component.POV.DOWN_RIGHT};
+    boolean[][] expected={{true,false,false,false},{false,true,false,false},{false,false,true,false},{false,false,false,true},{true,false,true,false},{false,true,false,true}};
+    for(int i=0;i<povs.length;i++){pad.pov.value=povs[i];ControllerSupport.beginFrame();boolean[] dirs={ControllerSupport.isUpDown(),ControllerSupport.isDownDown(),ControllerSupport.isLeftDown(),ControllerSupport.isRightDown()};for(int d=0;d<4;d++)check(dirs[d]==expected[i][d],"Actual POV cardinal/diagonal");check(!ControllerSupport.isNonDirectionalButtonDown(mapping),"POV cannot confirm");pad.pov.value=Component.POV.OFF;ControllerSupport.beginFrame();check(!ControllerSupport.isUpDown()&&!ControllerSupport.isDownDown()&&!ControllerSupport.isLeftDown()&&!ControllerSupport.isRightDown(),"POV release");}
+  }
+
   private static void check(boolean condition, String message) {
     if (!condition) {
       throw new AssertionError(message);
@@ -239,13 +294,14 @@ public final class ControllerSupportTest {
   private static final class Control implements Component {
     final Identifier identifier;
     float value;
+    String name;
     Control(Identifier identifier) { this.identifier = identifier; }
     public Identifier getIdentifier() { return identifier; }
     public boolean isRelative() { return false; }
     public boolean isAnalog() { return identifier instanceof Identifier.Axis; }
     public float getDeadZone() { return 0.05f; }
     public float getPollData() { return value; }
-    public String getName() { return identifier.getName(); }
+    public String getName() { return name == null ? identifier.getName() : name; }
   }
 
   private static final class Pad implements Controller {

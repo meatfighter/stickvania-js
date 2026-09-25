@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -20,6 +22,35 @@ let browser = null;
 try {
     await waitForHttpServer(server, browserVerificationUrl);
     browser = await launchBrowser(browserVerificationUrl, rootDir, "stickvania-browser-");
+    await browser.page.call("Runtime.evaluate", {
+        expression: "window.captureCompactLabels = (game) => new Promise(resolve => { window.compactLabelCapture = { game, resolve }; })"
+    });
+    while (true) {
+        const status = await waitForExpression(
+            browser.page,
+            `(() => {const r=document.querySelector('#result');if(r?.dataset.status==='failed')throw new Error(r.textContent);return window.compactLabelCapture ? {game:window.compactLabelCapture.game} : r?.dataset.status==='passed' ? {done:true} : false;})()`,
+            180000
+        );
+        if (status.done) break;
+        const dir = process.env.QUALIFICATION_EVIDENCE_DIR ?? resolve(tmpdir(), "native-input-labels-screenshots");
+        mkdirSync(dir, { recursive: true });
+        for (const [name, width, height] of [
+            ["native", 640, 480],
+            ["mobile", 360, 640]
+        ]) {
+            await browser.page.call("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+            const resized = await browser.page.call("Runtime.evaluate", {
+                expression: `window.compactLabelCapture.resize(${width},${height})`,
+                awaitPromise: true
+            });
+            assert.ok(!resized.exceptionDetails, "Mapping presentation resize");
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            const shot = await browser.page.call("Page.captureScreenshot", { format: "png" });
+            writeFileSync(resolve(dir, `${status.game}-compact-labels-${name}.png`), Buffer.from(shot.data, "base64"));
+        }
+        await browser.page.call("Emulation.clearDeviceMetricsOverride");
+        await browser.page.call("Runtime.evaluate", { expression: "{const c=window.compactLabelCapture;delete window.compactLabelCapture;c.resolve();}" });
+    }
     const output = await waitForExpression(
         browser.page,
         '(() => { const element = document.querySelector("#result"); if (element?.dataset.status === "failed") throw new Error(element.textContent || "Browser verification failed."); return element?.dataset.status === "passed" ? element.textContent : false; })()'

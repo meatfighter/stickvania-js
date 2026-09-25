@@ -43,44 +43,6 @@ export class ButtonMapping {
     private static readonly DEFAULT_CONTROLLER_DOWN = ButtonMapping.CONTROLLER_DIRECTION_DOWN;
     private static readonly DEFAULT_CONTROLLER_LEFT = ButtonMapping.CONTROLLER_DIRECTION_LEFT;
     private static readonly DEFAULT_CONTROLLER_RIGHT = ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
-    private static readonly KEY_TEXT = new Map<number, string>([
-        [Input.KEY_A, "A"],
-        [Input.KEY_B, "B"],
-        [Input.KEY_C, "C"],
-        [Input.KEY_D, "D"],
-        [Input.KEY_E, "E"],
-        [Input.KEY_F, "F"],
-        [Input.KEY_G, "G"],
-        [Input.KEY_H, "H"],
-        [Input.KEY_I, "I"],
-        [Input.KEY_J, "J"],
-        [Input.KEY_K, "K"],
-        [Input.KEY_L, "L"],
-        [Input.KEY_M, "M"],
-        [Input.KEY_N, "N"],
-        [Input.KEY_O, "O"],
-        [Input.KEY_P, "P"],
-        [Input.KEY_Q, "Q"],
-        [Input.KEY_R, "R"],
-        [Input.KEY_S, "S"],
-        [Input.KEY_T, "T"],
-        [Input.KEY_U, "U"],
-        [Input.KEY_V, "V"],
-        [Input.KEY_W, "W"],
-        [Input.KEY_X, "X"],
-        [Input.KEY_Y, "Y"],
-        [Input.KEY_Z, "Z"],
-        [Input.KEY_0, "0"],
-        [Input.KEY_1, "1"],
-        [Input.KEY_2, "2"],
-        [Input.KEY_3, "3"],
-        [Input.KEY_4, "4"],
-        [Input.KEY_5, "5"],
-        [Input.KEY_6, "6"],
-        [Input.KEY_7, "7"],
-        [Input.KEY_8, "8"],
-        [Input.KEY_9, "9"]
-    ]);
 
     public keyJump: number = ButtonMapping.DEFAULT_KEY_JUMP;
     public keyAttack: number = ButtonMapping.DEFAULT_KEY_ATTACK;
@@ -203,49 +165,256 @@ export class ButtonMapping {
     }
 
     public static getKeyText(key: number): string {
-        if (key == ButtonMapping.NO_BINDING) {
-            return "None";
-        }
+        if (key === ButtonMapping.NO_BINDING) return "NONE";
         switch (key) {
-            case Input.KEY_RETURN:
-                return "Enter";
-            case Input.KEY_SPACE:
-                return "Space";
             case Input.KEY_ESCAPE:
-                return "Escape";
-            case Input.KEY_LSHIFT:
-            case Input.KEY_RSHIFT:
-                return "Shift";
-            case Input.KEY_LCONTROL:
-            case Input.KEY_RCONTROL:
-                return "Ctrl";
-            case Input.KEY_LALT:
-            case Input.KEY_RALT:
-                return "Alt";
-            case Input.KEY_UP:
-                return "Up";
-            case Input.KEY_DOWN:
-                return "Down";
-            case Input.KEY_LEFT:
-                return "Left";
-            case Input.KEY_RIGHT:
-                return "Right";
-            case Input.KEY_TAB:
-                return "Tab";
+                return "ESCAPE";
+            case Input.KEY_1:
+                return "1";
+            case Input.KEY_2:
+                return "2";
+            case Input.KEY_3:
+                return "3";
+            case Input.KEY_4:
+                return "4";
+            case Input.KEY_5:
+                return "5";
+            case Input.KEY_6:
+                return "6";
+            case Input.KEY_7:
+                return "7";
+            case Input.KEY_8:
+                return "8";
+            case Input.KEY_9:
+                return "9";
+            case Input.KEY_0:
+                return "0";
+            case Input.KEY_MINUS:
+                return "MINUS";
+            case Input.KEY_EQUALS:
+                return "EQUALS";
             case Input.KEY_BACK:
-                return "Back";
-            case Input.KEY_DELETE:
-                return "Delete";
+                return "BKSP";
+            case Input.KEY_TAB:
+                return "TAB";
+            case Input.KEY_Q:
+                return "Q";
+            case Input.KEY_W:
+                return "W";
+            case Input.KEY_E:
+                return "E";
+            case Input.KEY_R:
+                return "R";
+            case Input.KEY_T:
+                return "T";
+            case Input.KEY_Y:
+                return "Y";
+            case Input.KEY_U:
+                return "U";
+            case Input.KEY_I:
+                return "I";
+            case Input.KEY_O:
+                return "O";
+            case Input.KEY_P:
+                return "P";
+            case Input.KEY_LBRACKET:
+                return "L BRKT";
+            case Input.KEY_RBRACKET:
+                return "R BRKT";
+            case Input.KEY_RETURN:
+                return "ENTER";
+            case Input.KEY_LCONTROL:
+                return "L CTRL";
+            case Input.KEY_A:
+                return "A";
+            case Input.KEY_S:
+                return "S";
+            case Input.KEY_D:
+                return "D";
+            case Input.KEY_F:
+                return "F";
+            case Input.KEY_G:
+                return "G";
+            case Input.KEY_H:
+                return "H";
+            case Input.KEY_J:
+                return "J";
+            case Input.KEY_K:
+                return "K";
+            case Input.KEY_L:
+                return "L";
+            case Input.KEY_SEMICOLON:
+                return "SEMICOLON";
+            case Input.KEY_APOSTROPHE:
+                return "QUOTE";
+            case Input.KEY_GRAVE:
+                return "GRAVE";
+            case Input.KEY_LSHIFT:
+                return "L SHIFT";
+            case Input.KEY_BACKSLASH:
+                return "BSLASH";
+            case Input.KEY_Z:
+                return "Z";
+            case Input.KEY_X:
+                return "X";
+            case Input.KEY_C:
+                return "C";
+            case Input.KEY_V:
+                return "V";
+            case Input.KEY_B:
+                return "B";
+            case Input.KEY_N:
+                return "N";
+            case Input.KEY_M:
+                return "M";
+            case Input.KEY_COMMA:
+                return "COMMA";
+            case Input.KEY_PERIOD:
+                return "PERIOD";
+            case Input.KEY_SLASH:
+                return "SLASH";
+            case Input.KEY_RSHIFT:
+                return "R SHIFT";
+            case Input.KEY_MULTIPLY:
+                return "NUM MUL";
+            case Input.KEY_LMENU:
+                return "L ALT";
+            case Input.KEY_SPACE:
+                return "SPACE";
+            case Input.KEY_CAPITAL:
+                return "CAPS LOCK";
+            case Input.KEY_F1:
+                return "F1";
+            case Input.KEY_F2:
+                return "F2";
+            case Input.KEY_F3:
+                return "F3";
+            case Input.KEY_F4:
+                return "F4";
+            case Input.KEY_F5:
+                return "F5";
+            case Input.KEY_F6:
+                return "F6";
+            case Input.KEY_F7:
+                return "F7";
+            case Input.KEY_F8:
+                return "F8";
+            case Input.KEY_F9:
+                return "F9";
+            case Input.KEY_F10:
+                return "F10";
+            case Input.KEY_NUMLOCK:
+                return "NUM LOCK";
+            case Input.KEY_SCROLL:
+                return "SCR LOCK";
+            case Input.KEY_NUMPAD7:
+                return "NUM 7";
+            case Input.KEY_NUMPAD8:
+                return "NUM 8";
+            case Input.KEY_NUMPAD9:
+                return "NUM 9";
+            case Input.KEY_SUBTRACT:
+                return "NUM SUB";
+            case Input.KEY_NUMPAD4:
+                return "NUM 4";
+            case Input.KEY_NUMPAD5:
+                return "NUM 5";
+            case Input.KEY_NUMPAD6:
+                return "NUM 6";
+            case Input.KEY_ADD:
+                return "NUM ADD";
+            case Input.KEY_NUMPAD1:
+                return "NUM 1";
+            case Input.KEY_NUMPAD2:
+                return "NUM 2";
+            case Input.KEY_NUMPAD3:
+                return "NUM 3";
+            case Input.KEY_NUMPAD0:
+                return "NUM 0";
+            case Input.KEY_DECIMAL:
+                return "NUM DEC";
+            case Input.KEY_F11:
+                return "F11";
+            case Input.KEY_F12:
+                return "F12";
+            case Input.KEY_F13:
+                return "F13";
+            case Input.KEY_F14:
+                return "F14";
+            case Input.KEY_F15:
+                return "F15";
+            case Input.KEY_KANA:
+                return "KANA";
+            case Input.KEY_CONVERT:
+                return "CONVERT";
+            case Input.KEY_NOCONVERT:
+                return "NO CONV";
+            case Input.KEY_YEN:
+                return "YEN";
+            case Input.KEY_NUMPADEQUALS:
+                return "NUM EQ";
+            case Input.KEY_CIRCUMFLEX:
+                return "CARET";
+            case Input.KEY_AT:
+                return "AT";
+            case Input.KEY_COLON:
+                return "COLON";
+            case Input.KEY_UNDERLINE:
+                return "UNDERLINE";
+            case Input.KEY_KANJI:
+                return "KANJI";
+            case Input.KEY_STOP:
+                return "STOP";
+            case Input.KEY_AX:
+                return "AX";
+            case Input.KEY_UNLABELED:
+                return "NO LABEL";
+            case Input.KEY_NUMPADENTER:
+                return "NUM ENT";
+            case Input.KEY_RCONTROL:
+                return "R CTRL";
+            case Input.KEY_NUMPADCOMMA:
+                return "NUM COM";
+            case Input.KEY_DIVIDE:
+                return "NUM DIV";
+            case Input.KEY_SYSRQ:
+                return "PRT SCR";
+            case Input.KEY_RMENU:
+                return "R ALT";
+            case Input.KEY_PAUSE:
+                return "PAUSE";
             case Input.KEY_HOME:
-                return "Home";
-            case Input.KEY_END:
-                return "End";
+                return "HOME";
+            case Input.KEY_UP:
+                return "UP";
             case Input.KEY_PRIOR:
-                return "Page Up";
+                return "PG UP";
+            case Input.KEY_LEFT:
+                return "LEFT";
+            case Input.KEY_RIGHT:
+                return "RIGHT";
+            case Input.KEY_END:
+                return "END";
+            case Input.KEY_DOWN:
+                return "DOWN";
             case Input.KEY_NEXT:
-                return "Page Down";
+                return "PG DOWN";
+            case Input.KEY_INSERT:
+                return "INSERT";
+            case Input.KEY_DELETE:
+                return "DELETE";
+            case Input.KEY_LWIN:
+                return "L WIN";
+            case Input.KEY_RWIN:
+                return "R WIN";
+            case Input.KEY_APPS:
+                return "APP MENU";
+            case Input.KEY_POWER:
+                return "POWER";
+            case Input.KEY_SLEEP:
+                return "SLEEP";
             default:
-                return ButtonMapping.KEY_TEXT.get(key) ?? String(key);
+                return Number.isInteger(key) && key >= 0 && key < 256 ? "KEY " + key : "UNKNOWN";
         }
     }
 
@@ -262,7 +431,7 @@ export class ButtonMapping {
             case ButtonMapping.CONTROLLER_DIRECTION_RIGHT:
                 return "GP-RIGHT";
         }
-        return button >= 0 ? "GP-BUTTON-" + (button + 1) : "GP-" + button;
+        return button >= 0 ? "GP-B" + (button + 1) : "GP-" + button;
     }
 
     public static isControllerDirection(value: number): boolean {

@@ -742,60 +742,20 @@ public final class ControllerSupport {
   }
 
   private static int getButtonDirection(int button, Controller controller) {
+    if (button < 0 || button >= GAMEPAD_BUTTON_INDEX_LIMIT
+        || button >= safeButtonCount(controller)) return ButtonMapping.NO_BINDING;
+    String name = null;
     try {
-      String name = controller.getButtonName(button);
-      if (name == null) {
-        return ButtonMapping.NO_BINDING;
-      }
-      return getDirectionFromButtonName(name);
-    } catch(RuntimeException e) {
-      return ButtonMapping.NO_BINDING;
+      name = controller.getButtonName(button);
+    } catch (RuntimeException e) {
     }
-  }
-
-  private static int getDirectionFromButtonName(String name) {
-    String lower = name.toLowerCase();
-    boolean directionalGroup = lower.indexOf("pov") != -1
-        || lower.indexOf("hat") != -1
-        || lower.indexOf("d-pad") != -1
-        || lower.indexOf("dpad") != -1
-        || lower.indexOf("direction") != -1
-        || lower.indexOf("dir") != -1;
-
-    if (containsDirectionWord(lower, "up")
-        || containsDirectionWord(lower, "north")) {
-      return ButtonMapping.CONTROLLER_DIRECTION_UP;
+    switch (NativeDpadPolicy.direction(button, name)) {
+      case NativeDpadPolicy.UP: return ButtonMapping.CONTROLLER_DIRECTION_UP;
+      case NativeDpadPolicy.DOWN: return ButtonMapping.CONTROLLER_DIRECTION_DOWN;
+      case NativeDpadPolicy.LEFT: return ButtonMapping.CONTROLLER_DIRECTION_LEFT;
+      case NativeDpadPolicy.RIGHT: return ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
+      default: return ButtonMapping.NO_BINDING;
     }
-    if (containsDirectionWord(lower, "down")
-        || containsDirectionWord(lower, "south")) {
-      return ButtonMapping.CONTROLLER_DIRECTION_DOWN;
-    }
-    if (containsDirectionWord(lower, "left")
-        || containsDirectionWord(lower, "west")) {
-      return ButtonMapping.CONTROLLER_DIRECTION_LEFT;
-    }
-    if (containsDirectionWord(lower, "right")
-        || containsDirectionWord(lower, "east")) {
-      return ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
-    }
-
-    if (directionalGroup && (lower.indexOf("y-") != -1
-        || lower.indexOf("-y") != -1)) {
-      return ButtonMapping.CONTROLLER_DIRECTION_UP;
-    }
-    if (directionalGroup && (lower.indexOf("y+") != -1
-        || lower.indexOf("+y") != -1)) {
-      return ButtonMapping.CONTROLLER_DIRECTION_DOWN;
-    }
-    if (directionalGroup && (lower.indexOf("x-") != -1
-        || lower.indexOf("-x") != -1)) {
-      return ButtonMapping.CONTROLLER_DIRECTION_LEFT;
-    }
-    if (directionalGroup && (lower.indexOf("x+") != -1
-        || lower.indexOf("+x") != -1)) {
-      return ButtonMapping.CONTROLLER_DIRECTION_RIGHT;
-    }
-    return ButtonMapping.NO_BINDING;
   }
 
   private static boolean containsDirectionWord(String text, String word) {
