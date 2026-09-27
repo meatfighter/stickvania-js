@@ -101,6 +101,26 @@ export const THING_REFERENCE_FIELD_POLICY: Partial<Record<ThingTypeId, Readonly<
 
 const JAVA_INT_MAX = 2_147_483_647;
 
+export const PROVEN_THING_INTEGER_RANGES: Partial<Record<ThingTypeId, Readonly<Record<string, readonly [number, number]>>>> = {
+    Bat: { spriteIndex: [0, 3], spriteDelay: [0, 10] },
+    MedusaHead: { spriteIndex: [0, 1], spriteDelay: [0, 23] },
+    Dog: {
+        STATE_RESTING: [0, 0],
+        STATE_RUNNING: [1, 1],
+        STATE_JUMPING: [2, 2],
+        state: [0, 2],
+        spriteIndex: [1, 3],
+        spriteIndexIncrementor: [0, 14]
+    },
+    Simon: {
+        walkSpriteIndex: [0, 3],
+        walkSpriteIndexIncrementor: [0, 15],
+        whipType: [0, 2],
+        whipIndex: [0, 2],
+        whipIncrementor: [0, 45]
+    }
+};
+
 export function isPersistedMainFieldValuesValid(fields: EncodedRecord): boolean {
     for (const name of MAIN_PERSISTED_STATE_FIELD_NAMES) {
         const value = fields[name];
@@ -111,11 +131,11 @@ export function isPersistedMainFieldValuesValid(fields: EncodedRecord): boolean 
         if (typeof value !== "number" || !Number.isFinite(value)) {
             return false;
         }
-        if (!isMainNumberValid(name, value)) {
+        if (!isMainNumberValid(name, value, fields)) {
             return false;
         }
     }
-    return true;
+    return isRecordedInputCursorValid(fields);
 }
 
 export function isPersistedThingFieldValuesValid(snapshot: ThingSnapshot, thingTypes: ReadonlyMap<number, ThingTypeId>, segmentCount: number): boolean {
@@ -145,7 +165,7 @@ export function isPersistedThingFieldValuesValid(snapshot: ThingSnapshot, thingT
     return true;
 }
 
-function isMainNumberValid(name: string, value: number): boolean {
+function isMainNumberValid(name: string, value: number, fields: EncodedRecord): boolean {
     switch (name) {
         case "mode":
             return isRestorableGameStateMode(value);
@@ -160,14 +180,17 @@ function isMainNumberValid(name: string, value: number): boolean {
         case "time":
             return isIntegerInRange(value, 0, 999);
         case "timeIncrementor":
-            return isIntegerInRange(value, 0, 90);
+            // Credits bypasses countdown preflight; dead frames can retain values above 90.
+            return isIntegerInRange(value, 0, JAVA_INT_MAX);
         case "stage":
             return isIntegerInRange(value, 0, 18);
         case "stageIndex":
             return isIntegerInRange(value, 0, 5);
         case "hearts":
-        case "players":
             return isIntegerInRange(value, 0, 99);
+        case "players":
+            // MAP borrows one count for the later checkpoint-entry decrement.
+            return isIntegerInRange(value, 0, fields.mode === Main.MODE_MAP ? 100 : 99);
         case "playerPower":
         case "enemyPower":
             return isIntegerInRange(value, 0, 16);
@@ -183,6 +206,8 @@ function isMainNumberValid(name: string, value: number): boolean {
 }
 
 function isThingNumberValid(type: ThingTypeId, name: string, value: number): boolean {
+    const range = PROVEN_THING_INTEGER_RANGES[type]?.[name];
+    if (range !== undefined) return isIntegerInRange(value, range[0], range[1]);
     if (type === "Simon" && name === "dead") {
         return Number.isInteger(value) && value >= 0 && value <= 1_000_000;
     }
@@ -229,6 +254,8 @@ function inferStaticIntegerValues(type: ThingTypeId, prefix: string): readonly n
 }
 
 function isReferenceValueValid(value: EncodedValue, policy: ThingReferencePolicy, thingTypes: ReadonlyMap<number, ThingTypeId>, segmentCount: number): boolean {
+    // The serializer writes absent object references as plain null.
+    if (value === null) return policy.kind !== "thingArray" && policy.nullable;
     switch (policy.kind) {
         case "thing": {
             const reference = asThingReference(value);
@@ -291,4 +318,23 @@ function isExactSingleKeyRecord<K extends string>(value: unknown, key: K): value
 
 function isIntegerInRange(value: number, min: number, max: number): boolean {
     return Number.isInteger(value) && value >= min && value <= max;
+}
+
+function isRecordedInputCursorValid(fields: EncodedRecord): boolean {
+    if (fields.mode === Main.MODE_DEMO) {
+        return (
+            typeof fields.demoIndex === "number" &&
+            isIntegerInRange(fields.demoIndex, 0, 2) &&
+            typeof fields.recordingIndex === "number" &&
+            isIntegerInRange(fields.recordingIndex, 0, 2730)
+        );
+    }
+    if (fields.mode === Main.MODE_CREDITS) {
+        const index = fields.creditsIndex;
+        const cursor = fields.recordingIndex;
+        if (typeof index !== "number" || !isIntegerInRange(index, 0, 12) || typeof cursor !== "number" || !isIntegerInRange(cursor, 0, 728)) return false;
+        // Final card has no recording; advanceCredits publishes this sentinel atomically.
+        return fields.creditsPresents === (index === 12) && (index !== 12 || cursor === 728);
+    }
+    return true;
 }

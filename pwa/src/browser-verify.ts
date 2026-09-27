@@ -1,3 +1,4 @@
+import { verifyCounterParity } from "./CounterParityVerification.js";
 import * as NesInputProfile from "./stickvania/NesInputProfile.js";
 import { Orb } from "./stickvania/Orb.js";
 import { StopWatch } from "./stickvania/StopWatch.js";
@@ -85,8 +86,8 @@ async function mountMain(restore: ((main: Main, container: AppGameContainer) => 
     container.setMaxDevicePixelRatio(2);
     if (restore !== null) {
         main.loadingCompleteHandler = () => {
-            const restored = restore(main, container);
             container.setLoopSuspended(true);
+            const restored = restore(main, container);
             return restored;
         };
     }
@@ -125,6 +126,10 @@ async function verify(): Promise<void> {
     localStorage.clear();
     await preloadRuntimeResources();
 
+    if (new URLSearchParams(location.search).get("suite") === "counter-parity") {
+        await verifyCounterParity({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
+        return;
+    }
     const store = new StickvaniaGameStateStore("browser-verification");
     let first: Awaited<ReturnType<typeof mountMain>> | null = null;
     let second: Awaited<ReturnType<typeof mountMain>> | null = null;
@@ -197,6 +202,7 @@ async function verify(): Promise<void> {
         verifyEditorResume(second.main, second.container);
         destroyMounted(second);
         second = null;
+        await verifyCounterParity({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
         await verifyOrbRestore();
         await verifyNesMapping();
     } finally {

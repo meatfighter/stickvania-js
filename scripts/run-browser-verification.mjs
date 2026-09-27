@@ -9,7 +9,7 @@ import { cleanupBrowser, findBrowser, launchBrowser, stopChild, waitForExpressio
 import { rootDir } from "./build-utils.mjs";
 
 const port = 5198;
-const browserVerificationUrl = `http://127.0.0.1:${port}/browser-verify.html`;
+const browserVerificationUrl = `http://127.0.0.1:${port}/browser-verify.html${process.env.STICKVANIA_BROWSER_SUITE === "counter-parity" ? "?suite=counter-parity" : ""}`;
 const appUrl = `http://127.0.0.1:${port}/`;
 const viteBin = resolve(rootDir, "node_modules", "vite", "bin", "vite.js");
 const stylesSource = readFileSync(resolve(rootDir, "pwa", "src", "styles.css"), "utf8");
@@ -56,6 +56,10 @@ try {
         '(() => { const element = document.querySelector("#result"); if (element?.dataset.status === "failed") throw new Error(element.textContent || "Browser verification failed."); return element?.dataset.status === "passed" ? element.textContent : false; })()'
     );
     console.log(output);
+    if (process.env.QUALIFICATION_EVIDENCE_DIR) {
+        const evidence = await browser.page.call("Runtime.evaluate", { expression: "JSON.stringify(window.counterParityEvidence)", returnByValue: true });
+        writeFileSync(resolve(process.env.QUALIFICATION_EVIDENCE_DIR, "stickvania-counter-browser.json"), evidence.result.value ?? "null");
+    }
     await verifySessionOwnership(appUrl, "Stickvania");
 } finally {
     await cleanupBrowser(browser);

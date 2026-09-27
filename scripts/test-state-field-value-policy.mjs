@@ -30,6 +30,43 @@ try {
     const serializer = new StickvaniaGameStateSerializer();
     const valid = createValidStageSnapshot(GAME_STATE_VERSION, fields, policy, SONG_FIELD_NAMES);
     assert.equal(serializer.isSupportedSnapshot(valid), true, "full descriptor-valid stage snapshot must pass");
+    for (const [mode, players, expected] of [
+        [Main.MODE_PLAYING, 99, true],
+        [Main.MODE_PLAYING, 100, false],
+        [Main.MODE_MAP, 99, true],
+        [Main.MODE_MAP, 100, true],
+        [Main.MODE_MAP, 101, false]
+    ]) {
+        const f = { ...valid.mainFields, mode, players };
+        assert.equal(policy.isPersistedMainFieldValuesValid(f), expected, `players=${players}, mode=${mode}`);
+    }
+    for (const value of [0, 90, 91, 92, 474, 1000001, 2147483647]) {
+        assert.equal(policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, timeIncrementor: value }), true);
+    }
+    for (const value of [-1, 0.5, NaN, Infinity, 2147483648]) {
+        assert.equal(policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, timeIncrementor: value }), false);
+    }
+    const recorded = (mode, values) => policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, mode, ...values });
+    for (let demoIndex = 0; demoIndex < 3; demoIndex++) {
+        for (const recordingIndex of [0, 2729, 2730]) assert.equal(recorded(Main.MODE_DEMO, { demoIndex, recordingIndex }), true);
+    }
+    assert.equal(recorded(Main.MODE_DEMO, { demoIndex: 3, recordingIndex: 0 }), false);
+    assert.equal(recorded(Main.MODE_DEMO, { demoIndex: 0, recordingIndex: 2731 }), false);
+    for (let creditsIndex = 0; creditsIndex < 12; creditsIndex++) {
+        for (const recordingIndex of [0, 727, 728]) assert.equal(recorded(Main.MODE_CREDITS, { creditsIndex, recordingIndex, creditsPresents: false }), true);
+    }
+    assert.equal(recorded(Main.MODE_CREDITS, { creditsIndex: 12, recordingIndex: 728, creditsPresents: true }), true);
+    assert.equal(recorded(Main.MODE_CREDITS, { creditsIndex: 12, recordingIndex: 727, creditsPresents: true }), false);
+    assert.equal(recorded(Main.MODE_CREDITS, { creditsIndex: 13, recordingIndex: 728, creditsPresents: true }), false);
+    assert.equal(recorded(Main.MODE_CREDITS, { creditsIndex: 0, recordingIndex: 0, creditsPresents: true }), false);
+    // Inactive counters are not subject to another mode's cursor relationship.
+    assert.equal(recorded(Main.MODE_TITLE_SCREEN, { creditsIndex: 12, recordingIndex: 2730, creditsPresents: false }), true);
+    for (const [type, ranges] of Object.entries(policy.PROVEN_THING_INTEGER_RANGES)) {
+        for (const [name, [lo, hi]] of Object.entries(ranges)) {
+            assert.ok(fields.THING_PERSISTED_STATE_FIELD_NAMES[type].includes(name), `${type}.${name} is durable`);
+            assert.ok(Number.isInteger(lo) && Number.isInteger(hi) && lo <= hi);
+        }
+    }
 
     const wrongMainPrimitive = structuredClone(valid);
     wrongMainPrimitive.mainFields.killAllFlag = 0;

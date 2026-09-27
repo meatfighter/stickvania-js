@@ -356,7 +356,9 @@ export class StickvaniaGameStateSerializer {
             }
         }
         const stageCheckpoint = snapshot.checkpoint;
-        if (stageCheckpoint === null || !checkpointIds.has(stageCheckpoint)) {
+        // createStage(false) rebuilds region checkpoints while retaining Main.checkpoint.
+        // Its target and reachability remain authoritative; object membership does not.
+        if (stageCheckpoint === null || !this.isCheckpointTargetValid(stageCheckpoint, thingSnapshots, snapshot.segments)) {
             return false;
         }
 

@@ -33,7 +33,8 @@ export function runDesktopInputTests({ classesDir, classpath, releaseArgs }) {
             profileSource,
             policySource,
             labelsSource,
-            preferencesSource
+            preferencesSource,
+            fileURLToPath(new URL("../desktop/test/stickvania/CounterParityTest.java", import.meta.url))
         ]);
         run("java", [
             "-Djava.awt.headless=true",
@@ -60,6 +61,7 @@ export function runDesktopInputTests({ classesDir, classpath, releaseArgs }) {
         }
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.NesControllerMappingTest"]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.NativeDpadPolicyTest"]);
+        run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.CounterParityTest"]);
         const golden = JSON.parse(readFileSync(new URL("./fixtures/compact-key-labels.json", import.meta.url), "utf8"));
         const goldenPath = join(testClasses, "labels.txt");
         writeFileSync(goldenPath, golden.map((r) => `${r.code}|${r.constant}|${r.label}`).join("\n"));
