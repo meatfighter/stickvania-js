@@ -1,6 +1,6 @@
 import { Main } from "../Main.js";
 import type { EncodedRecord, EncodedValue, ThingSnapshot } from "./GameStateSnapshot.js";
-import { isRestorableGameStateMode } from "./GameStatePolicy.js";
+import { isCountdownSnapshotValueValid, isRestorableGameStateMode } from "./GameStatePolicy.js";
 import { MAIN_PERSISTED_STATE_FIELD_NAMES, THING_PERSISTED_STATE_FIELD_NAMES } from "./StateFieldRegistry.generated.js";
 import { THING_TYPES, type ThingTypeId } from "./ThingTypeRegistry.js";
 
@@ -101,6 +101,17 @@ export const THING_REFERENCE_FIELD_POLICY: Partial<Record<ThingTypeId, Readonly<
 
 const JAVA_INT_MAX = 2_147_483_647;
 
+export const PROVEN_MAIN_INTEGER_RANGES: Readonly<Partial<Record<string, readonly [number, number]>>> = {
+    titleBatSpriteIndex: [0, 3],
+    titleBatSpriteIndexIncrementor: [0, 8],
+    titleBatSteps: [0, 273],
+    introWalkSpriteIndex: [0, 3],
+    introWalkSpriteIndexIncrementor: [0, 15],
+    gateBatSpriteIndex: [0, 1],
+    gateBatSpriteIndexIncrementor: [0, 9],
+    demoIndex: [0, 2]
+};
+
 export const PROVEN_THING_INTEGER_RANGES: Partial<Record<ThingTypeId, Readonly<Record<string, readonly [number, number]>>>> = {
     Bat: { spriteIndex: [0, 3], spriteDelay: [0, 10] },
     MedusaHead: { spriteIndex: [0, 1], spriteDelay: [0, 23] },
@@ -166,6 +177,10 @@ export function isPersistedThingFieldValuesValid(snapshot: ThingSnapshot, thingT
 }
 
 function isMainNumberValid(name: string, value: number, fields: EncodedRecord): boolean {
+    const bounds = PROVEN_MAIN_INTEGER_RANGES[name];
+    if (bounds !== undefined) {
+        return isIntegerInRange(value, bounds[0], bounds[1]);
+    }
     switch (name) {
         case "mode":
             return isRestorableGameStateMode(value);
@@ -180,8 +195,7 @@ function isMainNumberValid(name: string, value: number, fields: EncodedRecord): 
         case "time":
             return isIntegerInRange(value, 0, 999);
         case "timeIncrementor":
-            // Credits bypasses countdown preflight; dead frames can retain values above 90.
-            return isIntegerInRange(value, 0, JAVA_INT_MAX);
+            return isCountdownSnapshotValueValid(fields.mode, value);
         case "stage":
             return isIntegerInRange(value, 0, 18);
         case "stageIndex":
@@ -322,12 +336,8 @@ function isIntegerInRange(value: number, min: number, max: number): boolean {
 
 function isRecordedInputCursorValid(fields: EncodedRecord): boolean {
     if (fields.mode === Main.MODE_DEMO) {
-        return (
-            typeof fields.demoIndex === "number" &&
-            isIntegerInRange(fields.demoIndex, 0, 2) &&
-            typeof fields.recordingIndex === "number" &&
-            isIntegerInRange(fields.recordingIndex, 0, 2730)
-        );
+        // demoIndex is checked by the global Main field domain.
+        return typeof fields.recordingIndex === "number" && isIntegerInRange(fields.recordingIndex, 0, 2730);
     }
     if (fields.mode === Main.MODE_CREDITS) {
         const index = fields.creditsIndex;

@@ -40,8 +40,15 @@ try {
         const f = { ...valid.mainFields, mode, players };
         assert.equal(policy.isPersistedMainFieldValuesValid(f), expected, `players=${players}, mode=${mode}`);
     }
-    for (const value of [0, 90, 91, 92, 474, 1000001, 2147483647]) {
-        assert.equal(policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, timeIncrementor: value }), true);
+    for (const mode of [Main.MODE_PLAYING, Main.MODE_DEMO, Main.MODE_CREDITS, Main.MODE_TITLE_SCREEN, Main.MODE_MAP]) {
+        for (const value of [0, 90, 91, 92, 474, 1000001, 2147483647]) {
+            const active = mode === Main.MODE_PLAYING || mode === Main.MODE_DEMO;
+            const input = { ...valid.mainFields, mode, timeIncrementor: value };
+            // These are field-policy cases, not whole-stage snapshots.
+            if (mode === Main.MODE_CREDITS) Object.assign(input, { creditsIndex: 0, creditsPresents: false, recordingIndex: 0 });
+            if (mode === Main.MODE_DEMO) Object.assign(input, { demoIndex: 0, recordingIndex: 0 });
+            assert.equal(policy.isPersistedMainFieldValuesValid(input), !active || value <= 90, `clock:${mode}:${value}`);
+        }
     }
     for (const value of [-1, 0.5, NaN, Infinity, 2147483648]) {
         assert.equal(policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, timeIncrementor: value }), false);
@@ -68,6 +75,16 @@ try {
         }
     }
 
+    for (const [name, [lo, hi]] of Object.entries(policy.PROVEN_MAIN_INTEGER_RANGES)) {
+        assert.ok(fields.MAIN_PERSISTED_STATE_FIELD_NAMES.includes(name), `${name} must actually be durable`);
+        assert.ok(!policy.MAIN_BOOLEAN_PERSISTED_STATE_FIELDS.has(name), `${name} must be numeric`);
+        for (const mode of [Main.MODE_TITLE_SCREEN, Main.MODE_INTRO, Main.MODE_MAP, Main.MODE_PLAYING]) {
+            for (const value of [lo, hi])
+                assert.equal(policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, mode, [name]: value }), true, `${name}:endpoint`);
+            for (const value of [lo - 1, hi + 1, 0.5, NaN, Infinity])
+                assert.equal(policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, mode, [name]: value }), false, `${name}:bad`);
+        }
+    }
     const wrongMainPrimitive = structuredClone(valid);
     wrongMainPrimitive.mainFields.killAllFlag = 0;
     assert.equal(serializer.isSupportedSnapshot(wrongMainPrimitive), false, "boolean Main fields must reject numeric aliases");

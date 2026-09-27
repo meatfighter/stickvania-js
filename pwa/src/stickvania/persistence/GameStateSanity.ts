@@ -1,3 +1,4 @@
+import { isCountdownSnapshotValueValid } from "./GameStatePolicy.js";
 import { isMusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
 import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "../AudioRegistry.js";
 import { isInputConfigModeSnapshot, type InputConfigModeSnapshot } from "../InputConfigMode.js";
@@ -81,6 +82,9 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
         return false;
     }
     if (!isReasonableValue(snapshot.mainFields, "mainFields", 0) || !isReasonableValue(snapshot.things, "things", 0)) {
+        return false;
+    }
+    if (!isRecord(snapshot.mainFields) || !isCountdownSnapshotValueValid(snapshot.mode, snapshot.mainFields.timeIncrementor)) {
         return false;
     }
     if (snapshot.stage !== null && !isReasonableValue(snapshot.stage, "stage", 0)) {
@@ -432,7 +436,21 @@ function isReasonableValue(value: unknown, key: string, depth: number): boolean 
     if (entries.length > MAX_RECORD_FIELDS) {
         return false;
     }
-    return entries.every(([entryKey, entryValue]) => isReasonableValue(entryValue, entryKey, depth + 1));
+    return entries.every(([entryKey, entryValue]) => {
+        // Java StopWatch deliberately places its collision box offscreen. These
+        // exact constructor offsets are valid only for this registered Thing.
+        if (key === "things" && value.type === "StopWatch" && entryKey === "fields" && isRecord(entryValue)) {
+            const fields = Object.entries(entryValue);
+            return (
+                fields.length <= MAX_RECORD_FIELDS &&
+                fields.every(
+                    ([field, scalar]) =>
+                        (field === "ry1" && scalar === -10000) || (field === "ry2" && scalar === -9969) || isReasonableValue(scalar, field, depth + 2)
+                )
+            );
+        }
+        return isReasonableValue(entryValue, entryKey, depth + 1);
+    });
 }
 
 function isReasonableNumber(value: number, key: string): boolean {

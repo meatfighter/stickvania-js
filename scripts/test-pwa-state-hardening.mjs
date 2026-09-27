@@ -189,10 +189,18 @@ try {
     const snapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
     assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v19 must not persist derived StopWatch aggregate state");
     assert.equal(isReasonableStickvaniaGameStateSnapshot(snapshot), true);
-    for (const timeIncrementor of [90, 91, 92, 474, 1000001, 2147483647]) {
-        const s = clone(snapshot);
-        s.mainFields.timeIncrementor = timeIncrementor;
-        assert.equal(isReasonableStickvaniaGameStateSnapshot(s), true, `sanity counter ${timeIncrementor}`);
+    for (const mode of [Main.MODE_PLAYING, Main.MODE_DEMO, Main.MODE_CREDITS, Main.MODE_TITLE_SCREEN, Main.MODE_MAP]) {
+        for (const timeIncrementor of [0, 90, 91, 92, 474, 1000001, 2147483647]) {
+            const s = clone(snapshot);
+            s.mode = mode;
+            s.mainFields.mode = mode;
+            s.mainFields.timeIncrementor = timeIncrementor;
+            assert.equal(
+                isReasonableStickvaniaGameStateSnapshot(s),
+                !(mode === Main.MODE_PLAYING || mode === Main.MODE_DEMO) || timeIncrementor <= 90,
+                `outer clock:${mode}:${timeIncrementor}`
+            );
+        }
     }
     for (const timeIncrementor of [-1, 0.5, 2147483648, NaN, Infinity]) {
         const s = clone(snapshot);

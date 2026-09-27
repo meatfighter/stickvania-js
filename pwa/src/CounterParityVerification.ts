@@ -1,7 +1,10 @@
+import { isReasonableStickvaniaGameStateSnapshot } from "./stickvania/persistence/GameStateSanity.js";
+import { Door } from "./stickvania/Door.js";
+import { StopWatch } from "./stickvania/StopWatch.js";
 import { Bat } from "./stickvania/Bat.js";
 import { MedusaHead } from "./stickvania/MedusaHead.js";
 import { Dog } from "./stickvania/Dog.js";
-import { PROVEN_THING_INTEGER_RANGES } from "./stickvania/persistence/StateFieldValuePolicy.js";
+import { PROVEN_MAIN_INTEGER_RANGES, PROVEN_THING_INTEGER_RANGES } from "./stickvania/persistence/StateFieldValuePolicy.js";
 import { type AppGameContainer } from "slick2d-ts";
 import { Main } from "./stickvania/Main.js";
 import { type StickvaniaBufferedGame } from "./stickvania/StickvaniaBufferedGame.js";
@@ -43,6 +46,8 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
         const start = performance.now();
         assert(serializer.isSupportedSnapshot(snapshot), `${label}: integrated snapshot rejected`);
         times.push(performance.now() - start);
+        assert(isReasonableStickvaniaGameStateSnapshot(snapshot), `${label}: outer sanity rejected`);
+        assert(serializer.isSupportedSnapshotForLoadedResources(m.main, snapshot), `${label}: loaded resources rejected`);
         assert(store.save(m.main, () => true).saved && store.hasValidSave(), `${label}: real store rejected`);
         render();
         cases.push(label);
@@ -87,7 +92,141 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
         assert(store.save(current().main, () => true).saved, `${label}: authorized overwrite`);
         cases.push(`reject:${label}`);
     };
+    const verifyMainPresentationDomains = async (): Promise<void> => {
+        current().main.initTitleScreen();
+        current().main.fadeState = Main.FADE_DONE;
+        current().main.fade = 0;
+        await roundtrip("presentation:title:entry");
+        const titleSprites = new Set<number>();
+        let titleWrap = false;
+        let previous = field("titleBatSpriteIndexIncrementor");
+        for (let i = 0; i < 500; i++) {
+            tick();
+            assert(current().main.mode === Main.MODE_TITLE_SCREEN, "Title control must not exit early");
+            const index = field("titleBatSpriteIndex");
+            const increment = field("titleBatSpriteIndexIncrementor");
+            if (!titleSprites.has(index)) {
+                titleSprites.add(index);
+                await roundtrip(`presentation:title:sprite:${index}`);
+            }
+            if (!titleWrap && previous === 8 && increment === 0) {
+                titleWrap = true;
+                await roundtrip("presentation:title:wrap");
+            }
+            previous = increment;
+        }
+        assert(titleSprites.size === 4 && titleWrap && field("titleBatSteps") === 273, "Title complete phase manifest");
+        await roundtrip("presentation:title:steps273");
+        reject("presentation:title:index999", (s) => {
+            s.mainFields.titleBatSpriteIndex = 999;
+        });
+        reject("presentation:title:demoIndex3", (s) => {
+            s.mainFields.demoIndex = 3;
+        });
+
+        // Actual title timeout/fade dispatch consumes the globally bounded demoIndex.
+        current().main.demoIndex = 2;
+        for (const expected of [0, 1, 2]) {
+            current().main.initTitleScreen();
+            current().main.fadeState = Main.FADE_DONE;
+            current().main.fade = 0;
+            for (let frame = 0; frame < 1600 && current().main.mode === Main.MODE_TITLE_SCREEN; frame++) tick();
+            assert(current().main.mode === Main.MODE_DEMO && current().main.demoIndex === expected, "Real TITLE-to-DEMO rotation");
+            await roundtrip(`presentation:title-to-demo:${expected}`);
+        }
+        current().main.initIntro();
+        for (const [name, bounds] of Object.entries(PROVEN_MAIN_INTEGER_RANGES)) {
+            assert(bounds, "Declared Main bounds");
+            const [lo, hi] = bounds;
+            for (const value of [lo - 1, hi + 1, 0.5])
+                reject(`presentation:${name}:${value}`, (s) => {
+                    s.mainFields[name] = value;
+                });
+        }
+        current().main.fadeState = Main.FADE_IN;
+        current().main.fade = 22;
+        await roundtrip("presentation:intro:entry");
+        const walk = new Set<number>();
+        const bats = new Set<number>();
+        let walkWrap = false;
+        let batWrap = false;
+        let lastWalk = field("introWalkSpriteIndexIncrementor");
+        let lastBat = field("gateBatSpriteIndexIncrementor");
+        let count = 0;
+        while (current().main.mode === Main.MODE_INTRO) {
+            tick();
+            assert(++count < 1000, "Intro must finish through real fade/checkpoint dispatch");
+            if (current().main.mode !== Main.MODE_INTRO) break;
+            walk.add(field("introWalkSpriteIndex"));
+            bats.add(field("gateBatSpriteIndex"));
+            const w = field("introWalkSpriteIndexIncrementor");
+            const b = field("gateBatSpriteIndexIncrementor");
+            if (!walkWrap && lastWalk === 15 && w === 0) {
+                walkWrap = true;
+                await roundtrip("presentation:intro:walk-wrap");
+            }
+            if (!batWrap && lastBat === 9 && b === 0) {
+                batWrap = true;
+                await roundtrip("presentation:intro:bat-wrap");
+            }
+            lastWalk = w;
+            lastBat = b;
+        }
+        assert(walk.size === 4 && bats.size === 2 && walkWrap && batWrap, "Intro sprite/wrap manifest");
+        assert(current().main.mode === Main.MODE_PLAYING, "Intro reaches actual gameplay");
+        await roundtrip("presentation:intro:next-gameplay");
+    };
+    const verifyClockDispatch = async (): Promise<void> => {
+        for (const activeMode of [Main.MODE_PLAYING, Main.MODE_DEMO])
+            for (const start of [0, 1, 89, 90])
+                for (const branch of ["normal", "dead", "floor", "frozen", "fade", "flashing", "door", "last-death"]) {
+                    h.destroyMounted(mounted);
+                    mounted = null;
+                    mounted = await h.mountMain(null);
+                    const main = current().main;
+                    if (activeMode === Main.MODE_DEMO) main.initDemo();
+                    else {
+                        main.createStageForStateRestore(branch === "floor" ? 2 : 0);
+                        main.mode = Main.MODE_PLAYING;
+                    }
+                    main.fadeState = Main.FADE_DONE;
+                    main.fade = 0;
+                    main.floorBreaking = false;
+                    main.players = 3;
+                    assert(main.simon, "Clock dispatcher Simon");
+                    main.simon.flashing = 0;
+                    tick();
+                    if (branch === "dead" || branch === "last-death") {
+                        main.hurtSimon(16);
+                        main.simon.flashing = 0;
+                    }
+                    if (branch === "last-death") main.simon.dead = 473;
+                    if (branch === "floor") main.floorBreaking = true;
+                    if (branch === "frozen") {
+                        main.weaponType = Main.WEAPON_TYPE_STOP_WATCH;
+                        main.weaponRepeats = Main.WEAPON_REPEATS_SINGLE;
+                        const watch = new StopWatch(main);
+                        main.weaponsStack.push(watch);
+                        assert(main.timeFrozen > 0, "Real watch active");
+                    }
+                    if (branch === "fade") {
+                        main.fadeState = Main.FADE_IN;
+                        main.fade = 10;
+                    }
+                    if (branch === "flashing") main.simon.flashing = 10;
+                    if (branch === "door") main.door = new Door(main, main.simon.x + 200, main.simon.y, Main.RIGHT, false);
+                    main.timeIncrementor = start;
+                    tick(); // Includes input preflight and Main's consuming expression atomically.
+                    const expected = branch === "normal" ? (start === 90 ? 0 : start + 1) : start;
+                    assert(main.timeIncrementor === expected, `clock dispatcher:${activeMode}:${branch}:${start}`);
+                    const label = `dispatch:${activeMode}:${branch}:${start}`;
+                    check(label);
+                    if (start === 90) await roundtrip(label + ":restore");
+                }
+    };
     try {
+        await verifyMainPresentationDomains();
+        await verifyClockDispatch();
         for (const stage of [0, 3])
             for (const players of [0, 1, 98, 99]) {
                 const main = current().main;
@@ -102,11 +241,25 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
                 reject("MAP101", (s) => {
                     s.mainFields.players = 101;
                 });
+                const walkImages = new Set<number>(),
+                    batImages = new Set<number>();
+                let walkWrap = false,
+                    batWrap = false,
+                    lastWalk = field("introWalkSpriteIndexIncrementor"),
+                    lastBat = field("gateBatSpriteIndexIncrementor");
                 let animation = false,
                     wait = false,
                     exit = false;
                 for (let frame = 0; frame < 3000 && current().main.mode === Main.MODE_MAP; frame++) {
                     tick();
+                    walkImages.add(field("introWalkSpriteIndex"));
+                    batImages.add(field("gateBatSpriteIndex"));
+                    const w = field("introWalkSpriteIndexIncrementor"),
+                        b = field("gateBatSpriteIndexIncrementor");
+                    walkWrap ||= lastWalk === 15 && w === 0;
+                    batWrap ||= lastBat === 9 && b === 0;
+                    lastWalk = w;
+                    lastBat = b;
                     if (!animation && field("introSimonX") > 256) {
                         animation = true;
                         check(`MAP:${stage}:${players}:animation`);
@@ -120,6 +273,8 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
                         check(`MAP:${stage}:${players}:exit`);
                     }
                 }
+                assert(walkImages.size === 4 && batImages.size === 2 && walkWrap && batWrap, "MAP presentation phase manifest");
+                cases.push(`presentation:MAP:${stage}:${players}:wraps`);
                 assert(animation && wait && exit && current().main.mode === Main.MODE_PLAYING, "MAP phase coverage and actual handoff");
                 assert(current().main.players === players && current().main.stageIndex === stage + 1, "MAP must preserve effective lives");
                 await roundtrip(`MAP:${stage}:${players}:next-stage`);
@@ -150,8 +305,10 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
             // PlayerActionPolicy compensates Main's historical ++ in PLAYING.
             assert(main.timeIncrementor === 90 && main.time === time, `${blocked}: existing input preflight freezes clock`);
             check(`clock:${blocked}:preflight-compensation`);
-            main.timeIncrementor = 92;
-            await roundtrip(`clock:${blocked}:retained-92`);
+            await roundtrip(`clock:${blocked}:retained-90`);
+            reject(`clock:${blocked}:invalid-active-92`, (s) => {
+                s.mainFields.timeIncrementor = 92;
+            });
             if (blocked === "dead") {
                 for (let i = 0; i < 700 && current().main.playerPower === 0; i++) tick();
                 assert(current().main.playerPower === 16 && current().main.players === 2, "Actual respawn completes");
@@ -172,6 +329,14 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
             tick();
             assert(Number(main.timeIncrementor) === 92 && main.time === time, "Credits clock: 92");
             await roundtrip("clock:credits-death:92");
+            current().main.initTitleScreen();
+            current().main.fadeState = Main.FADE_DONE;
+            current().main.fade = 0;
+            assert(current().main.timeIncrementor === 92, "Title retains the inactive credits clock");
+            await roundtrip("clock:post-credits-title:92");
+            current().main.initDemo();
+            assert(current().main.timeIncrementor === 0, "Real demo setup resets the clock before active simulation");
+            await roundtrip("clock:post-credits-demo:reset");
             current().main.createStageForStateRestore(0);
             current().main.mode = Main.MODE_PLAYING;
             current().main.floorBreaking = false;
@@ -202,7 +367,7 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
             "Human input exits demo before consuming a byte"
         );
         await roundtrip("demo:early-human-exit");
-        Reflect.set(current().main, "demoIndex", -1);
+        Reflect.set(current().main, "demoIndex", 2);
         for (let index = 0; index < 3; index++) {
             current().main.initDemo();
             current().main.fade = 0;
@@ -356,7 +521,27 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
                 });
             }
         await roundtrip("Simon:retained45:loaded-restore");
+        const required = [
+            "presentation:title:entry",
+            "presentation:title:steps273",
+            "presentation:title:wrap",
+            "presentation:intro:entry",
+            "presentation:intro:walk-wrap",
+            "presentation:intro:bat-wrap",
+            "presentation:intro:next-gameplay",
+            "clock:post-credits-title:92",
+            "clock:post-credits-demo:reset",
+            "clock:credits-death:92"
+        ];
+        for (const index of [0, 1, 2]) required.push(`presentation:title-to-demo:${index}`);
+        for (const index of [0, 1, 2, 3]) required.push(`presentation:title:sprite:${index}`);
+        for (const mode of [Main.MODE_PLAYING, Main.MODE_DEMO])
+            for (const branch of ["normal", "dead", "floor", "frozen", "fade", "flashing", "door", "last-death"])
+                for (const start of [0, 1, 89, 90]) required.push(`dispatch:${mode}:${branch}:${start}`);
+        for (const stage of [0, 3]) for (const players of [0, 1, 98, 99]) required.push(`presentation:MAP:${stage}:${players}:wraps`);
+        for (const label of required) assert(cases.includes(label), `Missing closure case ${label}`);
         Reflect.set(window, "counterParityEvidence", {
+            required,
             cases,
             validationMilliseconds: times,
             schema: serializer.createSnapshot(current().main, "counter-parity").version

@@ -8,7 +8,7 @@ async function probe(mutation = (s) => s, sanityMutation = (s) => s) {
         {
             JavaMath: (s) => s + "\nexport {ResourceLoader};",
             "persistence/StateFieldValuePolicy": mutation,
-            "persistence/GameStateSanity": (s) => sanityMutation(s) + "\nexport {isReasonableValue};"
+            "persistence/GameStateSanity": (s) => sanityMutation(s) + "\nexport {isReasonableValue, EXPECTED_MUSIC_IDS};"
         },
         async (load) => {
             const policy = await load("persistence/StateFieldValuePolicy"),
@@ -32,9 +32,61 @@ async function probe(mutation = (s) => s, sanityMutation = (s) => s) {
                 [Main.MODE_MAP, 101]
             ])
                 assert.equal(valid({ mode, players }), false, "life boundary");
-            for (const n of [91, 92, 2147483647]) assert.equal(valid({ timeIncrementor: n }), true, "clock range");
+            for (const n of [91, 92, 2147483647])
+                assert.equal(
+                    valid({ mode: Main.MODE_CREDITS, creditsIndex: 0, creditsPresents: false, recordingIndex: 0, timeIncrementor: n }),
+                    true,
+                    "clock range"
+                );
+            for (const mode of [Main.MODE_PLAYING, Main.MODE_DEMO]) {
+                assert.equal(valid({ mode, timeIncrementor: 90 }), true, "clock range active positive");
+                for (const timeIncrementor of [91, 92]) assert.equal(valid({ mode, timeIncrementor }), false, "clock range active negative");
+            }
+            assert.equal(valid({ mode: Main.MODE_TITLE_SCREEN, demoIndex: 3 }), false, "demo index global");
             const { isReasonableValue } = await load("persistence/GameStateSanity");
             assert.equal(isReasonableValue({ timeIncrementor: 92 }, "mainFields", 0), true, "independent sanity clock");
+            const sanity = await load("persistence/GameStateSanity");
+            const { SONG_FIELD_NAMES } = await load("AudioRegistry");
+            const part = (id) =>
+                sanity.EXPECTED_MUSIC_IDS.has(id)
+                    ? { id, playback: { transport: "stopped", looped: false, playbackRate: 1, positionSeconds: 0, volume: 1, fade: null } }
+                    : null;
+            const neutral = {
+                version: 19,
+                appVersion: "test",
+                savedAt: new Date(0).toISOString(),
+                mode: 4,
+                mainFields: { mode: 4, timeIncrementor: 90 },
+                inputConfigMode: null,
+                random: { seed0: 1, seed1: 2, seed2: 3 },
+                stage: null,
+                things: [],
+                audio: {
+                    currentSong: null,
+                    requestedSong: null,
+                    currentMusic: null,
+                    songs: SONG_FIELD_NAMES.map((id) => ({ id, playing: false, intro: part(id + ".intro"), loop: part(id + ".loop") })),
+                    sounds: []
+                }
+            };
+            assert.equal(sanity.isReasonableStickvaniaGameStateSnapshot(neutral), true, "outer context positive");
+            neutral.mainFields.timeIncrementor = 92;
+            assert.equal(sanity.isReasonableStickvaniaGameStateSnapshot(neutral), false, "outer context negative");
+            neutral.mode = neutral.mainFields.mode = 8;
+            assert.equal(sanity.isReasonableStickvaniaGameStateSnapshot(neutral), true, "outer inactive positive");
+            const { StopWatch } = await load("StopWatch");
+            const watch = new StopWatch(main);
+            const wf = Object.fromEntries(fields.THING_PERSISTED_STATE_FIELD_NAMES.StopWatch.map((k) => [k, watch[k]]));
+            const row = { type: "StopWatch", id: 0, fields: wf };
+            assert.equal(isReasonableValue([row], "things", 0), true, "actual watch collision offsets");
+            for (const [type, key, n] of [
+                ["StopWatch", "ry1", -10001],
+                ["StopWatch", "ry2", -9968],
+                ["Dog", "ry1", -10000]
+            ]) {
+                assert.equal(isReasonableValue([{ ...row, type, fields: { ...wf, [key]: n } }], "things", 0), false, "watch offset scope");
+            }
+
             assert.equal(valid({ mode: Main.MODE_DEMO, demoIndex: 2, recordingIndex: 2730 }), true, "demo terminal sentinel");
             assert.equal(valid({ mode: Main.MODE_DEMO, demoIndex: 3 }), false, "demo index");
             assert.equal(valid({ mode: Main.MODE_DEMO, demoIndex: 0, recordingIndex: 2731 }), false, "demo cursor");
@@ -79,8 +131,9 @@ test("Stickvania bounds and sentinels defeat targeted mutants", async () => {
     for (const [from, to] of [
         ["fields.mode === Main.MODE_MAP ? 100 : 99", "99"],
         ["fields.mode === Main.MODE_MAP ? 100 : 99", "100"],
-        ["isIntegerInRange(value, 0, JAVA_INT_MAX)", "isIntegerInRange(value, 0, 90)"],
-        ["isIntegerInRange(fields.demoIndex, 0, 2)", "isIntegerInRange(fields.demoIndex, 0, 3)"],
+        ["isCountdownSnapshotValueValid(fields.mode, value)", "isIntegerInRange(value, 0, 90)"],
+        ["isCountdownSnapshotValueValid(fields.mode, value)", "isIntegerInRange(value, 0, JAVA_INT_MAX)"],
+        ["demoIndex: [0, 2]", "demoIndex: [0, 3]"],
         ["isIntegerInRange(fields.recordingIndex, 0, 2730)", "isIntegerInRange(fields.recordingIndex, 0, 2729)"],
         ["isIntegerInRange(cursor, 0, 728)", "isIntegerInRange(cursor, 0, 727)"],
         ["isIntegerInRange(cursor, 0, 728)", "isIntegerInRange(cursor, 0, 729)"],
@@ -104,6 +157,19 @@ test("Stickvania bounds and sentinels defeat targeted mutants", async () => {
         ),
         (e) => e.code === "ERR_ASSERTION" && /sanity clock/.test(e.message)
     );
+    for (const [from, to] of [
+        ["!isRecord(snapshot.mainFields) || !isCountdownSnapshotValueValid(snapshot.mode, snapshot.mainFields.timeIncrementor)", "false"],
+        ['key === "things" && value.type === "StopWatch"', "false"],
+        ['field === "ry1" && scalar === -10000', 'field === "ry1"'],
+        ['value.type === "StopWatch"', "true"]
+    ])
+        await assert.rejects(
+            probe(
+                (s) => s,
+                (s) => replace(s, from, to)
+            ),
+            (e) => e.code === "ERR_ASSERTION" && /outer context negative|watch collision|watch offset scope/.test(e.message)
+        );
     for (const type of ["Bat", "MedusaHead", "Dog", "Simon"]) {
         await assert.rejects(
             probe((s) =>

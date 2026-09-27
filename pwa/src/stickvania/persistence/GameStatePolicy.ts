@@ -33,3 +33,9 @@ export function isStageRequiredGameStateMode(mode: number): boolean {
 export function isInputConfigGameStateMode(mode: number): boolean {
     return mode === GAME_STATE_MODE_INPUT_CONFIG;
 }
+
+/** External snapshot boundary; never call this halfway through countdown preflight. */
+export function isCountdownSnapshotValueValid(mode: unknown, value: unknown): boolean {
+    const maximum = mode === GAME_STATE_MODE_PLAYING || mode === GAME_STATE_MODE_DEMO ? 90 : 2_147_483_647;
+    return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= maximum;
+}
