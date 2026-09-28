@@ -41,7 +41,7 @@ export type EncodedRecord = { [key: string]: EncodedValue };
 export type ThingStackSnapshot = {
     $stack: {
         capacity: number;
-        things: Array<number | null>;
+        things: number[];
     };
 };
 

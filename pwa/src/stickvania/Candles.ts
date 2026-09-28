@@ -26,7 +26,7 @@ export class Candles extends Thing {
 
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this)) {
             this.main.pushThing(new Spark(this.main, this));
-            this.main.pushThing(this.main.createCandleItem(trunc(javaFloat(this.x - 8)), trunc(this.y), this.item)!);
+            this.main.pushThing(this.main.createCandleItem(trunc(javaFloat(this.x - 8)), trunc(this.y), this.item));
             this.main.playSound(this.main.hit_candle);
             return false;
         }

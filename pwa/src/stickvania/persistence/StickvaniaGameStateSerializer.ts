@@ -586,7 +586,7 @@ export class StickvaniaGameStateSerializer {
             snapshot.$stack.capacity >= snapshot.$stack.things.length &&
             snapshot.$stack.capacity <= MAX_SAVED_STACK_CAPACITY &&
             snapshot.$stack.things.length <= MAX_SAVED_STACK_CAPACITY &&
-            snapshot.$stack.things.every((id) => this.isNullableThingId(id, thingCount))
+            snapshot.$stack.things.every((id) => typeof id === "number" && Number.isInteger(id) && id >= 0 && id < thingCount)
         );
     }
 
@@ -984,16 +984,16 @@ export class StickvaniaGameStateSerializer {
     }
 
     private captureStack(context: CaptureContext, stack: ThingStack): ThingStackSnapshot {
-        const things: Array<number | null> = [];
-        for (let i = 0; i <= stack.top; i++) {
-            things.push(this.registerThing(context, stack.things[i]));
+        if (!Number.isInteger(stack.top) || stack.top < -1 || stack.top >= stack.things.length) {
+            throw new Error("Invalid active ThingStack bounds.");
         }
-        return {
-            $stack: {
-                capacity: stack.things.length,
-                things
-            }
-        };
+        const things: number[] = [];
+        for (let i = 0; i <= stack.top; i++) {
+            const id = this.registerThing(context, stack.things[i]);
+            if (id === null) throw new Error("Cannot save a null in an active ThingStack.");
+            things.push(id);
+        }
+        return { $stack: { capacity: stack.things.length, things } };
     }
 
     private registerThing(context: CaptureContext, thing: Thing | null): number | null {

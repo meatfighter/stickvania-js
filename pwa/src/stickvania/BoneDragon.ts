@@ -67,7 +67,7 @@ export class BoneDragon extends Thing {
             if (--this.deadDelay == 0) {
                 let vertebra: BoneDragonVertebra = this.vertebrae[this.minIndex];
                 this.deadDelay = 23;
-                this.main.pushThing(this.main.createCandleItem(trunc(javaFloat(vertebra.x - 8)), trunc(vertebra.y), this.item)!);
+                this.main.pushThing(this.main.createCandleItem(trunc(javaFloat(vertebra.x - 8)), trunc(vertebra.y), this.item));
                 this.main.pushThing(new Flame(this.main, javaFloat(vertebra.x - 8), vertebra.y, 0, 0, -0.05, 0, 10));
                 this.main.playSound(this.main.snuffed);
                 if (++this.minIndex == 6) {
@@ -88,7 +88,7 @@ export class BoneDragon extends Thing {
             this.main.pushThing(new Spark(this.main, this));
             if (--this.hits <= 0) {
                 this.dead = true;
-                this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item)!);
+                this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item));
                 this.main.pushThing(new Flame(this.main, this.x, this.y, 0, 0, -0.05, 0, 10));
                 this.main.addPoints(1000);
                 this.main.playSound(this.main.crumble_sfx);

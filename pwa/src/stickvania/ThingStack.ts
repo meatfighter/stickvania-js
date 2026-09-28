@@ -6,6 +6,7 @@ export class ThingStack {
     public top: number = -1;
 
     public push(thing: Thing): void {
+        if (thing === null || thing === undefined) throw new TypeError("ThingStack cannot contain a null Thing.");
         this.top++;
         if (this.top === this.things.length) {
             const things2 = makeArray<Thing | null>(this.things.length + 16, () => null);

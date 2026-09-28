@@ -6,6 +6,9 @@ public class ThingStack {
   public int top = -1;
 
   public void push(Thing thing) {
+    if (thing == null) {
+      throw new IllegalArgumentException("ThingStack cannot contain a null Thing.");
+    }
     top++;
     if (top == things.length) {
       Thing[] things2 = new Thing[things.length + 16];

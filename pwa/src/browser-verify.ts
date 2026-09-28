@@ -1,3 +1,4 @@
+import { verifyNullThingBoundary, traceNullPlayback } from "./NullThingVerification.js";
 import { verifyCounterParity } from "./CounterParityVerification.js";
 import * as NesInputProfile from "./stickvania/NesInputProfile.js";
 import { Orb } from "./stickvania/Orb.js";
@@ -126,6 +127,11 @@ async function verify(): Promise<void> {
     localStorage.clear();
     await preloadRuntimeResources();
 
+    const selected = new URLSearchParams(location.search).get("suite");
+    if (selected === "null-boundary" || selected === "null-playback") {
+        await (selected === "null-boundary" ? verifyNullThingBoundary : traceNullPlayback)({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
+        return;
+    }
     if (new URLSearchParams(location.search).get("suite") === "counter-parity") {
         await verifyCounterParity({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
         return;

@@ -2265,24 +2265,20 @@ export class Main extends BasicGame {
         this.weaponsStack.push(weapon);
     }
 
-    public pushThing(thingStacks: ThingStack[], thing: Thing): void;
-    public pushThing(thing: Thing): void;
-    public pushThing(thingOrStacks: ThingStack[] | Thing, maybeThing?: Thing): void {
+    public pushThing(thingStacks: ThingStack[], thing: Thing | null): void;
+    public pushThing(thing: Thing | null): void;
+    public pushThing(thingOrStacks: ThingStack[] | Thing | null, maybeThing?: Thing | null): void {
         if (Array.isArray(thingOrStacks)) {
-            const thingStacks = thingOrStacks;
             const thing = maybeThing;
-            if (thing === null || thing === undefined) {
-                return;
-            }
-            let index: number = trunc(thing.x) >> 8;
-            if (index < 0) {
-                index = 0;
-            } else if (index >= thingStacks.length) {
-                index = thingStacks.length - 1;
-            }
-            thingStacks[index].push(thing);
+            if (thing == null) return;
+            let index = trunc(thing.x) >> 8;
+            if (index < 0) index = 0;
+            else if (index >= thingOrStacks.length) index = thingOrStacks.length - 1;
+            thingOrStacks[index].push(thing);
             return;
         }
+        // The item factory's "no drop" is not a stack element.
+        if (thingOrStacks == null) return;
         this.regionThingStack.push(thingOrStacks);
     }
 

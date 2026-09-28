@@ -24,7 +24,7 @@ export class BreakWall extends Thing {
             this.main.pushThing(new BrickFragment(this.main, javaFloat(this.x + 8), this.y, 1, -3));
             this.main.pushThing(new BrickFragment(this.main, this.x, javaFloat(this.y + 8), -1, -4));
             this.main.pushThing(new BrickFragment(this.main, javaFloat(javaFloat(this.x + 8) + 8), this.y, 1, -5));
-            this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item)!);
+            this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item));
             this.main.playSound(this.main.breaks_wall);
             this.main.playRumble("blockBreak");
             return false;

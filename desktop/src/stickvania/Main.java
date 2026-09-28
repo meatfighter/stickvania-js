@@ -2543,6 +2543,9 @@ public final class Main extends BasicGame {
   }
 
   public void pushThing(Thing thing) {
+    if (thing == null) {
+      return;
+    }
     regionThingStack.push(thing);
   }
 

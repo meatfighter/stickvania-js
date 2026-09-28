@@ -27,7 +27,7 @@ export class Torch extends Thing {
 
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this)) {
             this.main.pushThing(new Spark(this.main, this));
-            this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item)!);
+            this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), this.item));
             this.main.pushThing(new Flame(this.main, this.x, javaFloat(this.y + 24), 0, 0, -0.08, 0, 10));
             this.main.playSound(this.main.torch_breaks);
             return false;
