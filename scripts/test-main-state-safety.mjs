@@ -56,6 +56,17 @@ test("clock policy separates active domain from retained inactive values", async
     await fixture(({ Main, main, policy, modes, captureFields }) => {
         // This cross-mode clock test must begin with a reachable castle phase.
         main.initCastleFalls();
+        Object.assign(main, {
+            stageIndex: 5,
+            beatStageFlag: true,
+            beatStageDelay: 0,
+            playerPower: 16,
+            time: 0,
+            hearts: 0,
+            fadeState: Main.FADE_IN,
+            fade: 22,
+            fadeReason: Main.FADE_REASON_SHOW_CASTLE_FALLS
+        });
         const base = captureFields();
         for (const mode of [0, 1, 2, 4, 5, 6, 7, 8, 10]) {
             const active = mode === Main.MODE_PLAYING || mode === Main.MODE_DEMO;

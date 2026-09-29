@@ -1,4 +1,4 @@
-﻿/** Test-only source mutations: never imported by the PWA. */
+/** Test-only source mutations: never imported by the PWA. */
 export function rumbleMutationPlugin(name = process.env.STICKVANIA_RUMBLE_MUTANT) {
     return {
         name: "rumble-behavioral-counterexample",
@@ -30,6 +30,18 @@ export function rumbleMutationPlugin(name = process.env.STICKVANIA_RUMBLE_MUTANT
           old.push({duration:320,strong:.88,weak:.48});
           for(let i=0;i<5;i++)old.push({delay:105},{duration:150+i*18,strong:magnitude(.38*(1-i/5)),weak:magnitude(.2*(1-i/5))});return old;`
                 );
+            if (name === "castle-full-boundary" && path.endsWith("/persistence/StateFieldValuePolicy.ts"))
+                changed = changed.replace(" && isCastleTransitionValid(fields)", "");
+            if (name === "castle-preflight" && path.endsWith("/persistence/GameStatePreflight.ts"))
+                changed = changed.replace("isCastleTransitionValid(mainFieldsValue) &&", "");
+            if (path.endsWith("/persistence/CastlePresentationPhasePolicy.ts")) {
+                if (name === "castle-pending-tally")
+                    changed = changed.replace(
+                        "entering && fields.mode === GAME_STATE_MODE_PLAYING && isCompletedFinalTally(fields)",
+                        "entering && fields.mode === GAME_STATE_MODE_PLAYING"
+                    );
+                if (name === "castle-terminal-tick") changed = changed.replace("tick === CASTLE_LAST_ACTIVE_TICK && fields.fadeState", "fields.fadeState");
+            }
             if (changed !== source) return changed;
         }
     };

@@ -1,3 +1,5 @@
+import { isCastleTransitionValid } from "./stickvania/persistence/CastlePresentationPhasePolicy.js";
+import { isPotentialStickvaniaGameStateSnapshot } from "./stickvania/persistence/GameStatePreflight.js";
 import { Sys, type AppGameContainer } from "slick2d-ts";
 import { Main } from "./stickvania/Main.js";
 import { Dracula } from "./stickvania/Dracula.js";
@@ -137,7 +139,16 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
         Object.assign(orb, { appearDelay: 0, fadeIn: 91, x: m.simon.x + 20, y: m.simon.y + 8 });
         frame();
         check(m.beatStageFlag, "Orb collision starts tally");
-        for (let i = 0; i < 200 && m.mode !== Main.MODE_CASTLE_FALLS; i++) frame();
+        for (let i = 0; i < 200 && m.mode !== Main.MODE_CASTLE_FALLS; i++) {
+            if (m.fadeState === Main.FADE_OUT && m.fadeReason === Main.FADE_REASON_SHOW_CASTLE_FALLS && [0, 11, 22].includes(m.fade)) {
+                const snapshot = serializer.createSnapshot(m, "rumble");
+                check(isCastleTransitionValid(snapshot.mainFields), "Real completed tally requests castle entry");
+                const expected = h.gameplaySnapshot(serializer, m);
+                check(store.save(m, () => true).saved, "Save real pending castle entry");
+                checkpoints.push({ label: "entry-fade" + m.fade, bytes: localStorage.getItem(GAME_STATE_STORAGE_KEY)!, expected });
+            }
+            frame();
+        }
         check(m.mode === Main.MODE_CASTLE_FALLS && m.currentSong === m.ending, "Tally/fade enters castle with ending owner");
         let f = clock(() => tick(current().main));
         m.rumble = f.manager;
@@ -147,7 +158,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             const before = h.gameplaySnapshot(serializer, m);
             check(store.save(m, () => true).saved, "Save reachable castle " + label);
             const bytes = localStorage.getItem(GAME_STATE_STORAGE_KEY)!;
-            check(JSON.parse(bytes).version === 21, "Current schema");
+            check(JSON.parse(bytes).version === 22, "Current schema");
             checkpoints.push({ label, bytes, expected: before });
             m.setBrowserSuspended(true);
             f.manager.setSuspended(true);
@@ -193,6 +204,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             check(tick(m) === n, "Actual castle counter " + n);
             const snapshot = serializer.createSnapshot(m, "rumble");
             check(isCastlePresentationValid(snapshot.mainFields), "Actual visual state " + n);
+            check(isCastleTransitionValid(snapshot.mainFields), "Actual castle transition phase " + n);
             states.push({
                 tick: n,
                 fields: Object.fromEntries(Object.entries(snapshot.mainFields).filter(([k]) => k.startsWith("castleFall"))),
@@ -227,7 +239,11 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
         frame();
         check(tick(current().main) === 813 && current().main.fadeState === Main.FADE_OUT, "Terminal stops at 813");
         await checkpoint("terminal-fade");
-        for (let i = 0; i < 23; i++) frame();
+        for (let i = 0; i < 23; i++) {
+            frame();
+            if (i === 10) await checkpoint("terminal-fade11");
+            if (i === 21) await checkpoint("terminal-fade22");
+        }
         check(current().main.mode === Main.MODE_CREDITS, "Natural credits transition");
         f.manager.stopAll();
         // Actual outer dispatcher retains integer 10ms step and eight-update debt cap.
@@ -267,7 +283,33 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
                 return bad;
             })
         );
-        for (const version of [20, 22]) {
+        const phasePatches: Array<Record<string, number | boolean>> = [
+            { fadeState: Main.FADE_OUT, fade: 22, fadeReason: Main.FADE_REASON_SHOW_CREDITS },
+            { fadeState: Main.FADE_IN, fade: 22 },
+            { fadeState: Main.FADE_OUT, fade: 22, fadeReason: Main.FADE_REASON_STAIRS },
+            { fade: 1 },
+            { beatStageFlag: false },
+            { beatStageDelay: 7 },
+            { playerPower: 15 },
+            { time: 1 },
+            { hearts: 1 }
+        ];
+        for (const patch of phasePatches) {
+            const bad = structuredClone(good);
+            Object.assign(bad.mainFields, patch);
+            check(!isPotentialStickvaniaGameStateSnapshot(bad), "Potential reader rejects contradictory castle phase");
+            mutations.push(bad);
+        }
+        const entryCheckpoint = checkpoints.find((c) => c.label === "entry-fade22");
+        check(entryCheckpoint, "Real pending-entry checkpoint exists");
+        const entry = JSON.parse(entryCheckpoint.bytes);
+        for (const [key, value] of Object.entries({ beatStageFlag: false, beatStageDelay: 7, playerPower: 15, time: 1, hearts: 1 })) {
+            const bad = structuredClone(entry);
+            Reflect.set(bad.mainFields, key, value);
+            check(!isPotentialStickvaniaGameStateSnapshot(bad), "Potential reader rejects impossible pending entry");
+            mutations.push(bad);
+        }
+        for (const version of [21, 23]) {
             const bad = structuredClone(good);
             bad.version = version;
             mutations.push(bad);
@@ -306,6 +348,18 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             "Outgoing invalid state preserves previous bytes"
         );
         Reflect.set(m, "castleCrumbleRumbleTicks", old);
+        const originalPhase = { fadeState: m.fadeState, fade: m.fade, fadeReason: m.fadeReason };
+        try {
+            m.fadeState = Main.FADE_OUT;
+            m.fade = 22;
+            m.fadeReason = Main.FADE_REASON_SHOW_CREDITS;
+            check(
+                !store.save(m, () => true).saved && localStorage.getItem(GAME_STATE_STORAGE_KEY) === goodBytes,
+                "Outgoing contradictory castle phase preserves previous bytes"
+            );
+        } finally {
+            Object.assign(m, originalPhase);
+        }
         const get = Storage.prototype.getItem;
         Storage.prototype.getItem = () => {
             throw Error("Save must not read");

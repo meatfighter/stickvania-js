@@ -52,7 +52,7 @@ async function probe(mutation = (s) => s, sanityMutation = (s) => s) {
                     ? { id, playback: { transport: "stopped", looped: false, playbackRate: 1, positionSeconds: 0, volume: 1, fade: null } }
                     : null;
             const neutral = {
-                version: 21,
+                version: 22,
                 appVersion: "test",
                 savedAt: new Date(0).toISOString(),
                 mode: 4,

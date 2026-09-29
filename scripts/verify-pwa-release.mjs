@@ -375,6 +375,13 @@ async function importGameStatePreflight() {
     writeTranspiledModule(gameStateSchemaSourcePath, schemaOutputPath);
     writeTranspiledModule(gameStatePolicySourcePath, policyOutputPath);
     writeTranspiledModule(
+        join(rootDir, "pwa", "src", "stickvania", "persistence", "CastlePresentationPhasePolicy.ts"),
+        join(persistenceOutputDirectory, "CastlePresentationPhasePolicy.js")
+    );
+    const rumbleOutputDirectory = join(outputDirectory, "..", "rumble");
+    mkdirSync(rumbleOutputDirectory, { recursive: true });
+    writeTranspiledModule(join(rootDir, "pwa", "src", "rumble", "CastleCrumbleTimeline.ts"), join(rumbleOutputDirectory, "CastleCrumbleTimeline.js"));
+    writeTranspiledModule(
         join(rootDir, "pwa", "src", "stickvania", "persistence", "AxeKnightShieldStatePolicy.ts"),
         join(persistenceOutputDirectory, "AxeKnightShieldStatePolicy.js")
     );
@@ -990,7 +997,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const builtSource = builtJavaScript();
 
     assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 21;/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 22;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);

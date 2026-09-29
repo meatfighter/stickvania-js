@@ -1,6 +1,6 @@
 {
     "name": "stickvania-js",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "private": true,
     "homepage": "https://meatfighter.com/stickvania/",
     "repository": {
@@ -68,7 +68,7 @@
         "check:java-parity-metadata": "node scripts/generate-java-parity-metadata.mjs --check",
         "test:typescript-tech-debt": "node scripts/test-typescript-tech-debt-guardrails.mjs",
         "test:session-ownership": "node --test scripts/test-session-ownership.mjs",
-        "test:rumble-session": "node --test scripts/test-rumble-session.mjs && node --test scripts/test-rumble-timeline.mjs && node scripts/test-rumble-mutants.mjs",
+        "test:rumble-session": "node --test scripts/test-rumble-session.mjs && node --test scripts/test-rumble-timeline.mjs && node scripts/test-rumble-mutants.mjs && node --test scripts/test-castle-transition-policy.mjs",
         "verify:fullscreen": "node scripts/run-fullscreen-qualification.mjs",
         "verify:fullscreen-timeout": "node scripts/run-fullscreen-timeout-qualification.mjs",
         "verify:fullscreen-reentry": "node scripts/run-fullscreen-reentry-qualification.mjs",

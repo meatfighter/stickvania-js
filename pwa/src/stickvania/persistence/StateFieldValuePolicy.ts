@@ -1,3 +1,4 @@
+import { isCastleTransitionValid } from "./CastlePresentationPhasePolicy.js";
 import { isCastlePresentationValid } from "../../rumble/CastleCrumbleTimeline.js";
 import { Main } from "../Main.js";
 import type { EncodedRecord, EncodedValue, ThingSnapshot } from "./GameStateSnapshot.js";
@@ -147,7 +148,7 @@ export function isPersistedMainFieldValuesValid(fields: EncodedRecord): boolean 
             return false;
         }
     }
-    return isRecordedInputCursorValid(fields) && isCastlePresentationValid(fields);
+    return isRecordedInputCursorValid(fields) && isCastlePresentationValid(fields) && isCastleTransitionValid(fields);
 }
 
 export function isPersistedThingFieldValuesValid(snapshot: ThingSnapshot, thingTypes: ReadonlyMap<number, ThingTypeId>, segmentCount: number): boolean {
