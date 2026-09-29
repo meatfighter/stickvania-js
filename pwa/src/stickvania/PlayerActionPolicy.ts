@@ -169,6 +169,7 @@ export function cancelSimonAction(main: Main): void {
     simon.whipIncrementor = 0;
     simon.whipIndex = 0;
     simon.releasedWhip = false;
+    // Target only the pending weapon tap; hurt/death and other channels survive.
     main.stopRumble("weaponThrow");
 }
 

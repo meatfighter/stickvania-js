@@ -278,7 +278,7 @@ assert.doesNotMatch(tsMermanSpawnerSource, /\b(?:public|private|protected)\s+vy\
 assert.match(tsMermanSpawnerSource, /new Merman\(this\.main, target, this\.spawnVy, this\)/);
 
 const gameStateSchemaSource = readProjectFile("pwa", "src", "stickvania", "persistence", "GameStateSchema.ts");
-assert.match(gameStateSchemaSource, /GAME_STATE_VERSION = 20;/);
+assert.match(gameStateSchemaSource, /GAME_STATE_VERSION = 21;/);
 for (const spawner of ["BirdSpawner.ts", "MermanSpawner.ts", "ZombieSpawner.ts"]) {
     const source = readProjectFile("pwa", "src", "stickvania", spawner);
     assert.doesNotMatch(source, /Number\.isFinite\(this\.(?:activeCap|count)\)/, `${spawner} still contains obsolete save-migration checks`);

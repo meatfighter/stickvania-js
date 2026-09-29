@@ -1,3 +1,4 @@
+import { verifyRumbleCastle, verifyRumbleRestore } from "./RumbleCastleVerification.js";
 import { verifyNullThingBoundary, traceNullPlayback } from "./NullThingVerification.js";
 import { verifyCounterParity } from "./CounterParityVerification.js";
 import * as NesInputProfile from "./stickvania/NesInputProfile.js";
@@ -124,10 +125,14 @@ function gameplaySnapshot(serializer: StickvaniaGameStateSerializer, main: Main)
 }
 
 async function verify(): Promise<void> {
-    localStorage.clear();
+    if (new URLSearchParams(location.search).get("suite") !== "rumble-restore") localStorage.clear();
     await preloadRuntimeResources();
 
     const selected = new URLSearchParams(location.search).get("suite");
+    if (selected === "rumble-castle" || selected === "rumble-restore") {
+        await (selected === "rumble-castle" ? verifyRumbleCastle : verifyRumbleRestore)({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
+        return;
+    }
     if (selected === "null-boundary" || selected === "null-playback") {
         await (selected === "null-boundary" ? verifyNullThingBoundary : traceNullPlayback)({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
         return;

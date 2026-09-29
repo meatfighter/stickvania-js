@@ -1,3 +1,4 @@
+import { CASTLE_TICK_MS } from "../rumble/CastleCrumbleTimeline.js";
 import { BasicGame, Color, FastTrig, GameContainer, Graphics, Image, Input, JavaRandom, Music, PackedSpriteSheet, Sound, SoundStore, Sys } from "slick2d-ts";
 import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "./AudioRegistry.js";
 import { Axe } from "./Axe.js";
@@ -102,7 +103,6 @@ export class Main extends BasicGame {
     private static readonly TITLE_OPTIONS_OPTIONS: string[] = ["INPUT", "DIFFICULTY", "DONE"];
     private static readonly TITLE_DIFFICULTY_OPTIONS: string[] = ["NORMAL", "HARD"];
     private static readonly GAME_OVER_OPTIONS: string[] = ["CONTINUE", "END"];
-    private static readonly CASTLE_CRUMBLE_RUMBLE_TICK_MS: number = 1000 / 91;
     public static readonly CANDLE_ITEM_AXE: number = cc("a");
     public static readonly CANDLE_ITEM_BOOMERANG: number = cc("b");
     public static readonly CANDLE_ITEM_CHEST: number = cc("c");
@@ -2561,11 +2561,12 @@ export class Main extends BasicGame {
     }
 
     public resumeBrowserOnlyRumbles(): void {
-        if (this.rumble == null || this.browserSuspended || !this.isRumbleModeAllowed()) {
-            return;
-        }
+        if (this.rumble == null || this.browserSuspended || !this.isRumbleModeAllowed()) return;
         if (this.mode == Main.MODE_CASTLE_FALLS && this.isCastleCrumbleActive()) {
-            this.rumble.playFromOffset("castleCrumble", this.getCastleCrumbleRumbleOffsetMs());
+            this.rumble.playScene("castleCrumble", () => {
+                if (this.browserSuspended || this.mode != Main.MODE_CASTLE_FALLS || !this.isCastleCrumbleActive()) return null;
+                return this.getCastleCrumbleRumbleOffsetMs();
+            });
         }
     }
 
@@ -2578,7 +2579,7 @@ export class Main extends BasicGame {
     }
 
     private getCastleCrumbleRumbleOffsetMs(): number {
-        return this.castleCrumbleRumbleTicks * Main.CASTLE_CRUMBLE_RUMBLE_TICK_MS;
+        return this.castleCrumbleRumbleTicks * CASTLE_TICK_MS;
     }
 
     public stopSong(): void {
@@ -3380,7 +3381,6 @@ export class Main extends BasicGame {
     public initCastleFalls(): void {
         this.mode = Main.MODE_CASTLE_FALLS;
         this.castleCrumbleRumbleTicks = 0;
-        this.playRumble("castleCrumble");
 
         this.castleFallDelay = 91;
         this.castleFallX = javaFloat(410);
@@ -3390,6 +3390,7 @@ export class Main extends BasicGame {
         this.castleFallSparkVisible = false;
 
         this.nextFrameTime = Sys.getTime();
+        this.resumeBrowserOnlyRumbles();
     }
 
     public updateCastleFalls(gc: GameContainer): void {

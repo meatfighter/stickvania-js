@@ -13,7 +13,8 @@ const qualificationScripts = [
     "verify:ownership-transfer",
     "verify:persistence-failure",
     "verify:lifecycle-stress",
-    "verify:null-thing"
+    "verify:null-thing",
+    "verify:rumble-castle"
 ];
 
 const pwaRoot = resolve(".release-components", "pwa", "pwa");

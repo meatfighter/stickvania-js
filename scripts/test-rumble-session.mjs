@@ -51,12 +51,41 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         getElementById: () => hamburger
     };
     const common = { console, Promise, setTimeout, clearTimeout, performance, window: { setTimeout, location: { reload: noop } }, document };
+    let hapticNow = 0,
+        nextTimer = 0;
+    const hapticTimers = new Map();
+    const flushHaptics = async (ms = 0) => {
+        const target = hapticNow + ms;
+        for (let loops = 0; loops < 10000; loops++) {
+            for (let i = 0; i < 8; i++) await Promise.resolve();
+            const next = [...hapticTimers].filter(([, t]) => t.at <= target).sort((a, b) => a[1].at - b[1].at)[0];
+            if (!next) {
+                hapticNow = target;
+                return;
+            }
+            hapticNow = Math.max(hapticNow, next[1].at);
+            hapticTimers.delete(next[0]);
+            next[1].cb();
+        }
+        throw new Error("Haptic fixture busy loop");
+    };
+    const timelineContext = { exports: {}, require: () => ({ isRumbleDelayStep: (step) => "delay" in step }) };
+    vm.runInNewContext(compile(readFileSync(new URL("../pwa/src/rumble/RumbleTimeline.ts", import.meta.url), "utf8")), timelineContext);
     const rumbleContext = {
         ...common,
+        performance: { now: () => hapticNow },
+        setTimeout: (cb, delay) => {
+            const id = ++nextTimer;
+            hapticTimers.set(id, { cb, at: hapticNow + delay });
+            return id;
+        },
+        clearTimeout: (id) => hapticTimers.delete(id),
         exports: {},
         require: (id) => {
+            if (id === "./RumbleTimeline.js") return timelineContext.exports;
             if (id === "./BrowserHaptics.js") {
                 return {
+                    getBrowserRumbleCapability: () => "available",
                     getConnectedGamepads: () => [{}],
                     silenceGamepads: (_gamepads, isCurrent = () => true) => {
                         events.silencePredicates.push(isCurrent);
@@ -80,9 +109,10 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
             if (id === "./RumbleEffects.js") {
                 return {
                     getRumbleEffect: (id) => ({
+                        id,
                         channel: id === "other" ? "other" : "test",
-                        pattern: [{ duration: 1 }],
-                        exclusive: exclusiveHaptics
+                        pattern: [{ duration: 100, strong: 0.7, weak: 0.3 }],
+                        exclusive: exclusiveHaptics && id !== "other"
                     }),
                     isRumbleDelayStep: () => false
                 };
@@ -469,7 +499,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         };
     `;
     vm.runInNewContext(compile(mainSource.replace(/}\s*$/, bridge + "\n}")), context);
-    return { ...context.harness, events, runtimeControls, hapticControls };
+    return { ...context.harness, events, runtimeControls, hapticControls, flushHaptics };
 }
 
 for (const enabled of [true, false]) {
@@ -478,10 +508,12 @@ for (const enabled of [true, false]) {
             const f = fixture({ enabled, restore });
             const manager = f.getRumbleManager();
             manager.play("test");
+            await f.flushHaptics();
             assert.equal(f.events.pulses, 0, "MENU must suppress haptics");
             await f.startGame(restore);
             assert.equal(f.state().phase, "running");
             manager.play("test");
+            await f.flushHaptics();
             assert.equal(f.events.pulses, enabled ? 1 : 0);
             assert.equal(manager.isEnabled(), enabled);
             assert.equal(f.events.restores, restore ? 1 : 0);
@@ -517,6 +549,7 @@ test("new rumble ownership invalidates fallback work from an earlier stop", asyn
 
     await f.startGame(false);
     manager.play("test");
+    await f.flushHaptics();
 
     assert.equal(staleStop(), false, "a newer play must invalidate pending fallback work from the old stop");
 });
@@ -527,6 +560,8 @@ test("positive playback predicate retires immediately when stopAll takes ownersh
     const manager = f.getRumbleManager();
 
     manager.play("test");
+
+    await f.flushHaptics();
     const playPredicate = f.events.playPredicates.at(-1);
     assert.equal(typeof playPredicate, "function");
     assert.equal(playPredicate(), true);
@@ -535,62 +570,52 @@ test("positive playback predicate retires immediately when stopAll takes ownersh
     assert.equal(playPredicate(), false, "a stale positive play must not own fallback commands after stopAll");
 });
 
-test("nonexclusive channels stay independent until a global physical stop is requested", async () => {
+test("targeted stop rerenders surviving channels; absent stops are no-ops", async () => {
     const f = fixture();
     await f.startGame(false);
     const manager = f.getRumbleManager();
-
     manager.play("test");
-    const firstChannel = f.events.playPredicates.at(-1);
     manager.play("other");
-    const secondChannel = f.events.playPredicates.at(-1);
-
-    assert.equal(firstChannel(), true, "starting another nonexclusive channel must not retire the first");
-    assert.equal(secondChannel(), true);
-
+    await f.flushHaptics();
+    assert.equal(f.events.pulses, 1, "same-turn producers coalesce");
+    const before = f.events.playPredicates.at(-1);
+    manager.stop("absent");
+    assert(before());
     manager.stop("test");
-    assert.equal(firstChannel(), false, "channel stop maps to a global physical silence and retires every sequence");
-    assert.equal(secondChannel(), false, "global physical silence cannot leave another logical channel claiming hardware ownership");
+    assert.equal(before(), false);
+    await f.flushHaptics();
+    assert.equal(f.events.pulses, 2);
+    assert(f.events.playPredicates.at(-1)(), "surviving channel owns recomputed output");
 });
 
-test("exclusive rumble waits for its pre-stop before starting the new effect", async () => {
+test("exclusive lifetime discards lower priority commands", async () => {
     const f = fixture({ exclusiveHaptics: true });
     await f.startGame(false);
     const manager = f.getRumbleManager();
-
     manager.play("test");
-    const exclusivePreStop = f.events.silencePredicates.at(-1);
-
-    assert.equal(typeof exclusivePreStop, "function");
-    assert.equal(exclusivePreStop(), true);
-    assert.equal(f.events.pulses, 0, "exclusive playback must not race ahead of the hardware pre-stop");
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(f.events.pulses, 1);
+    await f.flushHaptics();
+    const predicate = f.events.playPredicates.at(-1);
+    manager.play("other");
+    assert(predicate(), "suppressed event does not invalidate output");
+    await f.flushHaptics(150);
+    assert.equal(f.events.pulses, 5, "only five leases of the exclusive effect, no deferred other event");
 });
 
-test("a newer haptic command cancels an exclusive effect still waiting on its pre-stop", async () => {
+test("global retirement cancels a new exclusive effect waiting for bounded silence", async () => {
     const f = fixture({ exclusiveHaptics: true });
     await f.startGame(false);
     const manager = f.getRumbleManager();
     f.hapticControls.deferSilence = true;
-
-    manager.play("test");
-    const exclusivePreStop = f.events.silencePredicates.at(-1);
-    const resolveExclusiveStop = f.hapticControls.pendingSilenceResolves.shift();
-    assert.equal(typeof exclusivePreStop, "function");
-    assert.equal(typeof resolveExclusiveStop, "function");
-    assert.equal(f.events.pulses, 0);
-    assert.equal(exclusivePreStop(), true);
-
     manager.stopAll();
-    assert.equal(exclusivePreStop(), false, "newer stop ownership must invalidate the pending exclusive startup");
-    resolveExclusiveStop();
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(f.events.pulses, 0, "superseded exclusive playback must never start");
-
-    for (const resolve of f.hapticControls.pendingSilenceResolves.splice(0)) {
-        resolve();
-    }
+    const oldStop = f.events.silencePredicates.at(-1);
+    manager.play("test");
+    await f.flushHaptics();
+    assert.equal(f.events.pulses, 0);
+    manager.stopAll();
+    assert.equal(oldStop(), false);
+    for (const resolve of f.hapticControls.pendingSilenceResolves.splice(0)) resolve();
+    await f.flushHaptics();
+    assert.equal(f.events.pulses, 0);
 });
 
 test("best-effort haptic promise failures do not escape stop or play operations", async () => {
@@ -602,6 +627,7 @@ test("best-effort haptic promise failures do not escape stop or play operations"
 
     await f.startGame(false);
     manager.play("test");
+    await f.flushHaptics();
     await new Promise((resolve) => setImmediate(resolve));
 
     assert.equal(f.state().phase, "running");
@@ -616,10 +642,12 @@ test("New Game after a live-menu transition reuses and unsuspends the page-lifet
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(f.state().phase, "menu");
     manager.play("test");
+    await f.flushHaptics();
     assert.equal(f.events.pulses, 0);
     await f.startGame(false);
     assert.equal(f.getRumbleManager(), manager);
     manager.play("test");
+    await f.flushHaptics();
     assert.equal(f.events.pulses, 1);
 });
 
@@ -632,15 +660,18 @@ test("Reset stays silent in MENU and permits haptics only after another accepted
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(f.state().phase, "menu");
     manager.play("test");
+    await f.flushHaptics();
     assert.equal(f.events.pulses, 0);
 
     f.resetPwaState();
     assert.equal(f.state().phase, "menu");
     manager.play("test");
+    await f.flushHaptics();
     assert.equal(f.events.pulses, 0);
 
     await f.startGame(false);
     manager.play("test");
+    await f.flushHaptics();
     assert.equal(f.events.pulses, 1);
 });
 
@@ -658,6 +689,7 @@ test("cancelled startup cannot enable rumble when its pending display operation 
     await start;
     assert.equal(f.state().phase, "menu");
     manager.play("test");
+    await f.flushHaptics();
     assert.equal(f.events.pulses, 0);
     assert.equal(f.events.continuous, 0);
 });
@@ -668,6 +700,7 @@ test("synchronous focus-hook cancellation cannot reach the RUNNING or rumble com
     await f.startGame(false);
     assert.equal(f.state().phase, "menu");
     f.getRumbleManager().play("test");
+    await f.flushHaptics();
     assert.equal(f.events.pulses, 0);
     assert.equal(f.events.loopResumes, 0);
 });
@@ -677,6 +710,7 @@ test("failed cold restore never releases rumble suspension", async () => {
     await f.startGame(true);
     assert.equal(f.state().phase, "menu");
     f.getRumbleManager().play("test");
+    await f.flushHaptics();
     assert.equal(f.events.pulses, 0);
     assert.equal(f.events.continuous, 0);
 });
@@ -708,5 +742,6 @@ test("live Continue still resumes the retained session and its haptics", async (
     assert.equal(f.state().phase, "running");
     assert.equal(f.state().game, game);
     f.getRumbleManager().play("test");
+    await f.flushHaptics();
     assert.equal(f.events.pulses, 1);
 });

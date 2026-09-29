@@ -1,3 +1,4 @@
+import { makeCastleCrumblePattern } from "./CastleCrumbleTimeline.js";
 export type RumbleEffectId =
     | "playerHurt"
     | "playerDeath"
@@ -44,41 +45,6 @@ export type RumbleEffect = {
     readonly exclusive?: boolean;
     readonly minIntervalMs?: number;
 };
-
-function makeCastleCrumblePattern(): RumbleStep[] {
-    const pattern: RumbleStep[] = [{ delay: Math.round((45 / 91) * 1000) }];
-
-    for (let i = 0; i < 8; i++) {
-        pattern.push({ duration: 48, strong: 0.3, weak: 0.72 });
-        pattern.push({ delay: Math.round((15 / 91) * 1000) });
-    }
-
-    for (let i = 0; i < 25; i++) {
-        const fraction = i / 24;
-        const strong = roundMagnitude(0.28 + 0.34 * fraction);
-        const weak = roundMagnitude(0.18 + 0.1 * Math.sin(i * 0.9));
-        pattern.push({ duration: 145, strong, weak });
-        pattern.push({ delay: 95 });
-    }
-
-    pattern.push({ duration: 320, strong: 0.88, weak: 0.48 });
-
-    for (let i = 0; i < 5; i++) {
-        const fraction = 1 - i / 5;
-        pattern.push({ delay: 105 });
-        pattern.push({
-            duration: 150 + i * 18,
-            strong: roundMagnitude(0.38 * fraction),
-            weak: roundMagnitude(0.2 * fraction)
-        });
-    }
-
-    return pattern;
-}
-
-function roundMagnitude(value: number): number {
-    return Math.max(0, Math.min(1, Math.round(value * 100) / 100));
-}
 
 function pulse(duration: number, strong: number, weak: number): readonly RumbleStep[] {
     return [{ duration, strong, weak }];

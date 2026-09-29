@@ -84,7 +84,12 @@ export function getActuatorDescriptions(gamepad: Gamepad): string[] {
     return descriptions;
 }
 
-export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseStep, isCurrent: () => boolean = () => true): Promise<string> {
+export async function playPulseOnGamepad(
+    gamepad: Gamepad,
+    pulse: RumblePulseStep,
+    isCurrent: () => boolean = () => true,
+    remainingDuration: () => number = () => pulse.duration
+): Promise<string> {
     if (!isCurrent()) {
         return RETIRED_MESSAGE;
     }
@@ -105,7 +110,7 @@ export async function playPulseOnGamepad(gamepad: Gamepad, pulse: RumblePulseSte
             return RETIRED_MESSAGE;
         }
         try {
-            const result = await tryActuator(actuator, label, params, isCurrent);
+            const result = await tryActuator(actuator, label, params, isCurrent, remainingDuration);
             if (!isCurrent()) {
                 return RETIRED_MESSAGE;
             }
@@ -177,49 +182,44 @@ async function tryActuator(
     actuator: HapticActuator,
     label: string,
     params: DualRumbleParameters,
-    isCurrent: () => boolean
+    isCurrent: () => boolean,
+    remainingDuration: () => number
 ): Promise<{ readonly handled: boolean; readonly message: string }> {
+    const boundedParams = (): DualRumbleParameters | null => {
+        if (!isCurrent()) return null;
+        const remaining = remainingDuration();
+        const duration = Math.min(params.duration, remaining);
+        return Number.isFinite(duration) && duration > 0 ? { ...params, duration } : null;
+    };
     let playEffectFailed = false;
-    if (!isCurrent()) {
-        return { handled: false, message: RETIRED_MESSAGE };
-    }
+    if (!isCurrent()) return { handled: false, message: RETIRED_MESSAGE };
     if (typeof actuator.playEffect === "function") {
         const supportedEffects = Array.from(actuator.effects ?? []);
-        const supportsDualRumble = supportedEffects.length === 0 || supportedEffects.includes("dual-rumble");
-        if (supportsDualRumble && isCurrent()) {
+        if (supportedEffects.length === 0 || supportedEffects.includes("dual-rumble")) {
             try {
-                const result = await actuator.playEffect("dual-rumble", params);
-                if (!isCurrent()) {
-                    return { handled: false, message: RETIRED_MESSAGE };
-                }
+                const currentParams = boundedParams();
+                if (currentParams === null) return { handled: false, message: RETIRED_MESSAGE };
+                const result = await actuator.playEffect("dual-rumble", currentParams);
+                if (!isCurrent()) return { handled: false, message: RETIRED_MESSAGE };
                 return { handled: true, message: `${label}.playEffect: ${result || "started"}` };
             } catch {
-                if (!isCurrent()) {
-                    return { handled: false, message: RETIRED_MESSAGE };
-                }
+                if (!isCurrent()) return { handled: false, message: RETIRED_MESSAGE };
                 playEffectFailed = true;
-                // Fall through only while the same logical rumble command still
-                // owns the actuator. A retired play must never start a fallback.
             }
         }
     }
-
     if (typeof actuator.pulse === "function" && isCurrent()) {
         try {
-            const intensity = Math.max(params.strongMagnitude, params.weakMagnitude);
-            const result = await actuator.pulse(intensity, params.duration);
-            if (!isCurrent()) {
-                return { handled: false, message: RETIRED_MESSAGE };
-            }
+            const currentParams = boundedParams();
+            if (currentParams === null) return { handled: false, message: RETIRED_MESSAGE };
+            const intensity = Math.max(currentParams.strongMagnitude, currentParams.weakMagnitude);
+            const result = await actuator.pulse(intensity, currentParams.duration);
+            if (!isCurrent()) return { handled: false, message: RETIRED_MESSAGE };
             return { handled: result !== false, message: `${label}.pulse: ${result === false ? "rejected" : "started"}` };
         } catch {
-            return {
-                handled: false,
-                message: isCurrent() ? `${label}.pulse failed` : RETIRED_MESSAGE
-            };
+            return { handled: false, message: isCurrent() ? `${label}.pulse failed` : RETIRED_MESSAGE };
         }
     }
-
     return {
         handled: false,
         message: isCurrent() ? (playEffectFailed ? `${label}.playEffect failed` : `${label}: unsupported`) : RETIRED_MESSAGE

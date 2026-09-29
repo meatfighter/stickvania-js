@@ -54,6 +54,8 @@ test("Main index table is explicit, complete for this pass, numeric and endpoint
 
 test("clock policy separates active domain from retained inactive values", async () => {
     await fixture(({ Main, main, policy, modes, captureFields }) => {
+        // This cross-mode clock test must begin with a reachable castle phase.
+        main.initCastleFalls();
         const base = captureFields();
         for (const mode of [0, 1, 2, 4, 5, 6, 7, 8, 10]) {
             const active = mode === Main.MODE_PLAYING || mode === Main.MODE_DEMO;
