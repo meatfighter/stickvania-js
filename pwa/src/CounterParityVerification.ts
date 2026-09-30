@@ -34,6 +34,18 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
         assert(mounted, "Mounted counter fixture");
         return mounted;
     };
+    const beginCredits = (): void => {
+        const main = current().main;
+        main.stopAllSounds();
+        main.requestSong(main.ending);
+        main.currentSong = main.ending;
+        main.currentMusic = null;
+        main.ending.play();
+        main.initCredits();
+        main.fadeState = Main.FADE_IN;
+        main.fade = 22;
+        main.fadeReason = Main.FADE_REASON_SHOW_CREDITS;
+    };
     const tick = (n = 1): void => h.advanceFrames(current(), n);
     const field = (name: string): number => Number(Reflect.get(current().main, name));
     const render = (): void => {
@@ -318,7 +330,7 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
         }
         {
             const main = current().main;
-            main.initCredits();
+            beginCredits();
             main.fadeState = Main.FADE_DONE;
             main.fade = 0;
             main.hurtSimon(16);
@@ -386,7 +398,7 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
             tick();
             assert(current().main.fadeReason === Main.FADE_REASON_SHOW_TITLE_SCREEN, "Demo completion fades to title");
         }
-        current().main.initCredits();
+        beginCredits();
         current().main.fade = 0;
         current().main.fadeState = Main.FADE_DONE;
         for (let index = 0; index < 12; index++) {
@@ -408,7 +420,7 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
         for (let i = 0; i < 4000 && current().main.mode === Main.MODE_CREDITS; i++) tick();
         assert(current().main.mode === Main.MODE_TITLE_SCREEN, "Actual credits fade to title");
         check("credits:title");
-        current().main.initCredits();
+        beginCredits();
         assert(field("creditsIndex") === 0 && field("recordingIndex") === 0, "Credits reentry resets sentinels");
         check("credits:reentry");
         for (const ctor of [Bat, MedusaHead, Dog]) {
