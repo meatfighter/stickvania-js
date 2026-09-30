@@ -325,10 +325,10 @@ try {
         assert.match(helper, /applyAudioVolume\(preferences\.volume\)/);
     });
 
-    test("PWA lifecycle retires before save and commits Sound generation before simulation resumes", () => {
+    test("PWA lifecycle saves before retirement and commits Sound generation before simulation resumes", () => {
         const source = readFileSync(resolve(rootDir, "pwa/src/main.ts"), "utf8");
         const liveMenu = functionSource(source, "async function showLiveMenuOverlay", "async function resumeLiveGameFromMenu");
-        assert.ok(liveMenu.indexOf("suspendGameForMenu();") < liveMenu.indexOf("trySave(saveCurrentGameState)"));
+        assert.match(liveMenu, /suspendGameForMenu\(reason\)/);
 
         const resume = functionSource(source, "async function resumeLiveGameFromMenu", "async function restoreExistingLiveMenuAfterInterruptedResume");
         const commit = resume.indexOf("commitGameAudio(audio)");

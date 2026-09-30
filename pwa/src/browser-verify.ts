@@ -130,6 +130,52 @@ async function verify(): Promise<void> {
     await preloadRuntimeResources();
 
     const selected = new URLSearchParams(location.search).get("suite");
+    if (selected === "departure-audio") {
+        const mounted = await mountMain(null);
+        const m = mounted.main,
+            store = new StickvaniaGameStateStore("departure-audio");
+        const checkpoints: Array<{ label: string; bytes: string }> = [];
+        const capture = (label: string): void => {
+            assert(store.save(m, () => true).saved, "Valid actual audio producer " + label);
+            checkpoints.push({ label, bytes: localStorage.getItem(GAME_STATE_STORAGE_KEY)! });
+        };
+        try {
+            m.createStageForStateRestore(0);
+            m.mode = Main.MODE_PLAYING;
+            m.fadeState = Main.FADE_DONE;
+            m.fade = 0;
+            m.playerPower = 16;
+            m.time = 100;
+            m.hearts = 50;
+            assert(m.simon, "Loaded Simon");
+            m.simon.invincible = 1000;
+            m.requestSong(m.stage_1_1);
+            capture("audio-pending-song");
+            advanceFrames(mounted, 1);
+            capture("audio-playing-song");
+            m.heartbeat.play();
+            m.heartbeat.play();
+            capture("audio-overlapping-sfx");
+            m.currentSong?.getLoopForState()?.stop();
+            capture("audio-ended-pending");
+            m.requestSong(m.stage_1_1);
+            advanceFrames(mounted, 1);
+            SoundStore.get().setMusicOn(false);
+            capture("audio-silent-policy");
+            SoundStore.get().setMusicOn(true);
+            m.weaponType = Main.WEAPON_TYPE_STOP_WATCH;
+            m.weaponRepeats = Main.WEAPON_REPEATS_SINGLE;
+            const watch = new StopWatch(m);
+            m.weaponsStack.push(watch);
+            assert(watch.lifeTime > 0 && m.timeFrozen > 0, "Actual StopWatch owns music hold");
+            advanceFrames(mounted, 1);
+            capture("audio-stopwatch-hold");
+            Reflect.set(window, "departureAudioSeeds", checkpoints);
+        } finally {
+            destroyMounted(mounted);
+        }
+        return;
+    }
     if (selected === "presentation-state") {
         await verifyPresentationState({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
         return;

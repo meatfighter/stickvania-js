@@ -140,8 +140,11 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
         m.regionThingStack.clear();
         m.regionStackSwap.clear();
         const dracula = new Dracula(m, m.simon.x + 100, m.simon.y);
-        Object.assign(dracula, { state: Dracula.STATE_DYING, dying: 909, hits: 0 });
         m.pushThing(dracula);
+        frame();
+        check(store.save(m, () => true).saved, "Save actual loaded Dracula combat producer");
+        checkpoints.push({ label: "dracula-combat", bytes: localStorage.getItem(GAME_STATE_STORAGE_KEY)!, expected: h.gameplaySnapshot(serializer, m) });
+        Object.assign(dracula, { state: Dracula.STATE_DYING, dying: 909, hits: 0 });
         frame();
         const orb = m.regionThingStack.things.slice(0, m.regionThingStack.top + 1).find((t) => t instanceof Orb) as Orb | undefined;
         check(orb, "Dracula terminal update must produce a real Orb");

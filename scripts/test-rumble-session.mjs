@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
+import { loadTypeScript } from "./persistence-test-loader.mjs";
+const { SessionCleanup: Cleanup } = await loadTypeScript("pwa/src/app/SessionCleanup.ts");
+const { saveFrozenGame } = await loadTypeScript("pwa/src/app/FrozenGameSave.ts");
 
 const compile = (source) => ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
 const mainSource = readFileSync(new URL("../pwa/src/main.ts", import.meta.url), "utf8");
@@ -149,38 +152,6 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
         }
         isCurrent(serial) {
             return serial === this.serial;
-        }
-    }
-
-    class Cleanup {
-        unsafe = null;
-        get safe() {
-            return this.unsafe === null;
-        }
-        get failure() {
-            return this.unsafe;
-        }
-        run(...steps) {
-            for (const step of steps) {
-                try {
-                    step();
-                } catch (error) {
-                    this.unsafe ??= error instanceof Error ? error : new Error(String(error));
-                }
-            }
-            return this.safe;
-        }
-        trySave(save) {
-            try {
-                return save();
-            } catch {
-                return false;
-            }
-        }
-        assertSafe() {
-            if (this.unsafe !== null) {
-                throw this.unsafe;
-            }
         }
     }
 
@@ -424,6 +395,7 @@ function fixture({ enabled = true, restore = true, rejectHaptics = false, saveSu
     };
 
     const imports = {
+        "./app/FrozenGameSave.js": { saveFrozenGame },
         "./app/FocusOwnership.js": { focusOwnedPanel: noop },
         "./app/PreparationDeadline.js": { initializeWithDeadline: (promise) => promise, ReloadRequiredError: class extends Error {} },
         "./app/BrowserPersistence.js": { removePreference: () => true },

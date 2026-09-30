@@ -67,3 +67,19 @@ test("lifecycle stress requires exact wake-lock acquisition and release accounti
     assert.match(lifecycleStressSource, /Wake-lock acquisition\/release accounting is unbalanced/);
     assert.match(lifecycleStressSource, /finalLifecycle\.wakeReleased\s*<=\s*finalLifecycle\.wakeAcquired/);
 });
+
+test("departure qualification is executable and required by both built-PWA gates", () => {
+    assert.equal(packageJson.scripts["verify:departure-save"], "node scripts/run-departure-save-qualification.mjs");
+    assert.match(packageJson.scripts.qualify, /npm run verify:departure-save && node scripts\/assert-clean-git\.mjs$/);
+    assert.match(readFileSync("scripts/run-browser-qualification-suite.mjs", "utf8"), /"verify:departure-save"/);
+    for (const name of [
+        "run-departure-save-qualification",
+        "qualify-departure-shell",
+        "qualify-departure-audio",
+        "departure-shell-plugin",
+        "departure-seeds"
+    ]) {
+        const result = spawnSync(process.execPath, ["--check", `scripts/${name}.mjs`], { encoding: "utf8" });
+        assert.equal(result.status, 0, result.stderr || result.stdout);
+    }
+});

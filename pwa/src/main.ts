@@ -1,3 +1,4 @@
+import { saveFrozenGame } from "./app/FrozenGameSave.js";
 import { focusOwnedPanel } from "./app/FocusOwnership.js";
 import { initializeWithDeadline, ReloadRequiredError } from "./app/PreparationDeadline.js";
 import { removePreference } from "./app/BrowserPersistence.js";
@@ -530,30 +531,33 @@ function startApplication(): void {
         requestPwaMenu("hamburger");
     }
 
-    function suspendGameForMenu(): boolean {
-        return sessionCleanup.run(
-            () => container?.setLoopSuspended(true),
-            () => game?.setBrowserSuspended(true),
-            () => container?.getInput().pause(),
-            () => rumbleManager?.setSuspended(true),
-            () => releaseGameAudio()
+    function suspendGameForMenu(saveReason: string | null = null): boolean {
+        const mainGame = game;
+        const appContainer = container;
+        const manager = rumbleManager;
+        return sessionCleanup.freezeSaveAndRun(
+            () => appContainer?.setLoopSuspended(true),
+            saveReason === null ? null : () => saveCurrentGameState(saveReason, mainGame, appContainer),
+            () => mainGame?.setBrowserSuspended(true),
+            () => appContainer?.getInput().pause(),
+            () => manager?.setSuspended(true),
+            () => releaseGameAudio(),
+            () => syncScreenWakeLock()
         );
     }
 
-    function requestPwaMenu(_reason: string): void {
+    function requestPwaMenu(reason: string): void {
         if (pwaSessionState === "booting" || pwaSessionState === "menu" || pwaSessionState === "stopping" || pwaSessionState === "error") {
             return;
         }
         if (pwaSessionState === "running" && canOpenLiveMenuOverlay()) {
-            void showLiveMenuOverlay();
+            void showLiveMenuOverlay(reason);
             return;
         }
         const retainExistingOverlay = liveMenuOpen && menuOverlay !== null && game !== null && container !== null;
         const session = activeGameSession;
         pwaSessionState = "stopping";
-        sessionCleanup.run(() => syncScreenWakeLock());
-        const suspended = suspendGameForMenu();
-        if (suspended && !retainExistingOverlay) sessionCleanup.trySave(saveCurrentGameState);
+        suspendGameForMenu(retainExistingOverlay ? null : reason);
         if (!sessionCleanup.safe) {
             destroyGame();
             return;
@@ -580,15 +584,14 @@ function startApplication(): void {
         return pwaSessionState === "menu" && liveMenuOpen && menuOverlay !== null && game !== null && container !== null && viewport.gameHost !== null;
     }
 
-    async function showLiveMenuOverlay(): Promise<void> {
+    async function showLiveMenuOverlay(reason = "hamburger"): Promise<void> {
         if (pwaSessionState !== "running" || game === null || container === null || viewport.gameShell === null) {
             return;
         }
         const session = activeGameSession;
         pwaSessionState = "stopping";
         liveMenuOpen = true;
-        sessionCleanup.run(() => syncScreenWakeLock());
-        if (suspendGameForMenu()) sessionCleanup.trySave(saveCurrentGameState);
+        suspendGameForMenu(reason);
         sessionCleanup.run(
             () => viewport.stopHamburgerVisibilityMonitor(),
             () => viewport.hideHamburger(),
@@ -797,22 +800,22 @@ function startApplication(): void {
         overlay?.remove();
     }
 
-    function saveCurrentGameState(): boolean {
-        const mainGame = game;
-        if (
-            !sessionCleanup.safe ||
-            !ownership?.owned ||
-            mainGame === null ||
-            !persistence.canSave(mainGame) ||
-            container?.isLoopSuspended() !== true ||
-            !mainGame.isStateSaveReady()
-        )
-            return false;
-        const store = getLoadedGameStateStore();
-        if (store === null) return false;
-        const result = store.save(mainGame, () => ownership.owned && game === mainGame && persistence.canSave(mainGame));
-        if (result.saved) persistence.didSave();
-        return result.saved;
+    function saveCurrentGameState(reason = "departure", expectedGame: Main | null = game, expectedContainer: AppGameContainer | null = container): boolean {
+        return saveFrozenGame({
+            label: "Stickvania game state",
+            reason,
+            game: expectedGame,
+            container: expectedContainer,
+            sameTarget: () => game === expectedGame && container === expectedContainer,
+            accepted: () => expectedGame !== null && persistence.canSave(expectedGame) && sessionCleanup.saveAllowed,
+            owned: () => ownership?.owned === true,
+            cleanupSafe: () => sessionCleanup.safe,
+            write: (authorized) => {
+                const store = getLoadedGameStateStore();
+                return expectedGame === null || store === null ? null : store.save(expectedGame, authorized);
+            },
+            didSave: () => persistence.didSave()
+        });
     }
 
     function clearStoredGameState(): void {
@@ -989,8 +992,7 @@ function startApplication(): void {
         pwaSessionState = "stopping";
         sessions.invalidate();
         menuRequestSerial++;
-        sessionCleanup.run(() => syncScreenWakeLock());
-        if (suspendGameForMenu()) sessionCleanup.trySave(saveCurrentGameState);
+        suspendGameForMenu("ownership-release");
         destroyGame();
         if (sessionCleanup.safe) {
             pwaSessionState = "menu";
