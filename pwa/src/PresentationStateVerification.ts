@@ -404,7 +404,7 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
                         ["oversized-caption", { creditsTitleIndex: 100 }],
                         ["second-before-first", { creditsPaused: true, recordingIndex: 728, creditsTitleIndex: 1, creditsTitleIndex2: 1 }],
                         ["early-advance", { creditsAdvance: true }],
-                        ["wrong-stage", { stageIndex: (Number(good.mainFields.stageIndex) + 1) % 6 }],
+                        ["wrong-clip-stage", { creditsIndex: (index + 3) % 12 }],
                         ["early-title", { fadeState: Main.FADE_OUT, fadeReason: Main.FADE_REASON_SHOW_TITLE_SCREEN }],
                         ["fractional-second", { creditsTitleIndex2: 0.5 }],
                         ["oversized-second", { creditsTitleIndex2: 100 }],
