@@ -1,3 +1,4 @@
+import { isFloorBreakerFieldsValid } from "./FloorBreakStatePolicy.js";
 import { isCreditsPresentationValid } from "./PresentationStatePolicy.js";
 import { isCastleTransitionValid } from "./CastlePresentationPhasePolicy.js";
 import { isCastlePresentationValid } from "../../rumble/CastleCrumbleTimeline.js";
@@ -176,7 +177,7 @@ export function isPersistedThingFieldValuesValid(snapshot: ThingSnapshot, thingT
             return false;
         }
     }
-    return true;
+    return snapshot.type !== "FloorBreaker" || isFloorBreakerFieldsValid(snapshot.fields);
 }
 
 function isMainNumberValid(name: string, value: number, fields: EncodedRecord): boolean {

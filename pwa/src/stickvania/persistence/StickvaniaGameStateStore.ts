@@ -30,7 +30,7 @@ export class StickvaniaGameStateStore {
             "Stickvania game state",
             GAME_STATE_STORAGE_KEY,
             () => this.serializer.createSnapshot(main, this.appVersion),
-            (snapshot) => this.isSnapshotValid(snapshot),
+            (snapshot) => this.isSnapshotValid(snapshot) && this.serializer.isSupportedPresentationResources(main, snapshot),
             MAX_GAME_STATE_TEXT_LENGTH,
             isAuthorized
         );

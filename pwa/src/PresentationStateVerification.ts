@@ -1,3 +1,5 @@
+import { FLOOR_BREAK_CELLS } from "./stickvania/persistence/FloorBreakStatePolicy.js";
+import type { StairsEntry } from "./stickvania/StairsEntry.js";
 import { Music, SoundStore } from "slick2d-ts";
 import { Main } from "./stickvania/Main.js";
 import type { StageSegment } from "./stickvania/StageSegment.js";
@@ -21,7 +23,7 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
     let mounted: Awaited<ReturnType<Harness["mountMain"]>> | null = await h.mountMain(null);
     const serializer = new StickvaniaGameStateSerializer(),
         store = new StickvaniaGameStateStore("presentation");
-    const checkpoints: Array<{ label: string; bytes: string; expected: string }> = [];
+    const checkpoints: Array<{ label: string; bytes: string; expected: string; continuation?: { frames: number; expected: string } }> = [];
     const rejected: string[] = [],
         routes: string[] = [];
     const live = () => {
@@ -108,15 +110,46 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
             if (simon) Object.assign(simon.fields, { releasedJump: false, releasedKneel: false, releasedWhip: false });
         }
         check(h.gameplaySnapshot(serializer, m()) === JSON.stringify(resumed), "Presentation retained Continue " + label);
+        const continuationFrames =
+            label.startsWith("stair-") && label.includes("-out-")
+                ? 23 - m().fade
+                : label.endsWith("-threshold") && !label.endsWith("-before-threshold")
+                  ? 24
+                  : label === "route-floor-breaker"
+                    ? 23
+                    : 0;
+        let continuation: string | null = null;
+        if (continuationFrames > 0) {
+            h.advanceFrames(live(), continuationFrames);
+            m().render(live().container, live().container.getGraphics());
+            continuation = h.gameplaySnapshot(serializer, m());
+        }
         if (fresh) {
             h.destroyMounted(mounted);
             mounted = null;
             mounted = await h.mountMain((main, gc) => store.restore(main, gc));
-            check(h.gameplaySnapshot(serializer, m()) === expected, "Presentation fresh Main recapture " + label);
+            check(
+                h.gameplaySnapshot(serializer, m()) === expected,
+                "Presentation fresh Main recapture " +
+                    label +
+                    " " +
+                    JSON.stringify(differences(JSON.parse(expected), JSON.parse(h.gameplaySnapshot(serializer, m()))).slice(0, 20))
+            );
             m().render(live().container, live().container.getGraphics());
             check(h.gameplaySnapshot(serializer, m()) === expected, "Presentation fresh Main first render " + label);
             check(isEndingAudioStateValid(capture().mainFields, capture().audio), "Presentation restored ending owner " + label);
-            checkpoints.push({ label, bytes, expected });
+            if (continuation !== null) {
+                h.advanceFrames(live(), continuationFrames);
+                m().render(live().container, live().container.getGraphics());
+                check(h.gameplaySnapshot(serializer, m()) === continuation, "Exact transition continuation camera/graph/RNG " + label);
+                check(store.restore(m(), live().container), "Restore checkpoint after continuation control " + label);
+            }
+            checkpoints.push({
+                label,
+                bytes,
+                expected,
+                ...(continuation === null ? {} : { continuation: { frames: continuationFrames, expected: continuation } })
+            });
         }
         return snapshot;
     }
@@ -146,6 +179,238 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
         m().floorBreaking = false;
         m().createStageForStateRestore(index);
         quietFade();
+    }
+    function differences(a: unknown, b: unknown, path = ""): unknown[] {
+        if (JSON.stringify(a) === JSON.stringify(b)) return [];
+        if (a && b && typeof a === "object" && typeof b === "object")
+            return [...new Set([...Object.keys(a), ...Object.keys(b)])].flatMap((k) => differences(Reflect.get(a, k), Reflect.get(b, k), path + "." + k));
+        return [[path, a, b]];
+    }
+    function outgoingRejected(label: string, mutate: () => void, undo: () => void): void {
+        check(store.save(m(), () => true).saved, "Outgoing good seed " + label);
+        const bytes = localStorage.getItem(GAME_STATE_STORAGE_KEY);
+        mutate();
+        try {
+            check(!store.save(m(), () => true).saved, "Outgoing rejects " + label);
+        } finally {
+            undo();
+        }
+        check(localStorage.getItem(GAME_STATE_STORAGE_KEY) === bytes, "Outgoing preserves previous bytes " + label);
+    }
+    function resourceReject(bad: Snapshot, label: string, structuralControl = true): void {
+        if (structuralControl) {
+            check(serializer.isSupportedSnapshot(bad), "Stair structural control " + label);
+            check(isPotentialStickvaniaGameStateSnapshot(bad), "Stair resource-independent preflight " + label);
+        }
+        check(!serializer.isSupportedSnapshotForLoadedResources(m(), bad), "Stair resource reader rejects " + label);
+        const before = h.gameplaySnapshot(serializer, m()),
+            bytes = JSON.stringify(bad);
+        localStorage.setItem(GAME_STATE_STORAGE_KEY, bytes);
+        const set = Storage.prototype.setItem,
+            remove = Storage.prototype.removeItem;
+        let writes = 0;
+        Storage.prototype.setItem = () => {
+            writes++;
+        };
+        Storage.prototype.removeItem = () => {
+            writes++;
+        };
+        try {
+            check(!store.restore(m(), live().container), "Stair store rejects " + label);
+        } finally {
+            Storage.prototype.setItem = set;
+            Storage.prototype.removeItem = remove;
+        }
+        check(writes === 0 && localStorage.getItem(GAME_STATE_STORAGE_KEY) === bytes, "Stair failed read nonwriting " + label);
+        check(h.gameplaySnapshot(serializer, m()) === before, "Stair failed restore preserves live graph " + label);
+        rejected.push(label);
+    }
+    async function floorTrace(): Promise<void> {
+        stage(2);
+        Reflect.set(m(), "checkpoint", (Reflect.get(m(), "stageSegments") as StageSegment[])[2].regions.find((r) => r.checkpoint !== null)!.checkpoint);
+        m().restoreCheckpoint();
+        const ordinary = capture();
+        ordinary.mainFields.fadeState = Main.FADE_OUT;
+        ordinary.mainFields.fadeReason = Main.FADE_REASON_SHOW_MAP;
+        reject(ordinary, "floor-scalar-only");
+        m().floorBreaking = true;
+        const breaker = new FloorBreaker(m());
+        m().pushThing(breaker);
+        const phases = new Set<string>();
+        let retained: Snapshot | null = null;
+        for (let i = 0; i < 1000 && m().fadeState !== Main.FADE_OUT; i++) {
+            const snapshot = capture();
+            check(serializer.isSupportedSnapshot(snapshot) && isPotentialStickvaniaGameStateSnapshot(snapshot), "Actual floor counter phase " + i);
+            const f = snapshot.things.find((t) => t.type === "FloorBreaker")!.fields;
+            const phase = JSON.stringify([f.X, f.breakDelay, f.delay]);
+            phases.add(phase);
+            if (i === 0) {
+                retained = structuredClone(snapshot);
+                for (const [key, number] of [
+                    ["X", 143.5],
+                    ["X", 142],
+                    ["X", 160],
+                    ["breakDelay", 92],
+                    ["breakDelay", 0.5],
+                    ["delay", 2],
+                    ["delay", 0]
+                ] as const) {
+                    const bad = structuredClone(snapshot);
+                    bad.things.find((t) => t.type === "FloorBreaker")!.fields[key] = number;
+                    reject(bad, "floor-counter-" + key + "-" + number);
+                    const original = Reflect.get(breaker, key) as number;
+                    outgoingRejected(
+                        "floor-counter-" + key + "-" + number,
+                        () => Reflect.set(breaker, key, number),
+                        () => Reflect.set(breaker, key, original)
+                    );
+                }
+                const original = Reflect.get(breaker, "X") as number;
+                outgoingRejected(
+                    "floor-fractional-X",
+                    () => Reflect.set(breaker, "X", 143.5),
+                    () => Reflect.set(breaker, "X", original)
+                );
+            }
+            if ((f.breakDelay === 91 || f.breakDelay === 23 || f.breakDelay === 0) && (f.X === 159 || f.X === 143)) await checkpoint("floor-phase-" + i, false);
+            frame();
+        }
+        check(phases.size > 400, "Actual floor phases cover constructor through terminal");
+        check(retained, "Floor constructor snapshot");
+        await route("floor-breaker", Main.FADE_REASON_SHOW_MAP, (b) => {
+            b.mainFields.floorBreaking = true;
+        });
+        const terminal = capture();
+        check(terminal.stage, "Terminal stage");
+        for (const [x, y] of FLOOR_BREAK_CELLS) {
+            const bad = structuredClone(terminal);
+            bad.stage!.segments[2].walls[y][x] = 1;
+            reject(bad, "floor-cell-" + x + "-" + y);
+            outgoingRejected(
+                "floor-cell-" + x + "-" + y,
+                () => {
+                    m().walls![y][x] = 1;
+                },
+                () => {
+                    m().walls![y][x] = 0;
+                }
+            );
+        }
+        for (const [key, number] of [["currentSegmentIndex", 1]] as const) {
+            const b = structuredClone(terminal);
+            b.stage![key] = number;
+            reject(b, "floor-" + key);
+        }
+        const width = structuredClone(terminal);
+        width.stage!.segments[2].mapWidth = 159;
+        reject(width, "floor-width");
+        for (const name of ["regionThingStack", "regionStackSwap"] as const) {
+            const b = structuredClone(terminal),
+                old = retained.things.find((t) => t.type === "FloorBreaker")!;
+            const id = b.things.length;
+            b.things.push({ ...old, id, fields: { ...old.fields, X: 143, breakDelay: 23, delay: 0 } });
+            const stack = b.stage![name].$stack;
+            stack.things.push(id);
+            stack.capacity = Math.max(stack.capacity, stack.things.length);
+            reject(b, "floor-active-" + name);
+        }
+        for (let i = 0; i < 23; i++) frame();
+        check(m().mode === Main.MODE_MAP, "Real floor terminal dispatcher reaches map");
+        await checkpoint("floor-map-destination");
+    }
+    function enterStair(entry: StairsEntry): void {
+        check(entry.connection, "Every enumerated shipped boundary is linked");
+        // Use the actual source/destination constructor to arrive at this entry.
+        Reflect.set(m(), "stageSegment", entry.connection.segment);
+        m().simon!.x = entry.connection.x;
+        m().followStairsToNextSegment();
+        check(Reflect.get(m(), "stageSegment") === entry.segment, "Actual stair arrival targets selected segment");
+        Object.assign(m().simon!, { hurt: false, dead: 0, flashing: 0, invincible: 700 });
+        quietFade();
+    }
+    function traverse(entry: StairsEntry, stopAtThreshold = false, before = false): void {
+        enterStair(entry);
+        const top = before ? -61 : -62,
+            bottom = before ? 284 : 285;
+        const mode = m().mode;
+        m().mode = Main.MODE_PLAYING;
+        try {
+            for (let i = 0; i < 150; i++) {
+                check(m().simon!.onStairs, "Real stair traversal remains attached");
+                if (m().simon!.y <= top || m().simon!.y >= bottom) break;
+                press(entry.up ? "isDown" : "isUp", mode === Main.MODE_PLAYING ? frame : () => invoke("updateSimon", live().container));
+            }
+        } finally {
+            m().mode = mode;
+        }
+        check(m().simon!.y <= top || m().simon!.y >= bottom, "Actual stair movement reaches threshold");
+        if (!stopAtThreshold) frame();
+    }
+    async function allStairs(): Promise<void> {
+        for (const difficulty of [0, 1]) {
+            let entries = 0,
+                segments = 0;
+            for (let index = 0; index < 6; index++) {
+                stage(index);
+                Reflect.set(m(), "difficulty", difficulty);
+                const list = (Reflect.get(m(), "stageSegments") as StageSegment[]).map((s) => s.stairsEntries.length);
+                segments += list.length;
+                for (let segment = 0; segment < list.length; segment++)
+                    for (let entryIndex = 0; entryIndex < list[segment]; entryIndex++) {
+                        stage(index);
+                        Reflect.set(m(), "difficulty", difficulty);
+                        const entry = (Reflect.get(m(), "stageSegments") as StageSegment[])[segment].stairsEntries[entryIndex];
+                        const destination = entry.connection!.segment.stageSegmentIndex;
+                        const label = `stair-${difficulty}-${index}-${segment}-${entryIndex}`;
+                        traverse(entry, true, true);
+                        await checkpoint(label + "-before-threshold");
+                        press(entry.up ? "isDown" : "isUp", frame);
+                        await checkpoint(label + "-threshold");
+                        frame();
+                        for (const fade of [0, 11, 22]) {
+                            while (m().fade < fade) frame();
+                            const saved = await checkpoint(label + "-out-" + fade);
+                            if (fade === 0) {
+                                for (const [field, number] of [
+                                    ["x", 0],
+                                    ["y", -64],
+                                    ["up", entry.up]
+                                ] as const) {
+                                    const bad = structuredClone(saved);
+                                    bad.things.find((t) => t.id === bad.stage?.simon)!.fields[field] = number;
+                                    resourceReject(bad, label + "-" + field);
+                                }
+                                const source = structuredClone(saved);
+                                source.stage!.currentSegmentIndex = (segment + 1) % list.length;
+                                resourceReject(source, label + "-source-segment", false);
+                                const simon = m().simon!,
+                                    x = simon.x;
+                                outgoingRejected(
+                                    "stair-X",
+                                    () => {
+                                        simon.x = 0;
+                                    },
+                                    () => {
+                                        simon.x = x;
+                                    }
+                                );
+                                const bad = structuredClone(saved);
+                                bad.things.find((t) => t.id === bad.stage?.simon)!.fields.x = 0;
+                                bad.stage!.segments[segment].map[0][0] = Main.BLOCK_STAIRS_RIGHT;
+                                resourceReject(bad, label + "-mutable-map");
+                            }
+                        }
+                        frame();
+                        check(
+                            (Reflect.get(m(), "stageSegment") as StageSegment).stageSegmentIndex === destination,
+                            "Same resource-selected destination " + label
+                        );
+                        await checkpoint(label + "-destination");
+                        entries++;
+                    }
+            }
+            check(segments === 18 && entries === 30, "Complete shipped stair topology census");
+        }
     }
     try {
         // Real title producers, with input boundary doubles only for the selected edge.
@@ -215,44 +480,13 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
                 b.mainFields.hearts = 1;
             });
         }
-        stage(2);
-        Reflect.set(
-            m(),
-            "checkpoint",
-            (Reflect.get(m(), "stageSegments") as StageSegment[])[2].regions.find((region) => region.checkpoint !== null)!.checkpoint
-        );
-        m().restoreCheckpoint();
-        m().floorBreaking = true;
-        const breaker = new FloorBreaker(m());
-        Object.assign(breaker, { breakDelay: 0, X: 143, delay: 0 });
-        check(m().walls, "Loaded FloorBreaker walls");
-        for (const [x, y] of [
-            [144, 6],
-            [145, 6],
-            [146, 7],
-            [147, 8]
-        ])
-            m().removeBlock(x, y);
-        check(!breaker.update(live().container), "Actual FloorBreaker terminal producer");
-        await route("floor-breaker", Main.FADE_REASON_SHOW_MAP, (b) => {
-            b.mainFields.floorBreaking = true;
-        });
+        await floorTrace();
         stage(0);
-        const stairSegment = (Reflect.get(m(), "stageSegments") as StageSegment[]).find(
-            (segment) => segment.stairsEntries.some((entry) => entry.connection !== null) && segment.regions.some((region) => region.checkpoint !== null)
-        );
-        check(stairSegment, "Connected stairs segment");
-        Reflect.set(m(), "checkpoint", stairSegment.regions.find((region) => region.checkpoint !== null)!.checkpoint);
-        m().restoreCheckpoint();
-        const stair = (Reflect.get(m(), "stageSegment") as StageSegment).stairsEntries.find((entry) => entry.connection !== null);
-        check(stair, "Connected stairs entry");
-        check(m().simon, "Stairs Simon");
-        Object.assign(m().simon!, { x: stair.x, onStairs: true, hurt: false, y: stair.up ? -62 : 285, flashing: 0, dead: 0 });
-        invoke("updateSimon", live().container);
+        const stairSegment = (Reflect.get(m(), "stageSegments") as StageSegment[]).find((segment) => segment.stairsEntries.length > 0)!;
+        const stair = stairSegment.stairsEntries[0];
+        traverse(stair);
         await route("stairs", Main.FADE_REASON_STAIRS, (b) => {
-            const s = b.things.find((t) => t.id === b.stage?.simon);
-            check(s, "Saved Simon");
-            s.fields.onStairs = false;
+            b.things.find((t) => t.id === b.stage?.simon)!.fields.onStairs = false;
         });
         for (let i = 0; i < 23; i++) frame();
         check(m().fadeState === Main.FADE_IN, "Actual stairs dispatcher reaches destination");
@@ -288,8 +522,7 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
                     const segment = Reflect.get(m(), "stageSegment") as StageSegment;
                     const entry = segment.stairsEntries.find((entry) => entry.connection !== null);
                     check(entry, "Shared simulation connected stairs");
-                    Object.assign(m().simon!, { x: entry.x, onStairs: true, hurt: false, y: entry.up ? -62 : 285, dead: 0 });
-                    invoke("updateSimon", live().container);
+                    traverse(entry);
                     await route(mode + "-shared-stairs", Main.FADE_REASON_STAIRS, (b) => {
                         b.things.find((t) => t.id === b.stage?.simon)!.fields.onStairs = false;
                     });
@@ -309,6 +542,7 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
                 }
             }
         }
+        await allStairs();
         m().beatStageFlag = false;
         // Canonical ending ownership; the real credits mounts deliberately change requestedSong.
         m().stopAllSounds();
@@ -463,7 +697,7 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
         const frozen = structuredClone(title);
         frozen.mainFields.fade = 12;
         reject(frozen, "DONE-nonzero-title");
-        for (const version of [22, 24]) {
+        for (const version of [23, 25]) {
             const bad = structuredClone(title);
             bad.version = version;
             reject(bad, "schema-" + version);

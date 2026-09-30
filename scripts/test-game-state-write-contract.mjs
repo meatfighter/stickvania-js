@@ -27,6 +27,7 @@ const serializer = `export class ${config.serializerName} {
     createSnapshot(){const c=globalThis.__persistenceStoreTest;c.captureHook?.();if(c.captureThrows)throw new Error("capture failure");return c.snapshot();}
     isSupportedSnapshot(s){return s?.version===${version} && s?.supported===true;}
     isSupportedSnapshotForLoadedResources(){return true;}
+    isSupportedPresentationResources(){return true;}
     restoreSnapshot(main,gc,s){if(globalThis.__persistenceStoreTest.restoreThrows)throw new Error("restore failure");main.restored=s.marker;}
 }`;
 const mocks = { [config.serializer]: serializer, ...config.mocks };

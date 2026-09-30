@@ -98,6 +98,13 @@ export async function verifyRumbleRestore(h: Harness): Promise<void> {
         return true;
     });
     check(attached, "Accepted restore ran");
+    const continuation = JSON.parse(localStorage.getItem("presentation-continuation") ?? "null") as { frames: number; expected: string } | null;
+    if (continuation !== null) {
+        check(Number.isInteger(continuation.frames) && continuation.frames > 0 && continuation.frames <= 24, "Fresh-document continuation bound");
+        h.advanceFrames(mounted, continuation.frames);
+        mounted.main.render(mounted.container, mounted.container.getGraphics());
+        check(h.gameplaySnapshot(serializer, mounted.main) === continuation.expected, "Fresh-document identical transition destination/camera/graph/RNG");
+    }
     h.destroyMounted(mounted);
 }
 
@@ -172,7 +179,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             const before = h.gameplaySnapshot(serializer, m);
             check(store.save(m, () => true).saved, "Save reachable castle " + label);
             const bytes = localStorage.getItem(GAME_STATE_STORAGE_KEY)!;
-            check(JSON.parse(bytes).version === 23, "Current schema");
+            check(JSON.parse(bytes).version === 24, "Current schema");
             checkpoints.push({ label, bytes, expected: before });
             m.setBrowserSuspended(true);
             f.manager.setSuspended(true);

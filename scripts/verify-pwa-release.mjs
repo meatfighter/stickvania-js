@@ -371,6 +371,10 @@ async function importGameStatePreflight() {
         join(rootDir, "pwa", "src", "stickvania", "persistence", "PresentationStatePolicy.ts"),
         join(persistenceOutputDirectory, "PresentationStatePolicy.js")
     );
+    writeTranspiledModule(
+        join(rootDir, "pwa", "src", "stickvania", "persistence", "FloorBreakStatePolicy.ts"),
+        join(persistenceOutputDirectory, "FloorBreakStatePolicy.js")
+    );
     writeTranspiledModule(audioRegistrySourcePath, audioRegistryOutputPath);
     writeTranspiledModule(browserStorageKeysSourcePath, browserStorageKeysOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "NesInputProfile.ts"), join(outputDirectory, "NesInputProfile.js"));
@@ -1005,7 +1009,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const builtSource = builtJavaScript();
 
     assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 23;/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 24;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);

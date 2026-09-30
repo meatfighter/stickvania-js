@@ -10,6 +10,28 @@ export function presentationMutationPlugin(name = process.env.STICKVANIA_PRESENT
                 return replace(source, "isPresentationSnapshotValid(snapshot) &&", "");
             if (name === "preflight" && path.endsWith("/persistence/GameStatePreflight.ts"))
                 return replace(source, "isPresentationSnapshotValid(snapshot) &&", "");
+            if (path.endsWith("/persistence/FloorBreakStatePolicy.ts")) {
+                if (name === "floor-scalar")
+                    return replace(
+                        source,
+                        "export function isFloorBreakSnapshotValid(snapshot: unknown): boolean {",
+                        "export function isFloorBreakSnapshotValid(snapshot: unknown): boolean { return true;"
+                    );
+                if (name === "floor-bottom")
+                    return replace(
+                        source,
+                        "for (const [x, y] of FLOOR_BREAK_CELLS) {",
+                        "for (const [x, y] of FLOOR_BREAK_CELLS) { if(x===144 && y===10)continue;"
+                    );
+                if (name === "floor-retirement") return replace(source, ' || things.get(id)!.type === "FloorBreaker"', "");
+                if (name === "floor-fractional") return replace(source, "integer(f.X, 143, 159)", 'typeof f.X === "number" && f.X >= 143 && f.X <= 159');
+            }
+            if (name === "floor-restore-profile" && path.endsWith("/persistence/StickvaniaGameStateSerializer.ts"))
+                return replace(source, "context.main.stageIndex === 2 &&", "false &&");
+            if (name === "stair-restore" && path.endsWith("/persistence/StickvaniaGameStateSerializer.ts"))
+                return replace(source, "this.isSupportedPresentationResources(main, snapshot) &&", "");
+            if (name === "stair-save" && path.endsWith("/persistence/StickvaniaGameStateStore.ts"))
+                return replace(source, " && this.serializer.isSupportedPresentationResources(main, snapshot)", "");
             if (!path.endsWith("/persistence/PresentationStatePolicy.ts")) return;
             if (name === "weak-credits")
                 return replace(

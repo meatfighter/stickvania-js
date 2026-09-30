@@ -1,3 +1,4 @@
+import { isFloorBreakSnapshotValid } from "./FloorBreakStatePolicy.js";
 import { CREDITS_TITLES, creditsSecondLine } from "../CreditsText.js";
 import { isCastleTransitionValid } from "./CastlePresentationPhasePolicy.js";
 import { isRestorableGameStateMode } from "./GameStatePolicy.js";
@@ -144,7 +145,8 @@ function isFadeRouteValid(snapshot: Fields, f: Fields): boolean {
         case R.MAP:
             if (!simulationMode(f.mode) || !integer(f.stageIndex, 0, 4)) return false;
             // Stage three's FloorBreaker clears floorBreaking and is removed in
-            // its terminal update; final-tally flags/health/hearts are not its contract.
+            // its terminal update. FloorBreakStatePolicy corroborates walls and retirement;
+            // final-tally health/hearts are not this route's contract.
             if (f.stageIndex === 2) return f.beatStageFlag === false && f.floorBreaking === false;
             return completedTally(f);
         case R.INTRO:
@@ -206,5 +208,11 @@ export function isPresentationSnapshotValid(snapshot: unknown): boolean {
         return false;
     // Main publishes DONE only when its fade counter has reached zero.
     if (f.fadeState === F.DONE && f.fade !== 0) return false;
-    return isCastleTransitionValid(f) && isCreditsPresentationValid(f) && isFadeRouteValid(snapshot, f) && isEndingAudioStateValid(f, snapshot.audio);
+    return (
+        isCastleTransitionValid(f) &&
+        isCreditsPresentationValid(f) &&
+        isFadeRouteValid(snapshot, f) &&
+        isFloorBreakSnapshotValid(snapshot) &&
+        isEndingAudioStateValid(f, snapshot.audio)
+    );
 }

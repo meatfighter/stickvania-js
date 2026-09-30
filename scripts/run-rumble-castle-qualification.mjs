@@ -51,6 +51,7 @@ try {
                 ...presentation.checkpoints.filter(
                     (c) =>
                         c.label.startsWith("route-") ||
+                        /^stair-.*-out-11$/.test(c.label) ||
                         /^credit-\d+-last-input$/.test(c.label) ||
                         [
                             "input-editor",
@@ -68,6 +69,7 @@ try {
             for (const checkpoint of documentCheckpoints) {
                 await page.evaluate((c) => {
                     localStorage.setItem("rumble-expected", c.expected);
+                    localStorage.setItem("presentation-continuation", JSON.stringify(c.continuation ?? null));
                     const key = Object.keys(localStorage).find((k) => k.includes("game-state"));
                     if (!key) throw Error("Missing game-state slot");
                     localStorage.setItem(key, c.bytes);

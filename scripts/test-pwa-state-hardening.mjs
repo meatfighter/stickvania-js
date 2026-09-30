@@ -805,6 +805,9 @@ try {
             isSupportedSnapshotForLoadedResources() {
                 return true;
             },
+            isSupportedPresentationResources() {
+                return true;
+            },
             restoreSnapshot() {}
         };
         const main = {

@@ -6,6 +6,13 @@ import { tmpdir } from "node:os";
 const evidence = process.env.QUALIFICATION_EVIDENCE_DIR ?? join(tmpdir(), "stickvania-presentation-evidence");
 mkdirSync(evidence, { recursive: true });
 const assertions = {
+    "floor-restore-profile": "Presentation fresh Main recapture route-floor-breaker",
+    "floor-scalar": "Presentation full reader rejects floor-scalar-only",
+    "floor-bottom": "Presentation full reader rejects floor-cell-144-10",
+    "floor-retirement": "Presentation full reader rejects floor-active-regionThingStack",
+    "floor-fractional": "Presentation full reader rejects floor-counter-X-143.5",
+    "stair-restore": "Stair resource reader rejects stair-0-0-0-0-x",
+    "stair-save": "Outgoing rejects stair-X",
     "full-boundary": "Presentation full reader rejects route-title-timeout",
     preflight: "Presentation preflight rejects route-title-timeout",
     "weak-credits": "Presentation full reader rejects 0-paused-cursor-100",

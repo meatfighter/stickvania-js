@@ -112,7 +112,7 @@ test("presentation policy follows the real credits producer and rejects contradi
         assert.equal(valid(wrap({ ...bad, fadeReason: Main.FADE_REASON_STAIRS })), false);
         assert(valid(wrap({ ...bad, fadeReason: Main.FADE_REASON_STAIRS }, { onStairs: true, hurt: false, y: -62, dead: 0 })));
         const floor = { ...bad, stageIndex: 2, fadeReason: Main.FADE_REASON_SHOW_MAP, floorBreaking: false };
-        assert(valid(wrap(floor)), "FloorBreaker exit is not an ordinary completed-tally state");
+        assert(!valid(wrap(floor)), "Scalar flags alone do not prove completed floor collapse");
         assert.equal(valid(wrap({ ...floor, floorBreaking: true })), false);
         for (const mode of [0, 1, 2, 4, 5, 6, 10])
             for (let reason = 0; reason <= 10; reason++) assert(valid(wrap({ ...base(mode), fadeReason: reason })), "Inactive reasons remain harmless");

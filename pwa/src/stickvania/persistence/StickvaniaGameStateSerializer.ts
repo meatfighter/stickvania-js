@@ -1,3 +1,4 @@
+import { isStairExitResourceValid } from "./StairExitResourcePolicy.js";
 import { isPresentationSnapshotValid } from "./PresentationStatePolicy.js";
 import { GameContainer, JavaRandom, Music, isMusicPlaybackSnapshot } from "slick2d-ts";
 import { Checkpoint } from "../Checkpoint.js";
@@ -196,6 +197,12 @@ export class StickvaniaGameStateSerializer {
         );
     }
 
+    public isSupportedPresentationResources(main: Main, snapshot: StickvaniaGameStateSnapshot): boolean {
+        if (snapshot.mainFields.fadeState !== Main.FADE_OUT || snapshot.mainFields.fadeReason !== Main.FADE_REASON_STAIRS) return true;
+        const loadedStages = this.getField<StageSegment[][] | null>(main, "loadedSegments");
+        return isStairExitResourceValid(snapshot, loadedStages);
+    }
+
     public isSupportedSnapshotForLoadedResources(main: Main, snapshot: StickvaniaGameStateSnapshot): boolean {
         if (snapshot.stage === null) {
             return true;
@@ -277,6 +284,7 @@ export class StickvaniaGameStateSerializer {
 
         const limits = this.createSnapshotReferenceLimits(snapshot.stage, snapshot.things.length, stairsCounts);
         return (
+            this.isSupportedPresentationResources(main, snapshot) &&
             this.isEncodedRecordReferencesValid(snapshot.mainFields, limits) &&
             snapshot.things.every((thing) => this.isEncodedRecordReferencesValid(thing.fields, limits))
         );
@@ -1242,7 +1250,12 @@ export class StickvaniaGameStateSerializer {
             rehydrateThingAfterStateRestore(getThingTypeId(thing), thing, context.main);
         }
         this.restoreSimonAlpha(context.main);
-        context.main.syncSimonPhysicsProfile();
+        // FloorBreaker clears floorBreaking after this tick's physics synchronization.
+        // Preserve that produced profile during its frozen outgoing fade; the next
+        // simulation update synchronizes normally. Eager synchronization here would
+        // change a genuine terminal snapshot before its first restored render.
+        if (!(context.main.stageIndex === 2 && context.main.fadeState === Main.FADE_OUT && context.main.fadeReason === Main.FADE_REASON_SHOW_MAP))
+            context.main.syncSimonPhysicsProfile();
     }
 
     private restoreSimonAlpha(main: Main): void {

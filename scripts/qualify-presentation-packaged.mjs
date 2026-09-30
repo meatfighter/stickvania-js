@@ -54,7 +54,9 @@ export async function qualifyPackagedPresentation(browser, checkpoints) {
         assert(initial, "Packaged stable game-state slot");
         // Paused browser clock allows immediate restore/render/menu without an extra game tick.
         for (const checkpoint of checkpoints.filter((c) =>
-            /^entry-fade11$|^tick505$|^terminal-fade11$|^credit-(0|5|11)-mid-recording$|^credit-12-first-letter$|^ending-muted-offset$/.test(c.label)
+            /^route-floor-breaker$|^floor-map-destination$|^stair-0-0-.*-out-11$|^entry-fade11$|^tick505$|^terminal-fade11$|^credit-(0|5|11)-mid-recording$|^credit-12-first-letter$|^ending-muted-offset$/.test(
+                c.label
+            )
         )) {
             await page.close();
             page = await context.newPage();
@@ -87,7 +89,7 @@ export async function qualifyPackagedPresentation(browser, checkpoints) {
             assert(entry, "Restored save exists");
             const snapshot = JSON.parse(entry[1]),
                 expected = JSON.parse(checkpoint.bytes);
-            assert.equal(snapshot.version, 23);
+            assert.equal(snapshot.version, 24);
             assert.equal(snapshot.mode, expected.mode, checkpoint.label + " restores actual scene");
             assert.equal(snapshot.mainFields.creditsIndex, expected.mainFields.creditsIndex);
             assert.equal(snapshot.mainFields.recordingIndex, expected.mainFields.recordingIndex);
