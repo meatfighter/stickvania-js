@@ -331,7 +331,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             check(!isPotentialStickvaniaGameStateSnapshot(bad), "Potential reader rejects impossible pending entry");
             mutations.push(bad);
         }
-        for (const version of [22, 24]) {
+        for (const version of [22, 23, 25]) {
             const bad = structuredClone(good);
             bad.version = version;
             mutations.push(bad);

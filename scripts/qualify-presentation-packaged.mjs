@@ -94,8 +94,22 @@ export async function qualifyPackagedPresentation(browser, checkpoints) {
             assert.equal(snapshot.mainFields.creditsIndex, expected.mainFields.creditsIndex);
             assert.equal(snapshot.mainFields.recordingIndex, expected.mainFields.recordingIndex);
             assert.equal(snapshot.mainFields.castleCrumbleRumbleTicks, expected.mainFields.castleCrumbleRumbleTicks);
-            assert.equal(snapshot.audio.currentSong, "ending");
-            assert.equal(snapshot.audio.songs.find((s) => s.id === "ending").loop.playback.transport, "playing");
+            assert.equal(snapshot.audio.currentSong, expected.audio.currentSong, checkpoint.label + " current Song");
+            assert.equal(snapshot.audio.requestedSong, expected.audio.requestedSong, checkpoint.label + " requested Song");
+            assert.equal(snapshot.audio.currentMusic?.id ?? null, expected.audio.currentMusic?.id ?? null);
+            for (const song of expected.audio.songs) {
+                const actual = snapshot.audio.songs.find((s) => s.id === song.id);
+                assert.equal(actual.playing, song.playing, checkpoint.label + " Song ownership " + song.id);
+                for (const part of ["intro", "loop"]) {
+                    assert.equal(
+                        actual[part]?.playback.transport ?? null,
+                        song[part]?.playback.transport ?? null,
+                        checkpoint.label + " Song transport " + song.id
+                    );
+                }
+            }
+            if (expected.audio.currentMusic !== null)
+                assert.equal(snapshot.audio.currentMusic.playback.transport, expected.audio.currentMusic.playback.transport);
             await resume();
             await page.locator("canvas").waitFor();
             const retained = JSON.parse((await menu())[1]);
@@ -107,7 +121,7 @@ export async function qualifyPackagedPresentation(browser, checkpoints) {
             }
             results.push(checkpoint.label);
         }
-        assert.equal(results.length, 8, "All packaged presentation checkpoints exercised");
+        assert.equal(results.length, 14, "All packaged presentation checkpoints exercised");
         assert.deepEqual(errors, []);
         return results;
     } finally {
