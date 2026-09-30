@@ -32,8 +32,10 @@ export function rumbleMutationPlugin(name = process.env.STICKVANIA_RUMBLE_MUTANT
                 );
             if (name === "castle-full-boundary" && path.endsWith("/persistence/StateFieldValuePolicy.ts"))
                 changed = changed.replace(" && isCastleTransitionValid(fields)", "");
+            if (name === "castle-full-boundary" && path.endsWith("/persistence/StickvaniaGameStateSerializer.ts"))
+                changed = changed.replace("isPresentationSnapshotValid(snapshot) &&", "");
             if (name === "castle-preflight" && path.endsWith("/persistence/GameStatePreflight.ts"))
-                changed = changed.replace("isCastleTransitionValid(mainFieldsValue) &&", "");
+                changed = changed.replace("isPresentationSnapshotValid(snapshot) &&", "");
             if (path.endsWith("/persistence/CastlePresentationPhasePolicy.ts")) {
                 if (name === "castle-pending-tally")
                     changed = changed.replace(

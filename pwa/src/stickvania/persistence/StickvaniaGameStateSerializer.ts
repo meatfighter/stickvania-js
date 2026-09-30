@@ -1,3 +1,4 @@
+import { isPresentationSnapshotValid } from "./PresentationStatePolicy.js";
 import { GameContainer, JavaRandom, Music, isMusicPlaybackSnapshot } from "slick2d-ts";
 import { Checkpoint } from "../Checkpoint.js";
 import { isInputConfigModeSnapshot, type InputConfigModeSnapshot } from "../InputConfigMode.js";
@@ -189,6 +190,7 @@ export class StickvaniaGameStateSerializer {
 
         const references = this.createSnapshotReferenceLimits(snapshot.stage, snapshot.things.length);
         return (
+            isPresentationSnapshotValid(snapshot) &&
             this.isEncodedRecordReferencesValid(snapshot.mainFields, references) &&
             snapshot.things.every((thing) => this.isEncodedRecordReferencesValid(thing.fields, references))
         );

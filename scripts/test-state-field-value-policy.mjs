@@ -53,7 +53,24 @@ try {
     for (const value of [-1, 0.5, NaN, Infinity, 2147483648]) {
         assert.equal(policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, timeIncrementor: value }), false);
     }
-    const recorded = (mode, values) => policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, mode, ...values });
+    const recorded = (mode, values) => {
+        const index = values.creditsIndex ?? 0;
+        const presentation =
+            mode === Main.MODE_CREDITS
+                ? {
+                      stageIndex: [0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4][index] ?? 4,
+                      fadeState: index === 12 ? Main.FADE_IN : Main.FADE_DONE,
+                      fade: index === 12 ? 22 : 0,
+                      fadeReason: index === 12 ? Main.FADE_REASON_ADVANCE_CREDITS : Main.FADE_REASON_SHOW_CREDITS,
+                      creditsPaused: index === 12,
+                      creditsAdvance: false,
+                      creditsTitleIndex: 0,
+                      creditsTitleIndex2: 0,
+                      creditsDelay: 0
+                  }
+                : {};
+        return policy.isPersistedMainFieldValuesValid({ ...valid.mainFields, mode, ...presentation, ...values });
+    };
     for (let demoIndex = 0; demoIndex < 3; demoIndex++) {
         for (const recordingIndex of [0, 2729, 2730]) assert.equal(recorded(Main.MODE_DEMO, { demoIndex, recordingIndex }), true);
     }

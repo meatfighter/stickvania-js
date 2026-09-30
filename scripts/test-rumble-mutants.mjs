@@ -36,8 +36,8 @@ for (const name of [
     assert(/AssertionError|ERR_ASSERTION/.test(log), "Must be a behavioral assertion: " + name);
     assert(!/SyntaxError|ReferenceError|Cannot find module|Unexpected.*import/.test(log), "Setup error is not a red: " + name);
     const expected = {
-        "castle-full-boundary": "Malformed castle rejection",
-        "castle-preflight": "Potential reader rejects contradictory castle phase",
+        "castle-full-boundary": "Reject stale pending castle song",
+        "castle-preflight": "Reject stale pending castle song",
         "castle-pending-tally": "pending entry stageIndex",
         "castle-terminal-tick": "Only DONE/0/SHOW_CASTLE_FALLS is valid mid-fall"
     }[name];

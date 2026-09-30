@@ -1,3 +1,4 @@
+import { CREDITS_TITLES, CREDITS_PERSON, CREDITS_INSPIRATION, CREDITS_PRESENTER } from "./CreditsText.js";
 import { CASTLE_TICK_MS } from "../rumble/CastleCrumbleTimeline.js";
 import { BasicGame, Color, FastTrig, GameContainer, Graphics, Image, Input, JavaRandom, Music, PackedSpriteSheet, Sound, SoundStore, Sys } from "slick2d-ts";
 import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "./AudioRegistry.js";
@@ -3168,25 +3169,10 @@ export class Main extends BasicGame {
         return ax2 >= bx1 && ax1 <= bx2 && ay2 >= by1 && ay1 <= by2;
     }
 
-    private static readonly credits: string[] = [
-        "MAIN PROGRAMMER",
-        "PLAYER PROGRAMMER",
-        "ENEMY PROGRAMMER",
-        "MAIN DESIGNER",
-        "VRAM DESIGNER",
-        "OBJECT DESIGNER",
-        "TOTAL DIRECTOR",
-        "PRODUCER",
-        "TECHNICAL ADVISOR",
-        "PLANNER",
-        "CODE GUY",
-        "INSPIRED BY",
-        "PRESENTED BY"
-    ];
-
-    private static readonly CREDITS2: string = "MICHAEL BIRKEN";
-    private static readonly CREDITS3: string = "THE BRILLIANT WORKS OF KONAMI";
-    private static readonly CREDITS4: string = "MEATFIGHTER.COM";
+    private static readonly credits: readonly string[] = CREDITS_TITLES;
+    private static readonly CREDITS2: string = CREDITS_PERSON;
+    private static readonly CREDITS3: string = CREDITS_INSPIRATION;
+    private static readonly CREDITS4: string = CREDITS_PRESENTER;
     private creditsIndex: number = 0;
     private creditsPaused: boolean = false;
     private creditsAdvance: boolean = false;

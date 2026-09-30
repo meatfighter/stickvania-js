@@ -1,4 +1,4 @@
-import { isCastleTransitionValid } from "./CastlePresentationPhasePolicy.js";
+import { isPresentationSnapshotValid } from "./PresentationStatePolicy.js";
 import { MAX_PERSISTED_SOUND_EFFECT_VOICES, SOUND_EFFECT_FIELD_NAMES } from "../AudioRegistry.js";
 import { isInputConfigModeSnapshot } from "../InputConfigMode.js";
 import { isAxeKnightShieldSnapshotStateValid } from "./AxeKnightShieldStatePolicy.js";
@@ -79,7 +79,7 @@ export function isPotentialStickvaniaGameStateSnapshot(snapshot: unknown): boole
         (isInputConfigGameStateMode(snapshot.mode) ? isInputConfigModeSnapshot(snapshot.inputConfigMode) : snapshot.inputConfigMode == null) &&
         isRecord(mainFieldsValue) &&
         mainFieldsValue.mode === snapshot.mode &&
-        isCastleTransitionValid(mainFieldsValue) &&
+        isPresentationSnapshotValid(snapshot) &&
         isRecord(snapshot.random) &&
         isRecord(audioValue) &&
         !Object.prototype.hasOwnProperty.call(audioValue, "musicOn") &&

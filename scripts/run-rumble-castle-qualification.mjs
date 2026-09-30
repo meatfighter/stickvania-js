@@ -1,3 +1,4 @@
+import { qualifyPackagedPresentation } from "./qualify-presentation-packaged.mjs";
 import { rumbleMutationPlugin } from "./rumble-mutation-plugin.mjs";
 /* global window, document, localStorage */
 import assert from "node:assert/strict";
@@ -39,7 +40,10 @@ try {
             await run(page, "rumble-castle");
             const data = await page.evaluate(() => window.rumbleCastleEvidence);
             console.log(name + ": actual castle states, action cancellation, Main/store roundtrips passed");
-            for (const checkpoint of data.checkpoints) {
+            await run(page, "presentation-state");
+            const presentation = await page.evaluate(() => window.presentationStateEvidence);
+            console.log(name + ": loaded presentation routes and credits boundaries passed");
+            for (const checkpoint of [...data.checkpoints, ...presentation.checkpoints]) {
                 await page.evaluate((c) => {
                     localStorage.setItem("rumble-expected", c.expected);
                     const key = Object.keys(localStorage).find((k) => k.includes("game-state"));
@@ -50,8 +54,11 @@ try {
                 await run(fresh, "rumble-restore");
                 await fresh.close();
             }
+            writeFileSync(join(evidence, name + "-presentation-checkpoints.json"), JSON.stringify([...data.checkpoints, ...presentation.checkpoints]));
+            console.log(name + ": all " + (data.checkpoints.length + presentation.checkpoints.length) + " fresh-document roundtrips passed");
+            const packaged = await qualifyPackagedPresentation(browser, [...data.checkpoints, ...presentation.checkpoints]);
             assert.deepEqual(errors, []);
-            writeFileSync(join(evidence, name + "-rumble-castle.json"), JSON.stringify({ browser: browser.version(), ...data }));
+            writeFileSync(join(evidence, name + "-rumble-castle.json"), JSON.stringify({ browser: browser.version(), ...data, presentation, packaged }));
             console.log(name + ": " + data.checkpoints.length + " fresh-document castle phase roundtrips passed");
         } finally {
             await browser.close();
@@ -61,7 +68,13 @@ try {
     const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
     for (const file of walk(root).filter((p) => /\.(js|html)$/.test(p))) {
         const s = readFileSync(file, "utf8");
-        for (const marker of ["rumbleCastleEvidence", "RumbleCastleVerification", "rumble-expected"])
+        for (const marker of [
+            "rumbleCastleEvidence",
+            "RumbleCastleVerification",
+            "rumble-expected",
+            "PresentationStateVerification",
+            "presentationStateEvidence"
+        ])
             assert(!s.includes(marker), "Release verification leak " + file);
     }
 } finally {

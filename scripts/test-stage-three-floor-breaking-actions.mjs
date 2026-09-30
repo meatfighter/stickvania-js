@@ -133,6 +133,9 @@ function createFrameMain(Main, registerPlayerActionMain, prepareRegisteredCountd
 function createFloorBreakingWatchSnapshot(songIds, version, overrides = {}) {
     const mainFields = {
         mode: 4,
+        fadeState: 0,
+        fade: 0,
+        fadeReason: 0,
         stageIndex: 2,
         score: 0,
         time: 0,

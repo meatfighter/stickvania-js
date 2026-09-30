@@ -1,3 +1,4 @@
+import { isEndingAudioStateValid } from "./stickvania/persistence/PresentationStatePolicy.js";
 import { isCastleTransitionValid } from "./stickvania/persistence/CastlePresentationPhasePolicy.js";
 import { isPotentialStickvaniaGameStateSnapshot } from "./stickvania/persistence/GameStatePreflight.js";
 import { Sys, type AppGameContainer } from "slick2d-ts";
@@ -14,7 +15,7 @@ import { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGam
 import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
 
 type Mounted = { main: Main; container: AppGameContainer };
-type Harness = {
+export type Harness = {
     mountMain(restore: ((main: Main, container: AppGameContainer) => boolean) | null): Promise<Mounted>;
     destroyMounted(m: Mounted | null): void;
     advanceFrames(m: Mounted, n: number): void;
@@ -83,7 +84,8 @@ export async function verifyRumbleRestore(h: Harness): Promise<void> {
         const f = clock(() => tick(m));
         m.rumble = f.manager;
         check(store.restore(m, gc), "Fresh-document castle restore");
-        check(m.currentSong === m.ending, "Fresh-document retains ending ownership");
+        const restored = serializer.createSnapshot(m, "rumble");
+        check(isEndingAudioStateValid(restored.mainFields, restored.audio), "Fresh-document retains ending ownership");
         check(f.timers.size === 0, "Restore cannot attach output before accepted session");
         check(h.gameplaySnapshot(serializer, m) === expected, "Fresh-document immediate recapture");
         m.render(gc, gc.getGraphics());
@@ -139,10 +141,22 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
         Object.assign(orb, { appearDelay: 0, fadeIn: 91, x: m.simon.x + 20, y: m.simon.y + 8 });
         frame();
         check(m.beatStageFlag, "Orb collision starts tally");
+        const orbBoundary = serializer.createSnapshot(m, "rumble");
+        check(
+            orbBoundary.audio.requestedSong === "ending" && serializer.isSupportedSnapshot(orbBoundary),
+            "Immediate Orb request before next-frame promotion is valid"
+        );
         for (let i = 0; i < 200 && m.mode !== Main.MODE_CASTLE_FALLS; i++) {
             if (m.fadeState === Main.FADE_OUT && m.fadeReason === Main.FADE_REASON_SHOW_CASTLE_FALLS && [0, 11, 22].includes(m.fade)) {
                 const snapshot = serializer.createSnapshot(m, "rumble");
                 check(isCastleTransitionValid(snapshot.mainFields), "Real completed tally requests castle entry");
+                check(isEndingAudioStateValid(snapshot.mainFields, snapshot.audio), "Pending castle owns current and requested ending");
+                const wrongPending = structuredClone(snapshot);
+                wrongPending.audio.requestedSong = "stage_6_1";
+                check(
+                    !serializer.isSupportedSnapshot(wrongPending) && !isPotentialStickvaniaGameStateSnapshot(wrongPending),
+                    "Reject stale pending castle song"
+                );
                 const expected = h.gameplaySnapshot(serializer, m);
                 check(store.save(m, () => true).saved, "Save real pending castle entry");
                 checkpoints.push({ label: "entry-fade" + m.fade, bytes: localStorage.getItem(GAME_STATE_STORAGE_KEY)!, expected });
@@ -158,7 +172,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             const before = h.gameplaySnapshot(serializer, m);
             check(store.save(m, () => true).saved, "Save reachable castle " + label);
             const bytes = localStorage.getItem(GAME_STATE_STORAGE_KEY)!;
-            check(JSON.parse(bytes).version === 22, "Current schema");
+            check(JSON.parse(bytes).version === 23, "Current schema");
             checkpoints.push({ label, bytes, expected: before });
             m.setBrowserSuspended(true);
             f.manager.setSuspended(true);
@@ -309,7 +323,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             check(!isPotentialStickvaniaGameStateSnapshot(bad), "Potential reader rejects impossible pending entry");
             mutations.push(bad);
         }
-        for (const version of [21, 23]) {
+        for (const version of [22, 24]) {
             const bad = structuredClone(good);
             bad.version = version;
             mutations.push(bad);

@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { withCounterModules, replace } from "./counter-test-utils.mjs";
 
-async function probe(mutation = (s) => s, sanityMutation = (s) => s) {
+async function probe(mutation = (s) => s, sanityMutation = (s) => s, presentationMutation = (s) => s) {
     await withCounterModules(
         {
             JavaMath: (s) => s + "\nexport {ResourceLoader};",
             "persistence/StateFieldValuePolicy": mutation,
+            "persistence/PresentationStatePolicy": presentationMutation,
             "persistence/GameStateSanity": (s) => sanityMutation(s) + "\nexport {isReasonableValue, EXPECTED_MUSIC_IDS};"
         },
         async (load) => {
@@ -24,7 +25,20 @@ async function probe(mutation = (s) => s, sanityMutation = (s) => s) {
                 ResourceLoader.getResourceAsStream = getResource;
             }
             const base = Object.fromEntries(fields.MAIN_PERSISTED_STATE_FIELD_NAMES.map((k) => [k, main[k]]));
-            const valid = (f) => policy.isPersistedMainFieldValuesValid({ ...base, ...f });
+            const valid = (f) => {
+                const index = f.creditsIndex ?? 0;
+                const presentation =
+                    f.mode === Main.MODE_CREDITS
+                        ? {
+                              stageIndex: [0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4][index] ?? 4,
+                              fadeState: index === 12 ? Main.FADE_IN : Main.FADE_DONE,
+                              fade: index === 12 ? 22 : 0,
+                              fadeReason: index === 12 ? Main.FADE_REASON_ADVANCE_CREDITS : Main.FADE_REASON_SHOW_CREDITS,
+                              creditsPaused: index === 12
+                          }
+                        : {};
+                return policy.isPersistedMainFieldValuesValid({ ...base, ...presentation, ...f });
+            };
             assert.equal(valid({}), true, "actual Main defaults");
             assert.equal(valid({ mode: Main.MODE_MAP, players: 100 }), true, "MAP100 positive");
             for (const [mode, players] of [
@@ -52,7 +66,7 @@ async function probe(mutation = (s) => s, sanityMutation = (s) => s) {
                     ? { id, playback: { transport: "stopped", looped: false, playbackRate: 1, positionSeconds: 0, volume: 1, fade: null } }
                     : null;
             const neutral = {
-                version: 22,
+                version: 23,
                 appVersion: "test",
                 savedAt: new Date(0).toISOString(),
                 mode: 4,
@@ -135,11 +149,7 @@ test("Stickvania bounds and sentinels defeat targeted mutants", async () => {
         ["isCountdownSnapshotValueValid(fields.mode, value)", "isIntegerInRange(value, 0, JAVA_INT_MAX)"],
         ["demoIndex: [0, 2]", "demoIndex: [0, 3]"],
         ["isIntegerInRange(fields.recordingIndex, 0, 2730)", "isIntegerInRange(fields.recordingIndex, 0, 2729)"],
-        ["isIntegerInRange(cursor, 0, 728)", "isIntegerInRange(cursor, 0, 727)"],
-        ["isIntegerInRange(cursor, 0, 728)", "isIntegerInRange(cursor, 0, 729)"],
         ["isIntegerInRange(fields.recordingIndex, 0, 2730)", "isIntegerInRange(fields.recordingIndex, 0, 2731)"],
-        ["isIntegerInRange(index, 0, 12)", "isIntegerInRange(index, 0, 11)"],
-        ["if (fields.mode === Main.MODE_CREDITS)", "if (fields.mode === Main.MODE_CREDITS || fields.mode === Main.MODE_TITLE_SCREEN)"],
         ["fields.mode === Main.MODE_MAP ? 100 : 99", "fields.mode === Main.MODE_MAP ? 101 : 99"],
         ["whipIncrementor: [0, 45]", "whipIncrementor: [0, 44]"],
         ["if (range !== undefined) return isIntegerInRange(value, range[0], range[1]);", "if (range !== undefined) return true;"]
@@ -150,6 +160,27 @@ test("Stickvania bounds and sentinels defeat targeted mutants", async () => {
                 e.code === "ERR_ASSERTION" &&
                 /MAP100|life boundary|clock range|demo index|sentinel|retained45|indexed negative|cursor|inactive credits/.test(e.message)
         );
+    for (const [from, to] of [
+        ["integer(cursor, 0, 728)", "integer(cursor, 0, 727)"],
+        ["integer(cursor, 0, 728)", "integer(cursor, 0, 729)"],
+        ["integer(index, 0, 12)", "integer(index, 0, 11)"]
+    ])
+        await assert.rejects(
+            probe(
+                (s) => s,
+                (s) => s,
+                (s) => replace(s, from, to)
+            ),
+            (e) => e.code === "ERR_ASSERTION" && /sentinel|cursor|inactive credits/.test(e.message) && !e.message.includes("mutation anchor")
+        );
+    await assert.rejects(
+        probe(
+            (s) => replace(s, "if (fields.mode === Main.MODE_CREDITS)", "if (fields.mode === Main.MODE_CREDITS || fields.mode === Main.MODE_TITLE_SCREEN)"),
+            (s) => s,
+            (s) => replace(s, "if (f.mode !== M.CREDITS) return true;", "if (f.mode !== M.CREDITS && f.mode !== M.TITLE) return true;")
+        ),
+        (e) => e.code === "ERR_ASSERTION" && /inactive credits/.test(e.message)
+    );
     await assert.rejects(
         probe(
             (s) => s,

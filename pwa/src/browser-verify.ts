@@ -1,3 +1,4 @@
+import { verifyPresentationState } from "./PresentationStateVerification.js";
 import { verifyRumbleCastle, verifyRumbleRestore } from "./RumbleCastleVerification.js";
 import { verifyNullThingBoundary, traceNullPlayback } from "./NullThingVerification.js";
 import { verifyCounterParity } from "./CounterParityVerification.js";
@@ -129,6 +130,10 @@ async function verify(): Promise<void> {
     await preloadRuntimeResources();
 
     const selected = new URLSearchParams(location.search).get("suite");
+    if (selected === "presentation-state") {
+        await verifyPresentationState({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
+        return;
+    }
     if (selected === "rumble-castle" || selected === "rumble-restore") {
         await (selected === "rumble-castle" ? verifyRumbleCastle : verifyRumbleRestore)({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
         return;

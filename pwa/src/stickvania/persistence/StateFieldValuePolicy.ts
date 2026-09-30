@@ -1,3 +1,4 @@
+import { isCreditsPresentationValid } from "./PresentationStatePolicy.js";
 import { isCastleTransitionValid } from "./CastlePresentationPhasePolicy.js";
 import { isCastlePresentationValid } from "../../rumble/CastleCrumbleTimeline.js";
 import { Main } from "../Main.js";
@@ -342,11 +343,7 @@ function isRecordedInputCursorValid(fields: EncodedRecord): boolean {
         return typeof fields.recordingIndex === "number" && isIntegerInRange(fields.recordingIndex, 0, 2730);
     }
     if (fields.mode === Main.MODE_CREDITS) {
-        const index = fields.creditsIndex;
-        const cursor = fields.recordingIndex;
-        if (typeof index !== "number" || !isIntegerInRange(index, 0, 12) || typeof cursor !== "number" || !isIntegerInRange(cursor, 0, 728)) return false;
-        // Final card has no recording; advanceCredits publishes this sentinel atomically.
-        return fields.creditsPresents === (index === 12) && (index !== 12 || cursor === 728);
+        return isCreditsPresentationValid(fields);
     }
     return true;
 }

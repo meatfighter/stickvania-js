@@ -74,6 +74,8 @@ test("clock policy separates active domain from retained inactive values", async
                 const expected = !active || n <= 90;
                 assert.equal(modes.isCountdownSnapshotValueValid(mode, n), expected);
                 const f = { ...base, mode, timeIncrementor: n, demoIndex: 0, creditsIndex: 0, creditsPresents: false, recordingIndex: 0 };
+                if (mode === Main.MODE_CREDITS)
+                    Object.assign(f, { stageIndex: 0, fadeState: Main.FADE_DONE, fade: 0, fadeReason: Main.FADE_REASON_SHOW_CREDITS });
                 assert.equal(policy.isPersistedMainFieldValuesValid(f), expected, `integrated:${mode}:${n}`);
             }
             for (const n of [-1, 0.5, NaN, Infinity, 2147483648]) assert.equal(modes.isCountdownSnapshotValueValid(mode, n), false);
