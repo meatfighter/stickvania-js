@@ -70,6 +70,19 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
     }
     async function checkpoint(label: string, fresh = true): Promise<Snapshot> {
         const snapshot = capture();
+        if ([Main.MODE_TITLE_SCREEN, Main.MODE_INPUT_CONFIG, Main.MODE_INTRO, Main.MODE_MAP].includes(snapshot.mode)) {
+            const dormant = structuredClone(snapshot);
+            Object.assign(dormant.mainFields, {
+                creditsIndex: 12,
+                recordingIndex: 100,
+                creditsPaused: true,
+                creditsAdvance: true,
+                creditsTitleIndex: 100,
+                creditsTitleIndex2: 100,
+                creditsDelay: 1000
+            });
+            check(serializer.isSupportedSnapshot(dormant) && isPotentialStickvaniaGameStateSnapshot(dormant), "Dormant credits fields remain legal " + label);
+        }
         check(serializer.isSupportedSnapshot(snapshot), "Presentation full positive " + label);
         check(isPotentialStickvaniaGameStateSnapshot(snapshot), "Presentation preflight positive " + label);
         const expected = h.gameplaySnapshot(serializer, m());
@@ -402,6 +415,7 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
                         Object.assign(bad.mainFields, patch);
                         reject(bad, index + "-" + name);
                     }
+                    check(store.save(m(), () => true).saved, "Valid save replaces corrupt slot before outgoing failure control");
                     const old = localStorage.getItem(GAME_STATE_STORAGE_KEY);
                     Reflect.set(m(), "creditsPaused", true);
                     Reflect.set(m(), "recordingIndex", 100);

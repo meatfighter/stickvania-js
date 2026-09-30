@@ -219,6 +219,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             const snapshot = serializer.createSnapshot(m, "rumble");
             check(isCastlePresentationValid(snapshot.mainFields), "Actual visual state " + n);
             check(isCastleTransitionValid(snapshot.mainFields), "Actual castle transition phase " + n);
+            check(isEndingAudioStateValid(snapshot.mainFields, snapshot.audio), "Actual castle ending owner " + n);
             states.push({
                 tick: n,
                 fields: Object.fromEntries(Object.entries(snapshot.mainFields).filter(([k]) => k.startsWith("castleFall"))),
