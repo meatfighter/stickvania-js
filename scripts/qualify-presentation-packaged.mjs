@@ -56,9 +56,9 @@ export async function qualifyPackagedPresentation(browser, checkpoints) {
         for (const checkpoint of checkpoints.filter((c) =>
             /^entry-fade11$|^tick505$|^terminal-fade11$|^credit-(0|5|11)-mid-recording$|^credit-12-first-letter$|^ending-muted-offset$/.test(c.label)
         )) {
-            await page.evaluate(({ key, bytes }) => localStorage.setItem(key, bytes), { key: initial[0], bytes: checkpoint.bytes });
             await page.close();
             page = await context.newPage();
+            await page.addInitScript(({ key, bytes }) => localStorage.setItem(key, bytes), { key: initial[0], bytes: checkpoint.bytes });
             await page.clock.install();
             await page.goto(`http://127.0.0.1:${server.address().port}/`);
             await page.waitForFunction(() => window.__gameResourcesPrepared === true, null, { timeout: 120000 });

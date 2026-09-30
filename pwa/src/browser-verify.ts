@@ -637,6 +637,7 @@ async function verifyOrbRestore(): Promise<void> {
                 if (reentered) source.createStageForStateRestore(stage);
                 source.mode = Main.MODE_PLAYING;
                 source.fadeState = Main.FADE_DONE;
+                source.fade = 0;
                 source.playerPower = 16;
                 source.time = 1;
                 source.hearts = 1;
