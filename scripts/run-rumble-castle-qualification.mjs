@@ -43,7 +43,29 @@ try {
             await run(page, "presentation-state");
             const presentation = await page.evaluate(() => window.presentationStateEvidence);
             console.log(name + ": loaded presentation routes and credits boundaries passed");
-            for (const checkpoint of [...data.checkpoints, ...presentation.checkpoints]) {
+            // Every boundary already receives retained/fresh-Main recapture above.
+            // Fresh documents additionally cover every route and recording graph, plus
+            // typed/final-card and offset state, without reloading adjacent caption frames.
+            const documentCheckpoints = [
+                ...data.checkpoints,
+                ...presentation.checkpoints.filter(
+                    (c) =>
+                        c.label.startsWith("route-") ||
+                        /^credit-\d+-last-input$/.test(c.label) ||
+                        [
+                            "input-editor",
+                            "input-review-return",
+                            "returned-title",
+                            "credit-0-first-letter",
+                            "credit-12-first-letter",
+                            "credit-12-out-11",
+                            "ending-muted-offset"
+                        ].includes(c.label)
+                )
+            ];
+            assert.equal(documentCheckpoints.filter((c) => /^credit-\d+-last-input$/.test(c.label)).length, 12);
+            let restoredDocuments = 0;
+            for (const checkpoint of documentCheckpoints) {
                 await page.evaluate((c) => {
                     localStorage.setItem("rumble-expected", c.expected);
                     const key = Object.keys(localStorage).find((k) => k.includes("game-state"));
@@ -53,12 +75,16 @@ try {
                 const fresh = await context.newPage();
                 await run(fresh, "rumble-restore");
                 await fresh.close();
+                if (++restoredDocuments % 10 === 0) console.log(name + ": fresh document " + restoredDocuments + "/" + documentCheckpoints.length);
             }
             writeFileSync(join(evidence, name + "-presentation-checkpoints.json"), JSON.stringify([...data.checkpoints, ...presentation.checkpoints]));
-            console.log(name + ": all " + (data.checkpoints.length + presentation.checkpoints.length) + " fresh-document roundtrips passed");
+            console.log(name + ": all " + documentCheckpoints.length + " fresh-document roundtrips passed");
             const packaged = await qualifyPackagedPresentation(browser, [...data.checkpoints, ...presentation.checkpoints]);
             assert.deepEqual(errors, []);
-            writeFileSync(join(evidence, name + "-rumble-castle.json"), JSON.stringify({ browser: browser.version(), ...data, presentation, packaged }));
+            writeFileSync(
+                join(evidence, name + "-rumble-castle.json"),
+                JSON.stringify({ browser: browser.version(), ...data, presentation, freshDocuments: documentCheckpoints.map((c) => c.label), packaged })
+            );
             console.log(name + ": " + data.checkpoints.length + " fresh-document castle phase roundtrips passed");
         } finally {
             await browser.close();
