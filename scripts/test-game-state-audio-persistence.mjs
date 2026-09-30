@@ -295,16 +295,18 @@ try {
         assert.doesNotMatch(source, /\b(?:musicOn|soundOn|setMusicOn|setSoundOn)\b/);
     });
 
-    test("only the PWA shell and isolated policy verification fixture may mutate global audio policy", () => {
+    test("only the PWA shell and isolated policy verification fixtures may mutate global audio policy", () => {
         const calls = collectAudioPolicySetterCalls(resolve(rootDir, "pwa", "src"));
         assert.deepEqual(calls, [
             "pwa/src/PresentationStateVerification.ts:setMusicOn",
             "pwa/src/PresentationStateVerification.ts:setMusicOn",
+            "pwa/src/browser-verify.ts:setMusicOn",
+            "pwa/src/browser-verify.ts:setMusicOn",
             "pwa/src/main.ts:setMusicOn",
             "pwa/src/main.ts:setSoundsOn"
         ]);
         // The packaged-release verification rejects this dev-only fixture in any shipped chunk.
-        assert.doesNotMatch(readFileSync(resolve(rootDir, "pwa/src/main.ts"), "utf8"), /PresentationStateVerification/);
+        assert.doesNotMatch(readFileSync(resolve(rootDir, "pwa/src/main.ts"), "utf8"), /PresentationStateVerification|browser-verify/);
     });
 
     test("PWA shell owns application audio policy before activation and on Reset", () => {
