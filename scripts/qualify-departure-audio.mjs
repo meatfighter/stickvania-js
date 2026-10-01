@@ -34,10 +34,21 @@ export async function qualifyDepartureAudio(browser, game, seeds) {
                 await page.waitForFunction(() => window.__gameResourcesPrepared === true);
                 await page.locator("#continue-button, #continueButton").first().click();
                 await page.locator('button[aria-label*="menu" i]:not([hidden])').first().waitFor();
+                if (seed.label === "audio-ended-pending") {
+                    // Continue can consume the restored completion in Music.poll
+                    // before Main's first fixed frame restarts the loop. Wait for
+                    // that actual producer before creating the measured end state.
+                    await page.waitForFunction(() => window.departureTestAccess.game.currentSong?.getLoopForState()?.getTransportState() === "playing");
+                }
                 const result = await page.evaluate(
                     ({ key, label }) => {
                         const a = window.departureTestAccess;
-                        if (label === "audio-ended-pending") a.game.currentSong?.getLoopForState()?.stop();
+                        if (label === "audio-ended-pending") {
+                            const loop = a.game.currentSong?.getLoopForState();
+                            if (loop?.getTransportState() !== "playing") throw Error("Expected an active loop before completion");
+                            loop.stop();
+                            if (loop.getTransportState() !== "ended-pending") throw Error("Expected pending completion before departure");
+                        }
                         if (label === "audio-pending-song") a.game.requestSong(a.game.stage_1_1 === a.game.currentSong ? a.game.stage_1_2 : a.game.stage_1_1);
                         if (label === "audio-silent-policy") a.soundStore.setMusicOn(false);
                         const selectAudio = (snapshot) => Object.fromEntries(Object.entries(snapshot).filter(([key]) => /audio|song|music|sound/i.test(key)));
