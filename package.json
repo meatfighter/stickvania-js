@@ -1,6 +1,6 @@
 {
     "name": "stickvania-js",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "private": true,
     "homepage": "https://meatfighter.com/stickvania/",
     "repository": {
@@ -10,7 +10,7 @@
     "license": "SEE LICENSE IN COPYRIGHT.md",
     "type": "module",
     "engines": {
-        "node": "^20.19.0 || >=22.12.0"
+        "node": ">=24.0.0"
     },
     "scripts": {
         "stamp": "node scripts/stamp.mjs",
@@ -92,16 +92,16 @@
         "verify:departure-save": "node scripts/run-departure-save-qualification.mjs"
     },
     "dependencies": {
-        "slick2d-ts": "https://codeload.github.com/meatfighter/slick2d-ts/tar.gz/9ddb56642258ca1672098d7b0cedd51e5c14f194"
+        "slick2d-ts": "https://codeload.github.com/meatfighter/slick2d-ts/tar.gz/03b6878aab0106702651f41259c250288c3eb345"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
-        "@types/node": "^26.6.2",
-        "eslint": "^10.10.0",
+        "@types/node": "^24.19.0",
+        "eslint": "^10.11.0",
         "playwright": "1.63.0",
-        "prettier": "^3.9.8",
-        "typescript": "^6.0.3",
-        "typescript-eslint": "^8.70.0",
-        "vite": "^8.3.0"
+        "prettier": "^3.9.9",
+        "typescript": "~6.0.3",
+        "typescript-eslint": "^8.71.0",
+        "vite": "^8.3.2"
     }
 }

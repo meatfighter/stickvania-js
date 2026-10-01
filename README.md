@@ -1,6 +1,6 @@
 # Stickvania
 
-**[Project page: meatfighter.com/stickvania/](https://meatfighter.com/stickvania/)** — background, gameplay, controls, and downloads.
+**[Project page: meatfighter.com/stickvania/](https://meatfighter.com/stickvania/)** â€” background, gameplay, controls, and downloads.
 
 This README covers development and maintenance of the Java and TypeScript implementations.
 
@@ -25,7 +25,7 @@ Generated output belongs in `dist/`, `.release-components/`, and desktop build d
 
 ## Getting started
 
-Use Node.js 24 and Git. Other supported Node versions are listed in [package.json](package.json). Desktop builds and checks that compile Java require JDK 21, with `javac` and `jar` on `PATH`.
+Use Node.js 24 or newer and Git; see [package.json](package.json) for the supported baseline. Desktop builds and checks that compile Java require JDK 21, with `javac` and `jar` on `PATH`.
 
 Run commands from the repository root:
 
@@ -58,7 +58,7 @@ Component builds use isolated output directories; building a component does not 
 
 Browser fixtures use a locally installed Chrome, Chromium, or Edge. Set `CHROMIUM_PATH` to the executable if automatic discovery fails. Offline verification also needs a built PWA; consult [scripts/run-offline-verification.mjs](scripts/run-offline-verification.mjs) for its output-directory selection.
 
-For the separate Chromium/Firefox/WebKit qualification, install the browser engines locally with `npx playwright install chromium firefox webkit`, then run `npm run qualify:browsers` against an already built `dist/pwa/`. Set `PWA_ROOT` to use another built PWA directory. Linux also needs the Playwright system dependencies and a graphical display or Xvfb. Run `npm run qualify` before pushing release-affecting changes; use the extended browser matrix and appropriate real-device acceptance for material browser-facing changes. GitHub Actions is an optional manual Linux check.
+For the separate Chromium/Firefox/WebKit qualification, install the browser engines locally with `npx playwright install chromium firefox webkit`, then run `npm run qualify:browsers`, which builds its own PWA before testing. For checks against a final packaged PWA without rebuilding, set `PWA_ROOT` to its absolute path and invoke the leaf checks listed in `scripts/run-browser-qualification-suite.mjs`; see [RELEASING.md](RELEASING.md). Linux also needs the Playwright system dependencies and a graphical display or Xvfb. Run `npm run qualify` before pushing release-affecting changes; use the extended browser matrix and appropriate real-device acceptance for material browser-facing changes. GitHub Actions is an optional manual Linux check.
 
 ## Maintenance principles
 
