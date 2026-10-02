@@ -70,7 +70,7 @@ test("lifecycle stress requires exact wake-lock acquisition and release accounti
 
 test("departure qualification is executable and required by both built-PWA gates", () => {
     assert.equal(packageJson.scripts["verify:departure-save"], "node scripts/run-departure-save-qualification.mjs");
-    assert.match(packageJson.scripts.qualify, /npm run verify:departure-save && node scripts\/assert-clean-git\.mjs$/);
+    assert.match(packageJson.scripts.qualify, /npm run verify:departure-save && npm run verify:save-pit && node scripts\/assert-clean-git\.mjs$/);
     assert.match(readFileSync("scripts/run-browser-qualification-suite.mjs", "utf8"), /"verify:departure-save"/);
     for (const name of [
         "run-departure-save-qualification",
