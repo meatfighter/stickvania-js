@@ -1,3 +1,4 @@
+import { isDescendingBelowStage } from "./PitLifecycle.js";
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Flame } from "./Flame.js";
 import { javaFloat, cc, trunc } from "./JavaMath.js";
@@ -27,6 +28,9 @@ export class RedSkeleton extends Thing {
     }
 
     public override update(gc: GameContainer): boolean {
+        if (isDescendingBelowStage(this)) {
+            return false;
+        }
         if (this.kill) {
             if (this.main.random.nextBoolean()) {
                 this.main.pushThing(this.main.createCandleItem(trunc(this.x), trunc(this.y), cc("h"))!);
@@ -48,6 +52,9 @@ export class RedSkeleton extends Thing {
 
         if (this.main.timeFrozen == 0) {
             this.applyGravity();
+            if (isDescendingBelowStage(this)) {
+                return false;
+            }
 
             switch (this.state) {
                 case RedSkeleton.STATE_INACTIVE:

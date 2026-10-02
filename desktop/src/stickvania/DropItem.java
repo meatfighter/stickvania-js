@@ -39,7 +39,13 @@ public class DropItem extends Thing {
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
+    if (PitLifecycle.isDescendingBelowStage(this)) {
+      return retireUncollected();
+    }
     applyGravity();
+    if (PitLifecycle.isDescendingBelowStage(this)) {
+      return retireUncollected();
+    }
 
     if (main.intersectsSimon((int)x, (int)y, 31 + (int)x, 31 + (int)y)) {
 
@@ -133,13 +139,15 @@ public class DropItem extends Thing {
     }
 
     if (disappears && --lifeTime == 0) {
-      if (type == TYPE_WHIP) {
-        main.whipDestroyed();
-      }
-      return false;
+      return retireUncollected();
     }
 
     return true;
+  }
+
+  private boolean retireUncollected() {
+    if (type == TYPE_WHIP) main.whipDestroyed();
+    return false;
   }
 
   private void collectWeapon(int weaponType) {

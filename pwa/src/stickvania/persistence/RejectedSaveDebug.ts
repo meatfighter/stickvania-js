@@ -1,0 +1,202 @@
+import { getBrowserStorageKey } from "../BrowserStorageKeys.js";
+
+export const REJECTED_SAVE_DEBUG_KEY = getBrowserStorageKey("debug-invalid-save");
+export const REJECTED_SAVE_DEBUG_VERSION = 1;
+const MAX_FULL_CHARS = 262144;
+const MAX_COMPACT_CHARS = 16384;
+const MAX_VISITS = 250000;
+const MAX_DEPTH = 64;
+
+export type RejectedSaveStage = "structure-and-graph" | "values-and-audio" | "stopwatch-repeat" | "axe-knight-shield" | "presentation-resources";
+
+export interface RejectedSaveFailure {
+    readonly stage: RejectedSaveStage;
+    readonly kind: "returned-false" | "threw";
+    readonly error?: unknown;
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+    return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function scalar(value: unknown): string | number | boolean | null {
+    if (typeof value === "number") return Number.isFinite(value) ? value : String(value);
+    if (typeof value === "string") return value.slice(0, 256);
+    if (typeof value === "boolean") return value;
+    return null;
+}
+
+function errorDetails(error: unknown): { name: string; message: string } | null {
+    if (error === undefined) return null;
+    try {
+        return error instanceof Error
+            ? { name: error.name.slice(0, 80), message: error.message.slice(0, 1024) }
+            : { name: "ThrownValue", message: String(error).slice(0, 1024) };
+    } catch {
+        return { name: "UnreadableThrownValue", message: "Unable to describe validator exception" };
+    }
+}
+
+function boundedJson(value: unknown, limit: number): string {
+    // Inspect descriptors before JSON.stringify: toJSON, accessors, sparse
+    // arrays and non-plain objects can silently change the rejected evidence.
+    // Shared references are valid JSON trees; only ancestor cycles are rejected.
+    let inspected = 0;
+    let inspectedChars = 0;
+    const path = new Set<object>();
+    function inspect(child: unknown, depth: number): void {
+        if (++inspected > MAX_VISITS || depth > MAX_DEPTH) throw new Error("debug-inspection-budget");
+        if (typeof child === "string") {
+            inspectedChars += child.length;
+            if (inspectedChars > limit) throw new Error("debug-string-budget");
+        }
+        if (typeof child === "number" && !Number.isFinite(child)) throw new Error("debug-non-json-number");
+        if (["undefined", "bigint", "symbol", "function"].includes(typeof child)) throw new Error("debug-non-json-value");
+        if (child === null || typeof child !== "object") return;
+        if (path.has(child)) throw new Error("debug-cycle");
+        const array = Array.isArray(child);
+        const prototype = Object.getPrototypeOf(child);
+        if (!array && prototype !== Object.prototype && prototype !== null) throw new Error("debug-non-plain-object");
+        if ("toJSON" in child) throw new Error("debug-to-json");
+        path.add(child);
+        const keys = Reflect.ownKeys(child);
+        if (keys.length > MAX_VISITS - inspected) throw new Error("debug-visit-budget");
+        let elements = 0;
+        for (const key of keys) {
+            if (array && key === "length") continue;
+            if (typeof key !== "string") throw new Error("debug-symbol-key");
+            const descriptor = Object.getOwnPropertyDescriptor(child, key)!;
+            if (!descriptor.enumerable || !("value" in descriptor)) throw new Error("debug-non-json-property");
+            if (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= child.length)) throw new Error("debug-array-property");
+            inspectedChars += key.length;
+            if (inspectedChars > limit) throw new Error("debug-string-budget");
+            inspect(descriptor.value, depth + 1);
+            elements++;
+        }
+        if (array && elements !== child.length) throw new Error("debug-sparse-array");
+        path.delete(child);
+    }
+    inspect(value, 0);
+    let visits = 0;
+    let stringBudget = 0;
+    const ancestors: object[] = [];
+    const text = JSON.stringify(value, function (this: unknown, key: string, child: unknown): unknown {
+        if (++visits > MAX_VISITS) throw new Error("debug-visit-budget");
+        stringBudget += key.length;
+        if (typeof child === "string") stringBudget += child.length;
+        if (stringBudget > limit) throw new Error("debug-string-budget");
+        if (typeof child === "number" && !Number.isFinite(child)) throw new Error("debug-non-json-number");
+        if (["undefined", "bigint", "symbol", "function"].includes(typeof child)) {
+            throw new Error("debug-non-json-value");
+        }
+        if (child !== null && typeof child === "object") {
+            while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) ancestors.pop();
+            if (ancestors.includes(child)) throw new Error("debug-cycle");
+            if (ancestors.length >= MAX_DEPTH) throw new Error("debug-depth-budget");
+            ancestors.push(child);
+        }
+        return child;
+    });
+    if (typeof text !== "string" || text.length > limit) throw new Error("debug-text-budget");
+    return text;
+}
+
+function summarize(snapshot: unknown): Record<string, unknown> {
+    const root = record(snapshot);
+    const fields = record(root?.mainFields);
+    const stage = record(root?.stage);
+    const audio = record(root?.audio);
+    const summary: Record<string, unknown> = {
+        schemaVersion: scalar(root?.version),
+        savedAt: scalar(root?.savedAt),
+        mode: scalar(root?.mode),
+        stageIndex: scalar(fields?.stageIndex),
+        stage: scalar(fields?.stage),
+        currentSegmentIndex: scalar(stage?.currentSegmentIndex),
+        doorId: scalar(stage?.door),
+        floorBreaking: scalar(fields?.floorBreaking),
+        beatStageFlag: scalar(fields?.beatStageFlag),
+        fadeState: scalar(fields?.fadeState),
+        fadeReason: scalar(fields?.fadeReason),
+        timeFrozen: scalar(fields?.timeFrozen),
+        currentSong: scalar(audio?.currentSong),
+        requestedSong: scalar(audio?.requestedSong),
+        currentMusic: scalar(record(audio?.currentMusic)?.id)
+    };
+    const rawThings = root?.things;
+    const things: unknown[] = Array.isArray(rawThings) ? rawThings : [];
+    summary.thingCount = things.length;
+    const anomalies: Record<string, unknown>[] = [];
+    for (let index = 0; index < Math.min(things.length, 4096) && anomalies.length < 16; index++) {
+        const thing = record(things[index]);
+        const values = record(thing?.fields);
+        if (values === null) continue;
+        for (const name of ["x", "y", "vx", "vy", "G"] as const) {
+            const value = values[name];
+            const maximum = name === "x" || name === "y" ? 131072 : 512;
+            if (typeof value === "number" && (!Number.isFinite(value) || Math.abs(value) > maximum)) {
+                anomalies.push({
+                    path: `things[${index}].fields.${name}`,
+                    thingId: scalar(thing?.id),
+                    thingType: scalar(thing?.type),
+                    observed: scalar(value),
+                    maximumMagnitude: maximum
+                });
+                if (anomalies.length === 16) break;
+            }
+        }
+    }
+    summary.candidateNumericAnomalies = anomalies;
+    const rawSongs = audio?.songs;
+    const songs: unknown[] = Array.isArray(rawSongs) ? rawSongs : [];
+    summary.songStates = songs.slice(0, 32).map((entry) => {
+        const song = record(entry);
+        return {
+            id: scalar(song?.id),
+            playing: scalar(song?.playing),
+            intro: scalar(record(record(song?.intro)?.playback)?.transport),
+            loop: scalar(record(record(song?.loop)?.playback)?.transport)
+        };
+    });
+    summary.standaloneTransport = scalar(record(record(audio?.currentMusic)?.playback)?.transport);
+    return summary;
+}
+
+export function retainRejectedSave(snapshot: unknown, appVersion: string, failure: RejectedSaveFailure, isAuthorized: () => boolean): void {
+    try {
+        if (!isAuthorized()) return;
+        const base = {
+            debugFormatVersion: REJECTED_SAVE_DEBUG_VERSION,
+            reason: "invalid-snapshot-before-save",
+            capturedAt: new Date().toISOString(),
+            appVersion: appVersion.slice(0, 256),
+            buildStamp: typeof __BUILD_STAMP__ === "string" ? __BUILD_STAMP__ : null,
+            failedStage: failure.stage,
+            failureKind: failure.kind,
+            error: errorDetails(failure.error),
+            summary: summarize(snapshot)
+        };
+        let full: string | null = null;
+        let omittedReason = "full-record-unavailable";
+        try {
+            full = boundedJson({ ...base, snapshotIncluded: true, snapshot }, MAX_FULL_CHARS);
+        } catch (error) {
+            omittedReason = errorDetails(error)?.message ?? "full-record-not-serializable";
+        }
+        const storage = globalThis.localStorage;
+        if (full !== null) {
+            if (!isAuthorized()) return;
+            try {
+                storage.setItem(REJECTED_SAVE_DEBUG_KEY, full);
+                return;
+            } catch {
+                omittedReason = "full-record-storage-write-failed";
+            }
+        }
+        const compact = boundedJson({ ...base, snapshotIncluded: false, snapshotOmittedReason: omittedReason }, MAX_COMPACT_CHARS);
+        if (!isAuthorized()) return;
+        storage.setItem(REJECTED_SAVE_DEBUG_KEY, compact);
+    } catch {
+        // Evidence is best-effort. Never throw into save or departure cleanup.
+    }
+}

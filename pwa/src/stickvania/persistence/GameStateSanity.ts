@@ -1,4 +1,4 @@
-import { isCountdownSnapshotValueValid } from "./GameStatePolicy.js";
+import { GAME_STATE_MODE_PLAYING, isCountdownSnapshotValueValid } from "./GameStatePolicy.js";
 import { isMusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
 import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "../AudioRegistry.js";
 import { isInputConfigModeSnapshot, type InputConfigModeSnapshot } from "../InputConfigMode.js";
@@ -100,7 +100,7 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
         return false;
     }
     const stopWatchHoldAllowed = snapshot.mode === 4 && hasActiveStopWatch(snapshot) && !isTerminalStopWatchState(snapshot);
-    if (!isReasonableAudio(snapshot.audio, stopWatchHoldAllowed)) {
+    if (!isReasonableAudio(snapshot.audio, stopWatchHoldAllowed, snapshot.mode)) {
         return false;
     }
     return true;
@@ -216,7 +216,12 @@ function hasActiveStopWatch(snapshot: StickvaniaGameStateSnapshot): boolean {
 }
 
 function hasVisibleFinalOrb(snapshot: StickvaniaGameStateSnapshot): boolean {
-    return snapshot.things.some((thing) => isRecord(thing) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0);
+    if (snapshot.stage === null) return false;
+    const current = readStackThingIds(snapshot.stage.regionThingStack);
+    const swap = readStackThingIds(snapshot.stage.regionStackSwap);
+    if (current === null || swap === null) return false;
+    const activeIds = new Set([...current, ...swap]);
+    return snapshot.things.some((thing) => activeIds.has(thing.id) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0);
 }
 
 function isStageThreeFloorBreaking(snapshot: StickvaniaGameStateSnapshot): boolean {
@@ -278,7 +283,7 @@ function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): bool
     );
 }
 
-function isReasonableAudio(snapshot: AudioSnapshot, stopWatchHoldAllowed: boolean): boolean {
+function isReasonableAudio(snapshot: AudioSnapshot, stopWatchHoldAllowed: boolean, mode: number): boolean {
     if (
         !isRecord(snapshot) ||
         !hasExactFields(snapshot, AUDIO_FIELDS) ||
@@ -355,21 +360,38 @@ function isReasonableAudio(snapshot: AudioSnapshot, stopWatchHoldAllowed: boolea
     }
 
     const musicStates = Array.from(music.values());
-    // Slick owns one logical Music transport. More than one active transport is
-    // contradictory and restore order must never decide which one wins.
-    const activeTransportCount = musicStates.filter((part) => part.playback.transport !== "stopped").length;
-    if (activeTransportCount > 1) {
-        return false;
+    const active = musicStates.filter((part) => part.playback.transport !== "stopped");
+    if (active.length > 1) return false;
+
+    const owner = snapshot.currentSong === null ? undefined : snapshot.songs.find((song) => song.id === snapshot.currentSong);
+    const belongsToOwner = (part: MusicSnapshot): boolean => owner !== undefined && (owner.intro?.id === part.id || owner.loop?.id === part.id);
+
+    // A Song cannot borrow another Song's active transport as validation evidence.
+    if (owner !== undefined && active.some((part) => !belongsToOwner(part))) return false;
+
+    // Only PLAYING promises to promote this replacement on the next game tick.
+    // Credits intentionally retain ending even when requestedSong differs.
+    const pendingReplacement =
+        mode === GAME_STATE_MODE_PLAYING && owner !== undefined && snapshot.requestedSong !== null && snapshot.requestedSong !== snapshot.currentSong;
+
+    // The last watch may have departed while its OLD Song remains paused.
+    if (active.some((part) => part.playback.transport === "paused")) {
+        if (!active.every(belongsToOwner) || (!stopWatchHoldAllowed && !pendingReplacement)) {
+            return false;
+        }
     }
-    // Only Song parts may be stopwatch-paused. currentMusic was rejected above
-    // if paused, so any remaining paused transport belongs to a Song snapshot.
-    if (musicStates.some((part) => part.playback.transport === "paused") && !stopWatchHoldAllowed) {
-        return false;
-    }
-    // Song.play() establishes a transport immediately unless a stopwatch owns
-    // the hold. Without that freeze, a playing Song with no active part would
-    // restore by skipping its intro and allowing Song.update() to start the loop.
-    if (playingSong !== null && activeTransportCount === 0 && !stopWatchHoldAllowed) {
+
+    // Music.poll can consume intro completion before another Main fixed tick.
+    // The next Song.update starts the loop, including after a faithful restore.
+    const betweenIntroAndLoop =
+        owner !== undefined &&
+        snapshot.currentSong === snapshot.requestedSong &&
+        owner.intro !== null &&
+        owner.loop !== null &&
+        owner.intro.playback.transport === "stopped" &&
+        owner.loop.playback.transport === "stopped";
+
+    if (playingSong !== null && active.length === 0 && !stopWatchHoldAllowed && !pendingReplacement && !betweenIntroAndLoop) {
         return false;
     }
     return true;

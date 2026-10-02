@@ -1,6 +1,6 @@
 /* global window, document */
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "vite";
@@ -14,8 +14,8 @@ const plugins = baseline
               name: "exact-prior-playback-source",
               enforce: "pre",
               transform(source, id) {
-                  for (const name of ["Main", "ThingStack"])
-                      if (id.replaceAll("\\", "/").endsWith("/stickvania/" + name + ".ts"))
+                  for (const name of ["Main", "ThingStack", "WhiteSkeleton", "Dog", "RedSkeleton", "AxeKnight", "SmallHeart", "DropItem"])
+                      if (existsSync(join(baseline, "baseline-stickvania-" + name + ".ts")) && id.replaceAll("\\", "/").endsWith("/stickvania/" + name + ".ts"))
                           return readFileSync(join(baseline, "baseline-stickvania-" + name + ".ts"), "utf8");
               }
           }

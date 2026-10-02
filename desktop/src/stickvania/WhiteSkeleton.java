@@ -28,6 +28,9 @@ public class WhiteSkeleton extends Thing {
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
+    if (PitLifecycle.isDescendingBelowStage(this)) {
+      return false;
+    }
 
     if (dead) {
       if (++dying == 137) {
@@ -69,6 +72,9 @@ public class WhiteSkeleton extends Thing {
         }
 
         applyGravity();
+      if (PitLifecycle.isDescendingBelowStage(this)) {
+        return false;
+      }
 
         if (state == STATE_STANDING || state == STATE_WALKING) {
           if (--throwDelay == 0) {

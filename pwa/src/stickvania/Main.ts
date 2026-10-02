@@ -1205,6 +1205,7 @@ export class Main extends BasicGame {
             let region: Region = this.stageSegment!.regions[this.stageSegment!.regionIndex];
             this.requestedSong = region.checkpoint.song;
             this.stage = region.stageNumber;
+            this.platforms = region.platforms;
             this.simon!.xMin = region.min;
             this.simon!.xMax = region.max;
             this.regionThingStack.clear();

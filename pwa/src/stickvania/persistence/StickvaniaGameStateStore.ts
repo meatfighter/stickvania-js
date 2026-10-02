@@ -1,3 +1,4 @@
+import { retainRejectedSave, type RejectedSaveStage } from "./RejectedSaveDebug.js";
 import { captureAndWriteSnapshot, removePreference, type SnapshotWriteResult } from "../../app/BrowserPersistence.js";
 import type { GameContainer } from "slick2d-ts";
 import type { Main } from "../Main.js";
@@ -30,7 +31,7 @@ export class StickvaniaGameStateStore {
             "Stickvania game state",
             GAME_STATE_STORAGE_KEY,
             () => this.serializer.createSnapshot(main, this.appVersion),
-            (snapshot) => this.isSnapshotValid(snapshot) && this.serializer.isSupportedPresentationResources(main, snapshot),
+            (snapshot) => this.validateOutgoingSnapshot(main, snapshot, isAuthorized),
             MAX_GAME_STATE_TEXT_LENGTH,
             isAuthorized
         );
@@ -91,6 +92,30 @@ export class StickvaniaGameStateStore {
         } catch {
             return { status: "invalid" };
         }
+    }
+
+    private validateOutgoingSnapshot(main: Main, snapshot: StickvaniaGameStateSnapshot, isAuthorized: () => boolean): boolean {
+        const checks: ReadonlyArray<readonly [RejectedSaveStage, () => boolean]> = [
+            ["structure-and-graph", () => this.serializer.isSupportedSnapshot(snapshot)],
+            ["values-and-audio", () => isReasonableStickvaniaGameStateSnapshot(snapshot)],
+            ["stopwatch-repeat", () => isStopWatchRepeatStateValid(snapshot.mainFields)],
+            ["axe-knight-shield", () => isAxeKnightShieldSnapshotStateValid(snapshot)],
+            ["presentation-resources", () => this.serializer.isSupportedPresentationResources(main, snapshot)]
+        ];
+        for (const [stage, check] of checks) {
+            let valid: boolean;
+            try {
+                valid = check();
+            } catch (error) {
+                retainRejectedSave(snapshot, this.appVersion, { stage, kind: "threw", error }, isAuthorized);
+                throw error; // Existing writer reports invalid-snapshot and the original exception.
+            }
+            if (!valid) {
+                retainRejectedSave(snapshot, this.appVersion, { stage, kind: "returned-false" }, isAuthorized);
+                return false;
+            }
+        }
+        return true;
     }
 
     private isSnapshotValid(snapshot: StickvaniaGameStateSnapshot): boolean {

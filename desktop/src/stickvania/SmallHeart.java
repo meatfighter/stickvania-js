@@ -20,6 +20,9 @@ public class SmallHeart extends Thing {
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
+    if (y > PitLifecycle.DESPAWN_Y) {
+      return false;
+    }
 
     if (main.intersectsSimon((int)x, (int)y, 15 + (int)x, 15 + (int)y)) {
       main.addHearts(1);
@@ -54,6 +57,9 @@ public class SmallHeart extends Thing {
     }
 
     y = targetY;
+    if (y > PitLifecycle.DESPAWN_Y) {
+      return false;
+    }
 
     float targetX = X + 32 * (float)FastTrig.sin(angle);
     if (moveX(targetX - x)) {

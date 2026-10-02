@@ -69,6 +69,22 @@ For the separate Chromium/Firefox/WebKit qualification, install the browser engi
 - Regenerate affected resource or parity metadata through the repository scripts and check it before committing.
 - The [slick2d-ts](https://github.com/meatfighter/slick2d-ts) dependency is pinned to an immutable HTTPS commit archive. Update `package.json` and `package-lock.json` together, then verify gameplay and browser behavior against that engine revision.
 
+## Save validation and rejected-save evidence
+
+Falling ordinary enemies and dropped items retire below the stage in both desktop and browser gameplay, including recorded presentations. Pit retirement does not award points or create combat drops. Save validation accepts the published intro-to-loop and pending Song replacement boundaries without advancing the game during capture.
+
+The browser retains the latest rejected outgoing snapshot in a separate deployment-scoped `debug-invalid-save` slot. It records the first failed validation gate and distinguishes a false result from an exception. This is diagnostic evidence, never a Continue source. Successful saves and loads leave it untouched. Invalid saves preserve the previous canonical save; old development schemas remain non-destructive load misses.
+
+To retrieve evidence without changing it, use DevTools on the affected deployment:
+
+```js
+Object.keys(localStorage).filter((key) => key.startsWith("stickvania:") && key.endsWith(":debug-invalid-save"));
+// Then copy the value for the exact returned deployment key:
+// copy(localStorage.getItem('the-returned-key'));
+```
+
+The full record is bounded to 262,144 JavaScript string code units. Oversized or unsupported JSON data uses a compact omission record, bounded to 16,384 code units. Storage denial or quota exhaustion can prevent retention; no other storage is evicted.
+
 ## Project page and deployment
 
 Edit the article in [about/content.md](about/content.md) and the copyright/licensing footer in [about/footer.md](about/footer.md); layout and SEO wiring live in [about/index.html](about/index.html) and [scripts/build-about.mjs](scripts/build-about.mjs).

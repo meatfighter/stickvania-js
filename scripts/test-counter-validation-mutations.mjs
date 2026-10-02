@@ -66,7 +66,7 @@ async function probe(mutation = (s) => s, sanityMutation = (s) => s, presentatio
                     ? { id, playback: { transport: "stopped", looped: false, playbackRate: 1, positionSeconds: 0, volume: 1, fade: null } }
                     : null;
             const neutral = {
-                version: 24,
+                version: 25,
                 appVersion: "test",
                 savedAt: new Date(0).toISOString(),
                 mode: 4,

@@ -1,3 +1,4 @@
+import { PIT_DESPAWN_Y } from "./PitLifecycle.js";
 import { FastTrig, GameContainer, Graphics } from "slick2d-ts";
 import { javaFloat, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
@@ -16,6 +17,9 @@ export class SmallHeart extends Thing {
     }
 
     public override update(gc: GameContainer): boolean {
+        if (this.y > PIT_DESPAWN_Y) {
+            return false;
+        }
         if (this.main.intersectsSimon(trunc(this.x), trunc(this.y), 15 + trunc(this.x), 15 + trunc(this.y))) {
             this.main.addHearts(1);
             this.main.playSound(this.main.bleep);
@@ -53,6 +57,9 @@ export class SmallHeart extends Thing {
         }
 
         this.y = javaFloat(targetY);
+        if (this.y > PIT_DESPAWN_Y) {
+            return false;
+        }
 
         let targetX: number = javaFloat(this.X + javaFloat(32 * javaFloat(FastTrig.sin(this.angle))));
         if (this.moveX(javaFloat(targetX - this.x))) {

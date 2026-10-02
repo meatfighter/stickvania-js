@@ -1,4 +1,5 @@
 import { verifyPresentationState } from "./PresentationStateVerification.js";
+import { verifySavePit } from "./SavePitVerification.js";
 import { verifyRumbleCastle, verifyRumbleRestore } from "./RumbleCastleVerification.js";
 import { verifyNullThingBoundary, traceNullPlayback } from "./NullThingVerification.js";
 import { verifyCounterParity } from "./CounterParityVerification.js";
@@ -130,6 +131,10 @@ async function verify(): Promise<void> {
     await preloadRuntimeResources();
 
     const selected = new URLSearchParams(location.search).get("suite");
+    if (selected === "save-pit") {
+        await verifySavePit({ mountMain, destroyMounted, advanceFrames, gameplaySnapshot });
+        return;
+    }
     if (selected === "departure-audio") {
         const mounted = await mountMain(null);
         const m = mounted.main,

@@ -35,6 +35,7 @@ export function runDesktopInputTests({ classesDir, classpath, releaseArgs }) {
             labelsSource,
             preferencesSource,
             fileURLToPath(new URL("../desktop/test/stickvania/CounterParityTest.java", import.meta.url)),
+            fileURLToPath(new URL("../desktop/test/stickvania/PitLifecycleTest.java", import.meta.url)),
             fileURLToPath(new URL("../desktop/test/stickvania/NullThingBoundaryTest.java", import.meta.url))
         ]);
         run("java", [
@@ -64,6 +65,7 @@ export function runDesktopInputTests({ classesDir, classpath, releaseArgs }) {
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.NativeDpadPolicyTest"]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.CounterParityTest"]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.NullThingBoundaryTest"]);
+        run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.PitLifecycleTest"]);
         const golden = JSON.parse(readFileSync(new URL("./fixtures/compact-key-labels.json", import.meta.url), "utf8"));
         const goldenPath = join(testClasses, "labels.txt");
         writeFileSync(goldenPath, golden.map((r) => `${r.code}|${r.constant}|${r.label}`).join("\n"));

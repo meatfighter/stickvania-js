@@ -27,6 +27,9 @@ public class RedSkeleton extends Thing {
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
+    if (PitLifecycle.isDescendingBelowStage(this)) {
+      return false;
+    }
 
     if (kill) {
       if (main.random.nextBoolean()) {
@@ -50,6 +53,9 @@ public class RedSkeleton extends Thing {
     if (main.timeFrozen == 0) {
 
       applyGravity();
+      if (PitLifecycle.isDescendingBelowStage(this)) {
+        return false;
+      }
 
       switch(state) {
         case STATE_INACTIVE:

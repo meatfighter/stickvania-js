@@ -15,7 +15,8 @@ const qualificationScripts = [
     "verify:persistence-failure",
     "verify:lifecycle-stress",
     "verify:null-thing",
-    "verify:rumble-castle"
+    "verify:rumble-castle",
+    "verify:save-pit"
 ];
 
 const pwaRoot = resolve(".release-components", "pwa", "pwa");

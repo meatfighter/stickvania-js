@@ -50,6 +50,7 @@ public class AxeKnight extends Thing {
   }
 
   public void axeGone() {
+    if (dead) return;
     hasAxe = true;
     throwDelay = main.adjustEnemyCooldown(main.random.nextInt(273));
   }
@@ -199,6 +200,10 @@ public class AxeKnight extends Thing {
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
+    if (PitLifecycle.isDescendingBelowStage(this)) {
+      dead = true;
+      return false;
+    }
 
     if (kill) {
       hits = 0;
@@ -243,6 +248,10 @@ public class AxeKnight extends Thing {
     if (main.timeFrozen == 0) {
 
       applyGravity();
+      if (PitLifecycle.isDescendingBelowStage(this)) {
+        dead = true;
+        return false;
+      }
 
       if (state != STATE_INACTIVE && hasAxe) {
         if (throwDelay <= 0) {

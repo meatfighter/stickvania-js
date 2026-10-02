@@ -31,7 +31,7 @@ export function presentationMutationPlugin(name = process.env.STICKVANIA_PRESENT
             if (name === "stair-restore" && path.endsWith("/persistence/StickvaniaGameStateSerializer.ts"))
                 return replace(source, "this.isSupportedPresentationResources(main, snapshot) &&", "");
             if (name === "stair-save" && path.endsWith("/persistence/StickvaniaGameStateStore.ts"))
-                return replace(source, " && this.serializer.isSupportedPresentationResources(main, snapshot)", "");
+                return replace(source, "() => this.serializer.isSupportedPresentationResources(main, snapshot)", "() => true");
             if (!path.endsWith("/persistence/PresentationStatePolicy.ts")) return;
             if (name === "weak-credits")
                 return replace(

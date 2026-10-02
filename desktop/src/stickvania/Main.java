@@ -1404,6 +1404,7 @@ public final class Main extends BasicGame {
       Region region = stageSegment.regions[stageSegment.regionIndex];
       requestedSong = region.checkpoint.song;
       stage = region.stageNumber;
+      platforms = region.platforms;
       simon.xMin = region.min;
       simon.xMax = region.max;
       regionThingStack.clear();

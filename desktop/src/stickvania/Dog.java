@@ -21,6 +21,9 @@ public class Dog extends Thing {
 
   @Override
   public boolean update(GameContainer gc) throws SlickException {
+    if (PitLifecycle.isDescendingBelowStage(this)) {
+      return false;
+    }
 
     if (main.intersectsWhip(this) || main.intersectsWeapon(this) || kill) {
       main.pushThing(new Spark(main, this));
@@ -43,6 +46,9 @@ public class Dog extends Thing {
       } else {
 
         applyGravity();
+      if (PitLifecycle.isDescendingBelowStage(this)) {
+        return false;
+      }
 
         if (state == STATE_RUNNING) {
           if (++spriteIndexIncrementor == 15) {

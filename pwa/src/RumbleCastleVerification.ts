@@ -182,7 +182,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             const before = h.gameplaySnapshot(serializer, m);
             check(store.save(m, () => true).saved, "Save reachable castle " + label);
             const bytes = localStorage.getItem(GAME_STATE_STORAGE_KEY)!;
-            check(JSON.parse(bytes).version === 24, "Current schema");
+            check(JSON.parse(bytes).version === 25, "Current schema");
             checkpoints.push({ label, bytes, expected: before });
             m.setBrowserSuspended(true);
             f.manager.setSuspended(true);
@@ -334,7 +334,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             check(!isPotentialStickvaniaGameStateSnapshot(bad), "Potential reader rejects impossible pending entry");
             mutations.push(bad);
         }
-        for (const version of [22, 23, 25]) {
+        for (const version of [23, 24, 26]) {
             const bad = structuredClone(good);
             bad.version = version;
             mutations.push(bad);

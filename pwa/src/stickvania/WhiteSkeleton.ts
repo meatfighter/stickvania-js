@@ -1,3 +1,4 @@
+import { isDescendingBelowStage } from "./PitLifecycle.js";
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Bone } from "./Bone.js";
 import { Flame } from "./Flame.js";
@@ -30,6 +31,9 @@ export class WhiteSkeleton extends Thing {
     }
 
     public override update(gc: GameContainer): boolean {
+        if (isDescendingBelowStage(this)) {
+            return false;
+        }
         if (this.dead) {
             if (++this.dying == 137) {
                 if (this.main.random.nextBoolean()) {
@@ -70,6 +74,9 @@ export class WhiteSkeleton extends Thing {
                 }
 
                 this.applyGravity();
+                if (isDescendingBelowStage(this)) {
+                    return false;
+                }
 
                 if (this.state == WhiteSkeleton.STATE_STANDING || this.state == WhiteSkeleton.STATE_WALKING) {
                     if (--this.throwDelay == 0) {

@@ -220,7 +220,7 @@ export async function verifyNullThingBoundary(h: Harness): Promise<void> {
                 check(h.gameplaySnapshot(serializer, m) === before, "Rejected reader leaves live graph untouched");
                 check(store.save(m, () => true).saved, "Later authorized valid overwrite");
             }
-        for (const version of [...Array.from({ length: 24 }, (_, i) => i), 25]) {
+        for (const version of [...Array.from({ length: 25 }, (_, i) => i), 26]) {
             const bad = JSON.parse(validBytes);
             bad.version = version;
             const bytes = JSON.stringify(bad);

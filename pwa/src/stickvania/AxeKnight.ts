@@ -1,3 +1,4 @@
+import { isDescendingBelowStage } from "./PitLifecycle.js";
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Boomerang } from "./Boomerang.js";
 import { BoomerangAxe } from "./BoomerangAxe.js";
@@ -52,6 +53,7 @@ export class AxeKnight extends Thing {
     }
 
     public axeGone(): void {
+        if (this.dead) return;
         this.hasAxe = true;
         this.throwDelay = this.main.adjustEnemyCooldown(this.main.random.nextInt(273));
     }
@@ -189,6 +191,10 @@ export class AxeKnight extends Thing {
     }
 
     public override update(gc: GameContainer): boolean {
+        if (isDescendingBelowStage(this)) {
+            this.dead = true;
+            return false;
+        }
         if (this.kill) {
             this.hits = 0;
             this.stunned = 0;
@@ -230,6 +236,10 @@ export class AxeKnight extends Thing {
 
         if (this.main.timeFrozen == 0) {
             this.applyGravity();
+            if (isDescendingBelowStage(this)) {
+                this.dead = true;
+                return false;
+            }
 
             if (this.state != AxeKnight.STATE_INACTIVE && this.hasAxe) {
                 if (this.throwDelay <= 0) {

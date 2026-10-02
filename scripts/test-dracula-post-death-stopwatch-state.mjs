@@ -49,6 +49,10 @@ try {
         "an active StopWatch becomes a valid save state once Dracula's final orb is visible"
     );
 
+    const historicalOrb = createFinalStageWatchSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION, 0);
+    historicalOrb.stage.regionThingStack = createThingStack([]);
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(historicalOrb), false, "historical Orb cannot authorize a live StopWatch");
+
     const collectedOrb = createFinalStageWatchSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION, 0);
     collectedOrb.mainFields.beatStageFlag = true;
     assert.equal(
@@ -83,6 +87,8 @@ function createFinalStageWatchSnapshot(songIds, version, appearDelay) {
         random: { seed0: 1, seed1: 2, seed2: 3 },
         stage: {
             stageIndex: 5,
+            regionThingStack: createThingStack([1]),
+            regionStackSwap: createThingStack([]),
             weaponsStack: createThingStack([0]),
             weaponsStackSwap: createThingStack([])
         },

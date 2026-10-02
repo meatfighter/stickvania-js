@@ -298,8 +298,18 @@ try {
     const requestedSongWithoutCurrent = createSongOwnershipSnapshot(snapshot, null, "boss_2", null);
     assert.equal(isReasonableStickvaniaGameStateSnapshot(requestedSongWithoutCurrent), true);
 
-    const impossibleDeferredSongStart = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", "boss_1");
+    const impossibleDeferredSongStart = createSongOwnershipSnapshot(snapshot, "stage_1_1", "stage_1_1", "stage_1_1");
     assert.equal(isReasonableStickvaniaGameStateSnapshot(impossibleDeferredSongStart), false);
+
+    const consumedIntro = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_1", "boss_1");
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(consumedIntro), true, "Music.poll can publish a consumed intro before Main ticks");
+    const pausedReplacement = createSongOwnershipSnapshot(snapshot, "boss_1", "boss_2", "boss_1");
+    pausedReplacement.audio.songs.find((song) => song.id === "boss_1").intro.playback.transport = "paused";
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(pausedReplacement), true);
+    const borrowedTransport = clone(pausedReplacement);
+    borrowedTransport.audio.songs.find((song) => song.id === "boss_1").intro.playback.transport = "stopped";
+    borrowedTransport.audio.songs.find((song) => song.id === "boss_2").intro.playback.transport = "paused";
+    assert.equal(isReasonableStickvaniaGameStateSnapshot(borrowedTransport), false);
 
     const deferredCurrentSongStart = createSongOwnershipSnapshot(createStopWatchAggregateSnapshot(snapshot, 455, [0], []), "boss_1", "boss_1", "boss_1");
     assert.equal(isReasonableStickvaniaGameStateSnapshot(deferredCurrentSongStart), true);
@@ -791,6 +801,7 @@ try {
     try {
         const store = new StickvaniaGameStateStore("test-version");
         store.isSnapshotValid = (candidate) => candidate?.valid === true;
+        store.validateOutgoingSnapshot = (_main, candidate) => candidate?.valid === true;
         store.serializer = {
             createSnapshot(main) {
                 if (main.throwOnSnapshot === true) {

@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { resolve, extname, sep } from "node:path";
 /** Exercise unmodified packaged shell Continue with snapshots from actual loaded producers. */
-export async function qualifyPackagedPresentation(browser, checkpoints) {
+export async function qualifyPackagedPresentation(browser, checkpoints, selection = null) {
     const root = resolve(process.env.PWA_ROOT ?? "dist/pwa");
     const mime = {
         ".html": "text/html",
@@ -53,11 +53,15 @@ export async function qualifyPackagedPresentation(browser, checkpoints) {
         const initial = await menu();
         assert(initial, "Packaged stable game-state slot");
         // Paused browser clock allows immediate restore/render/menu without an extra game tick.
-        for (const checkpoint of checkpoints.filter((c) =>
-            /^route-floor-breaker$|^floor-map-destination$|^stair-0-0-.*-out-11$|^entry-fade11$|^tick505$|^terminal-fade11$|^credit-(0|5|11)-mid-recording$|^credit-12-first-letter$|^ending-muted-offset$/.test(
-                c.label
-            )
-        )) {
+        const selectedCheckpoints =
+            selection === null
+                ? checkpoints.filter((c) =>
+                      /^route-floor-breaker$|^floor-map-destination$|^stair-0-0-.*-out-11$|^entry-fade11$|^tick505$|^terminal-fade11$|^credit-(0|5|11)-mid-recording$|^credit-12-first-letter$|^ending-muted-offset$/.test(
+                          c.label
+                      )
+                  )
+                : checkpoints.filter((c) => selection.includes(c.label));
+        for (const checkpoint of selectedCheckpoints) {
             await page.close();
             page = await context.newPage();
             await page.addInitScript(({ key, bytes }) => localStorage.setItem(key, bytes), { key: initial[0], bytes: checkpoint.bytes });
@@ -89,7 +93,7 @@ export async function qualifyPackagedPresentation(browser, checkpoints) {
             assert(entry, "Restored save exists");
             const snapshot = JSON.parse(entry[1]),
                 expected = JSON.parse(checkpoint.bytes);
-            assert.equal(snapshot.version, 24);
+            assert.equal(snapshot.version, 25);
             assert.equal(snapshot.mode, expected.mode, checkpoint.label + " restores actual scene");
             assert.equal(snapshot.mainFields.creditsIndex, expected.mainFields.creditsIndex);
             assert.equal(snapshot.mainFields.recordingIndex, expected.mainFields.recordingIndex);
@@ -121,7 +125,7 @@ export async function qualifyPackagedPresentation(browser, checkpoints) {
             }
             results.push(checkpoint.label);
         }
-        assert.equal(results.length, 14, "All packaged presentation checkpoints exercised");
+        assert.equal(results.length, selection === null ? 14 : selection.length, "All packaged presentation checkpoints exercised");
         assert.deepEqual(errors, []);
         return results;
     } finally {

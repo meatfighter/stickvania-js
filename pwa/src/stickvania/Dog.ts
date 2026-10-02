@@ -1,3 +1,4 @@
+import { isDescendingBelowStage } from "./PitLifecycle.js";
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Flame } from "./Flame.js";
 import { javaFloat, trunc } from "./JavaMath.js";
@@ -22,6 +23,9 @@ export class Dog extends Thing {
     }
 
     public override update(gc: GameContainer): boolean {
+        if (isDescendingBelowStage(this)) {
+            return false;
+        }
         if (this.main.intersectsWhip(this) || this.main.intersectsWeapon(this) || this.kill) {
             this.main.pushThing(new Spark(this.main, this));
             this.main.pushThing(new Flame(this.main, this.x, this.y, -1, 0, -0.08, 0, 10));
@@ -42,6 +46,9 @@ export class Dog extends Thing {
                 }
             } else {
                 this.applyGravity();
+                if (isDescendingBelowStage(this)) {
+                    return false;
+                }
 
                 if (this.state == this.STATE_RUNNING) {
                     if (++this.spriteIndexIncrementor == 15) {

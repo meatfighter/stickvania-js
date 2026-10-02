@@ -697,7 +697,7 @@ export async function verifyPresentationState(h: Harness): Promise<void> {
         const frozen = structuredClone(title);
         frozen.mainFields.fade = 12;
         reject(frozen, "DONE-nonzero-title");
-        for (const version of [23, 25]) {
+        for (const version of [24, 26]) {
             const bad = structuredClone(title);
             bad.version = version;
             reject(bad, "schema-" + version);

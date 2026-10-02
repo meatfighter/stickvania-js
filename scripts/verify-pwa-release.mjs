@@ -1009,7 +1009,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const builtSource = builtJavaScript();
 
     assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 24;/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 25;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);

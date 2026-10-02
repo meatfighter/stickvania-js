@@ -1,3 +1,4 @@
+import { isDescendingBelowStage } from "./PitLifecycle.js";
 import { GameContainer, Graphics } from "slick2d-ts";
 import { javaFloat, trunc } from "./JavaMath.js";
 import { Main } from "./Main.js";
@@ -34,8 +35,14 @@ export class DropItem extends Thing {
     }
 
     public override update(gc: GameContainer): boolean {
+        if (isDescendingBelowStage(this)) {
+            return this.retireUncollected();
+        }
         const wasSupported: boolean = this.supported;
         this.applyGravity();
+        if (isDescendingBelowStage(this)) {
+            return this.retireUncollected();
+        }
         if (!wasSupported && this.supported) {
             this.main.playRumble("itemLand");
         }
@@ -136,13 +143,15 @@ export class DropItem extends Thing {
         }
 
         if (this.disappears && --this.lifeTime == 0) {
-            if (this.type == DropItem.TYPE_WHIP) {
-                this.main.whipDestroyed();
-            }
-            return false;
+            return this.retireUncollected();
         }
 
         return true;
+    }
+
+    private retireUncollected(): false {
+        if (this.type === DropItem.TYPE_WHIP) this.main.whipDestroyed();
+        return false;
     }
 
     private collectWeapon(weaponType: number): void {
