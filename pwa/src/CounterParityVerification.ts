@@ -1,5 +1,6 @@
 import { isReasonableStickvaniaGameStateSnapshot } from "./stickvania/persistence/GameStateSanity.js";
 import { Door } from "./stickvania/Door.js";
+import type { StageSegment } from "./stickvania/StageSegment.js";
 import { StopWatch } from "./stickvania/StopWatch.js";
 import { Bat } from "./stickvania/Bat.js";
 import { MedusaHead } from "./stickvania/MedusaHead.js";
@@ -226,7 +227,31 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
                         main.fade = 10;
                     }
                     if (branch === "flashing") main.simon.flashing = 10;
-                    if (branch === "door") main.door = new Door(main, main.simon.x + 200, main.simon.y, Main.RIGHT, false);
+                    if (branch === "door") {
+                        const region = (Reflect.get(main, "stageSegments") as StageSegment[])
+                            .flatMap((segment) => segment.regions)
+                            .find((region) => region.checkpoint !== null && region.thingStack.things.some((thing) => thing instanceof Door && thing.active));
+                        assert(region?.checkpoint, "Loaded Door source checkpoint");
+                        Reflect.set(main, "checkpoint", region.checkpoint);
+                        main.restoreCheckpoint();
+                        main.fadeState = Main.FADE_DONE;
+                        main.fade = 0;
+                        const door = main.regionThingStack.things
+                            .slice(0, main.regionThingStack.top + 1)
+                            .find((thing) => thing instanceof Door && thing.active);
+                        assert(door instanceof Door, "Loaded active Door");
+                        Object.assign(main.simon, {
+                            x: door.x - 24,
+                            y: door.y + 32,
+                            lastX: door.x - 24,
+                            lastY: door.y + 32,
+                            onStairs: false,
+                            supported: true,
+                            invincible: 1000
+                        });
+                        tick();
+                        assert(main.door === door && door.state === Door.STATE_SCROLL_1, "Real Door entry commits destination and source history");
+                    }
                     main.timeIncrementor = start;
                     tick(); // Includes input preflight and Main's consuming expression atomically.
                     const expected = branch === "normal" ? (start === 90 ? 0 : start + 1) : start;
