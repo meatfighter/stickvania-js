@@ -46,6 +46,9 @@ try {
             assert.equal(await page.locator("#result").getAttribute("data-status"), "passed", await page.locator("#result").textContent());
             const records = await page.evaluate(() => window.savePitEvidence);
             const packagedLabels = [
+                "ownerless-ended-pending",
+                "stage-three-floor-watch",
+                "dracula-visible-orb-watch",
                 "whip-return-stairs",
                 "whip-collection",
                 "whip-pit",

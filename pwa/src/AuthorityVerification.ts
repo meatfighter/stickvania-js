@@ -46,6 +46,22 @@ export function verifyAuthority(records: Array<{ label: string; bytes: string }>
     reject(healthy, "freeze without watch", (s) => (s.mainFields.timeFrozen = 1));
     for (const state of [0, 4, 7]) reject(door, "uncontrolled door " + state, (s) => (s.things[s.stage!.door!]!.fields.state = state));
     for (const delay of [0, -1, 71]) reject(door, "door wait " + delay, (s) => (s.things[s.stage!.door!]!.fields.doorDelay = delay));
+    for (const [state, delays] of [
+        [1, [0, 70]],
+        [2, [1, 10]],
+        [3, [1, 70]],
+        [5, [1, 10]],
+        [6, [0, 70]]
+    ] as const) {
+        for (const delay of delays) {
+            const s = structuredClone(door);
+            Object.assign(s.things[s.stage!.door!]!.fields, { state, doorDelay: delay });
+            check(inspectSnapshotAuthority(s) !== null, `Door phase ${state} delay ${delay}`);
+        }
+    }
+    for (const state of [2, 5])
+        for (const doorDelay of [0, 11])
+            reject(door, `diagonal ${state}:${doorDelay}`, (s) => Object.assign(s.things[s.stage!.door!]!.fields, { state, doorDelay }));
     reject(door, "inactive door", (s) => (s.things[s.stage!.door!]!.fields.active = false));
     reject(door, "door scroll", (s) => (s.things[s.stage!.door!]!.fields.doorScroll1 = 0));
     reject(door, "missing old door", (s) => (s.stage!.oldThingStack.$stack.things = []));

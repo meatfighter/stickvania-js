@@ -125,6 +125,14 @@ export async function verifySavePit(h: Harness): Promise<void> {
         stage(0);
         m().requestSong(m().stage_1_2);
         tick();
+        m().stopSong();
+        save("ownerless-ended-pending");
+        await restore();
+        tick();
+        save("ownerless-completion-continued");
+        stage(0);
+        m().requestSong(m().stage_1_2);
+        tick();
         let intro = m().currentSong!.getIntroForState()!;
         check(intro.getTransportState() === "playing", "real intro starts");
         intro.stop();
@@ -292,6 +300,11 @@ export async function verifySavePit(h: Harness): Promise<void> {
             if (m().floorBreaking && !floor) {
                 floor = true;
                 save("stage-three-real-floor-constructor");
+                m().weaponType = Main.WEAPON_TYPE_STOP_WATCH;
+                m().hearts = 5;
+                m().throwWeapon();
+                check(m().timeFrozen === 455, "real Stage 3 floor permits Watch");
+                save("stage-three-floor-watch");
                 await restore();
             }
             if (m().fadeState === Main.FADE_OUT && !outgoing) {
@@ -360,12 +373,22 @@ export async function verifySavePit(h: Harness): Promise<void> {
                     supported: true,
                     invincible: 1000
                 });
+                if (stageIndex === 0 && route === routes[0]) {
+                    const pickup = new DropItem(m(), door.x - 128, 160, DropItem.TYPE_WHIP);
+                    m().regionThingStack.push(pickup);
+                    m().whipCreated();
+                    check(m().visibleWhipCount === 1, "source pickup live at same-tick door entry");
+                }
                 const label = `door-${stageIndex}-${route.segment}-${route.region}-${route.direction}`;
                 save(`${label}-before`);
                 tick();
                 check(m().door !== null, `actual door collision ${label}`);
                 const destination = (Reflect.get(m(), "stageSegment") as StageSegment).regions[(Reflect.get(m(), "stageSegment") as StageSegment).regionIndex];
                 check(m().platforms === destination.platforms, "destination platform root committed");
+                const destinationWhips = [m().regionThingStack, m().regionStackSwap]
+                    .flatMap((stack) => stack.things.slice(0, stack.top + 1))
+                    .filter((t) => t instanceof DropItem && t.type === DropItem.TYPE_WHIP).length;
+                check(m().visibleWhipCount === destinationWhips, "same-tick Door destination pickup authority");
                 const sourcePlatforms = (Reflect.get(m(), "stageSegment") as StageSegment).regions[route.region]!.platforms;
                 check(Reflect.get(m(), "getPresentationPlatforms").call(m()) === sourcePlatforms, "door presents source platforms");
                 let draws = 0;
@@ -463,6 +486,11 @@ export async function verifySavePit(h: Harness): Promise<void> {
                 check(orb instanceof Orb, "real death creates Orb");
                 while (orb.appearDelay > 0 || orb.fadeIn < 91) tick();
                 save("dracula-visible-orb");
+                m().weaponType = Main.WEAPON_TYPE_STOP_WATCH;
+                m().hearts = 5;
+                m().throwWeapon();
+                check(m().timeFrozen === 455, "visible final Orb permits Watch");
+                save("dracula-visible-orb-watch");
                 await restore();
                 orb = m().regionThingStack.things.find((t) => t instanceof Orb);
                 check(orb instanceof Orb, "restored visible Orb");

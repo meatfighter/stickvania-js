@@ -172,7 +172,10 @@ export async function verifyNullThingBoundary(h: Harness): Promise<void> {
         const m = setup(Main.DIFFICULTY_NORMAL);
         m.simon!.whipping = false;
         const alias = new Spark(m, 64, 64, 1, 1);
-        for (const stack of [m.regionThingStack, m.regionStackSwap, m.weaponsStackSwap, m.oldThingStack]) stack.push(alias);
+        m.regionThingStack.push(alias);
+        m.oldThingStack.push(alias); // Historical ownership may alias active dispatch.
+        m.regionStackSwap.push(new Spark(m, 96, 64, 1, 1));
+        m.weaponsStackSwap.push(new Boomerang(m, 192, 64, Main.LEFT));
         m.weaponType = Main.WEAPON_TYPE_BOOMERANG;
         m.weaponsStack.push(new Boomerang(m, 160, 64, Main.RIGHT));
         check(store.save(m, () => true).saved, "Valid swap roots and nullable Boomerang reference");
@@ -192,10 +195,8 @@ export async function verifyNullThingBoundary(h: Harness): Promise<void> {
             for (const index of [0, 1, 2]) {
                 const bad = structuredClone(valid),
                     stack = Reflect.get(get(bad, path) as object, "$stack") as { capacity: number; things: unknown[] };
-                const id = serializer.createSnapshot(m, "null-boundary").stage!.regionThingStack.$stack.things[0];
-                stack.things = [id, id, id];
-                stack.capacity = Math.max(3, stack.capacity);
-                stack.things[index] = null;
+                stack.things.splice(Math.min(index, stack.things.length), 0, null);
+                stack.capacity = Math.max(stack.things.length, stack.capacity);
                 const bytes = JSON.stringify(bad),
                     before = h.gameplaySnapshot(serializer, m);
                 localStorage.setItem(GAME_STATE_STORAGE_KEY, bytes);
@@ -251,8 +252,8 @@ export async function verifyNullThingBoundary(h: Harness): Promise<void> {
         );
         const fresh = current().main;
         check(
-            fresh.regionThingStack.things[0] === fresh.regionStackSwap.things[0] && fresh.regionThingStack.things[0] === fresh.weaponsStackSwap.things[0],
-            "Swap root alias identity"
+            fresh.regionThingStack.things[0] === fresh.oldThingStack.things[0] && fresh.regionThingStack.things[0] !== fresh.regionStackSwap.things[0],
+            "Historical alias and distinct dispatch identities"
         );
         fresh.render(current().container, current().container.getGraphics());
         check(h.gameplaySnapshot(serializer, fresh) === before, "First render preserves exact saved graph");
