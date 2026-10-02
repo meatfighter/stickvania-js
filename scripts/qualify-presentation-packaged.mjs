@@ -76,6 +76,7 @@ export async function qualifyPackagedPresentation(browser, checkpoints, selectio
                     const ready = [...callbacks.values()];
                     callbacks.clear();
                     for (const callback of ready) callback(performance.now());
+                    return ready.length;
                 };
                 window.requestAnimationFrame = (callback) => {
                     callbacks.set(++id, callback);
@@ -89,6 +90,11 @@ export async function qualifyPackagedPresentation(browser, checkpoints, selectio
             };
             await resume();
             await page.locator("canvas").waitFor();
+            if (checkpoint.label === "ownerless-ended-pending") {
+                // Startup can finish after resume's early callbacks (notably in
+                // Firefox). Deliver an accepted outer frame after canvas entry.
+                assert((await page.evaluate(() => window.presentationFrames())) > 0, "Ownerless completion receives an accepted outer frame");
+            }
             const entry = await menu();
             assert(entry, "Restored save exists");
             const snapshot = JSON.parse(entry[1]),
@@ -102,13 +108,38 @@ export async function qualifyPackagedPresentation(browser, checkpoints, selectio
             assert.equal(snapshot.audio.currentSong, expected.audio.currentSong, checkpoint.label + " current Song");
             assert.equal(snapshot.audio.requestedSong, expected.audio.requestedSong, checkpoint.label + " requested Song");
             assert.equal(snapshot.audio.currentMusic?.id ?? null, expected.audio.currentMusic?.id ?? null);
+            if (checkpoint.label === "ownerless-ended-pending") {
+                assert.equal(expected.audio.currentSong, null);
+                assert.equal(expected.audio.requestedSong, null);
+                assert.equal(expected.audio.currentMusic, null);
+                assert(expected.audio.songs.some((song) => [song.intro, song.loop].some((part) => part?.playback.transport === "ended-pending")));
+                assert(expected.audio.songs.every((song) => !song.playing));
+                // Constant-time RAF still calls Music.poll(0) before Main.update.
+                // Cold restore preserves this completion; the first outer poll
+                // consumes it without starting a Song or advancing gameplay.
+                const fields = (value) => {
+                    const copy = { ...value };
+                    delete copy.nextFrameTime;
+                    return copy;
+                };
+                assert.deepEqual(fields(snapshot.mainFields), fields(expected.mainFields), "Ownerless poll does not simulate");
+                for (const key of ["random", "stage"]) assert.deepEqual(snapshot[key], expected[key], "Ownerless poll preserves " + key);
+                const expectedThings = structuredClone(expected.things);
+                // The shell deliberately rearms Simon's release gates on Continue.
+                // This is input-session cleanup, independent of simulation ticks.
+                const simon = expectedThings.find((thing) => thing.type === "Simon");
+                for (const key of ["releasedJump", "releasedKneel", "releasedWhip"]) simon.fields[key] = false;
+                assert.deepEqual(snapshot.things, expectedThings, "Ownerless poll preserves actors apart from explicit input rearming");
+            }
             for (const song of expected.audio.songs) {
                 const actual = snapshot.audio.songs.find((s) => s.id === song.id);
                 assert.equal(actual.playing, song.playing, checkpoint.label + " Song ownership " + song.id);
                 for (const part of ["intro", "loop"]) {
                     assert.equal(
                         actual[part]?.playback.transport ?? null,
-                        song[part]?.playback.transport ?? null,
+                        checkpoint.label === "ownerless-ended-pending" && song[part]?.playback.transport === "ended-pending"
+                            ? "stopped"
+                            : (song[part]?.playback.transport ?? null),
                         checkpoint.label + " Song transport " + song.id
                     );
                 }

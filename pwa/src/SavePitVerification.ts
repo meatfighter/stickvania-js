@@ -128,6 +128,12 @@ export async function verifySavePit(h: Harness): Promise<void> {
         m().stopSong();
         save("ownerless-ended-pending");
         await restore();
+        check(m().stage_1_2.getIntroForState()!.getTransportState() === "ended-pending", "cold restore preserves ownerless completion before poll");
+        const beforeOwnerlessPoll = h.gameplaySnapshot(serializer, m());
+        Music.poll(0);
+        check(m().stage_1_2.getIntroForState()!.getTransportState() === "stopped", "zero-delta outer poll consumes ownerless completion");
+        check(m().currentSong === null && m().requestedSong === null && m().currentMusic === null, "completion does not reacquire an owner");
+        check(h.gameplaySnapshot(serializer, m()) === beforeOwnerlessPoll, "ownerless completion poll performs no game tick");
         tick();
         save("ownerless-completion-continued");
         stage(0);
