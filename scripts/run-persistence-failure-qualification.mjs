@@ -160,7 +160,7 @@ try {
     await page.evaluate(({ key, validText }) => localStorage.setItem(key, validText), { key, validText });
     await page.locator("#display-mode-button").click();
     await page.locator('[data-display-mode="light"]').click();
-    await arm(page, { remove: true });
+    await arm(page, { remove: true, removeDisplay: true });
     await page.locator("#reset-button, #resetButton").first().click();
     await menuReady(page);
     assert.equal(await page.getByText("Some settings could not be reset.", { exact: true }).count(), 1);
@@ -250,6 +250,8 @@ async function arm(page, faults) {
                 return set.call(this, k, v);
             };
             Storage.prototype.removeItem = function (k) {
+                if (this === storage && faults.removeDisplay && k.endsWith(":display-mode"))
+                    throw new DOMException("Injected display removal failure", "SecurityError");
                 if (this === storage && k === key) {
                     state.remove++;
                     if (faults.remove) throw new DOMException("Injected removal failure", "SecurityError");
