@@ -2,7 +2,7 @@ import { qualifyPackagedPresentation } from "./qualify-presentation-packaged.mjs
 /* global document, window, localStorage */
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { createServer } from "vite";
 import { chromium, firefox } from "playwright";
 const server = await createServer({
@@ -11,6 +11,15 @@ const server = await createServer({
     logLevel: "warn"
 });
 try {
+    if (!process.argv.includes("--source-only")) {
+        const root = resolve(process.env.PWA_ROOT ?? "dist/pwa");
+        const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(resolve(dir, e.name)) : [resolve(dir, e.name)]));
+        for (const file of walk(root).filter((f) => /\.(js|html)$/.test(f))) {
+            const source = readFileSync(file, "utf8");
+            for (const marker of ["savePitEvidence", "savePitDiagnosticTiming", "SavePitVerification"])
+                assert(!source.includes(marker), "Test-only fixture leaked into release: " + file);
+        }
+    }
     await server.listen();
     for (const [name, type] of [
         ["chromium", chromium],

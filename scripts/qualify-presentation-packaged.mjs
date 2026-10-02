@@ -93,6 +93,7 @@ export async function qualifyPackagedPresentation(browser, checkpoints, selectio
             assert(entry, "Restored save exists");
             const snapshot = JSON.parse(entry[1]),
                 expected = JSON.parse(checkpoint.bytes);
+            assert.notEqual(snapshot.appVersion, expected.appVersion, checkpoint.label + " packaged writer replaced fixture bytes");
             assert.equal(snapshot.version, 25);
             assert.equal(snapshot.mode, expected.mode, checkpoint.label + " restores actual scene");
             assert.equal(snapshot.mainFields.creditsIndex, expected.mainFields.creditsIndex);
