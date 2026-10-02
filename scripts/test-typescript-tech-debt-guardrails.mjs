@@ -42,7 +42,7 @@ test("release-safe persistence and unused-local guardrails remain enabled", () =
     const preflight = source("pwa/src/stickvania/persistence/GameStatePreflight.ts");
     const mapping = source("pwa/src/stickvania/ButtonMapping.ts");
     const serializer = source("pwa/src/stickvania/persistence/StickvaniaGameStateSerializer.ts");
-    assert.match(schema, /GAME_STATE_VERSION = 25/);
+    assert.match(schema, /GAME_STATE_VERSION = 26/);
     assert.doesNotMatch(schema, /FIRST_PUBLIC_GAME_STATE_VERSION|MIN_SUPPORTED_GAME_STATE_VERSION|SUPPORTED_GAME_STATE_VERSIONS/);
 
     // Reads accept only the exact current schema and never mutate storage.

@@ -21,7 +21,7 @@ const schemaText = readFileSync(config.schema, "utf8");
 const version = Number(/GAME_STATE_VERSION\s*=\s*(\d+)/.exec(schemaText)[1]);
 const controls = { captureThrows: false, restoreThrows: false, captureHook: null };
 globalThis.__persistenceStoreTest = controls;
-const makeSnapshot = () => ({ version, supported: true, marker: "fresh" });
+const makeSnapshot = () => ({ version, supported: true, marker: "fresh", mainFields: { timeFrozen: 0 } });
 controls.snapshot = makeSnapshot;
 const serializer = `export class ${config.serializerName} {
     createSnapshot(){const c=globalThis.__persistenceStoreTest;c.captureHook?.();if(c.captureThrows)throw new Error("capture failure");return c.snapshot();}
@@ -37,7 +37,7 @@ const Store = loaded[config.storeName];
 const store = new Store("persistence-boundary-test");
 const realStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
 const s = memoryStorage();
-const main = () => ({ isStateSaveReady: () => true });
+const main = () => ({ isStateSaveReady: () => true, timeFrozen: 0 });
 function install() {
     Object.defineProperty(globalThis, "localStorage", { configurable: true, value: s });
 }

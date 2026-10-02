@@ -352,6 +352,7 @@ async function importStickvaniaInput() {
     return import(`${pathToFileURL(inputOutputPath).href}?v=${Date.now()}`);
 }
 
+let potentialSongIds = [];
 async function importGameStatePreflight() {
     const outputDirectory = join(tempRoot, "game-state-preflight");
     const audioRegistryOutputPath = join(outputDirectory, "AudioRegistry.js");
@@ -375,7 +376,11 @@ async function importGameStatePreflight() {
         join(rootDir, "pwa", "src", "stickvania", "persistence", "FloorBreakStatePolicy.ts"),
         join(persistenceOutputDirectory, "FloorBreakStatePolicy.js")
     );
+    for (const name of ["SnapshotAuthorityPolicy", "AudioOwnerPolicy"]) {
+        writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "persistence", name + ".ts"), join(persistenceOutputDirectory, name + ".js"));
+    }
     writeTranspiledModule(audioRegistrySourcePath, audioRegistryOutputPath);
+    potentialSongIds = (await import(pathToFileURL(audioRegistryOutputPath).href)).SONG_FIELD_NAMES;
     writeTranspiledModule(browserStorageKeysSourcePath, browserStorageKeysOutputPath);
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "NesInputProfile.ts"), join(outputDirectory, "NesInputProfile.js"));
     writeTranspiledModule(join(rootDir, "pwa", "src", "stickvania", "ButtonMapping.ts"), buttonMappingOutputPath);
@@ -450,7 +455,8 @@ function validPotentialGameStateSnapshot(version) {
             mode: 0,
             fadeState: 0,
             fade: 0,
-            fadeReason: 0
+            fadeReason: 0,
+            timeFrozen: 0
         },
         inputConfigMode: null,
         random: {
@@ -464,7 +470,12 @@ function validPotentialGameStateSnapshot(version) {
             currentSong: null,
             requestedSong: null,
             currentMusic: null,
-            songs: [],
+            songs: potentialSongIds.map((id) => ({
+                id,
+                playing: false,
+                intro: null,
+                loop: { id: id + ".loop", playback: { transport: "stopped", looped: false, playbackRate: 1, positionSeconds: 0, volume: 1, fade: null } }
+            })),
             sounds: []
         }
     };
@@ -681,7 +692,7 @@ test("PWA display themes remain browser-only presentation state", () => {
     assert.match(menuViewSource, /id="display-mode-picker"/);
     assert.match(menuViewSource, /id="display-mode-button"/);
     assert.match(menuViewSource, /id="display-mode-list"/);
-    assert.match(browserPreferencesSource, /DEFAULT_DISPLAY_MODE: DisplayModePreference = "light"/);
+    assert.match(browserPreferencesSource, /DEFAULT_DISPLAY_MODE: DisplayModePreference = "dark"/);
     assert.match(menuViewSource, /id="scaling-picker"/);
     assert.match(menuViewSource, /id="scaling-button"/);
     assert.match(menuViewSource, /id="scaling-list"/);
@@ -1009,7 +1020,7 @@ test("PWA game-state Thing type IDs are stable through production minification",
     const builtSource = builtJavaScript();
 
     assert.match(schemaSource, /export const GAME_STATE_STORAGE_KEY = getBrowserStorageKey\("game-state"\);/);
-    assert.match(schemaSource, /export const GAME_STATE_VERSION = 25;/);
+    assert.match(schemaSource, /export const GAME_STATE_VERSION = 26;/);
     assert.match(snapshotSource, /export \{ GAME_STATE_VERSION \} from "\.\/GameStateSchema\.js";/);
     assert.match(registrySource, /THING_TYPE_ID_BY_CONSTRUCTOR/);
     assert.match(serializerSource, /getThingTypeId\(thing\)/);

@@ -48,7 +48,7 @@ test("the browser compositor is not asked to pixelate the already-smoothed canva
 test("the PWA menu persists the requested scaling preference", () => {
     assert.match(preferencesSource, /export const DEFAULT_VOLUME = 0\.1;/);
     assert.match(preferencesSource, /export const DEFAULT_RUMBLE_ENABLED = true;/);
-    assert.match(preferencesSource, /export const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";/);
+    assert.match(preferencesSource, /export const DEFAULT_DISPLAY_MODE: DisplayModePreference = "dark";/);
     assert.match(preferencesSource, /export const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";/);
     assert.match(preferencesSource, /getBrowserStorageKey\("scaling"\)/);
     assert.match(menuSource, /id="scaling-picker"/);

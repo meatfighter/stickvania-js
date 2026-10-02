@@ -81,12 +81,20 @@ function createFinalStageWatchSnapshot(songIds, version, appearDelay) {
             playerPower: 16,
             enemyPower: 0,
             beatStageFlag: false,
-            floorBreaking: false
+            floorBreaking: false,
+            timeFrozen: 455,
+            visibleWhipCount: 0
         },
         inputConfigMode: null,
         random: { seed0: 1, seed1: 2, seed2: 3 },
         stage: {
             stageIndex: 5,
+            currentSegmentIndex: 0,
+            simon: 2,
+            door: null,
+            platforms: [],
+            oldThingStack: createThingStack([]),
+            segments: [{ regionIndex: 0, regions: [{ thingStack: createThingStack([]), platforms: [] }] }],
             regionThingStack: createThingStack([1]),
             regionStackSwap: createThingStack([]),
             weaponsStack: createThingStack([0]),
@@ -94,7 +102,8 @@ function createFinalStageWatchSnapshot(songIds, version, appearDelay) {
         },
         things: [
             { id: 0, type: "StopWatch", fields: { lifeTime: 455 } },
-            { id: 1, type: "Orb", fields: { appearDelay } }
+            { id: 1, type: "Orb", fields: { appearDelay } },
+            { id: 2, type: "Simon", fields: { dead: 0 } }
         ],
         audio: {
             currentSong: null,

@@ -187,7 +187,7 @@ try {
     );
 
     const snapshot = createSnapshot(SONG_FIELD_NAMES, GAME_STATE_VERSION);
-    assert.equal(Object.hasOwn(snapshot.mainFields, "timeFrozen"), false, "v19 must not persist derived StopWatch aggregate state");
+    assert.equal(snapshot.mainFields.timeFrozen, 0, "current schema persists the validated StopWatch aggregate");
     assert.equal(isReasonableStickvaniaGameStateSnapshot(snapshot), true);
     for (const mode of [Main.MODE_PLAYING, Main.MODE_DEMO, Main.MODE_CREDITS, Main.MODE_TITLE_SCREEN, Main.MODE_MAP]) {
         for (const timeIncrementor of [0, 90, 91, 92, 474, 1000001, 2147483647]) {
@@ -356,16 +356,15 @@ try {
     };
     assert.equal(isReasonableStickvaniaGameStateSnapshot(unsafeVolume), false);
 
-    const maxStopWatchLifetime = clone(snapshot);
-    maxStopWatchLifetime.things.push({ id: 0, type: "StopWatch", fields: { lifeTime: 455 } });
+    const maxStopWatchLifetime = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
     assert.equal(isReasonableStickvaniaGameStateSnapshot(maxStopWatchLifetime), true);
 
-    const excessiveStopWatchLifetime = clone(snapshot);
-    excessiveStopWatchLifetime.things.push({ id: 0, type: "StopWatch", fields: { lifeTime: 456 } });
+    const excessiveStopWatchLifetime = clone(maxStopWatchLifetime);
+    excessiveStopWatchLifetime.things[0].fields.lifeTime = 456;
     assert.equal(isReasonableStickvaniaGameStateSnapshot(excessiveStopWatchLifetime), false);
 
-    const negativeStopWatchLifetime = clone(snapshot);
-    negativeStopWatchLifetime.things.push({ id: 0, type: "StopWatch", fields: { lifeTime: -1 } });
+    const negativeStopWatchLifetime = clone(maxStopWatchLifetime);
+    negativeStopWatchLifetime.things[0].fields.lifeTime = -1;
     assert.equal(isReasonableStickvaniaGameStateSnapshot(negativeStopWatchLifetime), false);
 
     const validStopWatchAggregate = createStopWatchAggregateSnapshot(snapshot, 455, [0], []);
@@ -1060,12 +1059,26 @@ function createSnapshot(songIds, version) {
             playerPower: 16,
             enemyPower: 16,
             beatStageFlag: false,
-            floorBreaking: false
+            floorBreaking: false,
+            timeFrozen: 0,
+            visibleWhipCount: 0
         },
         inputConfigMode: null,
         random: { seed0: 1, seed1: 2, seed2: 3 },
-        stage: { stageIndex: 0 },
-        things: [],
+        stage: {
+            stageIndex: 0,
+            currentSegmentIndex: 0,
+            simon: 0,
+            door: null,
+            platforms: [],
+            regionThingStack: createThingStack([]),
+            regionStackSwap: createThingStack([]),
+            weaponsStack: createThingStack([]),
+            weaponsStackSwap: createThingStack([]),
+            oldThingStack: createThingStack([]),
+            segments: [{ regionIndex: 0, regions: [{ thingStack: createThingStack([]), platforms: [] }] }]
+        },
+        things: [{ id: 0, type: "Simon", fields: { dead: 0 } }],
         audio: {
             currentSong: null,
             requestedSong: null,
@@ -1091,9 +1104,14 @@ function createSongOwnershipSnapshot(base, currentSong, requestedSong, playingSo
     return snapshot;
 }
 
-function createStopWatchAggregateSnapshot(base, _derivedTimeFrozen, weapons, weaponsSwap) {
+function createStopWatchAggregateSnapshot(base, derivedTimeFrozen, weapons, weaponsSwap) {
     const snapshot = clone(base);
-    snapshot.things = [{ id: 0, type: "StopWatch", fields: { lifeTime: 455 } }];
+    snapshot.mainFields.timeFrozen = derivedTimeFrozen;
+    snapshot.stage.simon = 1;
+    snapshot.things = [
+        { id: 0, type: "StopWatch", fields: { lifeTime: 455 } },
+        { id: 1, type: "Simon", fields: { dead: 0 } }
+    ];
     snapshot.stage.weaponsStack = createThingStack(weapons);
     snapshot.stage.weaponsStackSwap = createThingStack(weaponsSwap);
     return snapshot;

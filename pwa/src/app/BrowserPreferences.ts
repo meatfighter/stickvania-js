@@ -8,7 +8,7 @@ import type { StickvaniaScalingPreference } from "../stickvania/StickvaniaBuffer
 export const DEFAULT_VOLUME = 0.1;
 export const DEFAULT_RUMBLE_ENABLED = true;
 export const DEFAULT_FULLSCREEN_PREFERENCE = true;
-export const DEFAULT_DISPLAY_MODE: DisplayModePreference = "light";
+export const DEFAULT_DISPLAY_MODE: DisplayModePreference = "dark";
 export const DEFAULT_SCALING_PREFERENCE: StickvaniaScalingPreference = "crisp";
 export const DEFAULT_DIFFICULTY = 0;
 export const HARD_DIFFICULTY = 1;

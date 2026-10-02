@@ -1210,6 +1210,7 @@ export class Main extends BasicGame {
             this.simon!.xMax = region.max;
             this.regionThingStack.clear();
             this.regionThingStack.addAll(region.thingStack);
+            this.recountActiveWhips();
             this.weaponsStack.clear();
             this.timeFrozen = 0;
             this.killAllFlag = false;
@@ -1536,8 +1537,6 @@ export class Main extends BasicGame {
     }
 
     public followStairsToNextSegment(): void {
-        this.visibleWhipCount = 0;
-
         let thingStack: ThingStack = this.stageSegment!.regions[this.stageSegment!.regionIndex].thingStack;
         thingStack.clear();
         thingStack.addAll(this.regionThingStack);
@@ -1567,6 +1566,7 @@ export class Main extends BasicGame {
         this.platforms = region.platforms;
         this.regionThingStack.clear();
         this.regionThingStack.addAll(region.thingStack);
+        this.recountActiveWhips();
         this.simon!.xMin = region.min;
         this.simon!.xMax = region.max;
 
@@ -2892,12 +2892,28 @@ export class Main extends BasicGame {
         }
     }
 
+    private getPresentationPlatforms(): (Thing | null)[] {
+        if (this.door === null) return this.platforms!;
+        const sourceIndex = this.stageSegment!.regionIndex + (this.door.direction === Main.RIGHT ? -1 : 1);
+        return this.stageSegment!.regions[sourceIndex]!.platforms;
+    }
+
+    private recountActiveWhips(): void {
+        let count = 0;
+        for (const stack of [this.regionThingStack, this.regionStackSwap]) {
+            for (let i = 0; i <= stack.top; i++) {
+                const thing = stack.things[i];
+                if (thing instanceof DropItem && thing.type === DropItem.TYPE_WHIP) count++;
+            }
+        }
+        this.visibleWhipCount = count;
+    }
+
     public enterNextRegion(door: Door): void {
         this.simon!.whipIndex = 0;
         this.simon!.whipIncrementor = 0;
         this.simon!.whipping = false;
         this.door = door;
-        this.visibleWhipCount = 0;
     }
 
     public restoreHealth(): void {
@@ -2951,6 +2967,7 @@ export class Main extends BasicGame {
         this.regionThingStack.clear();
         this.regionStackSwap.clear();
         this.regionThingStack.addAll(region.thingStack);
+        this.recountActiveWhips();
         this.mapWidth = segment.mapWidth;
         this.beatStageFlag = false;
 
@@ -4192,8 +4209,9 @@ export class Main extends BasicGame {
                         weapons[j]!.render(gc, g);
                     }
 
-                    for (let i: number = this.platforms!.length - 1; i >= 0; i--) {
-                        this.platforms![i]!.render(gc, g);
+                    const presentationPlatforms = this.getPresentationPlatforms();
+                    for (let i = presentationPlatforms.length - 1; i >= 0; i--) {
+                        presentationPlatforms[i]!.render(gc, g);
                     }
 
                     this.simon!.render(gc, g);

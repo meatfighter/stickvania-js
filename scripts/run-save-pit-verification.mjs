@@ -16,7 +16,7 @@ try {
         const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(resolve(dir, e.name)) : [resolve(dir, e.name)]));
         for (const file of walk(root).filter((f) => /\.(js|html)$/.test(f))) {
             const source = readFileSync(file, "utf8");
-            for (const marker of ["savePitEvidence", "savePitDiagnosticTiming", "SavePitVerification"])
+            for (const marker of ["savePitEvidence", "savePitDiagnosticTiming", "SavePitVerification", "AuthorityVerification", "authorityEvidence"])
                 assert(!source.includes(marker), "Test-only fixture leaked into release: " + file);
         }
     }
@@ -46,6 +46,10 @@ try {
             assert.equal(await page.locator("#result").getAttribute("data-status"), "passed", await page.locator("#result").textContent());
             const records = await page.evaluate(() => window.savePitEvidence);
             const packagedLabels = [
+                "whip-return-stairs",
+                "whip-collection",
+                "whip-pit",
+                "whip-timeout",
                 "intro-consumed-zero-inner-ticks",
                 "pending-replacement-old-paused",
                 "pending-replacement-watch-expired",
@@ -67,7 +71,16 @@ try {
                 mkdirSync(process.env.QUALIFICATION_EVIDENCE_DIR, { recursive: true });
                 writeFileSync(
                     resolve(process.env.QUALIFICATION_EVIDENCE_DIR, `${name}-save-pit-witnesses.json`),
-                    JSON.stringify({ records, packaged, diagnosticTiming: await page.evaluate(() => window.savePitDiagnosticTiming) }, null, 2)
+                    JSON.stringify(
+                        {
+                            records,
+                            packaged,
+                            authority: await page.evaluate(() => window.authorityEvidence),
+                            diagnosticTiming: await page.evaluate(() => window.savePitDiagnosticTiming)
+                        },
+                        null,
+                        2
+                    )
                 );
             }
             console.log(JSON.stringify({ browser: name, version: browser.version(), sourceCheckpoints: records.length, packaged }));

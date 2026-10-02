@@ -4,6 +4,8 @@ import { test } from "node:test";
 import { withCounterModules, replace } from "./counter-test-utils.mjs";
 
 const expectedRanges = {
+    visibleWhipCount: [0, 2],
+    timeFrozen: [0, 455],
     titleBatSpriteIndex: [0, 3],
     titleBatSpriteIndexIncrementor: [0, 8],
     titleBatSteps: [0, 273],

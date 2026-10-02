@@ -141,6 +141,7 @@ function createFloorBreakingWatchSnapshot(songIds, version, overrides = {}) {
         time: 0,
         timeIncrementor: 90,
         timeFrozen: 455,
+        visibleWhipCount: 0,
         playerPower: 16,
         enemyPower: 0,
         beatStageFlag: false,
@@ -157,11 +158,21 @@ function createFloorBreakingWatchSnapshot(songIds, version, overrides = {}) {
         random: { seed0: 1, seed1: 2, seed2: 3 },
         stage: {
             stageIndex: mainFields.stageIndex,
-            segments: [],
+            currentSegmentIndex: 0,
+            simon: 1,
+            door: null,
+            platforms: [],
+            regionThingStack: createSerializedStack([]),
+            regionStackSwap: createSerializedStack([]),
+            oldThingStack: createSerializedStack([]),
+            segments: [{ regionIndex: 0, regions: [{ thingStack: createSerializedStack([]), platforms: [] }] }],
             weaponsStack: createSerializedStack([0]),
             weaponsStackSwap: createSerializedStack([])
         },
-        things: [{ id: 0, type: "StopWatch", fields: { lifeTime: 455 } }],
+        things: [
+            { id: 0, type: "StopWatch", fields: { lifeTime: 455 } },
+            { id: 1, type: "Simon", fields: { dead: 0 } }
+        ],
         audio: {
             currentSong: null,
             requestedSong: null,

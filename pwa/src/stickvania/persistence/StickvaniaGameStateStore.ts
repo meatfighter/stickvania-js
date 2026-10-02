@@ -47,11 +47,11 @@ export class StickvaniaGameStateStore {
             const snapshot = stored.snapshot;
             resetStopWatchMusicHold();
             this.serializer.restoreSnapshot(main, gc, snapshot);
-            // timeFrozen is derived from the live StopWatch objects. Recompute
-            // once after the complete object graph is restored so a contradictory
-            // saved scalar, including a stale nonzero value with no watches,
-            // cannot survive restoration.
+            // Reconstruct the derived counter without repairing invalid authority.
             StopWatch.recomputeRestoredTimeFrozen(main);
+            if (main.timeFrozen !== snapshot.mainFields.timeFrozen) {
+                throw new Error("Restored StopWatch authority differs from the validated snapshot");
+            }
             // Audio restoration is intentionally transport-only. Reconcile once
             // after both gameplay Things and Music have been restored so an
             // active stopwatch is silent before the first resumed simulation tick.

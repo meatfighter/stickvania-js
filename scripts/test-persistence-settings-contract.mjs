@@ -192,3 +192,55 @@ test("obsolete menu listeners are fenced before their target handlers can change
     handlers.get("click")(event);
     assert.equal(stopped, 2);
 });
+
+test("Dark defaults are nonwriting; every stored theme wins and partial Reset retains its failure", async () => {
+    const fake = memoryStorage();
+    Object.defineProperty(globalThis, "localStorage", { value: fake, configurable: true });
+    Object.defineProperty(globalThis, "location", { value: new URL("https://example.test/stage/"), configurable: true });
+    globalThis.window = { location: globalThis.location };
+    const { BrowserPreferences, DEFAULT_DISPLAY_MODE } = await loadTypeScript(preferencesPath);
+    const { DISPLAY_MODE_DEFINITIONS } = await loadTypeScript("pwa/src/DisplayThemes.ts");
+    assert.equal(DEFAULT_DISPLAY_MODE, "dark");
+    const prefs = new BrowserPreferences(false);
+    assert.equal(prefs.displayMode, "dark");
+    assert.equal(fake.calls.get.length, 0);
+    prefs.reload();
+    const key = fake.calls.get.find((k) => k.endsWith(":display-mode"));
+    assert.ok(key);
+    for (const value of [null, "invalid", ...DISPLAY_MODE_DEFINITIONS.map((d) => d.value)]) {
+        if (value === null) fake.values.delete(key);
+        else fake.values.set(key, value);
+        fake.clearCalls();
+        prefs.reload();
+        assert.equal(prefs.displayMode, value === null || value === "invalid" ? "dark" : value);
+        assert.equal(fake.calls.set.length, 0);
+        assert.equal(fake.calls.remove.length, 0);
+    }
+    fake.faults.get = true;
+    prefs.reload();
+    assert.equal(prefs.displayMode, "dark");
+    fake.faults.get = false;
+    fake.values.set(key, "light");
+    prefs.reload();
+    fake.clearCalls();
+    assert.equal(
+        prefs.reset(() => true),
+        true
+    );
+    assert.equal(prefs.displayMode, "dark");
+    assert.equal(fake.values.has(key), false);
+    assert.equal(fake.calls.set.length, 0);
+    fake.values.set(key, "light");
+    prefs.reload();
+    fake.clearCalls();
+    fake.faults.removeKeys.add(key);
+    await quiet(() =>
+        assert.equal(
+            prefs.reset(() => true),
+            false
+        )
+    );
+    assert.equal(prefs.displayMode, "dark");
+    assert.equal(fake.values.get(key), "light");
+    assert.equal(fake.calls.set.length, 0);
+});

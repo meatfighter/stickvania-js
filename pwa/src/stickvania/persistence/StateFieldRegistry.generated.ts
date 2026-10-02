@@ -266,6 +266,7 @@ export const MAIN_PERSISTED_STATE_FIELD_NAMES = [
     "weaponType",
     "weaponRepeats",
     "camera",
+    "timeFrozen",
     "killAllFlag",
     "beatStageFlag",
     "floorBreaking",

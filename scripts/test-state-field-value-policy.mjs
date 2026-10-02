@@ -345,9 +345,9 @@ function createValidStageSnapshot(version, fields, policy, songIds) {
             simon: simonId,
             door: null,
             platforms: [],
-            regionThingStack: createStack([boomerangId]),
+            regionThingStack: createStack([]),
             regionStackSwap: createStack([]),
-            weaponsStack: createStack([]),
+            weaponsStack: createStack([boomerangId]),
             weaponsStackSwap: createStack([]),
             oldThingStack: createStack([]),
             segments

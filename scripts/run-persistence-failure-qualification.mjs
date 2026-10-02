@@ -158,12 +158,21 @@ try {
     // Reset is an explicit operation: one result notice, no resurrected Continue,
     // and no reload of failed-to-remove values into the new runtime.
     await page.evaluate(({ key, validText }) => localStorage.setItem(key, validText), { key, validText });
+    await page.locator("#display-mode-button").click();
+    await page.locator('[data-display-mode="light"]').click();
     await arm(page, { remove: true });
     await page.locator("#reset-button, #resetButton").first().click();
     await menuReady(page);
     assert.equal(await page.getByText("Some settings could not be reset.", { exact: true }).count(), 1);
     assert.equal(await page.locator(continueSelector).first().isEnabled(), false);
     assert.equal((await faultInfo(page)).raw, validText);
+    assert.equal(await page.locator("#display-mode-button .theme-picker-label").textContent(), "Dark", "partial Reset uses Dark in memory");
+    assert.equal(
+        await page.evaluate(() => Object.entries(localStorage).find(([key]) => key.endsWith(":display-mode"))?.[1]),
+        "light",
+        "failed removal retains old durable Light"
+    );
+    assert.deepEqual((await faultInfo(page)).otherWrites, [], "partial Reset does not compensate with a Dark write");
     await disarm(page);
     await disableFullscreenIfAvailable(page);
     const retiredControl = await page.locator("#fullscreen-switch-button").first().elementHandle();

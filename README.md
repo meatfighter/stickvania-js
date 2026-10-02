@@ -85,6 +85,10 @@ Object.keys(localStorage).filter((key) => key.startsWith("stickvania:") && key.e
 
 The full record is bounded to 262,144 JavaScript string code units. Oversized or unsupported JSON data uses a compact omission record, bounded to 16,384 code units. Storage denial or quota exhaustion can prevent retention; no other storage is evicted.
 
+During a Door transition, rendering follows the source region's moving platforms while collision and save roots already identify the destination. Active Whip pickup counts are recounted only when a region is installed. Schema 26 persists `timeFrozen` and requires it to equal the sole active StopWatch lifetime; restore verifies that reconstruction agrees. Shared constructor-free policies reject duplicate dispatch, invalid object roles, stalled controlling Doors, and conflicting audio owners while retaining legitimate historical aliases and completion gaps. Previous schemas are nonwriting load misses; an authorized current save replaces the same stable slot.
+
+The browser defaults to Dark on a fresh installation and after Reset. Explicit stored themes, including Light, remain authoritative. Reading a missing or invalid preference does not write a replacement. If Reset cannot remove a preference, Dark applies to the current session and the existing partial-reset warning remains visible.
+
 ## Project page and deployment
 
 Edit the article in [about/content.md](about/content.md) and the copyright/licensing footer in [about/footer.md](about/footer.md); layout and SEO wiring live in [about/index.html](about/index.html) and [scripts/build-about.mjs](scripts/build-about.mjs).

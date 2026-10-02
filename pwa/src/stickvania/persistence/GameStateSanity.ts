@@ -1,3 +1,5 @@
+import { inspectSnapshotAuthority } from "./SnapshotAuthorityPolicy.js";
+import { isAudioOwnerStateValid } from "./AudioOwnerPolicy.js";
 import { GAME_STATE_MODE_PLAYING, isCountdownSnapshotValueValid } from "./GameStatePolicy.js";
 import { isMusicPlaybackSnapshot } from "slick2d-ts/slick/MusicPlaybackState";
 import { SONG_FIELD_NAMES, STANDALONE_MUSIC_FIELD_NAMES } from "../AudioRegistry.js";
@@ -23,7 +25,6 @@ const MAX_INPUT_CONFIG_MESSAGE_LENGTH = 256;
 const MAX_INPUT_CONFIG_STEP_INDEX = 6;
 const MAX_INPUT_CONFIG_DONE_DELAY = 30;
 const MAX_INPUT_CONFIG_ARM_DELAY = 8;
-const MAX_STOP_WATCH_LIFETIME = 455;
 
 const EXPECTED_SONG_IDS = new Set<string>(SONG_FIELD_NAMES);
 const EXPECTED_MUSIC_IDS = new Set<string>([
@@ -93,13 +94,14 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
     if (snapshot.stage !== null && snapshot.mainFields.stageIndex !== snapshot.stage.stageIndex) {
         return false;
     }
-    if (!isReasonableStopWatchState(snapshot)) {
+    const authority = inspectSnapshotAuthority(snapshot);
+    if (authority === null) {
         return false;
     }
     if (!isReasonableInputConfig(snapshot.inputConfigMode)) {
         return false;
     }
-    const stopWatchHoldAllowed = snapshot.mode === 4 && hasActiveStopWatch(snapshot) && !isTerminalStopWatchState(snapshot);
+    const stopWatchHoldAllowed = snapshot.mode === GAME_STATE_MODE_PLAYING && authority.hasActiveStopWatch;
     if (!isReasonableAudio(snapshot.audio, stopWatchHoldAllowed, snapshot.mode)) {
         return false;
     }
@@ -161,102 +163,6 @@ export function isWithinStickvaniaGameStateValidationBudget(value: unknown): boo
     return true;
 }
 
-function isReasonableStopWatchState(snapshot: StickvaniaGameStateSnapshot): boolean {
-    const watches = new Map<number, number>();
-    for (const thing of snapshot.things) {
-        if (!isRecord(thing) || thing.type !== "StopWatch") {
-            continue;
-        }
-        if (!Number.isInteger(thing.id) || !isRecord(thing.fields) || !isIntegerInRange(thing.fields.lifeTime, 0, MAX_STOP_WATCH_LIFETIME)) {
-            return false;
-        }
-        watches.set(thing.id, thing.fields.lifeTime as number);
-    }
-
-    if (snapshot.stage === null || !isRecord(snapshot.stage)) {
-        return watches.size === 0;
-    }
-
-    const weapons = readStackThingIds(snapshot.stage.weaponsStack);
-    const weaponsSwap = readStackThingIds(snapshot.stage.weaponsStackSwap);
-    // The serializer performs exact structural validation first. The partial
-    // shapes used by the standalone sanity unit tests intentionally omit both
-    // weapon stacks; only apply graph-level checks when those roots are present.
-    if (weapons === null && weaponsSwap === null) {
-        return true;
-    }
-    if (weapons === null || weaponsSwap === null) {
-        return false;
-    }
-
-    const weaponIds = new Set<number>();
-    for (const id of [...weapons, ...weaponsSwap]) {
-        if (weaponIds.has(id)) {
-            return false;
-        }
-        weaponIds.add(id);
-    }
-
-    let derivedTimeFrozen = 0;
-    for (const [id, lifeTime] of watches) {
-        if (!weaponIds.has(id)) {
-            return false;
-        }
-        derivedTimeFrozen += lifeTime;
-    }
-
-    return !(derivedTimeFrozen > 0 && isTerminalStopWatchState(snapshot));
-}
-
-function hasActiveStopWatch(snapshot: StickvaniaGameStateSnapshot): boolean {
-    return snapshot.things.some(
-        (thing) =>
-            isRecord(thing) && thing.type === "StopWatch" && isRecord(thing.fields) && typeof thing.fields.lifeTime === "number" && thing.fields.lifeTime > 0
-    );
-}
-
-function hasVisibleFinalOrb(snapshot: StickvaniaGameStateSnapshot): boolean {
-    if (snapshot.stage === null) return false;
-    const current = readStackThingIds(snapshot.stage.regionThingStack);
-    const swap = readStackThingIds(snapshot.stage.regionStackSwap);
-    if (current === null || swap === null) return false;
-    const activeIds = new Set([...current, ...swap]);
-    return snapshot.things.some((thing) => activeIds.has(thing.id) && thing.type === "Orb" && isRecord(thing.fields) && thing.fields.appearDelay === 0);
-}
-
-function isStageThreeFloorBreaking(snapshot: StickvaniaGameStateSnapshot): boolean {
-    return snapshot.mainFields.stageIndex === 2 && snapshot.mainFields.floorBreaking === true;
-}
-
-function isTerminalStopWatchState(snapshot: StickvaniaGameStateSnapshot): boolean {
-    const mainFields = snapshot.mainFields;
-    const stageThreeFloorBreaking = isStageThreeFloorBreaking(snapshot);
-    return (
-        (typeof mainFields.playerPower === "number" && mainFields.playerPower <= 0) ||
-        mainFields.beatStageFlag === true ||
-        (mainFields.floorBreaking === true && !stageThreeFloorBreaking) ||
-        (typeof mainFields.time === "number" && mainFields.time <= 0 && !stageThreeFloorBreaking) ||
-        (mainFields.stageIndex === 5 && mainFields.enemyPower === 0 && !hasVisibleFinalOrb(snapshot))
-    );
-}
-
-function readStackThingIds(value: unknown): number[] | null {
-    if (!isRecord(value) || !isRecord(value.$stack) || !Array.isArray(value.$stack.things)) {
-        return null;
-    }
-    const ids: number[] = [];
-    for (const id of value.$stack.things) {
-        if (id === null) {
-            continue;
-        }
-        if (typeof id !== "number" || !Number.isInteger(id)) {
-            return null;
-        }
-        ids.push(id);
-    }
-    return ids;
-}
-
 function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): boolean {
     if (snapshot === null) {
         return true;
@@ -284,6 +190,7 @@ function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): bool
 }
 
 function isReasonableAudio(snapshot: AudioSnapshot, stopWatchHoldAllowed: boolean, mode: number): boolean {
+    if (!isAudioOwnerStateValid(snapshot)) return false;
     if (
         !isRecord(snapshot) ||
         !hasExactFields(snapshot, AUDIO_FIELDS) ||

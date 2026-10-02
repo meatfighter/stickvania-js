@@ -94,7 +94,7 @@ export async function qualifyPackagedPresentation(browser, checkpoints, selectio
             const snapshot = JSON.parse(entry[1]),
                 expected = JSON.parse(checkpoint.bytes);
             assert.notEqual(snapshot.appVersion, expected.appVersion, checkpoint.label + " packaged writer replaced fixture bytes");
-            assert.equal(snapshot.version, 25);
+            assert.equal(snapshot.version, 26);
             assert.equal(snapshot.mode, expected.mode, checkpoint.label + " restores actual scene");
             assert.equal(snapshot.mainFields.creditsIndex, expected.mainFields.creditsIndex);
             assert.equal(snapshot.mainFields.recordingIndex, expected.mainFields.recordingIndex);

@@ -1,3 +1,5 @@
+import { DropItem } from "./stickvania/DropItem.js";
+import { verifyAuthority } from "./AuthorityVerification.js";
 import type { StageSegment } from "./stickvania/StageSegment.js";
 import { Music, Sys } from "slick2d-ts";
 import { Main } from "./stickvania/Main.js";
@@ -77,6 +79,50 @@ export async function verifySavePit(h: Harness): Promise<void> {
         }
         check(supportedBosses.size === bossTypes.size, "all six shipped boss Orb columns checked");
         stage(0);
+        check(m().visibleWhipCount === 0, "new stage has no active whip upgrades");
+        const pickup = new DropItem(m(), m().simon!.x + 96, 160, DropItem.TYPE_WHIP);
+        m().regionThingStack.push(pickup);
+        m().whipCreated();
+        save("whip-before-stairs");
+        const sourceSegment = Reflect.get(m(), "stageSegment") as StageSegment;
+        const stairs = sourceSegment.stairsEntries.find((e) => e.connection !== null);
+        check(stairs?.connection, "loaded connected stairs");
+        m().simon!.x = stairs.x;
+        m().followStairsToNextSegment();
+        check(m().visibleWhipCount === 0, "stairs destination counts its own pickups");
+        save("whip-away-stairs");
+        const returnEntry = (Reflect.get(m(), "stageSegment") as StageSegment).stairsEntries.find((e) => e.connection?.segment === sourceSegment);
+        check(returnEntry, "loaded return stairs");
+        m().simon!.x = returnEntry.x;
+        m().followStairsToNextSegment();
+        check(m().visibleWhipCount === 1, "retained pickup counted on stairs return");
+        save("whip-return-stairs");
+        await restore();
+        check(m().visibleWhipCount === 1, "cold restore preserves retained pickup count");
+        m().restoreCheckpoint();
+        save("whip-checkpoint-recount");
+        for (const boundary of ["collection", "pit", "timeout"]) {
+            stage(0);
+            const p = new DropItem(m(), m().simon!.x + 96, 160, DropItem.TYPE_WHIP);
+            m().regionThingStack.push(p);
+            m().whipCreated();
+            if (boundary === "collection") {
+                p.x = m().simon!.x;
+                p.y = m().simon!.y;
+            }
+            if (boundary === "pit") {
+                p.y = 353;
+                p.vy = 1;
+            }
+            if (boundary === "timeout") p.lifeTime = 1;
+            tick();
+            check(m().visibleWhipCount === 0, "dispatcher retires whip " + boundary);
+            save("whip-" + boundary);
+            await restore();
+            tick();
+            save("whip-" + boundary + "-continued");
+        }
+        stage(0);
         m().requestSong(m().stage_1_2);
         tick();
         let intro = m().currentSong!.getIntroForState()!;
@@ -84,6 +130,15 @@ export async function verifySavePit(h: Harness): Promise<void> {
         intro.stop();
         check(intro.getTransportState() === "ended-pending", "real completion pending");
         save("intro-ended-pending");
+        const goodBytes = localStorage.getItem(GAME_STATE_STORAGE_KEY);
+        const previousMusic = m().currentMusic;
+        m().currentMusic = intro;
+        check(!store.save(m(), () => true).saved, "unexpected Song part as standalone rejected during validation");
+        const aliasEvidence = JSON.parse(localStorage.getItem(REJECTED_SAVE_DEBUG_KEY)!);
+        check(aliasEvidence.failedStage === "structure-and-graph" && aliasEvidence.snapshotIncluded, "alias reaches diagnostic validation boundary");
+        check(localStorage.getItem(GAME_STATE_STORAGE_KEY) === goodBytes, "alias leaves canonical save unchanged");
+        m().currentMusic = previousMusic;
+
         Music.poll(0);
         check(intro.getTransportState() === "stopped", "poll consumes completion");
         Reflect.set(m(), "nextFrameTime", Sys.getTime() + 1000);
@@ -311,6 +366,22 @@ export async function verifySavePit(h: Harness): Promise<void> {
                 check(m().door !== null, `actual door collision ${label}`);
                 const destination = (Reflect.get(m(), "stageSegment") as StageSegment).regions[(Reflect.get(m(), "stageSegment") as StageSegment).regionIndex];
                 check(m().platforms === destination.platforms, "destination platform root committed");
+                const sourcePlatforms = (Reflect.get(m(), "stageSegment") as StageSegment).regions[route.region]!.platforms;
+                check(Reflect.get(m(), "getPresentationPlatforms").call(m()) === sourcePlatforms, "door presents source platforms");
+                let draws = 0;
+                const originals = sourcePlatforms.map((p) => p.render);
+                sourcePlatforms.forEach((p, i) => {
+                    p.render = function (gc, g) {
+                        draws++;
+                        originals[i]!.call(this, gc, g);
+                    };
+                });
+                try {
+                    m().render(live().container, live().container.getGraphics());
+                } finally {
+                    sourcePlatforms.forEach((p, i) => (p.render = originals[i]!));
+                }
+                check(draws === sourcePlatforms.length, "actual Main render draws all source platforms");
                 save(`${label}-entry`);
                 await restore();
                 let phase = -1;
@@ -413,6 +484,7 @@ export async function verifySavePit(h: Harness): Promise<void> {
                 save("dracula-credits");
             }
         }
+        verifyAuthority(records);
         Reflect.set(window, "savePitEvidence", records);
     } finally {
         h.destroyMounted(mounted);

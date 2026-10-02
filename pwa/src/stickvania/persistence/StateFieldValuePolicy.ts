@@ -106,6 +106,8 @@ export const THING_REFERENCE_FIELD_POLICY: Partial<Record<ThingTypeId, Readonly<
 const JAVA_INT_MAX = 2_147_483_647;
 
 export const PROVEN_MAIN_INTEGER_RANGES: Readonly<Partial<Record<string, readonly [number, number]>>> = {
+    visibleWhipCount: [0, 2],
+    timeFrozen: [0, 455],
     titleBatSpriteIndex: [0, 3],
     titleBatSpriteIndexIncrementor: [0, 8],
     titleBatSteps: [0, 273],

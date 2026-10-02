@@ -1,3 +1,5 @@
+import { inspectSnapshotAuthority, readUniqueThingIds } from "./SnapshotAuthorityPolicy.js";
+import { isAudioOwnerStateValid } from "./AudioOwnerPolicy.js";
 import { isStairExitResourceValid } from "./StairExitResourcePolicy.js";
 import { isPresentationSnapshotValid } from "./PresentationStatePolicy.js";
 import { GameContainer, JavaRandom, Music, isMusicPlaybackSnapshot } from "slick2d-ts";
@@ -191,6 +193,7 @@ export class StickvaniaGameStateSerializer {
 
         const references = this.createSnapshotReferenceLimits(snapshot.stage, snapshot.things.length);
         return (
+            inspectSnapshotAuthority(snapshot) !== null &&
             isPresentationSnapshotValid(snapshot) &&
             this.isEncodedRecordReferencesValid(snapshot.mainFields, references) &&
             snapshot.things.every((thing) => this.isEncodedRecordReferencesValid(thing.fields, references))
@@ -592,6 +595,7 @@ export class StickvaniaGameStateSerializer {
             return false;
         }
         return (
+            readUniqueThingIds(snapshot.$stack.things) !== null &&
             this.isFiniteInteger(snapshot.$stack.capacity) &&
             snapshot.$stack.capacity >= snapshot.$stack.things.length &&
             snapshot.$stack.capacity <= MAX_SAVED_STACK_CAPACITY &&
@@ -653,6 +657,7 @@ export class StickvaniaGameStateSerializer {
         if (
             !this.isPlainRecord(snapshot) ||
             !this.areRecordFieldNamesExact(snapshot, ["currentSong", "requestedSong", "currentMusic", "songs", "sounds"]) ||
+            !isAudioOwnerStateValid(snapshot) ||
             !this.isNullableSongId(snapshot.currentSong) ||
             !this.isNullableSongId(snapshot.requestedSong) ||
             !Array.isArray(snapshot.songs) ||
@@ -1283,12 +1288,11 @@ export class StickvaniaGameStateSerializer {
 
     private captureAudio(main: Main): AudioSnapshot {
         const songs = SONG_IDS.map((id) => this.captureSong(main, id));
-        const currentMusicId = this.musicIdForMusic(main, main.currentMusic);
-        const songPart = songs.flatMap((song) => [song.intro, song.loop]).find((part) => part !== null && part.id === currentMusicId);
+        const currentMusic = main.currentMusic === null ? null : this.captureMusic(main, main.currentMusic);
         return {
             currentSong: this.songIdForSong(main, main.currentSong),
             requestedSong: this.songIdForSong(main, main.requestedSong),
-            currentMusic: main.currentMusic === null ? null : (songPart ?? this.captureMusic(main, main.currentMusic)),
+            currentMusic,
             songs,
             sounds: captureSoundEffects(main)
         };

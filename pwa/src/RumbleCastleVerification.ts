@@ -182,7 +182,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             const before = h.gameplaySnapshot(serializer, m);
             check(store.save(m, () => true).saved, "Save reachable castle " + label);
             const bytes = localStorage.getItem(GAME_STATE_STORAGE_KEY)!;
-            check(JSON.parse(bytes).version === 25, "Current schema");
+            check(JSON.parse(bytes).version === 26, "Current schema");
             checkpoints.push({ label, bytes, expected: before });
             m.setBrowserSuspended(true);
             f.manager.setSuspended(true);

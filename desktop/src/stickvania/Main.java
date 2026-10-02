@@ -1409,6 +1409,7 @@ public final class Main extends BasicGame {
       simon.xMax = region.max;
       regionThingStack.clear();
       regionThingStack.addAll(region.thingStack);
+      recountActiveWhips();
       weaponsStack.clear();
       timeFrozen = 0;
       killAll = false;
@@ -1775,8 +1776,6 @@ public final class Main extends BasicGame {
 
   public void followStairsToNextSegment() {
 
-    visibleWhipCount = 0;
-
     ThingStack thingStack
         = stageSegment.regions[stageSegment.regionIndex].thingStack;
     thingStack.clear();
@@ -1807,6 +1806,7 @@ public final class Main extends BasicGame {
     platforms = region.platforms;
     regionThingStack.clear();
     regionThingStack.addAll(region.thingStack);
+    recountActiveWhips();
     simon.xMin = region.min;
     simon.xMax = region.max;
 
@@ -3089,12 +3089,29 @@ public final class Main extends BasicGame {
     } 
   }
 
+  private Thing[] getPresentationPlatforms() {
+    if (door == null) return platforms;
+    int sourceIndex = stageSegment.regionIndex + (door.direction == RIGHT ? -1 : 1);
+    return stageSegment.regions[sourceIndex].platforms;
+  }
+
+  private void recountActiveWhips() {
+    int count = 0;
+    ThingStack[] stacks = { regionThingStack, regionStackSwap };
+    for (ThingStack stack : stacks) {
+      for (int i = 0; i <= stack.top; i++) {
+        Thing thing = stack.things[i];
+        if (thing instanceof DropItem && ((DropItem)thing).type == DropItem.TYPE_WHIP) count++;
+      }
+    }
+    visibleWhipCount = count;
+  }
+
   public void enterNextRegion(Door door) {
     simon.whipIndex = 0;
     simon.whipIncrementor = 0;
     simon.whipping = false;
     this.door = door;
-    this.visibleWhipCount = 0;
   }
 
   public void restoreHealth() {
@@ -3151,6 +3168,7 @@ public final class Main extends BasicGame {
     regionThingStack.clear();
     regionStackSwap.clear();
     regionThingStack.addAll(region.thingStack);
+    recountActiveWhips();
     mapWidth = segment.mapWidth;
     beatStage = false;
 
@@ -4513,8 +4531,9 @@ public final class Main extends BasicGame {
           weapons[j].render(gc, g);
         }
 
-        for(int i = platforms.length - 1; i >= 0; i--) {
-          platforms[i].render(gc, g);
+        Thing[] presentationPlatforms = getPresentationPlatforms();
+        for(int i = presentationPlatforms.length - 1; i >= 0; i--) {
+          presentationPlatforms[i].render(gc, g);
         }
 
         simon.render(gc, g);

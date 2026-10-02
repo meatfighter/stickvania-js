@@ -52,6 +52,8 @@ try {
     assert.equal(await fullscreenSwitch.isEnabled(), true, "Fullscreen should be available in the settings qualifier");
     assert.equal(await fullscreenSwitch.getAttribute("aria-pressed"), "true", "Fullscreen should default ON");
 
+    assert.equal(await page.locator("#display-mode-button .theme-picker-label").textContent(), "Dark", "fresh menu defaults Dark");
+    assert.equal(await storedPreference(page, "display-mode"), null, "default is not persisted by inspection");
     await selectMenuOption(page, "#display-mode-button", '[data-display-mode="dark"]');
     await selectMenuOption(page, "#scaling-button", '[data-scaling-mode="pixel-perfect"]');
     await assertMenuPreferences(page, "Dark", "dark", "Pixel Perfect", "pixel-perfect");
@@ -87,6 +89,39 @@ try {
         2,
         "New Game + retained Continue should make two fullscreen requests"
     );
+    await selectMenuOption(page, "#display-mode-button", '[data-display-mode="light"]');
+    await page.reload();
+    await page.locator("#new-game-button").waitFor();
+    assert.equal(await page.locator("#display-mode-button .theme-picker-label").textContent(), "Light", "stored Light survives reload");
+    await page.locator("#reset-button").click();
+    assert.equal(await page.locator("#display-mode-button .theme-picker-label").textContent(), "Dark", "Reset installs Dark immediately");
+    assert.equal(await storedPreference(page, "display-mode"), null, "Reset removes display-mode key");
+    await page.locator("#new-game-button").click();
+    await waitForFullscreenRunning(page);
+    // Inspect a solid intro background pixel from the actual rendered canvas.
+    await page.waitForTimeout(300);
+    const darkCanvas = await page.locator("canvas").screenshot();
+    await page.locator("#hamburger-button").click();
+    await waitForLiveMenu(page);
+    await selectMenuOption(page, "#display-mode-button", '[data-display-mode="light"]');
+    await page.locator("#continue-button").click();
+    await waitForFullscreenRunning(page);
+    await page.waitForTimeout(300);
+    const lightCanvas = await page.locator("canvas").screenshot();
+    const sample = async (png) =>
+        page.evaluate(async (data) => {
+            const image = new Image();
+            image.src = "data:image/png;base64," + data;
+            await image.decode();
+            const canvas = document.createElement("canvas");
+            canvas.width = 640;
+            canvas.height = 480;
+            const context = canvas.getContext("2d");
+            context.drawImage(image, 0, 0, 640, 480);
+            return [...context.getImageData(320, 40, 1, 1).data];
+        }, png.toString("base64"));
+    assert.deepEqual(await sample(darkCanvas), [0, 0, 0, 255], "Reset's new runtime renders Dark background");
+    assert.deepEqual(await sample(lightCanvas), [255, 255, 255, 255], "stored Light renders the unchanged Light background");
     assert.deepEqual(errors, [], "Stickvania fullscreen settings qualification produced uncaught browser errors");
     console.log(
         "Stickvania fullscreen settings qualification passed: Theme, Scaling, retained canvas, and wake-lock accounting survive fullscreen MENU/Continue cycles."
