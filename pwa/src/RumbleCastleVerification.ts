@@ -12,7 +12,7 @@ import { getRumbleEffect } from "./rumble/RumbleEffects.js";
 import { CASTLE_TICK_MS, isCastlePresentationValid } from "./rumble/CastleCrumbleTimeline.js";
 import { StickvaniaGameStateSerializer } from "./stickvania/persistence/StickvaniaGameStateSerializer.js";
 import { StickvaniaGameStateStore } from "./stickvania/persistence/StickvaniaGameStateStore.js";
-import { GAME_STATE_STORAGE_KEY } from "./stickvania/persistence/GameStateSchema.js";
+import { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION } from "./stickvania/persistence/GameStateSchema.js";
 
 type Mounted = { main: Main; container: AppGameContainer };
 export type Harness = {
@@ -182,7 +182,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             const before = h.gameplaySnapshot(serializer, m);
             check(store.save(m, () => true).saved, "Save reachable castle " + label);
             const bytes = localStorage.getItem(GAME_STATE_STORAGE_KEY)!;
-            check(JSON.parse(bytes).version === 26, "Current schema");
+            check(JSON.parse(bytes).version === GAME_STATE_VERSION, "Current schema");
             checkpoints.push({ label, bytes, expected: before });
             m.setBrowserSuspended(true);
             f.manager.setSuspended(true);
@@ -334,7 +334,7 @@ export async function verifyRumbleCastle(h: Harness): Promise<void> {
             check(!isPotentialStickvaniaGameStateSnapshot(bad), "Potential reader rejects impossible pending entry");
             mutations.push(bad);
         }
-        for (const version of [23, 24, 26]) {
+        for (const version of [...Array.from({ length: GAME_STATE_VERSION }, (_, i) => i), GAME_STATE_VERSION + 1]) {
             const bad = structuredClone(good);
             bad.version = version;
             mutations.push(bad);
