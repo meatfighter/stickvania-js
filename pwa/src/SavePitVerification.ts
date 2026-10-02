@@ -288,6 +288,14 @@ export async function verifySavePit(h: Harness): Promise<void> {
                     .regionThingStack.things.slice(0, m().regionThingStack.top + 1)
                     .find((t) => t instanceof Door && t.x === route.x && t.direction === route.direction);
                 check(door instanceof Door, "loaded door root");
+                if ((stageIndex === 1 && route.segment === 2) || (stageIndex === 5 && route.segment === 1)) {
+                    m().requestSong(m().boss_1);
+                    tick();
+                    m().weaponType = Main.WEAPON_TYPE_STOP_WATCH;
+                    m().weaponRepeats = Main.WEAPON_REPEATS_SINGLE;
+                    m().weaponsStack.push(new StopWatch(m()));
+                    check(m().timeFrozen > 0 && m().currentSong!.getIntroForState()!.getTransportState() === "paused", "door source watch holds old song");
+                }
                 Object.assign(m().simon!, {
                     x: door.x - 24,
                     y: door.y + 32,

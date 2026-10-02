@@ -18,7 +18,8 @@ try {
     ]) {
         const browser = await type.launch({ headless: true });
         try {
-            const page = await browser.newPage();
+            const context = await browser.newContext();
+            const page = await context.newPage();
             page.on("console", (msg) => {
                 if (msg.type() === "error" || msg.type() === "warning") console.log(msg.text());
             });

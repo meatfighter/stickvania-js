@@ -46,9 +46,9 @@ public class Dog extends Thing {
       } else {
 
         applyGravity();
-      if (PitLifecycle.isDescendingBelowStage(this)) {
-        return false;
-      }
+        if (PitLifecycle.isDescendingBelowStage(this)) {
+          return false;
+        }
 
         if (state == STATE_RUNNING) {
           if (++spriteIndexIncrementor == 15) {

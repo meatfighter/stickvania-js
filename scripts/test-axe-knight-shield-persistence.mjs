@@ -176,8 +176,8 @@ try {
     assert.match(store, /isAxeKnightShieldSnapshotStateValid\(snapshot\)/);
     assert.match(
         store,
-        /captureAndWriteSnapshot\([\s\S]*?\(snapshot\) => this\.isSnapshotValid\(snapshot\)/,
-        "save-time validation must use the shared semantic validator"
+        /captureAndWriteSnapshot\([\s\S]*?\(snapshot\) => this\.validateOutgoingSnapshot\(main, snapshot, isAuthorized\)/,
+        "save-time validation must use the outgoing diagnostic gate chain"
     );
     assert.match(store, /this\.isSnapshotValid\(snapshot as StickvaniaGameStateSnapshot\)/, "read-time validation must use the shared semantic validator");
 

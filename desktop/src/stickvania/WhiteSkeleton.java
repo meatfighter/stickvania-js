@@ -72,9 +72,9 @@ public class WhiteSkeleton extends Thing {
         }
 
         applyGravity();
-      if (PitLifecycle.isDescendingBelowStage(this)) {
-        return false;
-      }
+        if (PitLifecycle.isDescendingBelowStage(this)) {
+          return false;
+        }
 
         if (state == STATE_STANDING || state == STATE_WALKING) {
           if (--throwDelay == 0) {
