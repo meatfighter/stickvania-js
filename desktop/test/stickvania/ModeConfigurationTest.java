@@ -10,7 +10,7 @@ public final class ModeConfigurationTest {
     return hard && base > 0 ? Math.max(1, (int)(base * multiplier)) : base;
   }
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) throws Throwable {
     Main main = new Main();
     main.simon = new Simon(main);
     Door sentinel = new Door(main, 0, 0, Main.RIGHT, true);
