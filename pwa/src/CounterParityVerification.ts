@@ -210,6 +210,7 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
                     mounted = null;
                     mounted = await h.mountMain(null);
                     const main = current().main;
+                    main.difficulty = Main.DIFFICULTY_HARD;
                     if (activeMode === Main.MODE_DEMO) main.initDemo();
                     else {
                         main.createStageForStateRestore(branch === "floor" ? 2 : 0);
