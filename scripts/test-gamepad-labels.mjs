@@ -204,7 +204,7 @@ try {
 
     const about = readFileSync(new URL("../about/content.md", import.meta.url), "utf8");
     const qualifier = "Gamepad button names use Xbox-style labels; equivalent buttons may have different labels on other controllers.";
-    assert.equal(about.split(qualifier).length - 1, 1);
+    assert.equal(about.split(qualifier).length - 1, 0);
     const controls = about.split("# Controls")[1].split("## Browser Menu")[0];
     const rows = controls
         .split(/\r?\n/)

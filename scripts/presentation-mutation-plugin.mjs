@@ -27,7 +27,15 @@ export function presentationMutationPlugin(name = process.env.STICKVANIA_PRESENT
                 if (name === "floor-fractional") return replace(source, "integer(f.X, 143, 159)", 'typeof f.X === "number" && f.X >= 143 && f.X <= 159');
             }
             if (name === "floor-restore-profile" && path.endsWith("/persistence/StickvaniaGameStateSerializer.ts"))
-                return replace(source, "context.main.stageIndex === 2 &&", "false &&");
+                return replace(
+                    source,
+                    "context.main.syncSimonPhysicsProfile();",
+                    `context.main.syncSimonPhysicsProfile();
+                    if (context.main.stageIndex === 2 && context.main.fadeState === Main.FADE_OUT && context.main.fadeReason === Main.FADE_REASON_SHOW_MAP) {
+                        context.main.simon!.G = Main.GRAVITY;
+                        context.main.simon!.jumpVelocity = Main.SIMON_JUMP_VELOCITY;
+                    }`
+                );
             if (name === "stair-restore" && path.endsWith("/persistence/StickvaniaGameStateSerializer.ts"))
                 return replace(source, "this.isSupportedPresentationResources(main, snapshot) &&", "");
             if (name === "stair-save" && path.endsWith("/persistence/StickvaniaGameStateStore.ts"))
