@@ -146,7 +146,7 @@ test("Stickvania bounds and sentinels defeat targeted mutants", async () => {
         ["fields.mode === Main.MODE_MAP ? 100 : 99", "99"],
         ["fields.mode === Main.MODE_MAP ? 100 : 99", "100"],
         ["isCountdownSnapshotValueValid(fields.mode, value)", "isIntegerInRange(value, 0, 90)"],
-        ["isCountdownSnapshotValueValid(fields.mode, value)", "isIntegerInRange(value, 0, JAVA_INT_MAX)"],
+        ["isCountdownSnapshotValueValid(fields.mode, value)", "isIntegerInRange(value, 0, 2_147_483_647)"],
         ["demoIndex: [0, 2]", "demoIndex: [0, 3]"],
         ["isIntegerInRange(fields.recordingIndex, 0, 2730)", "isIntegerInRange(fields.recordingIndex, 0, 2729)"],
         ["isIntegerInRange(fields.recordingIndex, 0, 2730)", "isIntegerInRange(fields.recordingIndex, 0, 2731)"],
