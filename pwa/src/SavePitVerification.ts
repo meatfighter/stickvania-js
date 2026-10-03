@@ -429,6 +429,11 @@ export async function verifySavePit(h: Harness): Promise<void> {
         for (let i = 0; i < 2500 && m().mode !== Main.MODE_MAP; i++) {
             tick();
             check(store.save(m(), () => true).saved, `every stage-three published tick ${i}`);
+            check(
+                m().simon!.G === Main.PLAYER_CONTROLLED_GRAVITY && m().simon!.jumpVelocity === Main.PLAYER_CONTROLLED_JUMP_VELOCITY,
+                "Stage 3 tally/floor/fade keeps gameplay profile"
+            );
+            if (m().floorBreaking) check(m().time === 0, "Stage 3 floor keeps TIME zero");
             if (m().floorBreaking && !floor) {
                 floor = true;
                 save("stage-three-real-floor-constructor");

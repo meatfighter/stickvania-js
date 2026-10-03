@@ -82,6 +82,7 @@ function createFrameMain(Main, registerPlayerActionMain, prepareRegisteredCountd
         requestedSong: null,
         currentMusic: null,
         mode: Main.MODE_PLAYING,
+        difficulty: Main.DIFFICULTY_NORMAL,
         fadeState: Main.FADE_DONE,
         fade: 0,
         fadeReason: 0,
@@ -95,7 +96,7 @@ function createFrameMain(Main, registerPlayerActionMain, prepareRegisteredCountd
         timeFrozen: 0,
         hearts: 0,
         score: 0,
-        simon: { dead: 0, flashing: 0, x: 0, y: 100, lastX: 0, lastY: 100 },
+        simon: { dead: 0, flashing: 0, x: 0, y: 100, lastX: 0, lastY: 100, vx: -1.25, vy: -2.5 },
         door: null,
         repeatsFlashing: 0,
         killAllFlag: false,
@@ -107,7 +108,6 @@ function createFrameMain(Main, registerPlayerActionMain, prepareRegisteredCountd
         twang,
         playedSounds: [],
         timeoutDamage: [],
-        syncSimonPhysicsProfile() {},
         updateSimon() {},
         moveCamera() {},
         playSound(sound) {
@@ -263,6 +263,10 @@ try {
             main.updateFrame(null);
         }
         assert.equal(main.floorBreaking, true);
+        assert.equal(main.simon.G, Main.PLAYER_CONTROLLED_GRAVITY);
+        assert.equal(main.simon.jumpVelocity, Main.PLAYER_CONTROLLED_JUMP_VELOCITY);
+        assert.equal(main.simon.vx, -1.25, "floor transition preserves horizontal momentum");
+        assert.equal(main.simon.vy, -2.5, "floor transition preserves vertical momentum");
         assert.equal(main.beatStageFlag, false);
         assert.equal(main.hearts, 0, "brick breaking must begin only after the stage-clear heart tally drains hearts to zero");
         assert.equal(main.time, 0, "TIME has already been converted to score before brick breaking begins");
@@ -277,6 +281,10 @@ try {
         }
         assert.equal(main.time, 0);
         assert.equal(main.timeIncrementor, 90);
+        assert.equal(main.simon.G, Main.PLAYER_CONTROLLED_GRAVITY);
+        assert.equal(main.simon.jumpVelocity, Main.PLAYER_CONTROLLED_JUMP_VELOCITY);
+        assert.equal(main.simon.vx, -1.25, "floor transition preserves horizontal momentum");
+        assert.equal(main.simon.vy, -2.5, "floor transition preserves vertical momentum");
         assert.deepEqual(main.timeoutDamage, []);
         assert.deepEqual(main.playedSounds, []);
     }

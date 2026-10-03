@@ -69,17 +69,30 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
         check(label);
         const saved = localStorage.getItem(GAME_STATE_STORAGE_KEY)!;
         const before = h.gameplaySnapshot(serializer, current().main);
+        const savedDifficulty = current().main.difficulty;
+        if (current().main.mode === Main.MODE_DEMO || current().main.mode === Main.MODE_CREDITS) {
+            const main = current().main;
+            assert(main.difficulty === Main.DIFFICULTY_HARD, `${label}: recorded selected difficulty retained`);
+            assert(main.simon!.G === Main.GRAVITY && main.simon!.jumpVelocity === Main.SIMON_JUMP_VELOCITY, `${label}: recorded legacy physics`);
+            assert(main.adjustEnemyHits(3) === 3 && main.adjustSimonDamage(2) === 2, `${label}: recorded baseline balance`);
+        }
         tick(4);
         const after = h.gameplaySnapshot(serializer, current().main);
         h.destroyMounted(mounted);
         mounted = null;
-        mounted = await h.mountMain((main, gc) => store.restore(main, gc));
+        mounted = await h.mountMain((main, gc) => {
+            // Fresh menu preference must not replace the saved run's selection.
+            main.difficulty = savedDifficulty === Main.DIFFICULTY_HARD ? Main.DIFFICULTY_NORMAL : Main.DIFFICULTY_HARD;
+            return store.restore(main, gc);
+        });
+        assert(current().main.difficulty === savedDifficulty, `${label}: saved difficulty lost`);
         assert(
             h.gameplaySnapshot(serializer, current().main) === before,
             `${label}: fresh graph differs before render ${firstDifference(JSON.parse(before), JSON.parse(h.gameplaySnapshot(serializer, current().main)))}`
         );
         render();
         assert(h.gameplaySnapshot(serializer, current().main) === before, `${label}: first loaded render mutated state`);
+        check(label + ":restored-save");
         tick(4);
         assert(h.gameplaySnapshot(serializer, current().main) === after, `${label}: fresh continuation differs`);
         // Rewind only the test checkpoint, after retiring the control graph.
@@ -261,7 +274,41 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
                     if (start === 90) await roundtrip(label + ":restore");
                 }
     };
+    const verifyModeRestore = async (): Promise<void> => {
+        for (const difficulty of [Main.DIFFICULTY_NORMAL, Main.DIFFICULTY_HARD]) {
+            const prepare = (): void => {
+                const main = current().main;
+                main.stopAllSounds();
+                main.mode = Main.MODE_PLAYING;
+                main.difficulty = difficulty;
+                main.createStageForStateRestore(0);
+                Object.assign(main, { fadeState: Main.FADE_DONE, fade: 0, playerPower: 16, time: 300, timeIncrementor: 0, players: 3 });
+                main.syncSimonPhysicsProfile();
+                for (let i = 0; i < 300 && !current().main.simon!.supported; i++) tick();
+                assert(current().main.simon!.supported, "Loaded starting floor reached");
+                current().main.simon!.invincible = 0;
+            };
+            prepare();
+            current().main.hurtSimon(16);
+            await roundtrip(`mode:${difficulty}:fatal-hit`);
+            tick(5);
+            await roundtrip(`mode:${difficulty}:mid-knockback`);
+            for (let i = 0; i < 300 && current().main.simon!.dead === 0; i++) tick();
+            assert(current().main.simon!.dead > 0, "Fatal knockback reaches grounded death");
+            await roundtrip(`mode:${difficulty}:grounded-death`);
+            prepare();
+            current().main.hurtSimon(2);
+            current().main.time = 0;
+            tick();
+            assert(current().main.playerPower === 0, "Loaded hurt trajectory becomes lethal at TIME zero");
+            await roundtrip(`mode:${difficulty}:timeout-while-hurt`);
+            current().main.restoreCheckpoint();
+            await roundtrip(`mode:${difficulty}:checkpoint`);
+        }
+    };
     try {
+        await verifyModeRestore();
+        current().main.difficulty = Main.DIFFICULTY_HARD;
         await verifyMainPresentationDomains();
         await verifyClockDispatch();
         for (const stage of [0, 3])
@@ -387,6 +434,7 @@ export async function verifyCounterParity(h: Harness): Promise<void> {
         }
         // All actual recording bytes, including each terminal sentinel. Frame dispatcher
         // also exercises the actual enemies and Simon animation writers during playback.
+        current().main.difficulty = Main.DIFFICULTY_HARD;
         current().main.initDemo();
         current().main.fade = 0;
         current().main.fadeState = Main.FADE_DONE;

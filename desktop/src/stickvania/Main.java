@@ -2910,33 +2910,16 @@ public final class Main extends BasicGame {
     requestedSong = song;
   }
 
-  private boolean isUserControlledSimonPhysics() {
-    return mode == MODE_PLAYING
-        && simon != null
-        && playerPower > 0
-        && simon.dead == 0
-        && door == null
-        && !beatStage
-        && !floorBreaking;
+  private boolean isRecordedPlaybackMode() {
+    return mode == MODE_DEMO || mode == MODE_CREDITS;
   }
 
-  public boolean isHardDifficultyActiveForGameplay() {
-    return difficulty == DIFFICULTY_HARD && isUserControlledSimonPhysics();
-  }
-
-  private boolean isHardDifficultyEnabledForStageState() {
-    return difficulty == DIFFICULTY_HARD
-        && mode != MODE_DEMO
-        && mode != MODE_CREDITS
-        && mode != MODE_ENDING
-        && mode != MODE_CASTLE_FALLS
-        && mode != MODE_TITLE_SCREEN
-        && mode != MODE_LOADING
-        && mode != MODE_INPUT_CONFIG;
+  private boolean isHardDifficultyEnabled() {
+    return difficulty == DIFFICULTY_HARD && !isRecordedPlaybackMode();
   }
 
   public int adjustEnemyHits(int baseHits) {
-    return isHardDifficultyEnabledForStageState() ? baseHits + 1 : baseHits;
+    return isHardDifficultyEnabled() ? baseHits + 1 : baseHits;
   }
 
   public int adjustEnemySpawnDelay(int baseDelay) {
@@ -2952,19 +2935,18 @@ public final class Main extends BasicGame {
   }
 
   public int adjustEnemyActiveCap(int baseCount) {
-    return isHardDifficultyEnabledForStageState()
-        ? baseCount + HARD_ACTIVE_CAP_BONUS : baseCount;
+    return isHardDifficultyEnabled() ? baseCount + HARD_ACTIVE_CAP_BONUS : baseCount;
   }
 
   public int adjustSimonDamage(int power) {
-    if (!isHardDifficultyActiveForGameplay() || power >= 16) {
+    if (!isHardDifficultyEnabled() || power >= 16) {
       return power;
     }
     return power + 1;
   }
 
   private int adjustHardDelay(int baseDelay, float multiplier) {
-    if (!isHardDifficultyEnabledForStageState() || baseDelay <= 0) {
+    if (!isHardDifficultyEnabled() || baseDelay <= 0) {
       return baseDelay;
     }
     return Math.max(1, (int)(baseDelay * multiplier));
@@ -2974,12 +2956,12 @@ public final class Main extends BasicGame {
     if (simon == null) {
       return;
     }
-    if (isUserControlledSimonPhysics()) {
-      simon.G = PLAYER_CONTROLLED_GRAVITY;
-      simon.jumpVelocity = PLAYER_CONTROLLED_JUMP_VELOCITY;
-    } else {
+    if (isRecordedPlaybackMode()) {
       simon.G = GRAVITY;
       simon.jumpVelocity = SIMON_JUMP_VELOCITY;
+    } else {
+      simon.G = PLAYER_CONTROLLED_GRAVITY;
+      simon.jumpVelocity = PLAYER_CONTROLLED_JUMP_VELOCITY;
     }
   }
 

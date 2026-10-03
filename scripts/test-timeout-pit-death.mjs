@@ -77,7 +77,6 @@ function createMain(Main, Simon, overrides = {}) {
         currentMusic: null,
         alpha: 1,
         rumbles: [],
-        syncSimonPhysicsProfile() {},
         adjustSimonDamage(power) {
             return power;
         },

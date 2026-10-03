@@ -191,3 +191,9 @@ test("about SVG title source is white artwork on a transparent background", () =
     assert.doesNotMatch(titleSvg, /<script\b/i);
     assert.doesNotMatch(titleSvg, /\b(?:href|xlink:href)=["']https?:/i);
 });
+
+test("About omits the obsolete Xbox-style gamepad label paragraph", () => {
+    const removed = "Gamepad button names use Xbox-style labels; equivalent buttons may have different labels on other controllers.";
+    assert.ok(!contentMarkdown.includes(removed));
+    assert.ok(!renderedAboutFixture().articleHtml.includes(removed));
+});

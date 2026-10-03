@@ -1255,12 +1255,8 @@ export class StickvaniaGameStateSerializer {
             rehydrateThingAfterStateRestore(getThingTypeId(thing), thing, context.main);
         }
         this.restoreSimonAlpha(context.main);
-        // FloorBreaker clears floorBreaking after this tick's physics synchronization.
-        // Preserve that produced profile during its frozen outgoing fade; the next
-        // simulation update synchronizes normally. Eager synchronization here would
-        // change a genuine terminal snapshot before its first restored render.
-        if (!(context.main.stageIndex === 2 && context.main.fadeState === Main.FADE_OUT && context.main.fadeReason === Main.FADE_REASON_SHOW_MAP))
-            context.main.syncSimonPhysicsProfile();
+        // Mode alone selects the profile after the saved fields and roots are installed.
+        context.main.syncSimonPhysicsProfile();
     }
 
     private restoreSimonAlpha(main: Main): void {

@@ -2649,36 +2649,16 @@ export class Main extends BasicGame {
         this.nextFrameTime = Sys.getTime();
     }
 
-    private isUserControlledSimonPhysics(): boolean {
-        return (
-            this.mode == Main.MODE_PLAYING &&
-            this.simon != null &&
-            this.playerPower > 0 &&
-            this.simon.dead == 0 &&
-            this.door == null &&
-            !this.beatStageFlag &&
-            !this.floorBreaking
-        );
+    private isRecordedPlaybackMode(): boolean {
+        return this.mode == Main.MODE_DEMO || this.mode == Main.MODE_CREDITS;
     }
 
-    public isHardDifficultyActiveForGameplay(): boolean {
-        return this.difficulty == Main.DIFFICULTY_HARD && this.isUserControlledSimonPhysics();
-    }
-
-    private isHardDifficultyEnabledForStageState(): boolean {
-        return (
-            this.difficulty == Main.DIFFICULTY_HARD &&
-            this.mode != Main.MODE_DEMO &&
-            this.mode != Main.MODE_CREDITS &&
-            this.mode != Main.MODE_ENDING &&
-            this.mode != Main.MODE_CASTLE_FALLS &&
-            this.mode != Main.MODE_TITLE_SCREEN &&
-            this.mode != Main.MODE_INPUT_CONFIG
-        );
+    private isHardDifficultyEnabled(): boolean {
+        return this.difficulty == Main.DIFFICULTY_HARD && !this.isRecordedPlaybackMode();
     }
 
     public adjustEnemyHits(baseHits: number): number {
-        return this.isHardDifficultyEnabledForStageState() ? baseHits + 1 : baseHits;
+        return this.isHardDifficultyEnabled() ? baseHits + 1 : baseHits;
     }
 
     public adjustEnemySpawnDelay(baseDelay: number): number {
@@ -2694,11 +2674,11 @@ export class Main extends BasicGame {
     }
 
     public adjustEnemyActiveCap(baseCount: number): number {
-        return this.isHardDifficultyEnabledForStageState() ? baseCount + Main.HARD_ACTIVE_CAP_BONUS : baseCount;
+        return this.isHardDifficultyEnabled() ? baseCount + Main.HARD_ACTIVE_CAP_BONUS : baseCount;
     }
 
     public adjustSimonDamage(power: number): number {
-        if (!this.isHardDifficultyActiveForGameplay() || power >= 16) {
+        if (!this.isHardDifficultyEnabled() || power >= 16) {
             return power;
         }
         return power + 1;
@@ -2706,7 +2686,7 @@ export class Main extends BasicGame {
 
     private adjustHardDelay(baseDelay: number, multiplier: number): number {
         multiplier = javaFloat(multiplier);
-        if (!this.isHardDifficultyEnabledForStageState()) {
+        if (!this.isHardDifficultyEnabled()) {
             return baseDelay;
         }
         if (baseDelay <= 0) {
@@ -2719,12 +2699,12 @@ export class Main extends BasicGame {
         if (this.simon == null) {
             return;
         }
-        if (this.isUserControlledSimonPhysics()) {
-            this.simon.G = javaFloat(Main.PLAYER_CONTROLLED_GRAVITY);
-            this.simon.jumpVelocity = javaFloat(Main.PLAYER_CONTROLLED_JUMP_VELOCITY);
-        } else {
+        if (this.isRecordedPlaybackMode()) {
             this.simon.G = javaFloat(Main.GRAVITY);
             this.simon.jumpVelocity = javaFloat(Main.SIMON_JUMP_VELOCITY);
+        } else {
+            this.simon.G = javaFloat(Main.PLAYER_CONTROLLED_GRAVITY);
+            this.simon.jumpVelocity = javaFloat(Main.PLAYER_CONTROLLED_JUMP_VELOCITY);
         }
     }
 

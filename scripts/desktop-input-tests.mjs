@@ -38,6 +38,7 @@ export function runDesktopInputTests({ classesDir, classpath, releaseArgs }) {
             labelsSource,
             preferencesSource,
             fileURLToPath(new URL("../desktop/test/stickvania/CounterParityTest.java", import.meta.url)),
+            fileURLToPath(new URL("../desktop/test/stickvania/ModeConfigurationTest.java", import.meta.url)),
             fileURLToPath(new URL("../desktop/test/stickvania/PitLifecycleTest.java", import.meta.url)),
             fileURLToPath(new URL("../desktop/test/stickvania/RegionAuthorityTest.java", import.meta.url)),
             fileURLToPath(new URL("../desktop/test/stickvania/NullThingBoundaryTest.java", import.meta.url))
@@ -68,6 +69,13 @@ export function runDesktopInputTests({ classesDir, classpath, releaseArgs }) {
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.NesControllerMappingTest"]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.NativeDpadPolicyTest"]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.CounterParityTest"]);
+        run("java", [
+            "-Djava.awt.headless=true",
+            "-Djava.util.prefs.PreferencesFactory=stickvania.MappingPreferenceVersionTest$MemoryFactory",
+            "-cp",
+            `${testClasses}${delimiter}${productionClasspath}`,
+            "stickvania.ModeConfigurationTest"
+        ]);
         run("java", [
             "-Djava.awt.headless=true",
             "-Djava.library.path=" +

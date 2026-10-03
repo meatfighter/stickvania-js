@@ -19,8 +19,6 @@ _Stickvania_ supports both keyboard and gamepad input. The default controls are:
 | Jump   | X           | A           |
 | Attack | Z           | X           |
 
-Gamepad button names use Xbox-style labels; equivalent buttons may have different labels on other controllers.
-
 Press **Attack** to use the whip. Hold **Up** and press **Attack** to use your current sub-weapon.
 
 You can change the button mapping by selecting **Options → Input** from the in-game menu.
