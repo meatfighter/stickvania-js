@@ -176,6 +176,12 @@ export async function verifySavePit(h: Harness): Promise<void> {
         check(m().score === 2_147_483_648 && Reflect.get(m(), "titleBatAngle") === 1e20, "large values restored exactly");
         tick();
         save("relaxed-numeric-continued");
+        // Keep independent fixture groups in separate loaded worlds. Title-watch
+        // retirement deliberately leaves ownerless audio completion pending until
+        // an outer poll; that history is not part of the following stairs fixtures.
+        h.destroyMounted(mounted);
+        mounted = null;
+        mounted = await h.mountMain(null);
         // Every shipped boss creates the Orb at xMin + 240, y=96. Exercise
         // its unchanged gravity against each loaded boss region's actual walls.
         const bossTypes = new Set(["BatBoss", "MedusaBoss", "MummyBoss", "Frankenstein", "GrimReaper", "Dracula"]);
