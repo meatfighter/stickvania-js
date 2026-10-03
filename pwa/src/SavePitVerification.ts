@@ -1,7 +1,10 @@
+import { Raven } from "./stickvania/Raven.js";
+import { BridgeBat } from "./stickvania/BridgeBat.js";
+import { configureEnemyArc } from "./stickvania/EnemyArcMotion.js";
 import { DropItem } from "./stickvania/DropItem.js";
 import { verifyAuthority } from "./AuthorityVerification.js";
 import type { StageSegment } from "./stickvania/StageSegment.js";
-import { Music, Sys } from "slick2d-ts";
+import { JavaRandom, Music, Sys } from "slick2d-ts";
 import { Main } from "./stickvania/Main.js";
 import { StopWatch } from "./stickvania/StopWatch.js";
 import { WhiteSkeleton } from "./stickvania/WhiteSkeleton.js";
@@ -56,6 +59,123 @@ export async function verifySavePit(h: Harness): Promise<void> {
         m().simon!.invincible = 1000;
     }
     try {
+        // Conditional edge fixtures in a fully loaded world. Save through the real store,
+        // then destroy the world and Continue into separately loaded resources.
+        for (const Type of [Raven, BridgeBat]) {
+            stage(0);
+            m().simon!.invincible = 0;
+            m().simon!.whipping = false;
+            save(Type.name + "-sentinel");
+            const sentinel = localStorage.getItem(GAME_STATE_STORAGE_KEY);
+            const actor = new Type(m(), m().simon!.x + 100, 160);
+            Object.assign(actor, { state: Type.STATE_FLYING, spriteIndex: 0, applyingGravity: true, targetX: actor.x + 1000 });
+            check(configureEnemyArc(actor, 1, 360), "finite short arc");
+            m().regionThingStack.push(actor);
+            for (let i = 0; i < 3; i++) {
+                actor.update(live().container);
+                check(Math.abs(actor.vy) <= 32 && Math.abs(actor.G) <= 64, "local cap " + Type.name);
+                save(Type.name + "-edge-" + i);
+            }
+            m().weaponType = Main.WEAPON_TYPE_STOP_WATCH;
+            const freezingWatch = new StopWatch(m());
+            check(freezingWatch.lifeTime === 455, "enemy freeze uses valid watch");
+            m().weaponsStack.push(freezingWatch);
+            const frozen = [actor.x, actor.y, actor.vy, Reflect.get(actor, "state"), Reflect.get(actor, "delay")];
+            actor.update(live().container);
+            check(
+                JSON.stringify(frozen) === JSON.stringify([actor.x, actor.y, actor.vy, Reflect.get(actor, "state"), Reflect.get(actor, "delay")]),
+                "watch freezes actual enemy update"
+            );
+            save(Type.name + "-frozen-edge");
+            m().weaponsStack.clear();
+            check(Number(freezingWatch.lifeTime) === 0 && m().timeFrozen === 0, "watch cancellation after enemy freeze");
+            check(localStorage.getItem(GAME_STATE_STORAGE_KEY) !== sentinel, "actual sentinel replaced");
+            check(store.hasValidSave(), "Continue accepts capped enemy");
+            await restore();
+            tick();
+            save(Type.name + "-edge-continued");
+            // Select a deterministic target through the real loaded caller, retaining RNG draws.
+            for (const t of [0, 0.25, 1, 16]) {
+                stage(0);
+                m().simon!.invincible = 0;
+                let seed = 0;
+                for (; ; seed++) {
+                    const probe = new JavaRandom(seed);
+                    probe.nextInt(96);
+                    if (Type === Raven ? probe.nextBoolean() : probe.nextInt(5) < 3) break;
+                }
+                m().random = new JavaRandom(seed);
+                const x = Type === Raven ? m().simon!.x + 16 + t : m().simon!.x - 16 - t / 2;
+                const selected = new Type(m(), x, 160);
+                Object.assign(selected, { state: Type.STATE_HOVERING, delay: 1, spriteIndex: 0 });
+                m().regionThingStack.push(selected);
+                selected.update(live().container);
+                check(Reflect.get(selected, "state") === Type.STATE_FLYING, "loaded target selected");
+                check(Number.isFinite(selected.G) && Number.isFinite(selected.vy), "loaded target finite");
+                if (t === 0) check(!Reflect.get(selected, "applyingGravity") && selected.G === 0 && selected.vy === 0, "loaded singular fallback");
+                save(Type.name + "-target-" + t);
+                selected.update(live().container);
+                save(Type.name + "-target-flight-" + t);
+            }
+            stage(0);
+            const floor = new Type(m(), 96, 128);
+            Object.assign(floor, { state: Type.STATE_FLYING, spriteIndex: 0, applyingGravity: true, targetX: 1000, vy: 32, G: 64 });
+            m().regionThingStack.push(floor);
+            for (let i = 0; i < 12; i++) floor.update(live().container);
+            check(Type === Raven ? floor.supported : floor.y === 303, "loaded platform/boundary stop " + Type.name);
+            save(Type.name + "-floor-stop");
+            const source = Reflect.get(m(), "stageSegment") as StageSegment;
+            const exit = source.stairsEntries.find((e) => e.connection !== null);
+            check(exit, "connected loaded stairs");
+            m().simon!.x = exit.x;
+            m().followStairsToNextSegment();
+            check(!m().regionThingStack.things.includes(floor), "enemy retained outside active region");
+            save(Type.name + "-retained-history");
+            await restore();
+            tick();
+            save(Type.name + "-retained-continued");
+        }
+        for (const swap of [false, true]) {
+            stage(0);
+            m().simon!.invincible = 0;
+            m().weaponType = Main.WEAPON_TYPE_STOP_WATCH;
+            m().requestSong(m().stage_1_1);
+            tick();
+            const watch = new StopWatch(m());
+            check(watch.lifeTime === 455 && m().timeFrozen === 455, "valid conditional title watch");
+            (swap ? m().weaponsStackSwap : m().weaponsStack).push(watch);
+            save("title-watch-" + swap);
+            m().fadeState = Main.FADE_OUT;
+            m().fade = 22;
+            m().fadeReason = Main.FADE_REASON_SHOW_TITLE_SCREEN;
+            tick();
+            check(Number(watch.lifeTime) === 0 && m().timeFrozen === 0, "actual watch discarded at title fade");
+            check(m().weaponsStack.top === -1 && m().weaponsStackSwap.top === -1, "both title stacks empty");
+            check(m().currentSong === null && m().requestedSong === null, "old song cannot resume");
+            save("title-watch-retired-" + swap);
+            await restore();
+            tick();
+            save("title-watch-continued-" + swap);
+        }
+        stage(0);
+        save("numeric-domain-baseline");
+        for (const text of ["corrupt", JSON.stringify({ ...JSON.parse(localStorage.getItem(GAME_STATE_STORAGE_KEY)!), version: 26 })]) {
+            localStorage.setItem(GAME_STATE_STORAGE_KEY, text);
+            check(!store.hasValidSave() && localStorage.getItem(GAME_STATE_STORAGE_KEY) === text, "old/corrupt nonwriting miss");
+            save("authorized-replacement");
+            check(store.hasValidSave() && localStorage.getItem(GAME_STATE_STORAGE_KEY) !== text, "authorized replacement current slot");
+        }
+        m().score = 2_147_483_648;
+        Reflect.set(m(), "titleBatAngle", 1e20);
+        const retained = new Raven(m(), 100, 100);
+        Reflect.set(retained, "targetX", 1e20);
+        Reflect.set(retained, "spriteIndexIncrementor", -1_000_001);
+        m().regionThingStack.push(retained);
+        save("relaxed-numeric-domain");
+        await restore();
+        check(m().score === 2_147_483_648 && Reflect.get(m(), "titleBatAngle") === 1e20, "large values restored exactly");
+        tick();
+        save("relaxed-numeric-continued");
         // Every shipped boss creates the Orb at xMin + 240, y=96. Exercise
         // its unchanged gravity against each loaded boss region's actual walls.
         const bossTypes = new Set(["BatBoss", "MedusaBoss", "MummyBoss", "Frankenstein", "GrimReaper", "Dracula"]);

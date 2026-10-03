@@ -3781,6 +3781,9 @@ export class Main extends BasicGame {
 
     public initTitleScreen(): void {
         this.stopSong();
+        this.weaponsStack.clear();
+        this.weaponsStackSwap.clear();
+        this.timeFrozen = 0;
         if (this.game_over.playing()) {
             this.game_over.stop();
         }

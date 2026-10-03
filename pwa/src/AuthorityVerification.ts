@@ -38,6 +38,21 @@ export function verifyAuthority(records: Array<{ label: string; bytes: string }>
         outcomes.push(label);
     }
     for (const r of records) valid(JSON.parse(r.bytes) as GameStateSnapshot, r.label);
+    const relaxed = from("relaxed-numeric-domain");
+    valid(relaxed, "large floats, safe generic counter and score above Java int");
+    for (const value of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity]) {
+        const s = structuredClone(relaxed);
+        s.mainFields.score = value;
+        check(!serializer.isSupportedSnapshot(s) && !isReasonableStickvaniaGameStateSnapshot(s), "invalid score " + value);
+    }
+    const fractional = structuredClone(relaxed);
+    fractional.things.find((t) => t.type === "Raven")!.fields.spriteIndexIncrementor = 0.5;
+    check(!serializer.isSupportedSnapshot(fractional), "fractional generic integer rejected");
+    const longMusic = structuredClone(from("intro-ended-pending"));
+    const music = longMusic.audio.songs.find((song) => song.id === longMusic.audio.currentSong)!.intro!;
+    Reflect.set(music.playback, "positionSeconds", 100_000);
+    valid(longMusic, "engine-valid transport beyond 24 hours");
+
     reject(healthy, "duplicate region", (s) => s.stage!.regionThingStack.$stack.things.push(s.stage!.regionThingStack.$stack.things[0]!));
     reject(healthy, "cross dispatch", (s) => s.stage!.regionStackSwap.$stack.things.push(s.stage!.regionThingStack.$stack.things[0]!));
     reject(healthy, "Simon dispatched", (s) => s.stage!.regionThingStack.$stack.things.push(s.stage!.simon!));

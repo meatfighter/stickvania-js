@@ -32,16 +32,8 @@ public class BridgeBat extends Thing {
     if (main.random.nextInt(5) < 3) {
       float targetY = main.random.nextInt(5) < 3
           ? main.simon.y + 8 : main.simon.y - 80;
-      applyingGravity = true;
       float t = 2 * Math.abs(main.simon.x - x - 16);
-      float h = Math.abs(targetY - y);
-      G = 2f * h / (t * t);
-      vy = Math.min(4, (float)Math.sqrt(2 * G * h));
-      if (targetY > y) {
-        G = -G;
-      } else {
-        vy = -vy;
-      }
+      applyingGravity = EnemyArcMotion.configure(this, t, targetY);
     } else {
       applyingGravity = false;
     }
@@ -84,15 +76,16 @@ public class BridgeBat extends Thing {
           }
           break;
         case STATE_HOVERING:
-          if (--delay == 0) {
+          if (--delay <= 0) {
             state = STATE_FLYING;
             findTarget();
           }
           break;
         case STATE_FLYING:
           if (applyingGravity) {
+            vy = EnemyArcMotion.clampVelocity(vy);
             y += vy;
-            vy += G;
+            vy = EnemyArcMotion.clampVelocity(vy + G);
             if (y < 0) {
               y = 0;
               applyingGravity = false;

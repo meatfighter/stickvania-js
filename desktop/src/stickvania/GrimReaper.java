@@ -157,7 +157,7 @@ public class GrimReaper extends Thing {
               flyTime = (int)Math.abs(targetX - x);
 
               float targetY = main.simon.y - 40;
-              angleInc = (float)(0.5f * Math.PI / flyTime);
+              angleInc = flyTime == 0 ? 0f : (float)(0.5f * Math.PI / flyTime);
               startY = y;
               dy = targetY - y;
               angle = 0;

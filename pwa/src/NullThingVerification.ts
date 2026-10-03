@@ -1,3 +1,5 @@
+import { Raven } from "./stickvania/Raven.js";
+import { BridgeBat } from "./stickvania/BridgeBat.js";
 import type { AppGameContainer } from "slick2d-ts";
 import { Main } from "./stickvania/Main.js";
 import { Thing } from "./stickvania/Thing.js";
@@ -221,7 +223,7 @@ export async function verifyNullThingBoundary(h: Harness): Promise<void> {
                 check(h.gameplaySnapshot(serializer, m) === before, "Rejected reader leaves live graph untouched");
                 check(store.save(m, () => true).saved, "Later authorized valid overwrite");
             }
-        for (const version of [...Array.from({ length: 26 }, (_, i) => i), 27]) {
+        for (const version of [...Array.from({ length: 27 }, (_, i) => i), 28]) {
             const bad = JSON.parse(validBytes);
             bad.version = version;
             const bytes = JSON.stringify(bad);
@@ -278,6 +280,60 @@ export async function traceNullPlayback(h: Harness): Promise<void> {
     const mounted = await h.mountMain(null),
         m = mounted.main,
         frames: unknown[] = [];
+    m.setDifficulty(new URL(location.href).searchParams.get("difficulty") === "hard" ? Main.DIFFICULTY_HARD : Main.DIFFICULTY_NORMAL);
+    const arcs: Array<Record<string, number | string | boolean>> = [];
+    let maxPreCapMotion = 0,
+        velocityWouldBind = 0;
+    const restorers: Array<() => void> = [];
+    for (const Type of [Raven, BridgeBat]) {
+        const target = Reflect.get(Type.prototype, "findTarget") as (this: Raven | BridgeBat) => void;
+        const update = Type.prototype.update;
+        Reflect.set(Type.prototype, "findTarget", function (this: Raven | BridgeBat) {
+            const draws: Array<number | boolean> = [];
+            const random = this.main.random,
+                integer = random.nextInt,
+                boolean = random.nextBoolean;
+            random.nextInt = (bound?: number) => {
+                const value = Reflect.apply(integer, random, bound === undefined ? [] : [bound]) as number;
+                draws.push(value);
+                return value;
+            };
+            random.nextBoolean = () => {
+                const value = boolean.call(random);
+                draws.push(value);
+                return value;
+            };
+            try {
+                target.call(this);
+            } finally {
+                random.nextInt = integer;
+                random.nextBoolean = boolean;
+            }
+            const raven = this instanceof Raven;
+            if (raven ? draws[1] === true : Number(draws[1]) < 3) {
+                const f = Math.fround,
+                    simon = this.main.simon!;
+                const t = raven ? f(Math.abs(f(f(simon.x + 16) - this.x))) : f(2 * Math.abs(f(f(simon.x - this.x) - 16)));
+                const below = raven ? draws[2] === true : Number(draws[2]) < 3;
+                const targetY = f(below ? f(simon.y + 8) : f(simon.y - (raven ? 64 : 80)));
+                const h = f(Math.abs(f(targetY - this.y))),
+                    raw = f(f(2 * h) / f(t * t));
+                arcs.push({ type: Type.name, t, h, rawG: targetY > this.y ? -raw : raw, accelerationWouldBind: Math.abs(raw) > 64 });
+            }
+        });
+        Type.prototype.update = function (gc): boolean {
+            if (Reflect.get(this, "applyingGravity") && Reflect.get(this, "state") === Type.STATE_FLYING && this.main.timeFrozen === 0) {
+                const motion = Math.abs(this.vy);
+                maxPreCapMotion = Math.max(maxPreCapMotion, motion);
+                if (motion > 32 || Math.abs(Math.fround(this.vy + this.G)) > 32) velocityWouldBind++;
+            }
+            return update.call(this, gc);
+        };
+        restorers.push(() => {
+            Reflect.set(Type.prototype, "findTarget", target);
+            Type.prototype.update = update;
+        });
+    }
     const original = ThingStack.prototype.pop,
         factory = m.createCandleItem.bind(m);
     let pops: string[] = [],
@@ -294,12 +350,33 @@ export async function traceNullPlayback(h: Harness): Promise<void> {
         return t;
     };
     const read = (name: string): unknown => Reflect.get(m, name);
+    const serializer = new StickvaniaGameStateSerializer();
+    let previous: Record<string, unknown> = {};
+    function completeDelta(): Record<string, unknown> {
+        const snapshot = serializer.createSnapshot(m, "replay");
+        const flat: Record<string, unknown> = {};
+        function visit(value: unknown, path: string): void {
+            if (value !== null && typeof value === "object") {
+                flat[path + ".keys"] = Object.keys(value).join(",");
+                for (const [key, child] of Object.entries(value)) visit(child, path + "." + key);
+            } else flat[path] = typeof value === "number" && !Number.isFinite(value) ? String(value) : value;
+        }
+        // Snapshot actor/reference identities cover historical objects as well as active stacks.
+        visit({ main: snapshot.mainFields, stage: snapshot.stage, things: snapshot.things }, "state");
+        const delta: Record<string, unknown> = {};
+        for (const key of new Set([...Object.keys(previous), ...Object.keys(flat)])) {
+            if (!Object.is(previous[key], flat[key])) delta[key] = flat[key] ?? null;
+        }
+        previous = flat;
+        return delta;
+    }
     const tick = (): void => {
         pops = [];
         nullDrops = 0;
         h.advanceFrames(mounted, 1);
         m.render(mounted.container, mounted.container.getGraphics());
         frames.push({
+            state: completeDelta(),
             mode: m.mode,
             demo: read("demoIndex"),
             credits: read("creditsIndex"),
@@ -323,9 +400,11 @@ export async function traceNullPlayback(h: Harness): Promise<void> {
             for (let n = 0; n < 8000 && m.mode === Main.MODE_DEMO; n++) tick();
             check(m.mode === Main.MODE_TITLE_SCREEN, "Demo reaches title " + i);
         }
-        m.initCredits();
-        m.fade = 22;
-        m.fadeState = Main.FADE_IN;
+        m.initCastleFalls();
+        m.fade = 0;
+        m.fadeState = Main.FADE_DONE;
+        for (let n = 0; n < 8000 && m.mode === Main.MODE_CASTLE_FALLS; n++) tick();
+        check(m.mode === Main.MODE_CREDITS, "Castle collapse hands off to credits");
         const seen = new Set<number>();
         for (let n = 0; n < 30000 && m.mode === Main.MODE_CREDITS; n++) {
             seen.add(Number(read("creditsIndex")));
@@ -335,8 +414,17 @@ export async function traceNullPlayback(h: Harness): Promise<void> {
         m.initCredits();
         check(read("creditsIndex") === 0 && read("recordingIndex") === 0, "Credits reentry");
         tick();
-        Reflect.set(window, "nullPlaybackTrace", { frames, clips: [...seen], recordings: "unmodified shipped bytes", visualAcceptance: "pending" });
+        Reflect.set(window, "nullPlaybackTrace", {
+            frames,
+            arcs,
+            maxPreCapMotion,
+            velocityWouldBind,
+            clips: [...seen],
+            recordings: "unmodified shipped bytes",
+            visualAcceptance: "pending"
+        });
     } finally {
+        for (const restore of restorers) restore();
         ThingStack.prototype.pop = original;
         m.createCandleItem = factory;
         h.destroyMounted(mounted);

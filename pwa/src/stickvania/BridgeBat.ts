@@ -1,3 +1,4 @@
+import { clampEnemyArcVelocity, configureEnemyArc } from "./EnemyArcMotion.js";
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Flame } from "./Flame.js";
 import { Main } from "./Main.js";
@@ -33,16 +34,8 @@ export class BridgeBat extends Thing {
         }
         if (this.main.random.nextInt(5) < 3) {
             let targetY: number = javaFloat(this.main.random.nextInt(5) < 3 ? javaFloat(this.main.simon!.y + 8) : javaFloat(this.main.simon!.y - 80));
-            this.applyingGravity = true;
-            let t: number = javaFloat(2 * Math.abs(javaFloat(javaFloat(this.main.simon!.x - this.x) - 16)));
-            let h: number = javaFloat(Math.abs(javaFloat(targetY - this.y)));
-            this.G = javaFloat(javaFloat(2 * h) / javaFloat(t * t));
-            this.vy = Math.min(4, javaFloat(Math.sqrt(javaFloat(javaFloat(2 * this.G) * h))));
-            if (targetY > this.y) {
-                this.G = javaFloat(-this.G);
-            } else {
-                this.vy = javaFloat(-this.vy);
-            }
+            const t: number = javaFloat(2 * Math.abs(javaFloat(javaFloat(this.main.simon!.x - this.x) - 16)));
+            this.applyingGravity = configureEnemyArc(this, t, targetY);
         } else {
             this.applyingGravity = false;
         }
@@ -82,15 +75,16 @@ export class BridgeBat extends Thing {
                     }
                     break;
                 case BridgeBat.STATE_HOVERING:
-                    if (--this.delay == 0) {
+                    if (--this.delay <= 0) {
                         this.state = BridgeBat.STATE_FLYING;
                         this.findTarget();
                     }
                     break;
                 case BridgeBat.STATE_FLYING:
                     if (this.applyingGravity) {
+                        this.vy = clampEnemyArcVelocity(this.vy);
                         this.y = javaFloat(this.y + this.vy);
-                        this.vy = javaFloat(this.vy + this.G);
+                        this.vy = clampEnemyArcVelocity(javaFloat(this.vy + this.G));
                         if (this.y < 0) {
                             this.y = javaFloat(0);
                             this.applyingGravity = false;

@@ -103,8 +103,6 @@ export const THING_REFERENCE_FIELD_POLICY: Partial<Record<ThingTypeId, Readonly<
     }
 };
 
-const JAVA_INT_MAX = 2_147_483_647;
-
 export const PROVEN_MAIN_INTEGER_RANGES: Readonly<Partial<Record<string, readonly [number, number]>>> = {
     visibleWhipCount: [0, 2],
     timeFrozen: [0, 455],
@@ -197,7 +195,7 @@ function isMainNumberValid(name: string, value: number, fields: EncodedRecord): 
         case "fadeReason":
             return isIntegerInRange(value, Main.FADE_REASON_STAIRS, Main.FADE_REASON_SHOW_INPUT_CONFIG);
         case "score":
-            return Number.isInteger(value) && value >= 0 && value <= JAVA_INT_MAX;
+            return Number.isSafeInteger(value) && value >= 0;
         case "time":
             return isIntegerInRange(value, 0, 999);
         case "timeIncrementor":
@@ -221,7 +219,7 @@ function isMainNumberValid(name: string, value: number, fields: EncodedRecord): 
         case "difficulty":
             return isIntegerInRange(value, Main.DIFFICULTY_NORMAL, Main.DIFFICULTY_HARD);
         default:
-            return Math.abs(value) <= 1_000_000;
+            return Number.isFinite(value);
     }
 }
 
@@ -254,7 +252,7 @@ function isThingNumberValid(type: ThingTypeId, name: string, value: number): boo
         name === "hits" ||
         name === "count"
     ) {
-        return Number.isInteger(value) && Math.abs(value) <= 1_000_000;
+        return Number.isSafeInteger(value);
     }
     if (name === "lifeTime" && type === "StopWatch") {
         return isIntegerInRange(value, 0, 455);
@@ -262,7 +260,7 @@ function isThingNumberValid(type: ThingTypeId, name: string, value: number): boo
     if (name === "shieldReflectionsRemaining" && type === "AxeKnight") {
         return isIntegerInRange(value, 0, 1_000_000);
     }
-    return Math.abs(value) <= 1_000_000;
+    return Number.isFinite(value);
 }
 
 function inferStaticIntegerValues(type: ThingTypeId, prefix: string): readonly number[] | null {

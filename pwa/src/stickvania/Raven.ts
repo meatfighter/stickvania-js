@@ -1,3 +1,4 @@
+import { clampEnemyArcVelocity, configureEnemyArc } from "./EnemyArcMotion.js";
 import { GameContainer, Graphics } from "slick2d-ts";
 import { Flame } from "./Flame.js";
 import { Main } from "./Main.js";
@@ -33,16 +34,8 @@ export class Raven extends Thing {
         }
         if (this.main.random.nextBoolean()) {
             let targetY: number = javaFloat(this.main.random.nextBoolean() ? javaFloat(this.main.simon!.y + 8) : javaFloat(this.main.simon!.y - 64));
-            this.applyingGravity = true;
-            let t: number = javaFloat(Math.abs(javaFloat(javaFloat(this.main.simon!.x + 16) - this.x)));
-            let h: number = javaFloat(Math.abs(javaFloat(targetY - this.y)));
-            this.G = javaFloat(javaFloat(2 * h) / javaFloat(t * t));
-            this.vy = Math.min(4, javaFloat(Math.sqrt(javaFloat(javaFloat(2 * this.G) * h))));
-            if (targetY > this.y) {
-                this.G = javaFloat(-this.G);
-            } else {
-                this.vy = javaFloat(-this.vy);
-            }
+            const t: number = javaFloat(Math.abs(javaFloat(javaFloat(this.main.simon!.x + 16) - this.x)));
+            this.applyingGravity = configureEnemyArc(this, t, targetY);
         } else {
             this.applyingGravity = false;
         }
@@ -89,7 +82,9 @@ export class Raven extends Thing {
                     break;
                 case Raven.STATE_FLYING:
                     if (this.applyingGravity) {
+                        this.vy = clampEnemyArcVelocity(this.vy);
                         this.applyGravity();
+                        this.vy = clampEnemyArcVelocity(this.vy);
                         if (this.y < 0) {
                             this.y = javaFloat(0);
                             this.applyingGravity = false;

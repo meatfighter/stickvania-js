@@ -3995,6 +3995,9 @@ public final class Main extends BasicGame {
   public void initTitleScreen() {
 
     stopSong();
+    weaponsStack.clear();
+    weaponsStackSwap.clear();
+    timeFrozen = 0;
     if (game_over.playing()) {
       game_over.stop();
     }

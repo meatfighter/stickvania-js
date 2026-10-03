@@ -7,7 +7,6 @@ import { isInputConfigModeSnapshot, type InputConfigModeSnapshot } from "../Inpu
 import type { AudioSnapshot, MusicId, MusicSnapshot, SongId, StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isSoundEffectSnapshotsShape } from "./GameStateSoundEffects.js";
 
-const JAVA_INT_MIN = -2_147_483_648;
 const JAVA_INT_MAX = 2_147_483_647;
 const MAX_VALUE_DEPTH = 64;
 const MAX_ARRAY_LENGTH = 4096;
@@ -16,11 +15,11 @@ const MAX_STRING_LENGTH = 4096;
 const MAX_TOTAL_SNAPSHOT_CONTAINERS = 65_536;
 const MAX_TOTAL_SNAPSHOT_CHILDREN = 524_288;
 const MAX_TOTAL_SNAPSHOT_STRING_CHARS = 1_500_000;
-const MAX_GENERAL_NUMBER_MAGNITUDE = 1_000_000;
+
 const MAX_POSITION_MAGNITUDE = 131_072;
 const MAX_VELOCITY_MAGNITUDE = 512;
 const MAX_COLLISION_OFFSET_MAGNITUDE = 4096;
-const MAX_MUSIC_POSITION_SECONDS = 86_400;
+
 const MAX_INPUT_CONFIG_MESSAGE_LENGTH = 256;
 const MAX_INPUT_CONFIG_STEP_INDEX = 6;
 const MAX_INPUT_CONFIG_DONE_DELAY = 30;
@@ -316,7 +315,7 @@ function isReasonableMusic(snapshot: MusicSnapshot): boolean {
     if (!isRecord(snapshot) || !hasExactFields(snapshot, MUSIC_FIELDS) || typeof snapshot.id !== "string" || !EXPECTED_MUSIC_IDS.has(snapshot.id)) {
         return false;
     }
-    return isMusicPlaybackSnapshot(snapshot.playback) && snapshot.playback.positionSeconds <= MAX_MUSIC_POSITION_SECONDS;
+    return isMusicPlaybackSnapshot(snapshot.playback);
 }
 
 function sameMusicPlayback(left: MusicSnapshot, right: MusicSnapshot): boolean {
@@ -387,7 +386,7 @@ function isReasonableNumber(value: number, key: string): boolean {
         return false;
     }
     if (key === "score") {
-        return Number.isInteger(value) && value >= JAVA_INT_MIN && value <= JAVA_INT_MAX;
+        return Number.isSafeInteger(value) && value >= 0;
     }
     if (key === "timeIncrementor") {
         return Number.isInteger(value) && value >= 0 && value <= JAVA_INT_MAX;
@@ -401,7 +400,7 @@ function isReasonableNumber(value: number, key: string): boolean {
     if (key === "rx1" || key === "rx2" || key === "ry1" || key === "ry2") {
         return Math.abs(value) <= MAX_COLLISION_OFFSET_MAGNITUDE;
     }
-    return Math.abs(value) <= MAX_GENERAL_NUMBER_MAGNITUDE;
+    return true;
 }
 
 function isIntegerInRange(value: unknown, min: number, max: number): boolean {

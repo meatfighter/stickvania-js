@@ -1,3 +1,4 @@
+import { runNativePlayback } from "./native-playback-comparison.mjs";
 import { mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
@@ -30,6 +31,8 @@ export function runDesktopInputTests({ classesDir, classpath, releaseArgs }) {
             "-d",
             testClasses,
             testSource,
+            fileURLToPath(new URL("../desktop/test/stickvania/EnemyArcVectorTest.java", import.meta.url)),
+            fileURLToPath(new URL("../desktop/test/stickvania/EnemyArcMotionTest.java", import.meta.url)),
             profileSource,
             policySource,
             labelsSource,
@@ -65,9 +68,31 @@ export function runDesktopInputTests({ classesDir, classpath, releaseArgs }) {
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.NesControllerMappingTest"]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.NativeDpadPolicyTest"]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.CounterParityTest"]);
+        run("java", [
+            "-Djava.awt.headless=true",
+            "-Djava.library.path=" +
+                fileURLToPath(
+                    new URL(
+                        "../desktop/natives/" + (process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macosx" : "linux"),
+                        import.meta.url
+                    )
+                ),
+            "-cp",
+            `${testClasses}${delimiter}${productionClasspath}`,
+            "stickvania.EnemyArcMotionTest"
+        ]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.NullThingBoundaryTest"]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.PitLifecycleTest"]);
         run("java", ["-Djava.awt.headless=true", "-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.RegionAuthorityTest"]);
+        const vectors = spawnSync("java", ["-cp", `${testClasses}${delimiter}${productionClasspath}`, "stickvania.EnemyArcVectorTest"], {
+            encoding: "utf8",
+            windowsHide: true
+        });
+        if (vectors.status !== 0) throw new Error("Native enemy helper vectors failed: " + vectors.stderr);
+        const vectorPath = join(testClasses, "enemy-arc-vectors.txt");
+        writeFileSync(vectorPath, vectors.stdout);
+        run(process.execPath, [fileURLToPath(new URL("./test-enemy-arc-motion.mjs", import.meta.url)), "--java-vectors", vectorPath]);
+        runNativePlayback({ testClasses, productionClasspath, releaseArgs });
         const golden = JSON.parse(readFileSync(new URL("./fixtures/compact-key-labels.json", import.meta.url), "utf8"));
         const goldenPath = join(testClasses, "labels.txt");
         writeFileSync(goldenPath, golden.map((r) => `${r.code}|${r.constant}|${r.label}`).join("\n"));

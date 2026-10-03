@@ -170,7 +170,7 @@ export class GrimReaper extends Thing {
                             this.flyTime = trunc(Math.abs(javaFloat(this.targetX - this.x)));
 
                             let targetY: number = javaFloat(this.main.simon!.y - 40);
-                            this.angleInc = javaFloat((0.5 * Math.PI) / this.flyTime);
+                            this.angleInc = this.flyTime === 0 ? javaFloat(0) : javaFloat((0.5 * Math.PI) / this.flyTime);
                             this.startY = javaFloat(this.y);
                             this.dy = javaFloat(targetY - this.y);
                             this.angle = javaFloat(0);

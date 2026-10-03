@@ -33,16 +33,8 @@ public class Raven extends Thing {
     if (main.random.nextBoolean()) {
       float targetY = main.random.nextBoolean()
           ? main.simon.y + 8 : main.simon.y - 64;
-      applyingGravity = true;
       float t = Math.abs(main.simon.x + 16 - x);
-      float h = Math.abs(targetY - y);
-      G = 2f * h / (t * t);
-      vy = Math.min(4, (float)Math.sqrt(2 * G * h));
-      if (targetY > y) {
-        G = -G;
-      } else {
-        vy = -vy;
-      }
+      applyingGravity = EnemyArcMotion.configure(this, t, targetY);
     } else {
       applyingGravity = false;
     }
@@ -92,7 +84,9 @@ public class Raven extends Thing {
           break;
         case STATE_FLYING:
           if (applyingGravity) {
+            vy = EnemyArcMotion.clampVelocity(vy);
             applyGravity();
+            vy = EnemyArcMotion.clampVelocity(vy);
             if (y < 0) {
               y = 0;
               applyingGravity = false;
