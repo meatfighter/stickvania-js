@@ -9,8 +9,11 @@ public final class EnemyArcMotionTest {
   static Object get(Object o,String key)throws Exception {Field f=o.getClass().getDeclaredField(key);f.setAccessible(true);return f.get(o);}
   static final class SilentMusic extends Music {
     SilentMusic() throws SlickException {super("unused");}
-    @Override public boolean playing(){return false;}
-    @Override public void stop(){}
+    private boolean active;
+    @Override public boolean playing(){return active;}
+    @Override public void play(){active=true;}
+    @Override public void loop(){active=true;}
+    @Override public void stop(){active=false;}
   }
   static Object allocate(Class<?> type)throws Exception {
     Class<?> u=Class.forName("sun.misc.Unsafe");Field f=u.getDeclaredField("theUnsafe");f.setAccessible(true);

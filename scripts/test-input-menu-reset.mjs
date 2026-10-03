@@ -4,6 +4,7 @@ import { createServer } from "vite";
 
 const server = await createServer({ root: "pwa", appType: "custom", logLevel: "silent", server: { middlewareMode: true } });
 try {
+    const { ThingStack } = await server.ssrLoadModule("/src/stickvania/ThingStack.ts");
     const { Main } = await server.ssrLoadModule("/src/stickvania/Main.ts");
     const { ButtonMapping } = await server.ssrLoadModule("/src/stickvania/ButtonMapping.ts");
     const { InputConfigMode } = await server.ssrLoadModule("/src/stickvania/InputConfigMode.ts");
@@ -11,6 +12,8 @@ try {
         test(`Reset is quiet; Change and restored completion return to Input/Done, saved=${saved}`, () => {
             // Real Main/editor/render methods without demo recordings or GPU/audio assets.
             const main = Object.assign(Object.create(Main.prototype), {
+                weaponsStack: new ThingStack(),
+                weaponsStackSwap: new ThingStack(),
                 titleInputMappingLines: [],
                 titleInputMappingCacheDirty: true,
                 titleBatSpriteIndexIncrementor: 0,

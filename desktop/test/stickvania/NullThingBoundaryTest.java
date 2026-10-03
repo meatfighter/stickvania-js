@@ -83,7 +83,8 @@ public final class NullThingBoundaryTest {
         for(Field f:fields(c)) {
             String k=f.getName();
             if(k.equals("main")||k.equals("loadedSegments")||k.equals("nextFrameTime")||k.equals("inputConfigMode")||k.equals("scalableGame")||k.equals("demoKeyRecordings")||k.equals("endingKeyRecordings"))continue;
-            visit(f.get(o),path+"."+k);
+            String fieldKey=f.getDeclaringClass().getSimpleName()+"."+k;
+            visit(f.get(o),path+"."+fieldKey);
         }
     }
     static void record(Main m,java.io.PrintWriter out)throws Exception {
@@ -102,7 +103,11 @@ public final class NullThingBoundaryTest {
             if(f.getType()==org.newdawn.slick.Image.class)f.set(m,new SilentImage());
             if(f.getType().isArray()&&f.getType().getName().contains("org.newdawn.slick.Image")&&f.get(m)!=null)images(f.get(m));
             if(f.getType()==org.newdawn.slick.Sound.class)f.set(m,EnemyArcMotionTest.allocate(SilentSound.class));
-            if(f.getType()==Song.class&&!f.getName().equals("currentSong")&&!f.getName().equals("requestedSong"))f.set(m,EnemyArcMotionTest.allocate(Song.class));
+            if(f.getType()==Song.class&&!f.getName().equals("currentSong")&&!f.getName().equals("requestedSong")) {
+                Song song=(Song)EnemyArcMotionTest.allocate(Song.class);
+                Field loop=Song.class.getDeclaredField("loop");loop.setAccessible(true);loop.set(song,EnemyArcMotionTest.allocate(EnemyArcMotionTest.SilentMusic.class));
+                f.set(m,song);
+            }
         }
         org.newdawn.slick.Input input=new org.newdawn.slick.Input(480);
         Field inputField=Main.class.getDeclaredField("input");inputField.setAccessible(true);inputField.set(m,input);
@@ -123,6 +128,7 @@ public final class NullThingBoundaryTest {
                 while(m.mode==Main.MODE_DEMO&&n++<8000){update.invoke(m,gc);record(m,out);}
                 check(m.mode==Main.MODE_TITLE_SCREEN,"native demo exit "+i);
             }
+            m.stopSong();m.currentSong=m.requestedSong=m.ending;m.ending.play();
             m.initCastleFalls();m.fade=0;m.fadeState=Main.FADE_DONE;int n=0;
             while(m.mode==Main.MODE_CASTLE_FALLS&&n++<8000){update.invoke(m,gc);record(m,out);}
             check(m.mode==Main.MODE_CREDITS,"native castle to credits");

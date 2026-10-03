@@ -362,7 +362,20 @@ export async function traceNullPlayback(h: Harness): Promise<void> {
             } else flat[path] = typeof value === "number" && !Number.isFinite(value) ? String(value) : value;
         }
         // Snapshot actor/reference identities cover historical objects as well as active stacks.
-        visit({ main: snapshot.mainFields, stage: snapshot.stage, things: snapshot.things }, "state");
+        visit(
+            {
+                main: snapshot.mainFields,
+                stage: snapshot.stage,
+                things: snapshot.things,
+                audioOwners: {
+                    currentSong: snapshot.audio.currentSong,
+                    requestedSong: snapshot.audio.requestedSong,
+                    currentMusic: snapshot.audio.currentMusic?.id ?? null,
+                    songs: snapshot.audio.songs.map((song) => ({ id: song.id, playing: song.playing }))
+                }
+            },
+            "state"
+        );
         const delta: Record<string, unknown> = {};
         for (const key of new Set([...Object.keys(previous), ...Object.keys(flat)])) {
             if (!Object.is(previous[key], flat[key])) delta[key] = flat[key] ?? null;
@@ -400,6 +413,10 @@ export async function traceNullPlayback(h: Harness): Promise<void> {
             for (let n = 0; n < 8000 && m.mode === Main.MODE_DEMO; n++) tick();
             check(m.mode === Main.MODE_TITLE_SCREEN, "Demo reaches title " + i);
         }
+        // Conditional ending-owner setup; the loaded save suite separately drives the actual Orb/tally producer.
+        m.stopSong();
+        m.currentSong = m.requestedSong = m.ending;
+        m.ending.play();
         m.initCastleFalls();
         m.fade = 0;
         m.fadeState = Main.FADE_DONE;
