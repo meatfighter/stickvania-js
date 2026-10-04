@@ -10,7 +10,7 @@ const assertions = {
     "floor-scalar": "Presentation full reader rejects floor-scalar-only",
     "floor-bottom": "Presentation full reader rejects floor-cell-144-10",
     "floor-retirement": "Presentation full reader rejects floor-active-regionThingStack",
-    "floor-fractional": "Presentation full reader rejects floor-counter-X-143.5",
+    "floor-fractional": "Presentation preflight rejects floor-counter-X-143.5",
     "stair-restore": "Stair resource reader rejects stair-0-0-0-0-x",
     "stair-save": "Outgoing rejects stair-X",
     "full-boundary": "Presentation full reader rejects route-title-timeout",
