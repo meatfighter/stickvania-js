@@ -1,3 +1,5 @@
+import { THING_INTEGER_FIELDS } from "./ThingIntegerFields.generated.js";
+import { THING_ENUM_DOMAINS } from "./ExplicitFieldDomains.js";
 import { isFloorBreakerFieldsValid } from "./FloorBreakStatePolicy.js";
 import { isCreditsPresentationValid } from "./PresentationStatePolicy.js";
 import { isCastleTransitionValid } from "./CastlePresentationPhasePolicy.js";
@@ -6,7 +8,7 @@ import { Main } from "../Main.js";
 import type { EncodedRecord, EncodedValue, ThingSnapshot } from "./GameStateSnapshot.js";
 import { isCountdownSnapshotValueValid, isRestorableGameStateMode } from "./GameStatePolicy.js";
 import { MAIN_PERSISTED_STATE_FIELD_NAMES, THING_PERSISTED_STATE_FIELD_NAMES } from "./StateFieldRegistry.generated.js";
-import { THING_TYPES, type ThingTypeId } from "./ThingTypeRegistry.js";
+import { type ThingTypeId } from "./ThingTypeRegistry.js";
 
 export const MAIN_BOOLEAN_PERSISTED_STATE_FIELDS = new Set<string>([
     "killAllFlag",
@@ -227,48 +229,23 @@ function isThingNumberValid(type: ThingTypeId, name: string, value: number): boo
     const range = PROVEN_THING_INTEGER_RANGES[type]?.[name];
     if (range !== undefined) return isIntegerInRange(value, range[0], range[1]);
     if (type === "Simon" && name === "dead") {
-        return Number.isInteger(value) && value >= 0 && value <= 1_000_000;
+        return Number.isInteger(value) && value >= 0 && Number.isSafeInteger(value);
     }
     if (name === "direction" || name === "displayDirection" || name === "originalDirection") {
         return value === Main.LEFT || value === Main.RIGHT;
     }
-    if (name === "state") {
-        const values = inferStaticIntegerValues(type, "STATE_");
-        if (values !== null) {
-            return Number.isInteger(value) && values.includes(value);
-        }
-    }
-    if (name === "type") {
-        const values = inferStaticIntegerValues(type, "TYPE_");
-        if (values !== null) {
-            return Number.isInteger(value) && values.includes(value);
-        }
-    }
-    if (
-        name === "spriteIndex" ||
-        name === "spriteIndexIncrementor" ||
-        name.endsWith("Delay") ||
-        name.endsWith("Timer") ||
-        name === "hits" ||
-        name === "count"
-    ) {
-        return Number.isSafeInteger(value);
-    }
+    const values = THING_ENUM_DOMAINS[type]?.[name];
+    if (values !== undefined) return Number.isInteger(value) && values.includes(value);
+    // Integer representation comes from declared Java field metadata below,
+    // never English suffixes such as Delay/Timer.
     if (name === "lifeTime" && type === "StopWatch") {
         return isIntegerInRange(value, 0, 455);
     }
     if (name === "shieldReflectionsRemaining" && type === "AxeKnight") {
-        return isIntegerInRange(value, 0, 1_000_000);
+        return isIntegerInRange(value, 0, Number.MAX_SAFE_INTEGER);
     }
+    if (THING_INTEGER_FIELDS[type]?.includes(name)) return Number.isSafeInteger(value);
     return Number.isFinite(value);
-}
-
-function inferStaticIntegerValues(type: ThingTypeId, prefix: string): readonly number[] | null {
-    const constructor = THING_TYPES[type] as unknown as Record<string, unknown>;
-    const values = Object.entries(constructor)
-        .filter(([key, value]) => key.startsWith(prefix) && typeof value === "number" && Number.isInteger(value))
-        .map(([, value]) => value as number);
-    return values.length === 0 ? null : values;
 }
 
 function isReferenceValueValid(value: EncodedValue, policy: ThingReferencePolicy, thingTypes: ReadonlyMap<number, ThingTypeId>, segmentCount: number): boolean {

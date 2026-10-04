@@ -10,7 +10,6 @@ import type { Main } from "../Main.js";
 import type { SoundEffectSnapshot } from "./GameStateSnapshot.js";
 
 export { MAX_PERSISTED_SOUND_EFFECT_VOICES as MAX_TOTAL_SOUND_VOICES } from "../AudioRegistry.js";
-export const MAX_SOUND_POSITION_SECONDS = 86_400;
 
 const EMPTY_SOUND_PLAYBACK: SoundPlaybackSnapshot = Object.freeze({
     voices: Object.freeze([]),
@@ -50,11 +49,6 @@ export function isSoundEffectSnapshotsShape(value: unknown): value is SoundEffec
         }
         if (!isSoundPlaybackSnapshot(entry.playback) || entry.playback.voices.length === 0) {
             return false;
-        }
-        for (const voice of entry.playback.voices) {
-            if (voice.positionSeconds > MAX_SOUND_POSITION_SECONDS) {
-                return false;
-            }
         }
         totalVoices += entry.playback.voices.length;
         if (totalVoices > MAX_PERSISTED_SOUND_EFFECT_VOICES) {

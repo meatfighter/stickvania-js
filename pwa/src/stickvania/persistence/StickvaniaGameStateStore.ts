@@ -100,7 +100,8 @@ export class StickvaniaGameStateStore {
             ["values-and-audio", () => isReasonableStickvaniaGameStateSnapshot(snapshot)],
             ["stopwatch-repeat", () => isStopWatchRepeatStateValid(snapshot.mainFields)],
             ["axe-knight-shield", () => isAxeKnightShieldSnapshotStateValid(snapshot)],
-            ["presentation-resources", () => this.serializer.isSupportedPresentationResources(main, snapshot)]
+            ["presentation-resources", () => this.serializer.isSupportedPresentationResources(main, snapshot)],
+            ["loaded-resources", () => this.serializer.isSupportedSnapshotForLoadedResources(main, snapshot)]
         ];
         for (const [stage, check] of checks) {
             let valid: boolean;

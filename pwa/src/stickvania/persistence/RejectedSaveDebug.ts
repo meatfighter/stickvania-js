@@ -2,21 +2,46 @@ import { getBrowserStorageKey } from "../BrowserStorageKeys.js";
 
 export const REJECTED_SAVE_DEBUG_KEY = getBrowserStorageKey("debug-invalid-save");
 export const REJECTED_SAVE_DEBUG_VERSION = 1;
-const MAX_FULL_CHARS = 262144;
+const MAX_FULL_CHARS = 2_010_000;
 const MAX_COMPACT_CHARS = 16384;
-const MAX_VISITS = 250000;
+const MAX_VISITS = 600000;
 const MAX_DEPTH = 64;
 
-export type RejectedSaveStage = "structure-and-graph" | "values-and-audio" | "stopwatch-repeat" | "axe-knight-shield" | "presentation-resources";
+export type RejectedSaveStage =
+    "structure-and-graph" | "values-and-audio" | "stopwatch-repeat" | "axe-knight-shield" | "presentation-resources" | "loaded-resources";
 
 export interface RejectedSaveFailure {
     readonly stage: RejectedSaveStage;
     readonly kind: "returned-false" | "threw";
     readonly error?: unknown;
+    readonly ruleCode?: string;
+    readonly fieldPath?: string;
 }
 
+// Read only own data descriptors when summarizing rejected evidence. Never run
+// getters, iterators or array overrides from the snapshot under investigation.
 function record(value: unknown): Record<string, unknown> | null {
-    return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+    if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+    const keys = Reflect.ownKeys(value);
+    if (keys.length > 512) return result;
+    for (const key of keys) {
+        if (typeof key !== "string") continue;
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (descriptor && "value" in descriptor) result[key] = descriptor.value;
+    }
+    return result;
+}
+function safeArray(value: unknown, maximum: number): unknown[] {
+    if (!Array.isArray(value)) return [];
+    const result: unknown[] = [];
+    const length = Object.getOwnPropertyDescriptor(value, "length")?.value as unknown;
+    if (typeof length !== "number") return result;
+    for (let i = 0; i < Math.min(length, maximum); i++) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(i));
+        result.push(descriptor && "value" in descriptor ? descriptor.value : null);
+    }
+    return result;
 }
 
 function scalar(value: unknown): string | number | boolean | null {
@@ -65,8 +90,8 @@ function boundedJson(value: unknown, limit: number): string {
         for (const key of keys) {
             if (array && key === "length") continue;
             if (typeof key !== "string") throw new Error("debug-symbol-key");
-            const descriptor = Object.getOwnPropertyDescriptor(child, key)!;
-            if (!descriptor.enumerable || !("value" in descriptor)) throw new Error("debug-non-json-property");
+            const descriptor = Object.getOwnPropertyDescriptor(child, key);
+            if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) throw new Error("debug-non-json-property");
             if (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= child.length)) throw new Error("debug-array-property");
             inspectedChars += key.length;
             if (inspectedChars > limit) throw new Error("debug-string-budget");
@@ -124,7 +149,7 @@ function summarize(snapshot: unknown): Record<string, unknown> {
         currentMusic: scalar(record(audio?.currentMusic)?.id)
     };
     const rawThings = root?.things;
-    const things: unknown[] = Array.isArray(rawThings) ? rawThings : [];
+    const things: unknown[] = safeArray(rawThings, 4096);
     summary.thingCount = things.length;
     const anomalies: Record<string, unknown>[] = [];
     for (let index = 0; index < Math.min(things.length, 4096) && anomalies.length < 16; index++) {
@@ -133,14 +158,12 @@ function summarize(snapshot: unknown): Record<string, unknown> {
         if (values === null) continue;
         for (const name of ["x", "y", "vx", "vy", "G"] as const) {
             const value = values[name];
-            const maximum = name === "x" || name === "y" ? 131072 : 512;
-            if (typeof value === "number" && (!Number.isFinite(value) || Math.abs(value) > maximum)) {
+            if (typeof value === "number" && !Number.isFinite(value)) {
                 anomalies.push({
                     path: `things[${index}].fields.${name}`,
                     thingId: scalar(thing?.id),
                     thingType: scalar(thing?.type),
-                    observed: scalar(value),
-                    maximumMagnitude: maximum
+                    observed: scalar(value)
                 });
                 if (anomalies.length === 16) break;
             }
@@ -148,7 +171,7 @@ function summarize(snapshot: unknown): Record<string, unknown> {
     }
     summary.candidateNumericAnomalies = anomalies;
     const rawSongs = audio?.songs;
-    const songs: unknown[] = Array.isArray(rawSongs) ? rawSongs : [];
+    const songs: unknown[] = safeArray(rawSongs, 32);
     summary.songStates = songs.slice(0, 32).map((entry) => {
         const song = record(entry);
         return {
@@ -162,7 +185,11 @@ function summarize(snapshot: unknown): Record<string, unknown> {
     return summary;
 }
 
+let recording = false;
+
 export function retainRejectedSave(snapshot: unknown, appVersion: string, failure: RejectedSaveFailure, isAuthorized: () => boolean): void {
+    if (recording) return;
+    recording = true;
     try {
         if (!isAuthorized()) return;
         const base = {
@@ -173,6 +200,8 @@ export function retainRejectedSave(snapshot: unknown, appVersion: string, failur
             buildStamp: typeof __BUILD_STAMP__ === "string" ? __BUILD_STAMP__ : null,
             failedStage: failure.stage,
             failureKind: failure.kind,
+            ruleCode: failure.ruleCode ?? failure.stage,
+            fieldPath: failure.fieldPath ?? null,
             error: errorDetails(failure.error),
             summary: summarize(snapshot)
         };
@@ -183,6 +212,7 @@ export function retainRejectedSave(snapshot: unknown, appVersion: string, failur
         } catch (error) {
             omittedReason = errorDetails(error)?.message ?? "full-record-not-serializable";
         }
+        if (!isAuthorized()) return;
         const storage = globalThis.localStorage;
         if (full !== null) {
             if (!isAuthorized()) return;
@@ -198,5 +228,7 @@ export function retainRejectedSave(snapshot: unknown, appVersion: string, failur
         storage.setItem(REJECTED_SAVE_DEBUG_KEY, compact);
     } catch {
         // Evidence is best-effort. Never throw into save or departure cleanup.
+    } finally {
+        recording = false;
     }
 }

@@ -93,12 +93,14 @@ async function probe(mutation = (s) => s, sanityMutation = (s) => s, presentatio
             const wf = Object.fromEntries(fields.THING_PERSISTED_STATE_FIELD_NAMES.StopWatch.map((k) => [k, watch[k]]));
             const row = { type: "StopWatch", id: 0, fields: wf };
             assert.equal(isReasonableValue([row], "things", 0), true, "actual watch collision offsets");
+            assert.equal(isReasonableValue({ vx: 1000000, x: 1000001 }, "fields", 0), true, "finite numeric domain");
+            assert.equal(isReasonableValue({ vx: Infinity }, "fields", 0), false, "nonfinite encoding");
             for (const [type, key, n] of [
                 ["StopWatch", "ry1", -10001],
                 ["StopWatch", "ry2", -9968],
                 ["Dog", "ry1", -10000]
             ]) {
-                assert.equal(isReasonableValue([{ ...row, type, fields: { ...wf, [key]: n } }], "things", 0), false, "watch offset scope");
+                assert.equal(isReasonableValue([{ ...row, type, fields: { ...wf, [key]: n } }], "things", 0), true, "finite collision domain");
             }
 
             assert.equal(valid({ mode: Main.MODE_DEMO, demoIndex: 2, recordingIndex: 2730 }), true, "demo terminal sentinel");
@@ -184,22 +186,21 @@ test("Stickvania bounds and sentinels defeat targeted mutants", async () => {
     await assert.rejects(
         probe(
             (s) => s,
-            (s) => replace(s, "Number.isInteger(value) && value >= 0 && value <= JAVA_INT_MAX", "Number.isInteger(value) && value >= 0 && value <= 90")
+            (s) => replace(s, "return Number.isFinite(value);", 'return Number.isFinite(value) && (_key !== "timeIncrementor" || value <= 90);')
         ),
         (e) => e.code === "ERR_ASSERTION" && /sanity clock/.test(e.message)
     );
     for (const [from, to] of [
         ["!isRecord(snapshot.mainFields) || !isCountdownSnapshotValueValid(snapshot.mode, snapshot.mainFields.timeIncrementor)", "false"],
-        ['key === "things" && value.type === "StopWatch"', "false"],
-        ['field === "ry1" && scalar === -10000', 'field === "ry1"'],
-        ['value.type === "StopWatch"', "true"]
+        ["return Number.isFinite(value);", "return Number.isFinite(value) && Math.abs(value) <= 131072;"],
+        ["return Number.isFinite(value);", "return true;"]
     ])
         await assert.rejects(
             probe(
                 (s) => s,
                 (s) => replace(s, from, to)
             ),
-            (e) => e.code === "ERR_ASSERTION" && /outer context negative|watch collision|watch offset scope/.test(e.message)
+            (e) => e.code === "ERR_ASSERTION" && /outer context negative|finite numeric domain|nonfinite encoding/.test(e.message)
         );
     for (const type of ["Bat", "MedusaHead", "Dog", "Simon"]) {
         await assert.rejects(

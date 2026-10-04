@@ -1,3 +1,4 @@
+import { isSnapshotJsonWithinBudget } from "../../app/SnapshotJsonBudget.js";
 import { inspectSnapshotAuthority } from "./SnapshotAuthorityPolicy.js";
 import { isAudioOwnerStateValid } from "./AudioOwnerPolicy.js";
 import { GAME_STATE_MODE_PLAYING, isCountdownSnapshotValueValid } from "./GameStatePolicy.js";
@@ -7,18 +8,10 @@ import { isInputConfigModeSnapshot, type InputConfigModeSnapshot } from "../Inpu
 import type { AudioSnapshot, MusicId, MusicSnapshot, SongId, StickvaniaGameStateSnapshot } from "./GameStateSnapshot.js";
 import { isSoundEffectSnapshotsShape } from "./GameStateSoundEffects.js";
 
-const JAVA_INT_MAX = 2_147_483_647;
 const MAX_VALUE_DEPTH = 64;
 const MAX_ARRAY_LENGTH = 4096;
 const MAX_RECORD_FIELDS = 512;
 const MAX_STRING_LENGTH = 4096;
-const MAX_TOTAL_SNAPSHOT_CONTAINERS = 65_536;
-const MAX_TOTAL_SNAPSHOT_CHILDREN = 524_288;
-const MAX_TOTAL_SNAPSHOT_STRING_CHARS = 1_500_000;
-
-const MAX_POSITION_MAGNITUDE = 131_072;
-const MAX_VELOCITY_MAGNITUDE = 512;
-const MAX_COLLISION_OFFSET_MAGNITUDE = 4096;
 
 const MAX_INPUT_CONFIG_MESSAGE_LENGTH = 256;
 const MAX_INPUT_CONFIG_STEP_INDEX = 6;
@@ -108,58 +101,7 @@ export function isReasonableStickvaniaGameStateSnapshot(snapshot: StickvaniaGame
 }
 
 export function isWithinStickvaniaGameStateValidationBudget(value: unknown): boolean {
-    const stack: unknown[] = [value];
-    const seen = new WeakSet<object>();
-    let containers = 0;
-    let children = 0;
-    let stringChars = 0;
-
-    while (stack.length > 0) {
-        const current = stack.pop();
-        if (typeof current === "string") {
-            stringChars += current.length;
-            if (stringChars > MAX_TOTAL_SNAPSHOT_STRING_CHARS) {
-                return false;
-            }
-            continue;
-        }
-        if (current === null || typeof current !== "object") {
-            continue;
-        }
-        if (seen.has(current)) {
-            return false;
-        }
-        seen.add(current);
-        if (++containers > MAX_TOTAL_SNAPSHOT_CONTAINERS) {
-            return false;
-        }
-
-        if (Array.isArray(current)) {
-            children += current.length;
-            if (children > MAX_TOTAL_SNAPSHOT_CHILDREN) {
-                return false;
-            }
-            for (const child of current) {
-                stack.push(child);
-            }
-            continue;
-        }
-
-        const entries = Object.entries(current);
-        children += entries.length;
-        if (children > MAX_TOTAL_SNAPSHOT_CHILDREN) {
-            return false;
-        }
-        for (const [key, child] of entries) {
-            stringChars += key.length;
-            if (stringChars > MAX_TOTAL_SNAPSHOT_STRING_CHARS) {
-                return false;
-            }
-            stack.push(child);
-        }
-    }
-
-    return true;
+    return isSnapshotJsonWithinBudget(value);
 }
 
 function isReasonableInputConfig(snapshot: InputConfigModeSnapshot | null): boolean {
@@ -364,43 +306,12 @@ function isReasonableValue(value: unknown, key: string, depth: number): boolean 
     if (entries.length > MAX_RECORD_FIELDS) {
         return false;
     }
-    return entries.every(([entryKey, entryValue]) => {
-        // Java StopWatch deliberately places its collision box offscreen. These
-        // exact constructor offsets are valid only for this registered Thing.
-        if (key === "things" && value.type === "StopWatch" && entryKey === "fields" && isRecord(entryValue)) {
-            const fields = Object.entries(entryValue);
-            return (
-                fields.length <= MAX_RECORD_FIELDS &&
-                fields.every(
-                    ([field, scalar]) =>
-                        (field === "ry1" && scalar === -10000) || (field === "ry2" && scalar === -9969) || isReasonableValue(scalar, field, depth + 2)
-                )
-            );
-        }
-        return isReasonableValue(entryValue, entryKey, depth + 1);
-    });
+    return entries.every(([entryKey, entryValue]) => isReasonableValue(entryValue, entryKey, depth + 1));
 }
 
-function isReasonableNumber(value: number, key: string): boolean {
-    if (!Number.isFinite(value)) {
-        return false;
-    }
-    if (key === "score") {
-        return Number.isSafeInteger(value) && value >= 0;
-    }
-    if (key === "timeIncrementor") {
-        return Number.isInteger(value) && value >= 0 && value <= JAVA_INT_MAX;
-    }
-    if (key === "vx" || key === "vy" || key === "G") {
-        return Math.abs(value) <= MAX_VELOCITY_MAGNITUDE;
-    }
-    if (key === "x" || key === "y") {
-        return Math.abs(value) <= MAX_POSITION_MAGNITUDE;
-    }
-    if (key === "rx1" || key === "rx2" || key === "ry1" || key === "ry2") {
-        return Math.abs(value) <= MAX_COLLISION_OFFSET_MAGNITUDE;
-    }
-    return true;
+function isReasonableNumber(value: number, _key: string): boolean {
+    // Exact field policies are authoritative; this traversal checks encoding.
+    return Number.isFinite(value);
 }
 
 function isIntegerInRange(value: unknown, min: number, max: number): boolean {

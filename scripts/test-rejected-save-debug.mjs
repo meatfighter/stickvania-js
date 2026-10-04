@@ -15,7 +15,7 @@ const mocks = {
         createSnapshot(){const c=globalThis.__rejectedSaveTest;if(c.captureThrows)throw Error('capture');return c.snapshot;}
         isSupportedSnapshot(){${gate("structure-and-graph")}}
         isSupportedPresentationResources(){${gate("presentation-resources")}}
-        isSupportedSnapshotForLoadedResources(){return true;}
+        isSupportedSnapshotForLoadedResources(){${gate("loaded-resources")}}
         restoreSnapshot(){}
     }`,
     [prefix + "persistence/GameStateSanity.ts"]: `export function isReasonableStickvaniaGameStateSnapshot(){${gate("values-and-audio")}}`,
@@ -27,7 +27,7 @@ const { GAME_STATE_STORAGE_KEY, GAME_STATE_VERSION } = await loadTypeScript(pref
 const { REJECTED_SAVE_DEBUG_KEY } = await loadTypeScript(prefix + "persistence/RejectedSaveDebug.ts");
 const store = new StickvaniaGameStateStore("debug-contract");
 const main = { isStateSaveReady: () => true };
-const stages = ["structure-and-graph", "values-and-audio", "stopwatch-repeat", "axe-knight-shield", "presentation-resources"];
+const stages = ["structure-and-graph", "values-and-audio", "stopwatch-repeat", "axe-knight-shield", "presentation-resources", "loaded-resources"];
 const previousStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
 const warn = console.warn;
 
@@ -113,15 +113,19 @@ test("outgoing rejected evidence truth table through the real store/writer", () 
         assert.deepEqual(storage.calls.set, []);
         reset();
         control.fail = stages[0];
+        let getterCalls = 0;
         Object.defineProperty(control.snapshot, "mainFields", {
             enumerable: true,
             get() {
+                getterCalls++;
                 authority = false;
                 return {};
             }
         });
         save();
-        assert.deepEqual(storage.calls.set, []);
+        assert.equal(getterCalls, 0);
+        assert.equal(authority, true);
+        assert.deepEqual(storage.calls.set, [REJECTED_SAVE_DEBUG_KEY]);
 
         for (const bad of [
             NaN,
@@ -133,7 +137,7 @@ test("outgoing rejected evidence truth table through the real store/writer", () 
             new Date(),
             { toJSON: () => ({ changed: true }) },
             Array(2),
-            "x".repeat(270000)
+            "x".repeat(2_020_000)
         ]) {
             reset();
             control.fail = stages[0];
@@ -162,7 +166,7 @@ test("outgoing rejected evidence truth table through the real store/writer", () 
         assert.equal(debug().snapshotIncluded, false, "depth budget yields compact evidence");
         reset();
         control.fail = stages[0];
-        control.snapshot.visits = Array(250001).fill(0);
+        control.snapshot.visits = Array(600001).fill(0);
         save();
         assert.equal(debug().snapshotIncluded, false, "visit budget yields compact evidence");
         reset();
