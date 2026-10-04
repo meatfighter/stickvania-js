@@ -188,7 +188,9 @@ try {
             ]),
             false
         );
-        assert.equal(isSoundEffectSnapshotsShape([{ id: "watch_tick", playback: playback([voice(86_401)], 0) }]), false);
+        assert.equal(isSoundEffectSnapshotsShape([{ id: "watch_tick", playback: playback([voice(86_401)], 0) }]), true);
+        for (const position of [-1, NaN, Infinity])
+            assert.equal(isSoundEffectSnapshotsShape([{ id: "watch_tick", playback: playback([voice(position)], 0) }]), false);
         assert.equal(isSoundEffectSnapshotsShape([{ id: "watch_tick", playback: playback([voice()], 2) }]), false);
     });
 
