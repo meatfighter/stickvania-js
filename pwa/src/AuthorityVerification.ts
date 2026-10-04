@@ -43,7 +43,8 @@ export function verifyAuthority(records: Array<{ label: string; bytes: string }>
     for (const value of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity]) {
         const s = structuredClone(relaxed);
         s.mainFields.score = value;
-        check(!serializer.isSupportedSnapshot(s) && !isReasonableStickvaniaGameStateSnapshot(s), "invalid score " + value);
+        check(!serializer.isSupportedSnapshot(s), "invalid owner-qualified score " + value);
+        check(isReasonableStickvaniaGameStateSnapshot(s) === Number.isFinite(value), "generic numeric encoding " + value);
     }
     const fractional = structuredClone(relaxed);
     fractional.things.find((t) => t.type === "Raven")!.fields.spriteIndexIncrementor = 0.5;

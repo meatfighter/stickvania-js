@@ -329,19 +329,21 @@ export async function verifySavePit(h: Harness): Promise<void> {
         check(m().currentSong!.getLoopForState()!.getTransportState() === "paused", "expired watch restore remains silent");
         tick();
         save("expired-watch-replacement-promoted");
-        const canonical = localStorage.getItem(GAME_STATE_STORAGE_KEY);
         const rejectedActor = new WhiteSkeleton(m(), 100, 100);
         rejectedActor.vy = 513;
         m().regionThingStack.push(rejectedActor);
+        check(store.save(m(), () => true).saved, "finite captured velocity has no generic magnitude veto");
+        const canonical = localStorage.getItem(GAME_STATE_STORAGE_KEY);
+        Reflect.set(rejectedActor, "state", -1);
         const diagnosticStart = performance.now();
-        check(!store.save(m(), () => true).saved, "real captured numeric failure rejected");
+        check(!store.save(m(), () => true).saved, "real captured invalid actor state rejected");
         const diagnosticMilliseconds = performance.now() - diagnosticStart;
         check(localStorage.getItem(GAME_STATE_STORAGE_KEY) === canonical, "real diagnostic preserves canonical bytes");
         const diagnostic = JSON.parse(localStorage.getItem(REJECTED_SAVE_DEBUG_KEY)!);
-        check(diagnostic.failedStage === "values-and-audio" && diagnostic.snapshotIncluded, "real rejected capture retained exactly");
+        check(diagnostic.failedStage === "structure-and-graph" && diagnostic.snapshotIncluded, "real rejected capture retained exactly");
         check(
-            diagnostic.snapshot.things.some((t: { fields: { vy: number } }) => t.fields.vy === 513),
-            "exact rejected velocity retained"
+            diagnostic.snapshot.things.some((t: { type: string; fields: { state: number } }) => t.type === "WhiteSkeleton" && t.fields.state === -1),
+            "exact rejected actor state retained"
         );
         Reflect.set(window, "savePitDiagnosticTiming", { diagnosticMilliseconds, characters: localStorage.getItem(REJECTED_SAVE_DEBUG_KEY)!.length });
 
