@@ -139,14 +139,14 @@ await withCounterModules(
         }
         for (const value of [-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
             assert.equal(policy.isMainNumberValid("score", value, {}), false);
-            assert.equal(sanity.isReasonableNumber(value, "score"), false);
+            assert.equal(sanity.isReasonableNumber(value, "score"), Number.isFinite(value), "generic encoding leaves score semantics to its owner policy");
         }
         assert.equal(policy.isThingNumberValid("Raven", "targetX", 1e30), true);
         for (const value of [-1000001, 1000001]) assert.equal(policy.isThingNumberValid("Raven", "spriteIndexIncrementor", value), true);
         assert.equal(policy.isThingNumberValid("Raven", "spriteIndexIncrementor", 0.5), false);
-        assert.equal(sanity.isReasonableNumber(513, "vy"), false);
-        assert.equal(sanity.isReasonableNumber(131073, "x"), false);
-        assert.equal(sanity.isReasonableNumber(4097, "rx1"), false);
+        assert.equal(sanity.isReasonableNumber(513, "vy"), true, "finite values have no generic magnitude veto");
+        assert.equal(sanity.isReasonableNumber(131073, "x"), true, "finite values have no generic magnitude veto");
+        assert.equal(sanity.isReasonableNumber(4097, "rx1"), true, "finite values have no generic magnitude veto");
         assert.equal(clampEnemyArcVelocity(999), 32);
         console.log(`Enemy arc: ${vectors} helper vectors; actual Raven/BridgeBat/Grim updates, all 43 hover delays, freeze and numerical controls passed.`);
     }
