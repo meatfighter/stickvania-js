@@ -253,21 +253,7 @@ export function observedStratum({ main }) {
     return { stage: main.stageIndex, world: 0, hard: main.difficulty === Main.DIFFICULTY_HARD };
 }
 
-import { snapshotTransitionKey } from "./compare.mjs";
-export function captureContext(snapshot) {
-    const segment = snapshot.stage?.currentSegmentIndex;
-    return {
-        stage: snapshot.mainFields.stageIndex,
-        world: 0,
-        hard: snapshot.mainFields.difficulty === 1,
-        mode: snapshot.mode,
-        segment,
-        region: segment === null ? null : snapshot.stage?.segments[segment]?.regionIndex
-    };
-}
-export function transitionProjection(snapshot) {
-    return { context: captureContext(snapshot), phases: snapshotTransitionKey(snapshot) };
-}
+export { captureContext, transitionProjection } from "./transitions.mjs";
 export function instrument({ main }, observer) {
     observer.actor(main.simon, true);
     observer.input(main.controlInput);

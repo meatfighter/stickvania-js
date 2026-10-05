@@ -139,3 +139,5 @@ and stair producers, then verify active geometry/platform/player roots. Collisio
 sampling includes both footprint edges. No fabricated checkpoint or validator
 filter chooses a placement. Existing presentation/departure suites cover actual
 door/stair transitions, and pit/castle suites retain the difficult owner boundaries.
+
+Each adapter owns `transitions.mjs`, which projects its real mode/player/root and audio schema. Ordinary countdowns and audio cursors are excluded; completion, transport, voice membership and stage/region ownership trigger full writes.
