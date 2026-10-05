@@ -22,6 +22,11 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const suiteRunner = readFileSync("scripts/run-browser-qualification-suite.mjs", "utf8");
 const lifecycleStressSource = readFileSync("scripts/run-lifecycle-stress-qualification.mjs", "utf8");
 
+test("browser verification retains the offline gate after the semantic receipt", () => {
+    assert.equal(packageJson.scripts["verify:browser"], "node scripts/persistence-fuzz/semantic-run.mjs browser && node scripts/run-offline-verification.mjs");
+    assert.deepEqual(semanticCommands[packageJson.name].browser, ["scripts/run-browser-verification.mjs"]);
+});
+
 test("cutover browser qualification scripts are valid JavaScript", () => {
     for (const [, path] of supplemental) {
         const result = spawnSync(process.execPath, ["--check", path], { encoding: "utf8" });

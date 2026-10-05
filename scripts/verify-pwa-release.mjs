@@ -621,7 +621,7 @@ test("package scripts use temporary release stamping for public builds", () => {
     assert.match(scripts["verify"], /check:java-parity-metadata/);
     assert.match(scripts["verify"], /check:state-fields/);
     assert.match(scripts["verify"], /test:java-parity/);
-    assert.equal(scripts["verify:browser"], "node scripts/run-browser-verification.mjs && node scripts/run-offline-verification.mjs");
+    assert.equal(scripts["verify:browser"], "node scripts/persistence-fuzz/semantic-run.mjs browser && node scripts/run-offline-verification.mjs");
 
     for (const [name, script] of Object.entries(scripts)) {
         if (name === "stamp") {
