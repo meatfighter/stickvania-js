@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 
 const qualificationScripts = [
-    "verify:persistence-fuzz:browsers",
     "verify:departure-save",
     "verify:fullscreen",
     "verify:fullscreen-timeout",
@@ -17,7 +16,8 @@ const qualificationScripts = [
     "verify:lifecycle-stress",
     "verify:null-thing",
     "verify:rumble-castle",
-    "verify:save-pit"
+    "verify:save-pit",
+    "verify:persistence-fuzz:browsers"
 ];
 
 const pwaRoot = resolve(".release-components", "pwa", "pwa");

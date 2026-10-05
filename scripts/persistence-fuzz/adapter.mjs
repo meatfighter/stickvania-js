@@ -33,21 +33,53 @@ export async function mount(restore, version) {
     await runtime.slick.ResourceLoader.waitForAll();
     return { main, container, game, store, runtime };
 }
-function stairsPath(start, target) {
-    const queue = [[start, []]],
-        seen = new Set([start]);
-    for (let i = 0; i < queue.length; i++) {
-        const [segment, path] = queue[i];
-        if (segment === target) return path;
-        for (const entry of segment.stairsEntries) {
-            const next = entry.connection?.segment;
-            if (next && !seen.has(next)) {
-                seen.add(next);
-                queue.push([next, [...path, entry]]);
-            }
+/** Search complete region ownership history: stairs retain the destination's last region. */
+function routeTo(main, targetSegment, targetRegion) {
+    const segments = main.stageSegments;
+    const initial = { segment: main.stageSegment.stageSegmentIndex, owners: segments.map((segment) => segment.regionIndex), path: [] };
+    const queue = [initial],
+        seen = new Set();
+    for (let cursor = 0; cursor < queue.length; cursor++) {
+        const state = queue[cursor],
+            key = `${state.segment}:${state.owners.join(",")}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (state.segment === targetSegment && state.owners[state.segment] === targetRegion) return state.path;
+        if (seen.size > 10000) throw new Error("SETUP: topology history search budget exceeded");
+        const segment = segments[state.segment],
+            region = segment.regions[state.owners[state.segment]];
+        for (const [entryIndex, entry] of segment.stairsEntries.entries()) {
+            if (!entry.connection || entry.x < region.min || entry.x > region.max) continue;
+            queue.push({
+                segment: entry.connection.segment.stageSegmentIndex,
+                owners: [...state.owners],
+                path: [...state.path, { kind: "stairs", segment: state.segment, region: state.owners[state.segment], entryIndex }]
+            });
         }
+        for (const candidate of segments)
+            for (let ri = 0; ri < candidate.regions.length; ri++) {
+                if (!candidate.regions[ri].checkpoint) continue;
+                const owners = [...state.owners];
+                owners[candidate.stageSegmentIndex] = ri;
+                queue.push({
+                    segment: candidate.stageSegmentIndex,
+                    owners,
+                    path: [...state.path, { kind: "checkpoint", segment: candidate.stageSegmentIndex, region: ri }]
+                });
+            }
     }
     return null;
+}
+function oldStairsReachable(start, target) {
+    const queue = [start],
+        seen = new Set();
+    for (const segment of queue) {
+        if (segment === target) return true;
+        if (seen.has(segment)) continue;
+        seen.add(segment);
+        for (const entry of segment.stairsEntries) if (entry.connection && !seen.has(entry.connection.segment)) queue.push(entry.connection.segment);
+    }
+    return false;
 }
 export function seed({ main }, spec) {
     main.stopAllSounds();
@@ -65,6 +97,30 @@ export function seed({ main }, spec) {
             segment: main.stageSegment.stageSegmentIndex,
             region: main.stageSegment.regionIndex
         };
+    const topology = main.stageSegments.flatMap((segment) =>
+        segment.regions.map((region, index) => ({
+            stage: spec.stage,
+            hard: spec.hard,
+            segment: segment.stageSegmentIndex,
+            region: index,
+            checkpoint: Boolean(region.checkpoint),
+            initialOwner: segment.regionIndex,
+            direction: segment.direction,
+            min: region.min,
+            max: region.max,
+            oldEligible: Boolean(region.checkpoint || (index === segment.regionIndex && oldStairsReachable(main.stageSegment, segment))),
+            stairs: segment.stairsEntries.map((entry) => ({
+                x: entry.x,
+                y: entry.y,
+                to: entry.connection?.segment.stageSegmentIndex,
+                direction: entry.direction
+            })),
+            doors: region.thingStack.things
+                .slice(0, region.thingStack.top + 1)
+                .filter((thing) => thing?.constructor.name === "Door")
+                .map((door) => ({ x: door.x, y: door.y, direction: door.direction, active: door.active }))
+        }))
+    );
     const rng = random(spec.setupSeed);
     const candidates = [];
     for (const segment of main.stageSegments)
@@ -72,23 +128,41 @@ export function seed({ main }, spec) {
             const region = segment.regions[ri];
             // Checkpointless regions can be reached through their real stair links.
             // Do not fabricate a checkpoint or silently select using validation.
-            if (region.checkpoint || (ri === segment.regionIndex && stairsPath(main.stageSegment, segment))) candidates.push({ segment, ri, region });
+            if (region.max === region.min) continue; // Explicit zero-width sentinel, retained in census below.
+            const path = routeTo(main, segment.stageSegmentIndex, ri);
+            if (!path) throw new Error(`SETUP: missing topology recipe for ${segment.stageSegmentIndex}:${ri}`);
+            candidates.push({ segment, ri, region, path });
         }
     if (!candidates.length) throw new Error("SETUP: no coherent region route");
-    const target = candidates[rng.int(candidates.length)];
-    if (target.region.checkpoint) {
-        main.checkpoint = target.region.checkpoint;
-        main.restoreCheckpoint();
-    } else {
-        const path = stairsPath(main.stageSegment, target.segment);
-        if (!path) throw new Error("SETUP: checkpointless region has no staircase route");
-        for (const entry of path) {
+    const target = spec.targetRegion
+        ? candidates.find((candidate) => candidate.segment.stageSegmentIndex === spec.targetRegion.segment && candidate.ri === spec.targetRegion.region)
+        : candidates[rng.int(candidates.length)];
+    if (!target) throw new Error(`SETUP: requested region absent ${JSON.stringify(spec.targetRegion)}`);
+    for (const edge of target.path) {
+        if (edge.kind === "checkpoint") {
+            main.checkpoint = main.stageSegments[edge.segment].regions[edge.region].checkpoint;
+            main.restoreCheckpoint();
+        } else {
+            if (main.stageSegment.stageSegmentIndex !== edge.segment || main.stageSegment.regionIndex !== edge.region)
+                throw new Error("SETUP: stale stair route ownership");
+            const entry = main.stageSegment.stairsEntries[edge.entryIndex];
             main.simon.x = entry.x;
             main.followStairsToNextSegment();
         }
     }
     if (main.stageSegment !== target.segment || main.stageSegment.regionIndex !== target.ri)
         throw new Error("SETUP: region ownership differs after the producer route");
+    const ownedRegion = main.stageSegment.regions[main.stageSegment.regionIndex];
+    if (
+        main.map !== main.stageSegment.map ||
+        main.walls !== main.stageSegment.walls ||
+        main.platforms !== ownedRegion.platforms ||
+        main.simon.xMin !== ownedRegion.min ||
+        main.simon.xMax !== ownedRegion.max ||
+        main.stage !== ownedRegion.stageNumber ||
+        !main.checkpoint
+    )
+        throw new Error(`SETUP: topology roots disagree after ${JSON.stringify(target.path)}`);
     const player = main.simon,
         region = target.region;
     const minimumX = Math.ceil(region.min - player.rx1),
@@ -99,8 +173,8 @@ export function seed({ main }, spec) {
         const x = minimumX + rng.int(maximumX - minimumX + 1),
             y = -64 + rng.int(353);
         let free = true;
-        for (let dx = player.rx1; dx <= player.rx2; dx += 8)
-            for (let dy = player.ry1; dy <= player.ry2; dy += 8) if (main.isSolid(x + dx, y + dy)) free = false;
+        const samples = (low, high) => [...new Set([low, high, ...Array.from({ length: Math.ceil((high - low) / 8) }, (_, i) => low + 8 * i)])];
+        for (const dx of samples(player.rx1, player.rx2)) for (const dy of samples(player.ry1, player.ry2)) if (main.isSolid(x + dx, y + dy)) free = false;
         if (free) {
             point = { x, y };
             break;
@@ -117,6 +191,15 @@ export function seed({ main }, spec) {
     player.onStairs = false;
     main.moveCamera();
     return {
+        topology,
+        route: target.path,
+        excludedSentinels: topology
+            .filter((row) => row.min === row.max)
+            .map((row) => ({
+                segment: row.segment,
+                region: row.region,
+                reason: "zero-width terminal map partition; no player footprint or active entry door"
+            })),
         strategy: target.region.checkpoint ? "checkpoint-plus-airborne-placement" : "stairs-plus-airborne-placement",
         x: player.x,
         y: player.y,
@@ -156,7 +239,7 @@ export function diagnose(_main, snapshot, stage) {
     return { ownerType: `mode:${snapshot.mode}`, ruleCode: stage };
 }
 
-// Benchmark the former outgoing preflight boundary with the current serializer.
+// Benchmark substitution of only the extra resource preflight in the CURRENT stack.
 export function validateBaseline(main, snapshot) {
     if (!serializer.isSupportedSnapshot(snapshot)) return "structure-and-graph";
     if (!isReasonableStickvaniaGameStateSnapshot(snapshot)) return "values-and-audio";
@@ -168,4 +251,28 @@ export function validateBaseline(main, snapshot) {
 
 export function observedStratum({ main }) {
     return { stage: main.stageIndex, world: 0, hard: main.difficulty === Main.DIFFICULTY_HARD };
+}
+
+import { snapshotTransitionKey } from "./compare.mjs";
+export function captureContext(snapshot) {
+    const segment = snapshot.stage?.currentSegmentIndex;
+    return {
+        stage: snapshot.mainFields.stageIndex,
+        world: 0,
+        hard: snapshot.mainFields.difficulty === 1,
+        mode: snapshot.mode,
+        segment,
+        region: segment === null ? null : snapshot.stage?.segments[segment]?.regionIndex
+    };
+}
+export function transitionProjection(snapshot) {
+    return { context: captureContext(snapshot), phases: snapshotTransitionKey(snapshot) };
+}
+export function instrument({ main }, observer) {
+    observer.actor(main.simon, true);
+    observer.input(main.controlInput);
+    for (const stack of [main.regionThingStack, main.weaponsStack, main.oldThingStack]) {
+        if (!stack) continue;
+        for (let i = 0; i <= stack.top; i++) if (stack.things[i] !== main.simon) observer.actor(stack.things[i]);
+    }
 }
