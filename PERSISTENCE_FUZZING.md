@@ -141,3 +141,5 @@ filter chooses a placement. Existing presentation/departure suites cover actual
 door/stair transitions, and pit/castle suites retain the difficult owner boundaries.
 
 Each adapter owns `transitions.mjs`, which projects its real mode/player/root and audio schema. Ordinary countdowns and audio cursors are excluded; completion, transport, voice membership and stage/region ownership trigger full writes.
+
+Input generator 3 excludes both `P` and NES Start/Enter from random gameplay recipes: either can toggle Pause. Explicit paired pause fixtures retain pause/resume coverage. Recipe/profile format remains 2.
