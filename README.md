@@ -57,12 +57,10 @@ Regenerate affected resource and parity metadata through the repository scripts.
 
 Edit the project-page prose in `about/content.md` and `about/footer.md`; layout and metadata are maintained in `about/index.html` and `scripts/build-about.mjs`.
 
+See [PERSISTENCE_FUZZING.md](PERSISTENCE_FUZZING.md) for the deterministic qualification campaign, overnight discovery, replay/minimization, evidence isolation and required complete-game resources.
+
 ## Documentation and licensing
 
 - [desktop/README.md](desktop/README.md): Java build and runtime requirements.
 - [releases/README.md](releases/README.md): local release artifacts.
 - [LICENSE](LICENSE), [COPYRIGHT.md](COPYRIGHT.md), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): source licensing, attribution, and third-party scope.
-
-## Persistence fuzzing
-
-See [PERSISTENCE_FUZZING.md](PERSISTENCE_FUZZING.md) for the deterministic qualification campaign, overnight discovery, replay/minimization, evidence isolation and required complete-game resources.
