@@ -1,3 +1,4 @@
+import { semanticCommands } from "./persistence-fuzz/semantic-floor.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -69,7 +70,8 @@ test("lifecycle stress requires exact wake-lock acquisition and release accounti
 });
 
 test("departure qualification is executable and required by both built-PWA gates", () => {
-    assert.equal(packageJson.scripts["verify:departure-save"], "node scripts/run-departure-save-qualification.mjs");
+    assert.equal(packageJson.scripts["verify:departure-save"], "node scripts/persistence-fuzz/semantic-run.mjs departure");
+    assert.deepEqual(semanticCommands[packageJson.name].departure, ["scripts/run-departure-save-qualification.mjs"]);
     assert.match(
         packageJson.scripts.qualify,
         /npm run verify:departure-save && npm run verify:save-pit && npm run verify:persistence-fuzz:controls && npm run verify:persistence-fuzz && node scripts\/assert-clean-git\.mjs$/
