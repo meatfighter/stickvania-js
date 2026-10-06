@@ -1,3 +1,4 @@
+import { invokeObservedRestore } from "./failure-protocol.mjs";
 /* global document, location */
 import { ResourceLoader } from "slick2d-ts";
 import { StickvaniaRuntimeLoader } from "/src/app/RuntimeLoader.ts";
@@ -13,10 +14,13 @@ export const key = GAME_STATE_STORAGE_KEY;
 export const debugKey = REJECTED_SAVE_DEBUG_KEY;
 export const serializer = new StickvaniaGameStateSerializer();
 export { beginGameAudio, commitGameAudio, releaseGameAudio };
-export async function mount(restore, version) {
+export async function mount(restore, version, probe) {
     ResourceLoader.removeAllResourceLocations();
     ResourceLoader.addResourceLocation(new URL("/", location.href));
+    probe.stage = "runtime-prepare";
     const runtime = await new StickvaniaRuntimeLoader(() => {}).ensurePrepared();
+    probe.restoreWitness.resourcesPrepared = true;
+    probe.stage = "runtime-mount";
     const store = new runtime.StickvaniaGameStateStore(version);
     runtime.slick.Display.setParent(document.querySelector("#game-host"));
     const main = new runtime.Main();
@@ -26,7 +30,10 @@ export async function mount(restore, version) {
     container.setLoopSuspended(true);
     if (restore)
         main.loadingCompleteHandler = (gc) => {
-            if (!store.restore(main, gc)) throw new Error("RESTORE_REJECTED");
+            probe.stage = "restore";
+            probe.restoreWitness.expectedBytesVerified = typeof probe.expectedText === "string" && localStorage.getItem(key) === probe.expectedText;
+            if (!probe.restoreWitness.expectedBytesVerified) throw new Error("Restore input bytes do not match this document's expected slot");
+            if (!invokeObservedRestore(store, main, gc, probe.restoreWitness)) throw new Error("RESTORE_REJECTED");
             return true;
         };
     await container.start();
